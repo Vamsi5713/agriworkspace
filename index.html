@@ -1,0 +1,2682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="UTF-8" />
+  <title>e-Panta Agriculture Dashboard</title>
+
+  <!-- Bootstrap CSS for styling and responsive layout -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+  <!-- SheetJS library for Excel/CSV file reading -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+  <!-- Internal CSS -->
+  <style>
+
+
+    @media (max-width: 768px) {
+      .dashboard-title {
+        font-size: 1.8rem;
+      }
+      .dashboard-card h5 {
+        font-size: 1rem;
+      }
+      .search-farmer-card {
+        padding: 1rem;
+      }
+    }
+
+    body {
+      background: linear-gradient(135deg, #f8faff 0%, #f0f4fc 100%);
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .center-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 0;
+    }
+    
+    .hidden {
+      display: none;
+    }
+
+    /* Navbar Styling */
+    .navbar {
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .navbar-brand {
+      letter-spacing: 0.03em;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .nav-link {
+      position: relative;
+      transition: color 0.3s ease;
+      font-weight: 500;
+    }
+
+    .nav-link:after {
+      content: '';
+      position: absolute;
+      width: 0;
+      height: 2px;
+      bottom: 0;
+      left: 50%;
+      background: white;
+      transition: all 0.3s ease;
+      transform: translateX(-50%);
+    }
+
+    .nav-link:hover:after {
+      width: 80%;
+    }
+
+    /* Table Styling */
+    table.table-bordered {
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    table.table-bordered thead tr {
+      background: linear-gradient(45deg, #1862ab, #2e7fd1);
+      color: white;
+      font-weight: 500;
+    }
+
+    table.table-bordered th,
+    table.table-bordered td {
+      border: 1px solid #e0e7ff;
+      padding: 12px 15px;
+      vertical-align: middle;
+    }
+   
+ 
+ /* Crop Recommendation Styles */
+    #cropRecommendationSection {
+      max-width: 600px;
+      margin: 2rem auto;
+      background: #f0f4f8;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+      color: #333;
+    }
+    #cropRecommendationSection h1 {
+      text-align: center;
+      color: #2d6cdf;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    #cropRecommendationSection label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: #555;
+    }
+    #cropRecommendationSection select, 
+    #cropRecommendationSection button {
+      width: 100%;
+      padding: 12px 10px;
+      margin-bottom: 18px;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+    #cropRecommendationSection select:focus, 
+    #cropRecommendationSection button:focus {
+      outline: none;
+      border-color: #2d6cdf;
+      box-shadow: 0 0 6px #a4c3ff;
+    }
+    #cropRecommendationSection button {
+      background-color: #2d6cdf;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.3s ease;
+    }
+    #cropRecommendationSection button:hover {
+      background-color: #234bb8;
+    }
+    #recommendationBox {
+      background: white;
+      border: 1px solid #ccc;
+      padding: 16px 20px;
+      white-space: pre-line;
+      border-radius: 10px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+      font-family: Consolas, monospace;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      margin-top: 15px;
+      min-height: 140px;
+      display: none;
+    }
+    #pestSection, #fertilizerScheduleSection {
+      margin-bottom: 18px;
+      display: none;
+    }
+    #fertilizerScheduleTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    #fertilizerScheduleTable th,
+    #fertilizerScheduleTable td {
+      border: 1px solid #bbb;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    #fertilizerScheduleTable th {
+      background-color: #2d6cdf;
+      color: white;
+      font-weight: 600;
+    }
+    #cropRecomBackBtn {
+      margin-bottom: 18px;
+      background: #eee;
+      color: #2d6cdf;
+      border: 1.5px solid #2d6cdf;
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    /* Dashboard Styles */
+    #dashboardSection {
+      padding: 2rem 0;
+      background: linear-gradient(135deg, #f8faff 0%, #f0f4fc 100%);
+      min-height: 100vh;
+    }
+
+    .dashboard-header {
+      border-bottom: 2px solid #eee;
+      padding-bottom: 1rem;
+    }
+
+    .dashboard-title {
+      color: #1862ab;
+      font-size: 2.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .welcome-text {
+      color: #7f8c8d;
+      font-size: 1.2rem;
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      color: #34495e;
+      font-size: 1.5rem;
+      font-weight: 500;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #eee;
+    }
+
+    .dashboard-card {
+      background: #ffffff;
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    }
+
+    .dashboard-card:before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+      transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+
+    .dashboard-card:hover:before {
+      opacity: 1;
+    }
+
+    .dashboard-card .card-body {
+      padding: 1.5rem;
+    }
+
+    .dashboard-card h5 {
+      color: #2c3e50;
+      font-weight: 600;
+      margin: 1rem 0;
+      font-size: 1.25rem;
+    }
+
+    .dashboard-card p {
+      color: #7f8c8d;
+      font-size: 0.9rem;
+      margin-bottom: 0;
+    }
+
+    .search-farmer-card {
+      background: #ffffff;
+      border-radius: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+    }
+
+    .search-farmer-card h5 {
+      color: #2c3e50;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #eee;
+    }
+
+    .search-farmer-card .form-label {
+      color: #34495e;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .search-farmer-card .form-control,
+    .search-farmer-card .form-select {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .search-farmer-card .form-control:focus,
+    .search-farmer-card .form-select:focus {
+      border-color: #3498db;
+      box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+
+    .search-results {
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-top: 1rem;
+      padding: 0.5rem;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .search-results .list-group-item {
+      border: none;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .search-results .list-group-item:hover {
+      background: #e9ecef;
+      cursor: pointer;
+    }
+
+    #ePantaReportPage {
+      padding: 2rem 1rem;
+      background: #f8faff;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      }
+
+
+      #ePantaReportPage h2 {
+      font-size: 2rem;
+      font-weight: 600;
+      color: #1862ab;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      }
+
+
+      .report-filters {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      }
+
+
+      .report-filters label {
+      font-weight: 500;
+      margin-right: 0.5rem;
+      }
+
+
+      .report-filters select,
+      .report-filters button {
+      margin-right: 1rem;
+      margin-bottom: 0.5rem;
+      }
+
+
+      #reportContainer table {
+      border-radius: 8px;
+      overflow: hidden;
+      }
+
+
+      #reportContainer thead th {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(45deg, #1862ab, #2e7fd1);
+      color: #fff;
+      z-index: 2;
+      }
+
+
+      #reportContainer .table-hover tbody tr:hover {
+      background: #f1f5ff;
+      }
+
+
+      .farmer-btn,
+      .crop-btn {
+      color: #1862ab;
+      text-decoration: none;
+      font-weight: 500;
+      }
+
+
+      .farmer-btn:hover,
+      .crop-btn:hover {
+      text-decoration: underline;
+      }
+
+
+cc-experiments-container {
+    max-width: 360px;
+    margin: 1.5rem auto 0 auto; /* Reduced margin */
+    padding-top: 0;
+    min-height: unset;
+    display: block;
+    background: #eafaf1; /* Soft mint green for accent */
+    border-radius: 20px;
+  }
+  #ccExperimentsSection .card {
+    border-radius: 15px;
+    border: 2px solid #27ae60; /* Deep green border */
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(32, 160, 120, 0.07);
+  }
+  #ccExperimentsSection .card-body {
+    padding: 1.25rem 1.5rem 2rem 1.5rem;
+  }
+  .cc-experiments-container h3 {
+    color: #207150; /* Dashboard accent green */
+    font-weight: 600;
+  }
+  .cc-experiments-container p.text-muted {
+    color: #3C4858 !important;
+    font-size: .98rem;
+  }
+  #calcTypeSelect {
+    max-width: 100%;
+    border-radius: 10px;
+    border: 1px solid #b2dfdb;
+    background: #f6fffa;
+    color: #19604b;
+    font-weight: 500;
+    transition: box-shadow 0.2s;
+    box-shadow: 0 0 6px rgba(39,174,96, 0.05);
+  }
+  #calcTypeSelect:focus {
+    box-shadow: 0 0 6px #27ae60;
+    border-color: #27ae60;
+  }
+  #calculatorContent {
+    margin-top: 1rem;
+  }
+  /* Example input styling for calculator forms */
+  #calculatorContent input[type="number"] {
+    border-radius: 10px;
+    border: 1px solid #b2dfdb;
+    background: #f6fffa;
+    margin-bottom: 0.8rem;
+    color: #207150;
+    font-size: 1rem;
+    transition: box-shadow 0.2s;
+  }
+  #calculatorContent input[type="number"]:focus {
+    box-shadow: 0 0 6px #27ae60;
+    border-color: #27ae60;
+  }
+  #calculatorContent button {
+    border-radius: 10px;
+    background: #27ae60;
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.3rem;
+    box-shadow: 0 2px 8px rgba(39,174,96,0.09);
+    transition: background 0.2s;
+  }
+  #calculatorContent button:hover {
+    background: #19604b;
+  }
+
+  
+  /* Responsive modal for mobile */
+@media (max-width: 576px) {
+  .modal-lg {
+    max-width: 98vw;
+    margin: 0.5rem;
+  }
+  #farmerModalBody table {
+    font-size: 0.95rem;
+  }
+  #farmerModalBody p {
+    font-size: 1rem;
+  }
+  #farmerModalBody h5 {
+    font-size: 1.1rem;
+  }
+  #farmerModal .modal-content {
+    border-radius: 10px;
+  }
+}
+
+#farmerModalBody .table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 576px) {
+  #farmerModalBody .table-responsive {
+    max-width: 100vw;
+    margin-bottom: 1rem;
+  }
+}
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <div id="mainNavbar" class="hidden" role="navigation" aria-label="Main Navigation">
+    <!-- <nav class="navbar navbar-expand-lg navbar-dark" style="background:#1862ab;">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="#">DEPARTMENT OF AGRICULTURE</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+          aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-nav ms-auto">
+          <a class="nav-link text-white" href="#" onclick="showSection('dashboardSection');return false;">Dashboard</a>
+          <a class="nav-link text-white" href="#" onclick="showSection('ePantaReportPage');return false;">e-Panta Report</a>
+          <a class="nav-link text-white" href="#" onclick="location.reload(); return false;">Refresh</a>
+          <a class="nav-link text-white" href="#" onclick="showSection('ccExperimentsSection');return false;">cc Experiments</a>
+          <a class="nav-link text-white" href="#" onclick="showSection('uploadReportPage');return false;">Upload Report</a>
+          <a class="nav-link text-white" href="#" onclick="showSection('profileSection');return false;">Profile</a>
+          <a class="nav-link text-white" href="#" onclick="logoutUser();return false;">Logout</a>
+        </div>
+      </div>
+    </nav> -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background:#1862ab;">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="#">DEPARTMENT OF AGRICULTURE</a>
+
+        <!-- Hamburger toggler -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+          aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Collapsible content -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <div class="navbar-nav ms-auto">
+            <a class="nav-link text-white" href="#" onclick="showSection('dashboardSection');return false;">Dashboard</a>
+            <a class="nav-link text-white" href="#" onclick="showSection('ePantaReportPage');return false;">e-Panta Report</a>
+            <a class="nav-link text-white" href="#" onclick="location.reload(); return false;">Refresh</a>
+            <a class="nav-link text-white" href="#" onclick="showSection('ccExperimentsSection');return false;">CC Experiments</a>
+            <a class="nav-link text-white" href="#" onclick="showSection('uploadReportPage');return false;">Upload Report</a>
+            <a class="nav-link text-white" href="#" onclick="showSection('profileSection');return false;">Profile</a>
+            <a class="nav-link text-white" href="#" onclick="logoutUser();return false;">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+  </div>
+<div class="text-center mt-4 mb-3" style="font-family: 'Poppins', sans-serif; color: #1862ab;">
+  <h3>Welcome to Agri Work Space</h3>
+  <p class="text-muted" style="font-size: 0.95rem;">Designed by G Vamsi</p>
+</div>
+
+  <!-- Login Page -->
+   
+<div class="center-wrapper">
+<div class="container" id="loginPage" role="main" aria-label="Login Page">
+  <div class="card shadow p-4 mx-auto" style="max-width: 400px;">
+    <h2 class="mb-4 text-center">Login</h2>
+    <input id="loginEmail" type="email" class="form-control mb-3" placeholder="Enter your email" aria-label="Email" />
+    <input id="loginPassword" type="password" class="form-control mb-3" placeholder="Enter your password" aria-label="Password" />
+    <button class="btn btn-primary w-100 mb-2" onclick="loginUser()">Login</button>
+    <div class="text-center">
+      <a href="#" onclick="showSection('resetPasswordSection');return false;">Forgot Password?</a><br />
+      <small>New user?... <a href="#" onclick="showSection('registerPage');return false;">Register Here</a></small>
+     <div class="container mt-4" style="max-width:700px;">
+  <div class="card border-info shadow-sm">
+    <div class="card-header bg-info text-white">
+      <h4 class="mb-0"><i class="fas fa-file-upload me-2"></i>Manual: Upload & Workflow</h4>
+    </div>
+    <div class="card-body">
+      <h5>Booking Excel File Preparation & Upload Steps</h5>
+      <p>ముందుగా ఈ పంట నుంచి పంట నమోదు వివరాలు డౌన్లోడ్ చేసుకోవాలి </p>
+      <p><strong>ఎక్సెల్ ఫైల్ లో క్రింద చూపిన విధం గా కాలమ్ పేర్లు మార్చుకోగలరు :</strong></p>
+      <ul style="list-style-type: square;">
+        <li>Booking ID</li>
+        <li>Khatha Number</li>
+        <li>Survey Number</li>
+        <li>Area</li>
+      </ul>
+      <p>పైన తెలిపిన విధంగా కాలమ్ పేర్లు మార్చనీఎడాల రైతుల వివరాలు మరియు పంట వివరాలు రావు </p>
+      <p>
+        ముందుగా <strong>Upload Report</strong> లో కాలమ్ పేర్లు మార్చిన ఎక్సెల్ ఫైల్ ని అప్లోడు చేయాలి <br>
+        అప్లోడు చేసిన తరువాత  <strong>e-Panta Report</strong>లో పంటల వారీగా రైతుల సంఖ్య మరియు విస్తీర్ణం, రైతుల పేర్లు రావడం జరుగుతుంది <br>
+        ఒక రైతు యొక్క పంట నమోదు వివరాలు చూడాలి అనుకుంటే <strong>Dashboard</strong> లో <strong>search farmer</strong> దగ్గర ఆధార్ కార్డు చివరి నాలుగు అంకెలు తో చూడవచ్చు.
+      </p>
+      <div class="alert alert-warning" role="alert">
+        <strong>గమనిక:</strong> ఒకవేళ ఇద్దరి రైతులకి ఆధార్ కార్డు చివరి నాలుగు అంకెలు ఒకేలా ఉంటే ఇద్దరివి కలిపి ఒకరికే చూపెడుతుంది. అలా ఉన్నప్పుడు ఖాతా నెంబర్ ను పరిశీలించగలరు. 
+      </div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+</div>
+
+
+  <!-- Register Page -->
+  <div class="container hidden" id="registerPage" role="main" aria-label="Registration Page">
+    <div class="card shadow p-4 mx-auto" style="max-width: 400px;">
+      <h2 class="mb-4 text-center">Register</h2>
+      <input id="registerEmail" type="email" class="form-control mb-3" placeholder="Enter your email" aria-label="Email" />
+<input id="fullName" type="fullName" class="form-control mb-3" placeholder="Enter your fullName" aria-label="fullName" />
+      <input id="registerPassword" type="password" class="form-control mb-3" placeholder="Enter your password" aria-label="Password" />
+      <button class="btn btn-success w-100 mb-2" onclick="registerUser()">Register</button>
+      <div class="text-center">
+        <a href="#" onclick="showSection('loginPage');return false;">Back to Login</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset Password Page -->
+  <div class="container hidden" id="resetPasswordSection" role="main" aria-label="Reset Password Page">
+    <div class="card shadow p-4 mx-auto" style="max-width: 400px;">
+      <h2 class="mb-4 text-center">Reset Password</h2>
+      <input id="resetEmail" type="email" class="form-control mb-3" placeholder="Enter your email" aria-label="Email" />
+      <button class="btn btn-warning w-100 mb-2" onclick="sendPasswordReset()">Send Reset Email</button>
+      <div class="text-center">
+        <a href="#" onclick="showSection('loginPage');return false;">Back to Login</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Section -->
+  <!-- Farmer Details Modal for Search Results -->
+  <div class="modal fade" id="farmerModal" tabindex="-1" aria-labelledby="farmerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="farmerModalLabel">Farmer Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="farmerModalBody">
+          <!-- Farmer details will be injected here -->
+        </div>
+        <div class="modal-footer" style="justify-content: flex-end;">
+          <button type="button" class="btn btn-outline-primary" id="printFarmerModalBtn">
+            <i class="fas fa-print"></i> Print
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="hidden" id="dashboardSection" role="main" aria-label="Dashboard Section">
+    <div class="container">
+      <div class="dashboard-header mb-4">
+        <h2 class="dashboard-title">Dashboard</h2>
+        <p class="welcome-text">Welcome, <span id="userEmail" aria-live="polite"></span></p>
+      </div>
+
+      <div class="row row-cols-1 row-cols-md-4 g-4 mb-4">
+        <!-- e-Panta Report Card -->
+        <div class="col">
+          <div class="dashboard-card h-100" role="button" tabindex="0" aria-pressed="false" aria-label="e-Panta Report - View the crop booking report" onclick="showSection('ePantaReportPage')">
+            <div class="card-body text-center">
+              <i class="fas fa-list-alt fa-3x mb-3" style="color: #1862ab;"></i>
+              <h5>e-Panta Report</h5>
+              <p>Access and manage crop booking information</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- e-Seed Report Card -->
+        <div class="col">
+          <div class="dashboard-card h-100" role="button" tabindex="0" aria-pressed="false" aria-label="e-Seed Report - Manage seed information and procurement" onclick="showSection('eseedSection')">
+            <div class="card-body text-center">
+              <i class="fas fa-seedling fa-3x mb-3" style="color: #2ecc71;"></i>
+              <h5>e-Seed Report</h5>
+              <p>Manage seed information and procurement</p>
+            </div>
+          </div>
+        </div>
+
+       <!-- CC Experiments Card -->
+<div class="col">
+  <div class="dashboard-card h-100 shadow-sm" 
+       role="button" tabindex="0" 
+       aria-pressed="false" 
+       aria-label="CC Experiments - Calculate SurveyNumber and SubDivision"
+       onclick="showSection('ccExperimentsSection')"
+       style="cursor:pointer;">
+    <div class="card-body text-center">
+      <i class="fas fa-flask fa-3x mb-3" style="color: #27ae60;"></i>
+      <h5 class="mb-2">CC Experiments</h5>
+      <p class="text-muted mb-0">Calculate SurveyNumber and SubDivision</p>
+    </div>
+  </div>
+</div>
+
+
+        <!-- Crop Recommendation Card -->
+        <div class="col">
+          <div class="dashboard-card h-100" role="button" tabindex="0" aria-pressed="false" aria-label="Crop Recommendation - Get crop recommendations for your area" onclick="showSection('cropRecommendationSection')">
+            <div class="card-body text-center">
+              <i class="fas fa-leaf fa-3x mb-3" style="color: #27ae60;"></i>
+              <h5>Crop Recommendation</h5>
+              <p>Get personalized crop recommendations</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="row g-4">
+        <!-- Left Column: Management Cards -->
+        <div class="col-md-8">
+          <div class="row row-cols-1 row-cols-md-2 g-4">
+            <!-- Profile Card -->
+            <div class="col">
+              <div class="dashboard-card h-100" role="button" tabindex="0" aria-pressed="false" aria-label="Profile - View and update profile information" onclick="showSection('profileSection')">
+                <div class="card-body text-center">
+                  <i class="fas fa-user-circle fa-3x mb-3" style="color: #3498db;"></i>
+                  <h5>Profile</h5>
+                  <p>Manage your account settings</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Report Card -->
+            <div class="col">
+              <div class="dashboard-card h-100" role="button" tabindex="0" aria-pressed="false" aria-label="Upload Report - Consolidate farmers and booking data from Excel or CSV files" onclick="showSection('uploadReportPage')">
+                <div class="card-body text-center">
+                  <i class="fas fa-file-upload fa-3x mb-3" style="color: #9b59b6;"></i>
+                  <h5>Upload Report</h5>
+                  <p>Import farmer and booking data</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Search Farmer -->
+        <div class="col-md-4">
+          <div class="search-farmer-card" aria-label="Search Farmer Card" role="region">
+            <h5><i class="fas fa-search me-2"></i>Search Farmer</h5>
+            <div class="mb-3">
+              <label for="searchCropYear" class="form-label">Crop Year</label>
+              <select id="searchCropYear" class="form-select" aria-label="Select crop year for search"></select>
+            </div>
+            <div class="mb-3">
+              <label for="searchSeason" class="form-label">Season</label>
+              <select id="searchSeason" class="form-select" aria-label="Select season for search">
+                <option value="">Select Season</option>
+                <option value="Kharif">Kharif</option>
+                <option value="Rabi">Rabi</option>
+                <option value="Summer">Summer</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="aadhaarLast4Input" class="form-label">Aadhaar Last 4 Digits</label>
+              <input type="text" id="aadhaarLast4Input" class="form-control" maxlength="4" placeholder="Enter last 4 digits" aria-label="Search farmer by Aadhaar last 4 digits" />
+            </div>
+            <div id="searchResults" class="search-results" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Report Page -->
+  <div class="container hidden" id="uploadReportPage" role="main" aria-label="Upload Farmer or Booking Report Page">
+    <div class="card p-4 mx-auto mt-4" style="max-width: 960px;">
+      <h2>Upload Farmer / Booking Report (.csv or .xlsx)</h2>
+<div role="region" aria-label="Upload Report Instructions" style="background: #eef6ff; border-left: 4px solid #2d6cdf; padding: 12px 16px; margin-bottom: 20px; font-size: 0.95rem; color: #333;">
+  <strong>Upload Report Instructions:</strong>
+  <ul>
+    <li>Please ensure your Excel/CSV file columns are named exactly as follows:</li>
+    <li><code>Booking ID</code> for booking IDs (avoid 'booking-id')</li>
+    <li><code>Survey Number</code> instead of 'Survey no'</li>
+    <li><code>Khatha Number</code> instead of 'Khatha no'</li>
+    <li><code>Area</code> instead of 'Area sown'</li>
+  </ul>
+  <p>Incorrect column names may cause data import errors or missing data.</p>
+</div>
+
+      <div>
+        <label for="cropYear">Crop Year:</label>
+        <select id="cropYear" aria-label="Select crop year"></select>
+        <label for="season">Season:</label>
+        <select id="season" aria-label="Select season">
+          <option value="">Select</option>
+          <option value="Kharif">Kharif</option>
+          <option value="Rabi">Rabi</option>
+          <option value="Summer">Summer</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <input type="file" id="fileInput" accept=".csv, .xlsx, .xls" aria-label="Upload Excel or CSV file" />
+      <div id="message" role="alert" aria-live="assertive"></div>
+      <div id="previewHeading" style="display:none;">Preview of Uploaded Data</div>
+      <div id="summary" class="summary" aria-live="polite"></div>
+      <!-- <div id="tableContainer" tabindex="0" aria-label="Data Table Container" style="overflow:auto; max-height: 400px;">
+        <table id="dataTable" aria-describedby="summary"></table>
+      </div> -->
+      <div id="tableContainer" tabindex="0" aria-label="Data Table Container" class="table-responsive" style="max-height: 400px;">
+        <table id="dataTable" class="table table-bordered" aria-describedby="summary"></table>
+      </div>
+      <button id="saveSummaryBtn">Save &amp; View in e-Panta Report</button>
+    </div>
+  </div>
+
+  <!-- e-Panta Report Page -->
+  <div class="container" id="ePantaReportPage" role="main" aria-label="e-Panta Crop Booking Report">
+    <h2>e-Panta Crop Booking Report</h2>
+    <div class="report-filters d-flex flex-wrap align-items-center">
+    <label for="filterYear">Select Crop Year:</label>
+    <select id="filterYear" class="form-select form-select-sm w-auto" aria-label="Filter report by crop year">
+    <option value="">--Choose Year--</option>
+    </select>
+
+
+    <label for="filterSeason">Select Season:</label>
+    <select id="filterSeason" class="form-select form-select-sm w-auto" aria-label="Filter report by season">
+    <option value="">--Choose Season--</option>
+    <option value="Kharif">Kharif</option>
+    <option value="Rabi">Rabi</option>
+    <option value="Summer">Summer</option>
+    <option value="Other">Other</option>
+    </select>
+
+
+    <button id="loadReportBtn" class="btn btn-primary btn-sm">
+    <i class="fas fa-filter me-1"></i> Load Report
+    </button>
+    </div>
+    <div id="reportContainer" style="margin-top:1.5rem;"></div>
+  </div>
+  
+
+  <!-- Farmer Details Page -->
+  <div class="container hidden" id="farmerDetailsPage" role="main" aria-label="Farmer Details Page">
+    <h2 id="farmerDetailsTitle"></h2>
+    <button class="btn btn-secondary mb-3" id="fdBackBtn" aria-label="Back to e-Panta Report">← Back to e-Panta Report</button>
+    <div id="farmerDetailsContent"></div>
+  </div>
+
+  <!-- Crop Farmers Page -->
+  <div class="container hidden" id="cropFarmersPage" role="main" aria-label="Crop Farmers List Page">
+    <h2 id="cropFarmersTitle"></h2>
+    <button class="btn btn-secondary mb-3" id="cfBackBtn" aria-label="Back to e-Panta Report">← Back to e-Panta Report</button>
+    <div id="cropFarmersContent"></div>
+  </div>
+
+  <!-- e-Seed Report Section Placeholder -->
+  <div class="container hidden" id="eseedSection" role="main" aria-label="e-Seed Report Section"></div>
+
+  <!-- CC Experiments Section Placeholder -->
+<div class="container cc-experiments-container hidden" id="ccExperimentsSection" role="main" aria-label="CC Experiments Section">
+  <div class="card shadow mb-4">
+    <div class="card-body">
+      <button type="button" class="btn btn-outline-primary mb-3" onclick="showSection('dashboardSection')" style="float: left;">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+      </button>
+      <div style="clear:both;"></div>
+      <h3 class="card-title text-center mb-4">CC Experiments</h3>
+      <div class="mb-3">
+        <label for="calcTypeSelect" class="form-label">Select Calculator:</label>
+        <select id="calcTypeSelect" class="form-select">
+          <option value="">-- Choose --</option>
+          <option value="surveyCalculator">Survey Number Calculator</option>
+          <option value="subDivisionCalculator">Sub Division Calculator</option>
+        </select>
+      </div>
+      <div id="calculatorContent"></div>
+    </div>
+  </div>
+</div>
+
+  <!-- Crop Recommendation Section -->
+  <div class="container hidden" id="cropRecommendationSection" role="region" aria-label="Crop Recommendation Section" tabindex="0">
+    <button id="cropRecomBackBtn" onclick="backToDashboard()" aria-label="Back to Dashboard">← Back to Dashboard</button>
+    <h1>Crop Recommendation System</h1>
+    <div class="section">
+      <label for="cropType">Select Crop Type:</label>
+      <select id="cropType" onchange="populateCrops()" aria-label="Select Crop Type">
+        <option value="">-- Select Crop Type --</option>
+        <option value="agricultural">Agricultural Crops</option>
+        <option value="horticultural">Horticultural Crops</option>
+      </select>
+    </div>
+    <div class="section">
+      <label for="cropName">Select Crop Name:</label>
+      <select id="cropName" aria-label="Select Crop Name">
+        <option value="">-- Select Crop Name --</option>
+      </select>
+    </div>
+    <div class="section">
+      <label for="recSeason">Select Season:</label>
+      <select id="recSeason" aria-label="Select Season">
+        <option value="">-- Select Season --</option>
+        <option value="kharif">Kharif</option>
+        <option value="rabi">Rabi</option>
+      </select>
+    </div>
+    <div class="section">
+      <label for="recType">Select Recommendation Type:</label>
+      <select id="recType" onchange="togglePestDisease()" aria-label="Select Recommendation Type">
+        <option value="">-- Select Recommendation Type --</option>
+        <option value="fertilizer">Fertilizer</option>
+        <option value="pest">Pest</option>
+        <option value="disease">Disease</option>
+      </select>
+    </div>
+    <div class="section" id="pestSection" aria-label="Pest or Disease selection">
+      <label for="pestName">Select Pest/Disease Name:</label>
+      <select id="pestName" aria-label="Select Pest or Disease Name">
+        <option value="">-- Select Pest/Disease --</option>
+      </select>
+    </div>
+    <div class="section">
+      <button onclick="getRecommendation()" aria-label="Get Recommendation">Get Recommendation</button>
+    </div>
+    <pre id="recommendationBox"></pre>
+    <div class="section" id="fertilizerScheduleSection" aria-label="Fertilizer schedule by crop age"></div>
+  </div>
+
+  <!-- Profile Section -->
+  <div class="container hidden" id="profileSection" role="main" aria-label="User Profile Section">
+    <h2>Profile</h2>
+    <div class="card p-4 mx-auto" style="max-width: 400px;">
+      <form id="profileForm" aria-label="User Profile Form">
+        <div class="mb-3">
+          <label for="profileEmail" class="form-label">Email</label>
+          <input type="email" id="profileEmail" class="form-control" readonly aria-readonly="true" />
+        </div>
+        <div class="mb-3">
+          <label for="profileDisplayName" class="form-label">Display Name</label>
+          <input type="text" id="profileDisplayName" class="form-control" placeholder="Enter display name" />
+        </div>
+        <button id="updateProfileBtn" type="submit" class="btn btn-primary w-100 mb-3">Update Profile</button>
+      </form>
+      <hr />
+      <h4>Change Password</h4>
+      <form id="changePasswordForm" aria-label="Change Password Form">
+        <div class="mb-3">
+          <label for="currentPassword" class="form-label">Current Password</label>
+          <input type="password" id="currentPassword" class="form-control" placeholder="Enter current password" required />
+        </div>
+        <div class="mb-3">
+          <label for="newPassword" class="form-label">New Password</label>
+          <input type="password" id="newPassword" class="form-control" placeholder="Enter new password" required />
+        </div>
+        <div class="mb-3">
+          <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
+          <input type="password" id="confirmNewPassword" class="form-control" placeholder="Confirm new password" required />
+        </div>
+        <button type="submit" class="btn btn-warning w-100">Change Password</button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Firebase and main script -->
+  <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script>
+    // Firebase initialization
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyD67V05oD0VRpRITR0z0R61NqIfuaiFih4",
+  authDomain: "agri-work-space.firebaseapp.com",
+  databaseURL: "https://agri-work-space-default-rtdb.firebaseio.com",
+  projectId: "agri-work-space",
+  storageBucket: "agri-work-space.firebasestorage.app",
+  messagingSenderId: "13945141436",
+  appId: "1:13945141436:web:0eacfa11b7a0e864bb38b9",
+  measurementId: "G-F7E4H3EVQY"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    // Utility function: sanitize Firebase keys
+    function sanitizeKeys(obj) {
+      let clean = {};
+      for (let k in obj) {
+        let newKey = k.replace(/[.#$/]/g, '_');
+        clean[newKey] = obj[k];
+      }
+      return clean;
+    }
+
+    // Track uploaded data globally
+    let uploadData = [];
+
+    // Auth State Change Handler
+    firebase.auth().onAuthStateChanged(user => {
+    if (user) {
+        const displayName = user.displayName || user.email;
+        document.getElementById("userEmail").textContent = displayName;
+        document.getElementById("mainNavbar").classList.remove("hidden");
+        showSection("dashboardSection");
+        populateYearDropdowns();
+    }
+});
+
+
+    // Show/hide sections, hide all except one
+    function showSection(sectionId) {
+      // Define only the main sections to toggle
+      const sections = [
+        'dashboardSection',
+        'uploadReportPage',
+        'ePantaReportPage',
+        'eseedSection',
+        'ccExperimentsSection',
+        'farmerDetailsPage',
+        'cropFarmersPage',
+        'loginPage',
+        'registerPage',
+        'resetPasswordSection',
+        'profileSection',
+        'cropRecommendationSection'
+      ];
+
+      // Hide all main sections
+      sections.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.style.display = 'none';
+      });
+
+      // Show the requested section with correct layout
+      const target = document.getElementById(sectionId);
+      if (target) {
+        if (sectionId === 'ePantaReportPage') {
+          target.style.display = 'flex';
+        } else {
+          target.style.display = 'block';
+        }
+      }
+    }
+
+
+    // Authentication Functions
+    function loginUser() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      firebase.auth().signInWithEmailAndPassword(email, password).catch(e => alert(e.message));
+    }
+    function registerUser() {
+      const email = document.getElementById('registerEmail').value;
+      const password = document.getElementById('registerPassword').value;
+      firebase.auth().createUserWithEmailAndPassword(email, password)
+        .then(() => alert('Registration successful! Please login.'))
+        .catch(e => alert(e.message));
+    }
+    function logoutUser() {
+      firebase.auth().signOut().then(() => showSection('loginPage'));
+    }
+    function sendPasswordReset() {
+      const email = document.getElementById('resetEmail').value;
+      if (!email) {
+        alert('Please enter your email.');
+        return;
+      }
+      firebase.auth().sendPasswordResetEmail(email)
+        .then(() => {
+          alert('Password reset email sent!');
+          showSection('loginPage');
+        })
+        .catch(e => alert(e.message));
+    }
+
+    // Local Storage key scoped by user email
+    function getStorageKey() {
+      const user = firebase.auth().currentUser;
+      return user ? user.email + '_allReports' : 'allReports';
+    }
+
+    // Populate year dropdowns dynamically
+    function populateYearDropdowns() {
+      const filterYear = document.getElementById('filterYear');
+      const cropYear = document.getElementById('cropYear');
+      const searchCropYear = document.getElementById('searchCropYear');
+      [filterYear, cropYear, searchCropYear].forEach(sel => {
+        sel.innerHTML = '<option value="">--Choose Year--</option>';
+        for(let year = 2020; year <= new Date().getFullYear(); year++) {
+          sel.appendChild(new Option(year, year));
+        }
+      });
+    }
+
+    // File upload, parsing and preview display
+    const fileInput = document.getElementById('fileInput');
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if(!file) {
+        document.getElementById('message').textContent = 'No file selected.';
+        return;
+      }
+      document.getElementById('message').textContent = '';
+      const previewHeading = document.getElementById('previewHeading');
+      previewHeading.style.display = 'none';
+      const reader = new FileReader();
+
+      reader.onload = evt => {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+          if(jsonData.length === 0) {
+            document.getElementById('message').textContent = 'File is empty or invalid.';
+            return;
+          }
+          uploadData = jsonData;
+          previewHeading.style.display = 'block';
+          displayUploadedDataTable(jsonData);
+          summarizeUploadedData(jsonData);
+        }
+        catch(err) {
+          document.getElementById('message').textContent = 'Error processing file: ' + err.message;
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Escape HTML entities for safety
+    function escapeHtml(text) {
+      if(!text) return '';
+      return text.toString().replace(/&/g, '&amp;')
+                          .replace(/</g, '&lt;')
+                          .replace(/>/g, '&gt;')
+                          .replace(/"/g, '&quot;')
+                          .replace(/'/g, '&#039;');
+    }
+
+    // Display uploaded data in a table
+    function displayUploadedDataTable(data) {
+      const table = document.getElementById('dataTable');
+      if(data.length === 0) {
+        table.innerHTML = '';
+        return;
+      }
+      const cols = Object.keys(data[0]);
+      let html = '<thead><tr>';
+      cols.forEach(c => html += `<th>${escapeHtml(c)}</th>`);
+      html += '</tr></thead><tbody>';
+      data.forEach(row => {
+        html += '<tr>';
+        cols.forEach(c => html += `<td>${escapeHtml(row[c])}</td>`);
+        html += '</tr>';
+      });
+      html += '</tbody>';
+      table.innerHTML = html;
+    }
+
+    // Summarize uploaded data with unique farmers, total area, crop info
+    function summarizeUploadedData(data) {
+      let uniqueFarmers = new Set(), totalArea = 0, cropMap = {};
+      data.forEach(row => {
+        const aadhaar = (row['Aadhaar Number'] || '').toString().trim();
+        const name = (row['Farmer Name'] || '').toString().trim();
+        const village = (row['Village'] || '').toString().trim();
+        const crop = (row['Crop Name'] || '').toString().trim();
+        let area = Number(row['Area']) || 0;
+        totalArea += area;
+        const key = aadhaar || (name + '|' + village);
+        uniqueFarmers.add(key);
+        cropMap[crop] = cropMap[crop] || {farmers: new Set(), area: 0};
+        cropMap[crop].farmers.add(key);
+        cropMap[crop].area += area;
+      });
+
+      let summaryHTML = `
+        <p>Total Unique Farmers: <strong>${uniqueFarmers.size}</strong></p>
+        <p>Total Area: <strong>${totalArea.toFixed(2)}</strong></p>
+        <h4>Crop Details:</h4>
+        <table class="table table-bordered" role="table" aria-label="Crop Details Summary">
+          <thead>
+            <tr style="background:#1862ab; color:#fff;">
+              <th>Crop Name</th>
+              <th>Unique Farmers</th>
+              <th>Area</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      let grandArea = 0;
+      Object.entries(cropMap).forEach(([crop, val]) => {
+        grandArea += val.area;
+        summaryHTML += `<tr><td>${escapeHtml(crop)}</td><td>${val.farmers.size}</td><td>${val.area.toFixed(2)}</td></tr>`;
+      });
+
+      summaryHTML += `
+          <tr style="font-weight:bold; background:#eee;">
+            <td colspan="2" style="text-align:right;">Total</td><td>${grandArea.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+      `;
+
+      document.getElementById('summary').innerHTML = summaryHTML;
+    }
+
+    // Save uploaded data to localStorage
+    document.getElementById('saveSummaryBtn').addEventListener('click', e => {
+      e.preventDefault();
+      const cropYear = document.getElementById('cropYear').value;
+      const season = document.getElementById('season').value;
+      if (!cropYear || !season) {
+        alert('Select Crop Year and Season');
+        return;
+      }
+      if (uploadData.length === 0) {
+        alert('No data to save. Please upload a report.');
+        return;
+      }
+      let reports = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
+      let farmersSet = new Set(), farmerDetails = {}, cropsSummary = {};
+      uploadData.forEach(row => {
+        const aadhaar = (row['Aadhaar Number'] || '').toString().trim();
+        const farmerName = (row['Farmer Name'] || '').toString().trim();
+        const fatherName = (row['Father Name'] || '').toString().trim();
+        const village = (row['Village'] || '').toString().trim();
+        const cropName = (row['Crop Name'] || '').toString().trim();
+        const bookingID = (row['Booking ID'] || '').toString().trim();
+        const khathaNo = (row['Khatha Number'] || '').toString().trim();
+        const surveyNo = (row['Survey Number'] || '').toString().trim();
+        const area = Number(row['Area']) || 0;
+        const farmerKey = aadhaar || (farmerName + '|' + village);
+        farmersSet.add(farmerKey);
+        farmerDetails[farmerKey] = farmerDetails[farmerKey] || [];
+        farmerDetails[farmerKey].push({bookingID, khathaNo, surveyNo, cropName, area});
+        cropsSummary[cropName] = cropsSummary[cropName] || {farmers: new Set(), area: 0};
+        cropsSummary[cropName].farmers.add(farmerKey);
+        cropsSummary[cropName].area += area;
+      });
+
+      const uniqueFarmersList = Array.from(farmersSet).map(key => {
+        const first = uploadData.find(r => (r['Aadhaar Number'] || '').toString().trim() === key || (r['Farmer Name'] + '|' + r['Village']) === key);
+        return {
+          farmerName: (first && first['Farmer Name']) || '(Unknown)',
+          fatherName: (first && first['Father Name']) || '',
+          aadhaarNumber: (first && first['Aadhaar Number']) || '-',
+          village: (first && first['Village']) || '',
+          // Add this line; update key if column is e.g. 'Mobile' or 'Contact Number'
+         mobileNumber: (first && first['Mobile Number']) ? first['Mobile Number'].toString().trim() : 'Not Available'
+        };
+      });
+
+      const totalArea = Object.values(cropsSummary).reduce((sum, c) => sum + c.area, 0);
+      const cropsArray = Object.entries(cropsSummary).map(([cropName, val]) => ({
+        cropName,
+        uniqueFarmers: val.farmers.size,
+        areaSown: val.area
+      }));
+
+      const key = cropYear + '_' + season;
+      reports[key] = {
+        summary: {
+          totalFarmers: farmersSet.size,
+          totalArea: totalArea,
+          crops: cropsArray
+        },
+        uniqueFarmers: uniqueFarmersList,
+        farmerDetails: farmerDetails
+      };
+
+      localStorage.setItem(getStorageKey(), JSON.stringify(reports));
+      alert(`Report saved for Crop Year: ${cropYear} and Season: ${season}`);
+      showSection('ePantaReportPage');
+      document.getElementById('filterYear').value = cropYear;
+      document.getElementById('filterSeason').value = season;
+      loadReport();
+    });
+
+    // Load ePanta Report
+    document.getElementById('loadReportBtn').addEventListener('click', loadReport);
+    function loadReport() {
+      const year = document.getElementById('filterYear').value;
+      const season = document.getElementById('filterSeason').value;
+      if (!year) { alert('Please select Crop Year'); return; }
+      if (!season) { alert('Please select Season'); return; }
+      const reports = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
+      const key = year + '_' + season;
+      const report = reports[key];
+      const reportContainer = document.getElementById('reportContainer');
+      if (!report) {
+        reportContainer.innerHTML = `<p>No report found for Crop Year ${year} and Season ${season}.</p>`;
+        return;
+        
+      }
+      let html = `
+        <div>
+          <p><strong>Total Unique Farmers:</strong> ${report.summary.totalFarmers}</p>
+          <p><strong>Total Area:</strong> ${report.summary.totalArea.toFixed(2)}</p>
+        </div>
+        <h3>Crop-wise Details</h3>
+        <table class="table table-bordered" role="table" aria-label="Crop wise summary">
+          <thead>
+            <tr style="background:#1862ab; color:#fff;">
+              <th scope="col">Crop Name</th>
+              <th scope="col">Unique Farmers</th>
+              <th scope="col">Area</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      report.summary.crops.forEach(crop => {
+        html += `
+          <tr>
+            <td><button type="button" class="crop-btn btn btn-link p-0" data-crop="${encodeURIComponent(crop.cropName)}">${escapeHtml(crop.cropName)}</button></td>
+            <td>${crop.uniqueFarmers}</td>
+            <td>${crop.areaSown.toFixed(2)}</td>
+          </tr>`;
+      });
+      
+      html += `
+      </tbody>
+        </table>
+        <h3>Farmers</h3>
+        <div class="mb-2" style="max-width:300px;">
+          <input id="farmerNameSearchInput" class="form-control form-control-sm" type="text" placeholder="Search Farmer Name..." aria-label="Search Farmer Name" />
+        </div>
+        
+  <table class="table table-bordered" role="table" aria-label="Farmers List">
+    <thead>
+      <tr style="background:#1862ab; color:#fff;">
+        <th scope="col">Farmer Name</th>
+        <th scope="col">Father Name</th>
+        <th scope="col">Aadhaar Number</th>
+        <th scope="col">Village</th>
+        <th scope="col">Mobile Number</th>
+      </tr>
+    </thead>
+    <tbody id="farmersTableBody">
+`;
+
+
+report.uniqueFarmers.forEach(farmer => {
+  const farmerKey = farmer.aadhaarNumber !== '-' ? farmer.aadhaarNumber : `${farmer.farmerName}|${farmer.village || ''}`;
+  const mobile = farmer.mobileNumber || '-';  // Set default if mobile not available
+  html += `
+    <tr>
+      <td><button type="button" class="farmer-btn btn btn-link p-0" data-key="${encodeURIComponent(farmerKey)}">${escapeHtml(farmer.farmerName)}</button></td>
+      <td>${escapeHtml(farmer.fatherName)}</td>
+      <td>${escapeHtml(farmer.aadhaarNumber)}</td>
+      <td>${escapeHtml(farmer.village)}</td>
+      <td>${escapeHtml(mobile)}</td>
+    </tr>`;
+});
+html += `
+  <div class="mb-2">
+    <button id="exportFarmersBtn" class="btn btn-sm btn-success">Export Farmers as Excel</button>
+  </div>
+  <table class="table table-bordered table-striped" role="table" aria-label="Farmers List" style="width:100%;">
+    <thead>
+      <tr style="background:#1862ab; color:#fff;">
+        <th>Farmer Name</th>
+        <th>Father Name</th>
+        <th>Aadhaar Number</th>
+        <th>Mobile Number</th>
+      </tr>
+    </thead>
+    <tbody id="farmersTableBody">
+      <!-- Dynamic rows go here -->
+    </tbody>
+  </table>
+`;
+
+
+html += "</tbody></table>";
+reportContainer.innerHTML = html;
+// Export Excel Button functionality
+const exportFarmersBtn = document.getElementById('exportFarmersBtn');
+if (exportFarmersBtn) {
+  exportFarmersBtn.addEventListener('click', function () {
+    // Collect farmer table rows
+    const rows = [];
+    // Add header row
+    rows.push(['Farmer Name', 'Father Name', 'Aadhaar Number', 'Village', 'Mobile Number']);
+    document.querySelectorAll('#farmersTableBody tr').forEach(function (tr) {
+      const cells = tr.querySelectorAll('td');
+      if (cells.length === 5) {
+        rows.push([
+          cells[0].innerText.trim(),
+          cells[1].innerText.trim(),
+          cells[2].innerText.trim(),
+          cells[3].innerText.trim(),
+          cells[4].innerText.trim()
+        ]);
+      }
+    });
+
+    if (rows.length <= 1) {
+      alert('No data to export.');
+      return;
+    }
+
+    // Create Excel workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, 'Farmers');
+
+    // Add year/season if available
+    const yearInput = document.getElementById('filterYear');
+    const seasonInput = document.getElementById('filterSeason');
+    const year = yearInput ? yearInput.value : '';
+    const season = seasonInput ? seasonInput.value : '';
+    XLSX.writeFile(wb, `Farmers_${year}_${season}.xlsx`);
+  });
+}
+
+      // Filter farmers by name
+      const farmerNameInput = document.getElementById('farmerNameSearchInput');
+      const farmersTableBody = document.getElementById('farmersTableBody');
+      if (farmerNameInput && farmersTableBody) {
+        farmerNameInput.addEventListener('input', function() {
+          const searchVal = this.value.trim().toLowerCase();
+          while (farmersTableBody.firstChild) farmersTableBody.removeChild(farmersTableBody.firstChild);
+          report.uniqueFarmers.forEach(farmer => {
+            if (!searchVal || (farmer.farmerName && farmer.farmerName.toLowerCase().includes(searchVal))) {
+              const farmerKey = farmer.aadhaarNumber !== '-' ? farmer.aadhaarNumber : `${farmer.farmerName}|${farmer.village || ''}`;
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                <td><button type="button" class="farmer-btn btn btn-link p-0" data-key="${encodeURIComponent(farmerKey)}">${escapeHtml(farmer.farmerName)}</button></td>
+                <td>${escapeHtml(farmer.fatherName)}</td>
+                <td>${escapeHtml(farmer.aadhaarNumber)}</td>
+                <td>${escapeHtml(farmer.village)}</td>`;
+              farmersTableBody.appendChild(row);
+            }
+          });
+          attachFarmerButtons();
+        });
+      }
+
+      // Attach event handlers for crops buttons
+      document.querySelectorAll('.crop-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          sessionStorage.setItem('selectedCropName', decodeURIComponent(btn.dataset.crop));
+          sessionStorage.setItem('selectedReportKey', key);
+          showCropFarmersPage();
+        });
+      });
+
+      // Attach event handlers for farmer buttons
+      attachFarmerButtons();
+    }
+
+    // Attach click events to farmer buttons in report
+    function attachFarmerButtons() {
+      document.querySelectorAll('.farmer-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          sessionStorage.setItem('selectedFarmerKey', decodeURIComponent(btn.dataset.key));
+          sessionStorage.setItem('selectedReportKey', document.getElementById('filterYear').value + '_' + document.getElementById('filterSeason').value);
+          showFarmerDetailsPage();
+        });
+      });
+    }
+
+    // Show Crop Farmers List for selected crop
+   function showCropFarmersPage() {
+  showSection('cropFarmersPage');
+  const reportKey = sessionStorage.getItem('selectedReportKey');
+  const cropName = sessionStorage.getItem('selectedCropName');
+  const titleEl = document.getElementById('cropFarmersTitle');
+  const contentEl = document.getElementById('cropFarmersContent');
+  if(!reportKey || !cropName) {
+    titleEl.textContent = 'Crop Farmers';
+    contentEl.innerHTML = '<p>No crop specified.</p>';
+    return;
+  }
+  const reports = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
+  const report = reports[reportKey];
+  if(!report) {
+    titleEl.textContent = 'Crop Farmers';
+    contentEl.innerHTML = '<p>No report data available.</p>';
+    return;
+  }
+  titleEl.textContent = `Farmers for Crop: ${cropName}`;
+
+ let totalArea = 0;
+let rows = [];
+report.uniqueFarmers.forEach(farmer => {
+  const farmerKey = farmer.aadhaarNumber !== '-' ? farmer.aadhaarNumber : (farmer.farmerName + '|' + (farmer.village || ''));
+  const details = report.farmerDetails[farmerKey] || [];
+  const cropArea = details.filter(d => d.cropName === cropName).reduce((a, d) => a + Number(d.area || 0), 0);
+  if (cropArea > 0) {
+    rows.push({
+      farmerName: farmer.farmerName,
+      fatherName: farmer.fatherName,
+      area: cropArea,
+      aadhaarNumber: farmer.aadhaarNumber || '-',
+      phoneNumber: farmer.mobileNumber || '-'
+    });
+    totalArea += cropArea;
+  }
+});
+
+  
+  let sortAscending = true; // Variable to track sorting order
+
+  function renderTable(filteredRows) {
+    let html = `
+      <div class="mb-2" style="max-width:420px; display:flex; gap:8px; align-items:center;">
+        
+        <button id="sortAreaBtn" class="btn btn-sm btn-outline-primary" title="Sort by Area">Sort Area ▲</button>
+      </div>
+      <table class="table table-bordered" role="table" aria-label="Crop Farmers List">
+        <thead>
+  <tr>
+    <th scope="col">S.No</th>
+    <th scope="col">Farmer Name</th>
+    <th scope="col">Father Name</th>
+    <th scope="col">Aadhaar Number</th>
+    <th scope="col">Phone Number</th>
+    <th scope="col">Total Area</th>
+  </tr>
+</thead>
+
+        <tbody id="cropFarmersTableBody">`;
+
+    let totalFilteredArea = 0;
+    filteredRows.forEach((r, index) => {
+      html += `<tr>
+    <td>${index + 1}</td>
+    <td>${escapeHtml(r.farmerName)}</td>
+    <td>${escapeHtml(r.fatherName)}</td>
+    <td>${escapeHtml(r.aadhaarNumber)}</td>
+    <td>${escapeHtml(r.phoneNumber)}</td>
+    <td>${r.area.toFixed(2)}</td>
+  </tr>`;
+      totalFilteredArea += r.area;
+    });
+    html += `<tr style="font-weight:bold;background:#eee;"><td colspan="3" style="text-align:right;">Total</td><td>${totalFilteredArea.toFixed(2)}</td></tr></tbody></table>`;
+
+    contentEl.innerHTML = html;
+
+    // Attach search input and sort button event handlers
+    const cropFarmerNameInput = document.getElementById('cropFarmerNameSearchInput');
+    const sortAreaBtn = document.getElementById('sortAreaBtn');
+    const cropFarmersTableBody = document.getElementById('cropFarmersTableBody');
+
+    if(cropFarmerNameInput && cropFarmersTableBody) {
+      cropFarmerNameInput.value = ''; // reset input on render
+      cropFarmerNameInput.addEventListener('input', function() {
+        const searchVal = this.value.trim().toLowerCase();
+        let filtered = rows.filter(r => !searchVal || (r.farmerName && r.farmerName.toLowerCase().includes(searchVal)));
+        filtered = sortAscending ? filtered.sort((a,b) => a.area - b.area) : filtered.sort((a,b) => b.area - a.area);
+        renderTable(filtered);
+      });
+    }
+
+    if(sortAreaBtn) {
+      sortAreaBtn.addEventListener('click', () => {
+        sortAscending = !sortAscending;
+        const arrow = sortAscending ? '▲' : '▼';
+        sortAreaBtn.textContent = `Sort Area ${arrow}`;
+        // Apply current search to get filtered rows
+        const searchVal = (document.getElementById('cropFarmerNameSearchInput')?.value || '').trim().toLowerCase();
+        let filtered = rows.filter(r => !searchVal || (r.farmerName && r.farmerName.toLowerCase().includes(searchVal)));
+        filtered = sortAscending ? filtered.sort((a,b) => a.area - b.area) : filtered.sort((a,b) => b.area - a.area);
+        renderTable(filtered);
+      });
+    }
+  }
+
+  // Initial render sorted ascending by area
+  rows = rows.sort((a,b) => a.area - b.area);
+  renderTable(rows);
+}
+
+
+    // Back button on Crop Farmers
+    document.getElementById('cfBackBtn').addEventListener('click', () => {
+      showSection('ePantaReportPage');
+      const key = sessionStorage.getItem('selectedReportKey');
+      if(key) {
+        const [year, season] = key.split('_');
+        document.getElementById('filterYear').value = year;
+        document.getElementById('filterSeason').value = season;
+        loadReport();
+      }
+    });
+
+    // Show farmer cultivation bookings details
+    function showFarmerDetailsPage() {
+  showSection('farmerDetailsPage');
+  const reportKey = sessionStorage.getItem('selectedReportKey');
+  const farmerKey = sessionStorage.getItem('selectedFarmerKey');
+  const title = document.getElementById('farmerDetailsTitle');
+  const content = document.getElementById('farmerDetailsContent');
+
+  if(!reportKey || !farmerKey) {
+    title.textContent = 'Farmer Cultivation Details';
+    content.innerHTML = '<p>No farmer details available.</p>';
+    return;
+  }
+
+  const reports = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
+  const report = reports[reportKey];
+  if(!report) {
+    title.textContent = 'Farmer Cultivation Details';
+    content.innerHTML = '<p>No report data available.</p>';
+    return;
+  }
+
+  const details = report.farmerDetails[farmerKey] || [];
+  if(!details.length){
+    title.textContent = 'Farmer Cultivation Details';
+    content.innerHTML = '<p>No cultivation details found for this farmer.</p>';
+    return;
+  }
+
+  let farmerName = '(Unknown)';
+  const uf = report.uniqueFarmers.find(f => {
+    return ((f.aadhaarNumber && f.aadhaarNumber !== '-') ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''))) === farmerKey;
+  });
+  if(uf) farmerName = uf.farmerName;
+
+  // Calculate crop-wise booking area totals
+  const cropTotals = {};
+  details.forEach(d => {
+    const crop = d.cropName || '(Unknown)';
+    cropTotals[crop] = (cropTotals[crop] || 0) + (d.area || 0);
+  });
+
+  // Set title with farmer name
+  title.textContent = `Cultivation Details for Farmer: ${farmerName}`;
+
+  // Build crop-wise total booked area summary string and append to title
+  let cropSummary = ' (Total Booked Area: ';
+  const cropNames = Object.keys(cropTotals);
+  if(cropNames.length === 0) {
+    cropSummary += 'No crops booked)';
+  } else {
+    cropSummary += cropNames.map(crop => `${crop}: ${cropTotals[crop].toFixed(2)}`).join(', ') + ')';
+  }
+  title.textContent += cropSummary;
+
+  let html = `
+    <table class="table table-bordered table-striped" role="table" aria-label="Farmer Cultivation Bookings">
+      <thead><tr><th>Booking ID</th><th>Khatha Number</th><th>Survey Number</th><th>Crop Name</th><th>Area</th></tr></thead><tbody>`;
+  details.forEach(d => {
+    html += `
+      <tr>
+        <td>${escapeHtml(d.bookingID || '-')}</td>
+        <td>${escapeHtml(d.khathaNo || '-')}</td>
+        <td>${escapeHtml(d.surveyNo || '-')}</td>
+        <td>${escapeHtml(d.cropName || '-')}</td>
+        <td>${d.area.toFixed(2)}</td>
+      </tr>`;
+  });
+  html += '</tbody></table>';
+
+  content.innerHTML = html;
+}
+
+
+
+    // Back button in Farmer Details
+    document.getElementById('fdBackBtn').addEventListener('click', () => {
+      showSection('ePantaReportPage');
+      const key = sessionStorage.getItem('selectedReportKey');
+      if(key) {
+        const [year, season] = key.split('_');
+        document.getElementById('filterYear').value = year;
+        document.getElementById('filterSeason').value = season;
+        loadReport();
+      }
+    });
+
+    // Profile Management: Load current user profile info
+    function loadUserProfile() {
+      const user = firebase.auth().currentUser;
+      if (!user) return;
+      document.getElementById('profileEmail').value = user.email || '';
+      document.getElementById('profileDisplayName').value = user.displayName || '';
+    }
+
+    // Profile Management: Update display name
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const displayName = document.getElementById('profileDisplayName').value.trim();
+      const user = firebase.auth().currentUser;
+      if (!user) {
+        alert('No user is logged in.');
+        return;
+      }
+      try {
+        await user.updateProfile({ displayName });
+        alert('Profile updated successfully!');
+      } catch (error) {
+        alert('Error updating profile: ' + error.message);
+      }
+    });
+
+    // Profile Management: Change Password Flow
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+      if (newPassword !== confirmNewPassword) {
+        alert('New password and confirmation do not match.');
+        return;
+      }
+      if (newPassword.length < 6) {
+        alert('New password should be at least 6 characters long.');
+        return;
+      }
+      const user = firebase.auth().currentUser;
+      if (!user || !user.email) {
+        alert('No user is logged in.');
+        return;
+      }
+      const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+      try {
+        await user.reauthenticateWithCredential(credential);
+      } catch (err) {
+        alert('Current password is incorrect.');
+        return;
+      }
+      try {
+        await user.updatePassword(newPassword);
+        alert('Password changed successfully!');
+        document.getElementById('changePasswordForm').reset();
+      } catch (error) {
+        alert('Error changing password: ' + error.message);
+      }
+    });
+
+   // Search Farmer by Aadhaar last 4 digits
+   // Elements
+const aadhaarInput = document.getElementById('aadhaarLast4Input');
+const searchResultsDiv = document.getElementById('searchResults');
+
+// Aadhaar input search event
+aadhaarInput.addEventListener('input', () => {
+  searchResultsDiv.innerHTML = '';
+
+  const year = document.getElementById('searchCropYear').value;
+  const season = document.getElementById('searchSeason').value;
+  const inputVal = aadhaarInput.value.trim();
+
+  if (inputVal.length < 1) return;
+
+  if (!year || !season) {
+    searchResultsDiv.innerHTML = '<p class="text-danger">Please select Crop Year and Season first.</p>';
+    return;
+  }
+
+  const reports = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
+  const key = year + '_' + season;
+  const report = reports[key];
+
+  if (!report) {
+    searchResultsDiv.innerHTML = `<p>No report found for Crop Year ${year} and Season ${season}.</p>`;
+    return;
+  }
+
+  const matchedFarmers = report.uniqueFarmers.filter(f => {
+    const aadhaar = (f.aadhaarNumber || '').toString();
+    return aadhaar !== '-' && aadhaar.endsWith(inputVal);
+  });
+
+  const ul = document.createElement('ul');
+  ul.className = 'list-group';
+
+  matchedFarmers.forEach(farmer => {
+    const li = document.createElement('li');
+    li.className = 'list-group-item list-group-item-action';
+    li.style.cursor = 'pointer';
+    li.textContent = `${farmer.farmerName} (${farmer.aadhaarNumber})`;
+
+    li.addEventListener('click', () => {
+      // Show modal with farmer details
+      renderFarmerDetailsModal(key, farmer.aadhaarNumber);
+    });
+
+    ul.appendChild(li);
+  });
+  searchResultsDiv.appendChild(ul);
+});
+
+// Show farmer details in Bootstrap modal
+function renderFarmerDetailsModal(reportKey, farmerKey) {
+  const reports = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
+  const report = reports[reportKey];
+  if (!report) return;
+  const farmer = report.uniqueFarmers.find(f => f.aadhaarNumber === farmerKey);
+  const detailsList = report.farmerDetails[farmerKey] || [];
+  if (!farmer || !detailsList.length) return;
+
+  let cropWise = {};
+  let grandTotal = 0;
+  detailsList.forEach(d => {
+    cropWise[d.cropName] = (cropWise[d.cropName] || 0) + d.area;
+    grandTotal += d.area;
+  });
+
+  let html = `
+    <p>
+      <strong>Farmer:</strong> ${escapeHtml(farmer.farmerName)}<br/>
+      <strong>Father Name:</strong> ${escapeHtml(farmer.fatherName)}<br/>
+      <strong>Aadhaar Number:</strong> ${escapeHtml(farmer.aadhaarNumber)}<br/>
+      <strong>Village:</strong> ${escapeHtml(farmer.village)}<br/>
+      <strong>Mobile Number:</strong> ${escapeHtml(farmer.mobileNumber || 'Not Available')}
+    </p>
+    <h5>Crop-wise Area</h5>
+    <table class="table table-bordered mb-4" role="table" aria-label="Crop-wise Area Summary">
+      <thead><tr><th>Crop Name</th><th>Total Area (Acre)</th></tr></thead>
+      <tbody>`;
+  Object.keys(cropWise).forEach(crop => {
+    html += `<tr><td>${escapeHtml(crop)}</td><td>${cropWise[crop].toFixed(2)}</td></tr>`;
+  });
+  html += `<tr style="font-weight:bold;background:#eee;"><td style="text-align:right;">Total Area</td><td>${grandTotal.toFixed(2)}</td></tr></tbody></table>
+    <h5>All Bookings</h5>
+    <div class="table-responsive">
+    <table class="table table-bordered table-striped" role="table" aria-label="All Bookings Table">
+      <thead><tr><th>Booking ID</th><th>Khatha Number</th><th>Survey Number</th><th>Crop Name</th><th>Area</th></tr></thead>
+      <tbody>`;
+  detailsList.forEach(d => {
+    html += `<tr>
+      <td>${escapeHtml(d.bookingID || '-')}</td>
+      <td>${escapeHtml(d.khathaNo || '-')}</td>
+      <td>${escapeHtml(d.surveyNo || '-')}</td>
+      <td>${escapeHtml(d.cropName || '-')}</td>
+      <td>${d.area.toFixed(2)}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>
+    </div>`;
+  document.getElementById('farmerModalBody').innerHTML = html;
+  new bootstrap.Modal(document.getElementById('farmerModal')).show();
+}
+
+  // Show farmer details popup inline with Firebase check
+  function renderFarmerPopupDetailsInline(reportKey, farmerKey) {
+    if (firebase.auth().currentUser) {
+      renderFarmerDetails(reportKey, farmerKey);
+    } else {
+      firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+          renderFarmerDetails(reportKey, farmerKey);
+        }
+      });
+    }
+  }
+
+
+  // Render farmer details with bookings and a Back button
+  function renderFarmerDetails(reportKey, farmerKey) {
+    const user = firebase.auth().currentUser;
+
+    if (!user || !reportKey || !farmerKey) {
+      popupFarmerTitle.textContent = 'No Farmer Selected';
+      popupFarmerDetails.innerHTML = `<p>No data available. Please use the Dashboard to search for a farmer.</p>`;
+      return;
+    }
+
+    const reports = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
+    const report = reports[reportKey];
+    if (!report) {
+      popupFarmerTitle.textContent = 'No Farmer Data';
+      popupFarmerDetails.innerHTML = `<p>No report data found for the selection.</p>`;
+      return;
+    }
+
+    const farmer = report.uniqueFarmers.find(f => f.aadhaarNumber === farmerKey);
+    const detailsList = report.farmerDetails[farmerKey] || [];
+    if (!detailsList.length) {
+      popupFarmerTitle.textContent = 'No Cultivation Details';
+      popupFarmerDetails.innerHTML = '<p>No cultivation details found for this farmer.</p>';
+      return;
+    }
+
+    const mobile = farmer.mobileNumber || '';
+
+    //popupFarmerTitle.textContent = `All Cultivation Details for: ${farmer.farmerName} (${farmer.aadhaarNumber})`;
+
+    let cropWise = {};
+    let grandTotal = 0;
+
+    detailsList.forEach(d => {
+      cropWise[d.cropName] = (cropWise[d.cropName] || 0) + d.area;
+      grandTotal += d.area;
+    });
+
+    let html = `
+      <p>
+        <strong>Farmer:</strong> ${escapeHtml(farmer.farmerName)}<br/>
+        <strong>Father Name:</strong> ${escapeHtml(farmer.fatherName)}<br/>
+        <strong>Aadhaar Number:</strong> ${escapeHtml(farmer.aadhaarNumber)}<br/>
+        <strong>Village:</strong> ${escapeHtml(farmer.village)}<br/>
+        <strong>Mobile Number:</strong> ${mobile || 'Not Available'}
+      </p>
+      <h5>Crop-wise Area</h5>
+      <table class="table table-bordered mb-4" role="table" aria-label="Crop-wise Area Summary">
+        <thead><tr><th>Crop Name</th><th>Total Area (Acre)</th></tr></thead>
+        <tbody>`;
+
+    Object.keys(cropWise).forEach(crop => {
+      html += `<tr><td>${escapeHtml(crop)}</td><td>${cropWise[crop].toFixed(2)}</td></tr>`;
+    });
+
+    html += `<tr style="font-weight:bold;background:#eee;"><td style="text-align:right;">Total Area</td><td>${grandTotal.toFixed(2)}</td></tr></tbody></table>
+      <h5>All Bookings</h5>
+      <div class="table-responsive">
+      <table class="table table-bordered table-striped" role="table" aria-label="All Bookings Table">
+        <thead><tr><th>Booking ID</th><th>Khatha Number</th><th>Survey Number</th><th>Crop Name</th><th>Area</th></tr></thead>
+        <tbody>`;
+
+    detailsList.forEach(d => {
+      html += `<tr>
+        <td>${escapeHtml(d.bookingID || '-')}</td>
+        <td>${escapeHtml(d.khathaNo || '-')}</td>
+        <td>${escapeHtml(d.surveyNo || '-')}</td>
+        <td>${escapeHtml(d.cropName || '-')}</td>
+        <td>${d.area.toFixed(2)}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>
+      </div>`;
+
+    // Add Back button below the table
+    html += `
+      <div style="text-align:right; margin-top:16px;">
+        <button id="backBtn" class="btn btn-secondary" aria-label="Back to Fresh Search">Back</button>
+      </div>
+    `;
+
+    //popupFarmerDetails.innerHTML = html;
+    document.getElementById('farmerModalBody').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('farmerModal')).show();
+  }
+
+  // Helper function for escaping HTML entities
+  function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/[&<>"']/g, function (m) {
+      return {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[m];
+    });
+  }
+
+// CC Experiments Functions
+const calcTypeSelect = document.getElementById('calcTypeSelect');
+const calculatorContent = document.getElementById('calculatorContent');
+
+let selectedSurveyNumber = null;  
+let selectedSubDivision = null;  
+
+calcTypeSelect.addEventListener('change', () => {
+  calculatorContent.innerHTML = '';
+  if (calcTypeSelect.value === 'surveyCalculator') {
+    selectedSurveyNumber = null;
+    selectedSubDivision = null;
+    renderSurveyCalculator();
+    calcTypeSelect.querySelector('option[value="subDivisionCalculator"]').disabled = true;
+  } else if (calcTypeSelect.value === 'subDivisionCalculator') {
+    renderSubDivisionCalculator();
+  }
+});
+
+function renderSurveyCalculator() {
+  calculatorContent.innerHTML = `
+    <div>
+      <label for="randomNumberInput">Enter the Random Number:</label>
+      <input type="number" id="randomNumberInput" class="form-control mb-2" min="0" />
+      <label for="highestSurveyInput">Enter the Highest Survey Number:</label>
+      <input type="number" id="highestSurveyInput" class="form-control mb-2" min="1" />
+      <button id="calculateSurveyBtn" class="btn btn-primary mb-3">Calculate Survey Number</button>
+      <p id="surveyResult" aria-live="polite"></p>
+    </div>
+  `;
+
+  document.getElementById('calculateSurveyBtn').addEventListener('click', () => {
+    const randomNum = Number(document.getElementById('randomNumberInput').value);
+    const highestSurvey = Number(document.getElementById('highestSurveyInput').value);
+
+    if (isNaN(randomNum) || randomNum < 0) {
+      alert('Please enter a valid non-negative Random Number.');
+      return;
+    }
+    if (isNaN(highestSurvey) || highestSurvey <= 0) {
+      alert('Please enter a valid positive Highest Survey Number.');
+      return;
+    }
+
+    const remainder = randomNum % highestSurvey;
+    const surveyNumber = remainder === 0 ? highestSurvey : remainder;
+
+    selectedSurveyNumber = surveyNumber;
+
+    document.getElementById('surveyResult').textContent = 'Selected Survey Number: ' + surveyNumber;
+
+    calcTypeSelect.querySelector('option[value="subDivisionCalculator"]').disabled = false;
+  });
+}
+
+function renderSubDivisionCalculator() {
+  calculatorContent.innerHTML = `
+    <div>
+      <label for="manualSurveyNumberInput">Enter Survey Number:</label>
+      <input type="number" id="manualSurveyNumberInput" class="form-control mb-2" min="1" />
+      <label for="numberOfSubDivisionsInput">Enter Number of Sub Divisions:</label>
+      <input type="number" id="numberOfSubDivisionsInput" class="form-control mb-2" min="1" />
+      <button id="calculateSubDivBtn" class="btn btn-primary mb-3">Calculate Sub Division</button>
+      <p id="subDivResult" aria-live="polite"></p>
+    </div>
+  `;
+
+  document.getElementById('calculateSubDivBtn').addEventListener('click', () => {
+    const manualSurveyNum = Number(document.getElementById('manualSurveyNumberInput').value);
+    const numSubDivisions = Number(document.getElementById('numberOfSubDivisionsInput').value);
+
+    if (isNaN(manualSurveyNum) || manualSurveyNum <= 0) {
+      alert('Please enter a valid positive Survey Number.');
+      return;
+    }
+    if (isNaN(numSubDivisions) || numSubDivisions <= 0) {
+      alert('Please enter a valid positive number of sub divisions.');
+      return;
+    }
+
+    const remainder = manualSurveyNum % numSubDivisions;
+    const subDivision = remainder === 0 ? numSubDivisions : remainder;
+
+    selectedSubDivision = subDivision;
+
+    document.getElementById('subDivResult').textContent = 'Selected Sub Division: ' + subDivision;
+  });
+}
+
+
+
+    // Crop Recommendation System Data and Functions
+    const haToAcres = 1 / 2.471;
+
+    const agriculturalCrops = [
+      "Paddy","Maize","Jowar","Sugarcane","Blackgram","Greengram","Cotton",
+      "Bengalgram","Turmeric","Wheat","Rice","Barley","Millet","Sorghum",
+      "Soybean","Groundnut","Oilseeds"
+    ];
+    const horticulturalCrops = [
+      "Yam","Banana","Oilpalm","Vegetables","Tomato","Potato","Onion",
+      "Brinjal","Cabbage","Carrot","Cauliflower","Cucumber","Peas",
+      "Chili","Garlic","Apple","Mango","Grapes","Orange"
+    ];
+
+    /* Fertilizer dosage, schedule, pestList, diseaseList, chemicalRecommendations omitted here for brevity 
+       They are included in original code as objects keyed by crop names */
+
+// Fertilizer dosage data keyed by lower case crop names
+const fertilizerDosage = {
+  paddy: {N: 120, P: 70, K: 50, Ca: 10, Mg: 8, S: 30, splits: "Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation."},
+  maize: {N: 150, P: 75, K: 75, Ca: 15, Mg: 12, S: 35, splits: "Apply half nitrogen and full P and K at planting, rest nitrogen at knee height stage."},
+  jowar: {N: 60, P: 40, K: 40, Ca: 10, Mg: 8, S: 25, splits: "Apply full phosphorus and potassium basally, nitrogen in two splits: basal and early tillering."},
+  sugarcane: {N: 150, P: 50, K: 50, Ca: 12, Mg: 10, S: 40, splits: "Apply full P and K basal, nitrogen split into 3 doses at planting, 30-40 days and 60-70 days."},
+  blackgram: {N: 20, P: 40, K: 40, Ca: 8, Mg: 6, S: 20, splits: "Apply entire dose as basal before sowing."},
+  greengram: {N: 20, P: 40, K: 40, Ca: 8, Mg: 6, S: 20, splits: "Apply entire dose as basal."},
+  cotton: {N: 150, P: 60, K: 60, Ca: 12, Mg: 10, S: 35, splits: "Apply 1/3 N before planting, 1/3 at 30 days, 1/3 at flowering."},
+  bengalgram: {N: 30, P: 60, K: 40, Ca: 10, Mg: 8, S: 25, splits: "Apply full dose basal."},
+  turmeric: {N: 110, P: 60, K: 150, Ca: 15, Mg: 12, S: 40, splits: "Apply 50% basal, 50% split between 30 and 60 days after planting."},
+  yam: {N: 80, P: 40, K: 120, Ca: 12, Mg: 10, S: 30, splits: "Apply full phosphorus and potassium basal; split nitrogen in 2 doses."},
+  banana: {N: 500, P: 100, K: 300, Ca: 35, Mg: 30, S: 70, splits: "Apply fertilizer in 6 split doses over the year."},
+  oilpalm: {N: 120, P: 60, K: 100, Ca: 25, Mg: 20, S: 50, splits: "Apply fertilizer 2-3 splits annually."},
+  vegetables: {N: 120, P: 80, K: 80, Ca: 15, Mg: 12, S: 30, splits: "Apply 1/3 basal, 2/3 split during growth stages."},
+  tomato: {N: 150, P: 100, K: 100, Ca: 18, Mg: 15, S: 40, splits: "Apply 1/3 at planting, 2/3 split during flowering and fruiting."},
+  potato: {N: 220, P: 100, K: 200, Ca: 20, Mg: 18, S: 50, splits: "Apply 50% basal, 50% at tuber initiation."},
+  onion: {N: 120, P: 60, K: 120, Ca: 15, Mg: 12, S: 40, splits: "Apply full P and K basal; nitrogen split in 3 doses."},
+  brinjal: {N: 120, P: 80, K: 120, Ca: 18, Mg: 15, S: 40, splits: "Apply 1/3 basal, 2/3 during flowering and fruit development."}
+};
+
+// Fertilizer schedule for split applications keyed by crop name
+const fertilizerSchedule = {
+  paddy: [
+    {stage: "Basal (Planting)", N: "1/3 of total N", P: "Full dose", K: "Full dose"},
+    {stage: "Tillering stage", N: "1/3 of total N", P: "-", K: "-"},
+    {stage: "Panicle initiation", N: "1/3 of total N", P: "-", K: "-"}
+  ],
+  maize: [
+    {stage: "Planting", N: "1/2 of total N", P: "Full dose", K: "Full dose"},
+    {stage: "Knee height stage (mid-growth)", N: "1/2 of total N", P: "-", K: "-"}
+  ],
+  sugarcane: [
+    {stage: "Basal (Planting)", N: "-", P: "Full dose", K: "Full dose"},
+    {stage: "30–40 days after planting", N: "1/3 of total N", P: "-", K: "-"},
+    {stage: "60–70 days after planting", N: "1/3 of total N", P: "-", K: "-"}
+  ],
+  turmeric: [
+    {stage: "Basal (Planting)", N: "50% of total N", P: "Full dose", K: "Full dose"},
+    {stage: "30 & 60 days after planting", N: "Remaining 50% N split", P: "-", K: "-"}
+  ],
+  tomato: [
+    {stage: "At planting", N: "1/3 of total N", P: "1/3 of total P", K: "1/3 of total K"},
+    {stage: "Flowering & fruiting stages", N: "Remaining 2/3 split", P: "Remaining 2/3 split", K: "Remaining 2/3 split"}
+  ],
+  banana: [
+    {stage: "Throughout the year", N: "Split into 6 doses", P: "Split into 6 doses", K: "Split into 6 doses"}
+  ]
+};
+
+// Pest and disease lists for crops keyed by lower-case crop names
+const pestList = {
+  paddy: ["Stem Borer", "Leaf Folder", "Brown Plant Hopper", "Gall Midge", "Rice Hispa", "Rice Weevil", "Caseworm"],
+  maize: ["Fall Armyworm", "Maize Weevil", "Stem Borer", "Aphids", "Cutworm"],
+  jowar: ["Shoot Fly", "Stem Borer", "Aphids", "Sorghum Midge"],
+  sugarcane: ["Top Shoot Borer", "Sugarcane Aphid", "White Grub", "Root Borer", "Termites"],
+  blackgram: ["Pod Borer", "Aphids", "Thrips", "Leaf Miner"],
+  greengram: ["Pod Borer", "Aphids", "Thrips", "Leaf Miner"],
+  cotton: ["Bollworm", "Aphids", "Whitefly", "Jassids", "Mealy Bugs"],
+  bengalgram: ["Gram Pod Borer", "Aphids", "Cutworm"],
+  turmeric: ["Rhizome Scale", "Shoot Borer", "Leaf Spot"],
+  yam: ["Yam Beetle", "Scale Insect", "Nematodes"],
+  banana: ["Banana Weevil", "Nematodes", "Thrips", "Banana Aphids"],
+  oilpalm: ["Rhinoceros Beetle", "Eriophyid Mite", "Red Palm Weevil"],
+  vegetables: ["Aphids", "Thrips", "Whitefly", "Leaf Miner", "Diamondback Moth"],
+  tomato: ["Tomato Fruit Borer", "Whitefly", "Aphids", "Thrips"],
+  potato: ["Colorado Potato Beetle", "Aphids", "Potato Tuber Moth"],
+  onion: ["Onion Thrips", "Stemphylium", "Onion Fly"],
+  brinjal: ["Brinjal Shoot and Fruit Borer", "Aphids", "Whitefly"]
+};
+
+// Disease list for crops keyed by lower-case crop names
+const diseaseList = {
+  paddy: ["Blast", "Bacterial Leaf Blight", "Sheath Blight", "Brown Spot", "False Smut"],
+  maize: ["Leaf Spot", "Rust", "Downy Mildew", "Gray Leaf Spot"],
+  jowar: ["Smut", "Ergot", "Downy Mildew"],
+  sugarcane: ["Red Rot", "Smut", "Ratoon Stunting"],
+  blackgram: ["Anthracnose", "Yellow Mosaic Virus", "Powdery Mildew"],
+  greengram: ["Anthracnose", "Yellow Mosaic Virus", "Powdery Mildew"],
+  cotton: ["Fusarium Wilt", "Root Rot", "Alternaria Leaf Spot"],
+  bengalgram: ["Ascochyta Blight", "Fusarium Wilt", "Dry Root Rot"],
+  turmeric: ["Leaf Blight", "Rhizome Rot", "Leaf Spot"],
+  yam: ["Yam Mosaic Virus", "Anthracnose", "Soft Rot"],
+  banana: ["Panama Wilt", "Sigatoka Leaf Spot", "Black Sigatoka"],
+  oilpalm: ["Fusarium Wilt", "Bud Rot", "Leaf Spot"],
+  vegetables: ["Downy Mildew", "Leaf Curl Virus", "Powdery Mildew"],
+  tomato: ["Late Blight", "Powdery Mildew", "Bacterial Spot"],
+  potato: ["Late Blight", "Black Scurf", "Early Blight"],
+  onion: ["Purple Blotch", "Downy Mildew", "Neck Rot"],
+  brinjal: ["Phomopsis Blight", "Verticillium Wilt", "Bacterial Wilt"]
+};
+
+// Chemical recommendations for pests and diseases (keys lower case and underscores)
+const chemicalRecommendations = {
+  pest: {
+    stem_borer: [
+      "Lambda-cyhalothrin 5% EC, 2 ml/liter water spray",
+      "Chlorantraniliprole 18.5 SC, 10 ml/acre",
+      "Bacillus thuringiensis (Bt) formulations, per label"
+    ],
+    leaf_folder: [
+      "Carbaryl 50 WP dust, 2 kg/acre",
+      "Spinosad 45 SC, 20 ml/acre"
+    ],
+    brown_plant_hopper: [
+      "Fipronil 5 SC, 25 ml/acre",
+      "Imidacloprid 17.8 SL, 10 ml/acre spray"
+    ],
+    gall_midge: [
+      "BHC dust, 2 kg/acre"
+    ],
+    rice_hispa: [
+      "Quinalphos 25 EC, 2 ml/liter water spray",
+      "Malathion dust, 2 kg/acre"
+    ],
+    rice_weevil: [
+      "Malathion dust, 2 kg/acre"
+    ],
+    caseworm: [
+      "Chlorpyrifos 20 EC, 2 ml/liter water spray"
+    ],
+    fall_armyworm: [
+      "Spinosad 45 SC, 20 ml/acre",
+      "Emamectin benzoate 5 SG, per label instructions"
+    ],
+    maize_weevil: [
+      "Malathion dust, 2 kg/acre"
+    ],
+    aphids: [
+      "Imidacloprid 17.8 SL, 10 ml/acre spray",
+      "Dimethoate 30 EC, 1.5 ml/liter water spray"
+    ],
+    cutworm: [
+      "Diazinon 60 EC, 1.25 ml/liter water spray"
+    ],
+    shoot_fly: [
+      "Endosulfan 35 EC, 2 ml/liter water spray"
+    ],
+    sorghum_midge: [
+      "Chlorpyrifos 20 EC, 2 ml/liter water spray"
+    ],
+    top_shoot_borer: [
+      "Chlorantraniliprole 18.5 SC, 10 ml/acre"
+    ],
+    sugarcane_aphid: [
+      "Imidacloprid 17.8 SL, 10 ml/acre"
+    ],
+    white_grub: [
+      "Carbofuran granules, 10 kg/acre"
+    ],
+    root_borer: [
+      "Chlorpyrifos 20 EC, 2 ml/liter water spray"
+    ],
+    termites: [
+      "Fipronil 5 SC, 25 ml/acre spray"
+    ],
+    pod_borer: [
+      "Indoxacarb 14.5 SC, 10 ml/acre"
+    ],
+    thrips: [
+      "Spinosad 45 SC, 20 ml/acre",
+      "Neem oil 2% spray"
+    ],
+    leaf_miner: [
+      "Neem oil 2% or Spinosad sprays"
+    ],
+    bollworm: [
+      "Bacillus thuringiensis (Bt) formulations, per label",
+      "Indoxacarb 14.5 SC, 10 ml/acre spray"
+    ],
+    whitefly: [
+      "Imidacloprid 17.8 SL, 10 ml/acre spray"
+    ],
+    jassids: [
+      "Dimethoate 30 EC, 1.5 ml/liter water spray"
+    ],
+    mealy_bugs: [
+      "Insecticidal soap spray",
+      "Neem oil spray"
+    ],
+    gram_pod_borer: [
+      "Spinosad 45 SC, 20 ml/acre"
+    ],
+    rhizome_scale: [
+      "Carbaryl 50 WP dust, 2 kg/acre"
+    ],
+    yam_beetle: [
+      "Carbaryl dust, 2 kg/acre"
+    ],
+    banana_weevil: [
+      "Carbofuran granules, 10 kg/acre"
+    ],
+    banana_aphids: [
+      "Imidacloprid 17.8 SL, 10 ml/acre spray",
+      "Neem oil 2% spray"
+    ],
+    nematodes: [
+      "Nematicides as per label"
+    ],
+    rhinoceros_beetle: [
+      "Carbaryl dust, 2 kg/acre"
+    ],
+    eriophyid_mite: [
+      "Sulfur-based acaricides"
+    ],
+    diamondback_moth: [
+      "Bacillus thuringiensis (Bt) sprays, per label"
+    ],
+    potato_tuber_moth: [
+      "Pheromone traps, per label",
+      "Bacillus thuringiensis (Bt) sprays"
+    ],
+    onion_fly: [
+      "Carbofuran granules, 10 kg/acre"
+    ],
+    brinjal_shoot_and_fruit_borer: [
+      "Lambda-cyhalothrin 5% EC, 2 ml/liter water spray",
+      "Bacillus thuringiensis (Bt) sprays"
+    ]
+  },
+  disease: {
+    blast: [
+      "Tricyclazole 75 WP, 2 g/liter water spray weekly",
+      "Validamycin A 1% spray (10 ml/liter water)",
+      "Copper oxychloride 3 g/liter water spray"
+    ],
+    bacterial_leaf_blight: [
+      "Copper oxychloride 3 g/liter water spray",
+      "Kasugamycin 2 g/liter water spray"
+    ],
+    sheath_blight: [
+      "Validamycin 10 ml/liter water spray",
+      "Azoxystrobin 1 g/liter water spray"
+    ],
+    brown_spot: [
+      "Mancozeb 2.5 g/liter water spray",
+      "Copper fungicide 3 g/liter water spray"
+    ],
+    false_smut: [
+      "Propiconazole 1 ml/liter water spray at boot leaf stage",
+      "Carbendazim 1 g/liter water spray at early heading",
+      "Removal of infected grains at harvest"
+    ],
+    leaf_spot: [
+      "Mancozeb 2.5 g/liter water spray",
+      "Copper oxychloride 3 g/liter water spray"
+    ],
+    rust: [
+      "Sulfur dust 2 kg/acre",
+      "Mancozeb 2.5 g/liter water spray"
+    ],
+    downy_mildew: [
+      "Metalaxyl 2 g/liter water spray",
+      "Mancozeb 2.5 g/liter water spray"
+    ],
+    gray_leaf_spot: [
+      "Chlorothalonil 2 g/liter water spray"
+    ],
+    smut: [
+      "Carbendazim 1 g/liter seed treatment"
+    ],
+    ergot: [
+      "Crop rotation and disease-free seed"
+    ],
+    red_rot: [
+      "Carbendazim 1 g/liter water spray"
+    ],
+    ratoon_stunting: [
+      "Use disease-free certified sets"
+    ],
+    anthracnose: [
+      "Copper fungicides (Bordeaux mixture) 3 g/liter water",
+      "Carbendazim 1 g/liter water spray"
+    ],
+    yellow_mosaic_virus: [
+      "Control whitefly vector chemically"
+    ],
+    powdery_mildew: [
+      "Sulfur dust 2 kg/acre",
+      "Neem oil 2% spray"
+    ],
+    fusarium_wilt: [
+      "Fumigation and resistant varieties"
+    ],
+    root_rot: [
+      "Trichoderma soil treatment",
+      "Carbendazim 1 g/liter water soil drench"
+    ],
+    ascochyta_blight: [
+      "Mancozeb 2.5 g/liter water spray",
+      "Chlorothalonil 2 g/liter water spray"
+    ],
+    dry_root_rot: [
+      "Improve drainage and fungicides (Carbendazim)"
+    ],
+    leaf_blight: [
+      "Chlorothalonil 2 g/liter water spray"
+    ],
+    rhizome_rot: [
+      "Disease-free planting material"
+    ],
+    yam_mosaic_virus: [
+      "Virus-free planting material"
+    ],
+    panama_wilt: [
+      "Remove affected plants and maintain soil sanitation"
+    ],
+    sigatoka_leaf_spot: [
+      "Mancozeb 2.5 g/liter water spray",
+      "Sulfur dust 2 kg/acre"
+    ],
+    black_sigatoka: [
+      "Regular sulfur dust sprays"
+    ],
+    bud_rot: [
+      "Field sanitation and fungicide sprays"
+    ],
+    leaf_curl_virus: [
+      "Control leafhopper vector chemically"
+    ],
+    bacterial_spot: [
+      "Copper oxychloride 3 g/liter water spray"
+    ],
+    black_scurf: [
+      "Seed treatment with Carbendazim"
+    ],
+    early_blight: [
+      "Mancozeb 2.5 g/liter water spray"
+    ],
+    purple_blotch: [
+      "Mancozeb 2.5 g/liter water spray"
+    ],
+    neck_rot: [
+      "Avoid mechanical injury, use sterile bulbs"
+    ],
+    phomopsis_blight: [
+      "Carbendazim 1 g/liter water spray"
+    ],
+    verticillium_wilt: [
+      "Use crop rotation and resistant varieties"
+    ],
+    bacterial_wilt: [
+      "Maintain sanitation and avoid waterlogging"
+    ]
+  }
+};
+
+    // Populate crops dropdown by selected crop type
+    function populateCrops() {
+      const cropType = document.getElementById('cropType').value;
+      const cropNameSelect = document.getElementById('cropName');
+      cropNameSelect.innerHTML = '<option value="">-- Select Crop Name --</option>';
+      let crops = [];
+      if (cropType === 'agricultural') {
+        crops = agriculturalCrops;
+      } else if (cropType === 'horticultural') {
+        crops = horticulturalCrops;
+      }
+      crops.forEach(crop => {
+        const option = document.createElement('option');
+        option.value = crop.toLowerCase();
+        option.text = crop;
+        cropNameSelect.add(option);
+      });
+      clearPestDisease();
+      hideRecommendation();
+      hideFertilizerSchedule();
+    }
+
+    // Toggle pest/disease selector visibility
+    function togglePestDisease() {
+      const recType = document.getElementById('recType').value;
+      const pestSection = document.getElementById('pestSection');
+      if (recType === 'pest' || recType === 'disease') {
+        pestSection.style.display = 'block';
+        populatePestDiseaseOptions(recType);
+      } else {
+        pestSection.style.display = 'none';
+        clearPestDisease();
+      }
+      hideRecommendation();
+      hideFertilizerSchedule();
+    }
+
+    // Populate pest/disease dropdown options
+    function populatePestDiseaseOptions(recType) {
+      const cropName = document.getElementById('cropName').value;
+      const pestSelect = document.getElementById('pestName');
+      pestSelect.innerHTML = '<option value="">-- Select Pest/Disease --</option>';
+      if (!cropName) return;
+      let options = [];
+      if (recType === 'pest') {
+        options = pestList[cropName] || [];
+      } else if (recType === 'disease') {
+        options = diseaseList[cropName] || [];
+      }
+      options.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.toLowerCase().replace(/\s+/g, '_');
+        option.text = item;
+        pestSelect.add(option);
+      });
+      hideRecommendation();
+      hideFertilizerSchedule();
+    }
+
+    function clearPestDisease() {
+      const pestSelect = document.getElementById('pestName');
+      pestSelect.innerHTML = '<option value="">-- Select Pest/Disease --</option>';
+    }
+
+    document.getElementById('cropName').addEventListener('change', () => {
+      const recType = document.getElementById('recType').value;
+      if (recType === 'pest' || recType === 'disease') {
+        populatePestDiseaseOptions(recType);
+      }
+      hideRecommendation();
+      hideFertilizerSchedule();
+    });
+
+    function hideRecommendation() {
+      const recommendationBox = document.getElementById('recommendationBox');
+      recommendationBox.style.display = 'none';
+      recommendationBox.textContent = '';
+    }
+    function hideFertilizerSchedule() {
+      const scheduleSection = document.getElementById('fertilizerScheduleSection');
+      scheduleSection.innerHTML = '';
+      scheduleSection.style.display = 'none';
+    }
+    function showFertilizerSchedule(cropKey) {
+      const scheduleSection = document.getElementById('fertilizerScheduleSection');
+      scheduleSection.innerHTML = '<h3>Fertilizer Schedule by Crop Age (N, P, K Split)</h3>';
+      const schedule = fertilizerSchedule[cropKey];
+      if (!schedule) {
+        scheduleSection.style.display = 'none';
+        return;
+      }
+      let tableHtml = '<table id="fertilizerScheduleTable" class="table table-bordered">';
+      tableHtml += '<thead><tr><th>Growth Stage / Crop Age</th><th>Nitrogen (N)</th><th>Phosphorus (P2O5)</th><th>Potassium (K2O)</th></tr></thead><tbody>';
+      schedule.forEach(entry => {
+        tableHtml += `<tr><td>${entry.stage}</td><td>${entry.N}</td><td>${entry.P}</td><td>${entry.K}</td></tr>`;
+      });
+      tableHtml += '</tbody></table>';
+      scheduleSection.innerHTML += tableHtml;
+      scheduleSection.style.display = 'block';
+    }
+
+    // Get Recommendation on button click
+    function getRecommendation() {
+      const cropType = document.getElementById('cropType').value;
+      const cropName = document.getElementById('cropName').value;
+      const season = document.getElementById('recSeason').value;
+      const recType = document.getElementById('recType').value;
+      const pestName = document.getElementById('pestName').value;
+      if (!cropType || !cropName || !season || !recType) {
+        alert('Please select all options before getting recommendation.');
+        return;
+      }
+      if ((recType === 'pest' || recType === 'disease') && !pestName) {
+        alert('Please select a pest or disease.');
+        return;
+      }
+      let result = 'Recommendation:\n';
+      result += `Crop Type: ${cropType}\n`;
+      result += `Crop Name: ${cropName}\n`;
+      result += `Season: ${season}\n\n`;
+      if (recType === 'fertilizer') {
+        const fert = fertilizerDosage[cropName];
+        if (!fert) {
+          result += 'Fertilizer recommendation not available for selected crop.';
+          hideFertilizerSchedule();
+        } else {
+          result += 'Fertilizer Dosage (kilograms per acre):\n';
+          result += `Nitrogen (N): ${(fert.N * haToAcres).toFixed(1)} kg/acre\n`;
+          result += `Phosphorus (P2O5): ${(fert.P * haToAcres).toFixed(1)} kg/acre\n`;
+          result += `Potassium (K2O): ${(fert.K * haToAcres).toFixed(1)} kg/acre\n`;
+          if (fert.Ca) result += `Calcium (Ca): ${(fert.Ca * haToAcres).toFixed(1)} kg/acre\n`;
+          if (fert.Mg) result += `Magnesium (Mg): ${(fert.Mg * haToAcres).toFixed(1)} kg/acre\n`;
+          if (fert.S) result += `Sulfur (S): ${(fert.S * haToAcres).toFixed(1)} kg/acre\n`;
+          result += `\nSplit Application Recommendation:\n${fert.splits}`;
+          showFertilizerSchedule(cropName);
+        }
+      } else if (recType === 'pest') {
+        let chemRecs = chemicalRecommendations.pest[pestName];
+        if ((!chemRecs || chemRecs.length === 0) && chemicalRecommendations.disease[pestName]) {
+          chemRecs = chemicalRecommendations.disease[pestName];
+        }
+        result += `Pest: ${pestName.replace(/_/g, ' ')}\nChemical Recommendations:\n`;
+        if (chemRecs && chemRecs.length > 0) {
+          chemRecs.forEach((rec, i) => {
+            result += `${i + 1}. ${rec}\n`;
+          });
+        } else {
+          result += 'Chemical recommendation not available.';
+        }
+        hideFertilizerSchedule();
+      } else if (recType === 'disease') {
+        let chemRecs = chemicalRecommendations.disease[pestName];
+        if ((!chemRecs || chemRecs.length === 0) && chemicalRecommendations.pest[pestName]) {
+          chemRecs = chemicalRecommendations.pest[pestName];
+        }
+        result += `Disease: ${pestName.replace(/_/g, ' ')}\nChemical Recommendations:\n`;
+        if (chemRecs && chemRecs.length > 0) {
+          chemRecs.forEach((rec, i) => {
+            result += `${i + 1}. ${rec}\n`;
+          });
+        } else {
+          result += 'Chemical recommendation not available.';
+        }
+        hideFertilizerSchedule();
+      }
+      const recommendationBox = document.getElementById('recommendationBox');
+      recommendationBox.textContent = result;
+      recommendationBox.style.display = 'block';
+    }
+
+    function backToDashboard() {
+      showSection('dashboardSection');
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      populateCrops();
+      togglePestDisease();
+    });
+
+    // Hide all main sections by default on page load
+window.addEventListener('DOMContentLoaded', function() {
+  const sections = [
+    'dashboardSection',
+    'uploadReportPage',
+    'ePantaReportPage',
+    'eseedSection',
+    'ccExperimentsSection',
+    'farmerDetailsPage',
+    'cropFarmersPage',
+    'registerPage',
+    'resetPasswordSection',
+    'profileSection',
+    'cropRecommendationSection'
+  ];
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  // Only show login page
+  const loginPage = document.getElementById('loginPage');
+  if (loginPage) loginPage.style.display = 'block';
+});
+
+    document.addEventListener('DOMContentLoaded', function() {
+  const printBtn = document.getElementById('printFarmerModalBtn');
+  if (printBtn) {
+    printBtn.onclick = function() {
+      const modalBody = document.getElementById('farmerModalBody');
+      if (!modalBody) return;
+      const printWindow = window.open('', '', 'width=800,height=600');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Farmer Details</title>
+            <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'/>
+            <style>
+              body { font-family: 'Poppins', sans-serif; padding: 1rem; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid #ccc; padding: 8px; }
+              h5 { margin-top: 1rem; }
+            </style>
+          </head>
+          <body>
+            <h3>Farmer Details</h3>
+            ${modalBody.innerHTML}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 500);
+    };
+  }
+});
+  </script>
+
+  <!-- Farmer Details Modal -->
+  <div class="modal fade" id="farmerModal" tabindex="-1" aria-labelledby="farmerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="farmerModalLabel">Farmer Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="farmerModalBody"></div>
+        <div class="modal-footer" style="justify-content: flex-end;">
+          <button type="button" class="btn btn-outline-primary" id="printFarmerModalBtn">
+            <i class="fas fa-print"></i> Print
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+</body>
+</html>
