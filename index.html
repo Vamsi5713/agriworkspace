@@ -571,45 +571,7 @@ cc-experiments-container {
       </div>
     </nav>
   </div>
-<!-- Add Google Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Poppins:wght@400;500&display=swap" rel="stylesheet">
 
-<div class="agri-workspace text-center mt-4 mb-3">
-  <h3>Welcome to Agri Work Space</h3>
-  <p class="designer-credit text-muted">Designed by VAmsi</p>
-</div>
-
-<style>
-.agri-workspace {
-  font-family: 'Montserrat', 'Poppins', sans-serif;
-  background: linear-gradient(90deg, #e3fcef 0%, #cbe1ff 100%);
-  padding: 1.5rem 0.8rem;
-  border-radius: 14px;
-  box-shadow: 0 4px 22px rgba(24, 98, 171, 0.10);
-  margin: 0 auto;
-  max-width: 370px;
-}
-.agri-workspace h3 {
-  color: #1862ab;
-  font-weight: 700;
-  font-size: 2.0rem;
-  margin-bottom: 0.5rem;
-  letter-spacing: 0.02em;
-  text-shadow: 0 2px 8px #b3d0fc;
-}
-.agri-workspace .designer-credit {
-  font-size: 1rem;
-  color: #3c60be;
-  font-family: 'Poppins', sans-serif;
-  font-weight: 500;
-  background: #daf0ff;
-  padding: 0.28em 0.8em;
-  border-radius: 7px;
-  display: inline-block;
-  box-shadow: 0 1px 8px rgba(24, 98, 171, 0.08);
-  margin-top: 0.12em;
-}
-</style>
 
 
   <!-- Login Page -->
@@ -705,6 +667,45 @@ cc-experiments-container {
   </div>
   <div class="hidden" id="dashboardSection" role="main" aria-label="Dashboard Section">
     <div class="container">
+<!-- Add Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Poppins:wght@400;500&display=swap" rel="stylesheet">
+
+<div class="agri-workspace text-center mt-4 mb-3">
+  <h3>Welcome to Agri Work Space</h3>
+  <p class="designer-credit text-muted">Designed by VAmsi</p>
+</div>
+
+<style>
+.agri-workspace {
+  font-family: 'Montserrat', 'Poppins', sans-serif;
+  background: linear-gradient(90deg, #e3fcef 0%, #cbe1ff 100%);
+  padding: 1.5rem 0.8rem;
+  border-radius: 14px;
+  box-shadow: 0 4px 22px rgba(24, 98, 171, 0.10);
+  margin: 0 auto;
+  max-width: 370px;
+}
+.agri-workspace h3 {
+  color: #1862ab;
+  font-weight: 700;
+  font-size: 2.0rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 8px #b3d0fc;
+}
+.agri-workspace .designer-credit {
+  font-size: 1rem;
+  color: #3c60be;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  background: #daf0ff;
+  padding: 0.28em 0.8em;
+  border-radius: 7px;
+  display: inline-block;
+  box-shadow: 0 1px 8px rgba(24, 98, 171, 0.08);
+  margin-top: 0.12em;
+}
+</style>
       <div class="dashboard-header mb-4">
         <h2 class="dashboard-title">Dashboard</h2>
         <p class="welcome-text">Welcome, <span id="userEmail" aria-live="polite"></span></p>
@@ -2717,7 +2718,69 @@ window.addEventListener('DOMContentLoaded', function() {
     </div>
   </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let pageStateStack = [];
+
+function showSection(sectionId, internalState = null) {
+  // Hide all sections
+  const sections = [
+    "dashboardSection","uploadReportPage","ePantaReportPage","eseedSection",
+    "ccExperimentsSection","farmerDetailsPage","cropFarmersPage",
+    "loginPage","registerPage","resetPasswordSection","profileSection","cropRecommendationSection"
+  ];
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+
+  // Show the requested section
+  const target = document.getElementById(sectionId);
+  if (target) target.style.display = sectionId === "ePantaReportPage" ? "flex" : "block";
+
+  // Push only if not duplicating the current top
+  const last = pageStateStack.length ? pageStateStack[pageStateStack.length - 1] : {};
+  if (last.section !== sectionId || last.state !== internalState) {
+    pageStateStack.push({ section: sectionId, state: internalState });
+    history.pushState({ section: sectionId, state: internalState }, "");
+  }
+}
+
+// Back-Button/Popstate Handler
+window.onpopstate = function (e) {
+  if (pageStateStack.length > 1) {
+    // Only pop in-card/in-section state
+    pageStateStack.pop();
+    const prev = pageStateStack[pageStateStack.length - 1];
+    // Only show previous state within the same card, not global section jump
+    showSection(prev.section, prev.state);
+    // Replace so history stays in sync
+    history.replaceState({ section: prev.section, state: prev.state }, "");
+  } else if (getCurrentSection() === "dashboardSection") {
+    // On dashboard, always show exit confirmation—do NOT pop state or go anywhere
+    if (confirm("Do you want to exit?")) {
+      window.close();
+    } else {
+      // Stay on dashboard; ensure browser state doesn't change
+      history.pushState({ section: "dashboardSection", state: null }, "");
+    }
+  }
+  // Do nothing else: don't navigate elsewhere, don't go back through global section history
+};
+
+function getCurrentSection() {
+  if (pageStateStack.length) return pageStateStack[pageStateStack.length - 1].section;
+  return null;
+}
+
+// On first load, start with dashboardSection
+window.addEventListener('DOMContentLoaded', function () {
+  pageStateStack = [{ section: "dashboardSection", state: null }];
+  history.replaceState({ section: "dashboardSection", state: null }, "");
+});
+</script>
+
 
 </body>
 
 </html>
+
