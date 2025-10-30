@@ -106,7 +106,191 @@
       vertical-align: middle;
     }
    
- 
+ /* Crop Damage Section Container */
+#cropDamageSection {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 2rem 2.5rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f7f9fc 0%, #e1eaf4 100%);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+  font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #354052;
+  user-select: none;
+  overflow-x: auto;
+}
+
+/* Headings */
+#cropDamageSection h2 {
+  font-weight: 700;
+  font-size: 2.2rem;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+  letter-spacing: 1px;
+}
+#cropDamageSection h3 {
+  font-weight: 600;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #3a496b;
+}
+
+/* File input styling */
+#inputExcel {
+  width: 100%;
+  max-width: 460px;
+  display: block;
+  margin-bottom: 1.5rem;
+  padding: 14px 20px;
+  font-size: 1.1rem;
+  color: #2d3a50;
+  background-color: #ffffff;
+  border: 2px dashed #3498db;
+  border-radius: 14px;
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+  cursor: pointer;
+}
+#inputExcel:hover,
+#inputExcel:focus {
+  border-color: #1e63c3;
+  box-shadow: 0 0 10px #1e63c3;
+  outline: none;
+}
+
+/* Buttons */
+#cropDamageSection button,
+#cropDamageSection .btn {
+  background-color: #317bee;
+  border: none;
+  padding: 14px 36px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  border-radius: 40px;
+  box-shadow: 0 6px 15px rgba(49, 123, 238, 0.2);
+  cursor: pointer;
+  transition: background-color 0.3s, box-shadow 0.3s, transform 0.2s;
+  margin-top: 12px;
+  display: inline-block;
+  min-width: 180px;
+  text-align: center;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+#cropDamageSection button:hover,
+#cropDamageSection .btn:hover {
+  background-color: #275fce;
+  box-shadow: 0 8px 18px rgba(39, 96, 206, 0.3);
+  transform: translateY(-4px);
+}
+#cropDamageSection .btn-danger {
+  background-color: #e74c3c;
+  box-shadow: 0 6px 15px rgba(231, 76, 60, 0.2);
+}
+#cropDamageSection .btn-danger:hover {
+  background-color: #c0392b;
+  box-shadow: 0 8px 18px rgba(192, 57, 43, 0.25);
+}
+
+/* Selected Survey Numbers Display */
+#damagedSurveyNumbers {
+  white-space: pre-line;
+  font-weight: 600;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  background: #f1f8ff;
+  border-left: 4px solid #2979ff;
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+
+/* Tables Styling */
+#cropDamageSection table {
+  table-layout: auto;
+  width: 100%;
+  min-width: 900px;
+  max-width: 100%;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.03);
+  overflow: auto;
+  font-size: 0.95rem;
+  color: #364156;
+  margin-top: 20px;
+}
+
+#cropDamageSection thead th {
+  background-image: linear-gradient(to right, #3366ff, #6699ff);
+  color: #f5faff;
+  font-weight: 700;
+  padding: 16px 22px;
+  border-bottom: 3px solid #2a52d3;
+  user-select: none;
+  text-align: left;
+}
+
+#cropDamageSection tbody tr {
+  border-bottom: 1px solid #e1e7f1;
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+#cropDamageSection tbody tr:hover {
+  background-color: #f0f5ff;
+  box-shadow: inset 4px 0 0 #3366ff;
+}
+#cropDamageSection tbody td {
+  padding: 12px 22px;
+  vertical-align: top;
+  white-space: pre-line;
+  line-height: 1.3;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Section wrapper */
+#dataSection, #damagedSurveysCard {
+  max-width: 860px;
+  margin: 0 auto 40px auto;
+  padding: 20px 20px 30px;
+  border-radius: 16px;
+  background-color: #fdfdff;
+  box-shadow: 0 10px 30px rgba(51, 102, 255, 0.07);
+}
+
+/* Responsive: for tablets/mobiles */
+@media (max-width: 1100px) {
+  #cropDamageSection table { min-width: 600px; }
+}
+@media (max-width: 900px) {
+  #cropDamageSection, #dataSection, #damagedSurveysCard { padding: 10px !important; }
+  #cropDamageSection table, #cropDamageSection thead th, #cropDamageSection tbody td {
+    padding: 7px 8px;
+  }
+}
+@media (max-width: 700px) {
+  #cropDamageSection table,
+  #cropDamageSection thead,
+  #cropDamageSection tbody,
+  #cropDamageSection th,
+  #cropDamageSection td,
+  #cropDamageSection tr {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  #cropDamageSection thead tr { display: none; }
+  #cropDamageSection td {
+    padding: 9px 10px;
+    border: none;
+    border-bottom: 1px solid #ececec;
+    text-align: left;
+  }
+}
+
+
  /* Crop Recommendation Styles */
     #cropRecommendationSection {
       max-width: 600px;
@@ -724,16 +908,15 @@ cc-experiments-container {
           </div>
         </div>
 
-        <!-- e-Seed Report Card -->
-        <div class="col">
-          <div class="dashboard-card h-100" role="button" tabindex="0" aria-pressed="false" aria-label="e-Seed Report - Manage seed information and procurement" onclick="showSection('eseedSection')">
-            <div class="card-body text-center">
-              <i class="fas fa-seedling fa-3x mb-3" style="color: #2ecc71;"></i>
-              <h5>e-Seed Report</h5>
-              <p>Manage seed information and procurement</p>
-            </div>
-          </div>
-        </div>
+        <!-- Crop Damage Record Card (Replaces the old e-Seed Report Card) -->
+      <div class="dashboard-card crop-damage-card" role="button" tabindex="0" aria-pressed="false" aria-label="Crop Damage Record - Upload and select damaged crop surveys" onclick="showSection('cropDamageSection')">
+  <div class="card-body text-center">
+    <i class="fas fa-exclamation-triangle"></i>
+    <h5>Crop Damage Record</h5>
+    <p>Upload crop details Excel and select damaged surveys</p>
+  </div>
+</div>
+
 
        <!-- CC Experiments Card -->
 <div class="col">
@@ -906,8 +1089,54 @@ cc-experiments-container {
     <div id="cropFarmersContent"></div>
   </div>
 
-  <!-- e-Seed Report Section Placeholder -->
-  <div class="container hidden" id="eseedSection" role="main" aria-label="e-Seed Report Section"></div>
+ <!-- Crop Damage Record Section -->
+  <div class="container" id="cropDamageSection" role="main" aria-label="Crop Damage Record Section" style="display:none;">
+
+  <h2>Step 1: Upload Crop Details Excel</h2>
+  <input type="file" id="inputExcel" accept=".xls,.xlsx" />
+  <div style="margin-top:10px;">
+    <button onclick="clearStoredFileData()" class="btn btn-danger">Clear Uploaded Data</button>
+  </div>
+
+  <div id="dataSection" class="section" style="display:none;">
+    <h3>Select Damaged Survey Numbers</h3>
+    <form id="surveyForm">
+      <table id="surveyTable" class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>Survey Number</th>
+            <th>Cumulative Area</th>
+            <th>Crop Name</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button type="submit" class="btn btn-primary">Submit Damaged Survey Numbers</button>
+    </form>
+  </div>
+
+  <div id="damagedSurveysCard" class="section" style="display:none;">
+    <h3>Crop Damaged Survey Numbers and Farmer Details</h3>
+    <div id="damagedSurveyNumbers" style="white-space: pre-wrap; font-weight: 600;"></div>
+    <table id="farmerDetails" class="table table-striped table-bordered mt-3">
+      <thead>
+        <tr>
+          <th>Farmer Name</th>
+          <th>Father Name</th>
+          <th>Aadhaar Number</th>
+          <th>Booking ID</th>
+          <th>Khatha Number</th>
+          <th>Survey Number</th>
+          <th>Area</th>
+          <th>Crop Name</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+</div>
 
   <!-- CC Experiments Section Placeholder -->
 <div class="container cc-experiments-container hidden" id="ccExperimentsSection" role="main" aria-label="CC Experiments Section">
@@ -2779,6 +3008,224 @@ window.addEventListener('DOMContentLoaded', function () {
   history.replaceState({ section: "dashboardSection", state: null }, "");
 });
 </script>
+<script>
+    // Add showSection function to toggle sections
+    function showSection(sectionId) {
+      const sections = [
+        'dashboardSection',
+        'uploadReportPage',
+        'ePantaReportPage',
+        'eseedSection',
+        'ccExperimentsSection',
+        'farmerDetailsPage',
+        'cropFarmersPage',
+        'loginPage',
+        'registerPage',
+        'resetPasswordSection',
+        'profileSection',
+        'cropRecommendationSection',
+        'cropDamageSection' // Add new crop damage section here
+      ];
+
+      sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.style.display = (id === sectionId) ? ((id === 'ePantaReportPage') ? 'flex' : 'block') : 'none';
+        }
+      });
+    }
+
+    let parsedData = [];
+
+    document.getElementById('inputExcel').addEventListener('change', handleFile);
+    document.getElementById('surveyForm').addEventListener('submit', handleSubmit);
+
+    function parseField(item, keys) {
+      for (const key of keys) {
+        if (item[key] !== undefined && item[key] !== '') return item[key];
+      }
+      return '';
+    }
+
+    // Key parsing helper functions
+    function parseSurveyNumber(item) {
+      return parseField(item, ['survey number', 'Survey Number', 'survey_number', 'Survey_Number', 'Survey No', 'Survey No.', 'SurveyNo', 'Survey No']);
+    }
+    function parseCropName(item) {
+      return parseField(item, ['crop name', 'Crop Name', 'crop_name', 'Crop_Name']);
+    }
+    function parseArea(item) {
+      let val = parseField(item, ['area', 'Area', 'plot area', 'Plot Area']);
+      let num = parseFloat(val);
+      if (!isNaN(num)) return num;
+      let match = val.toString().match(/[\d\.]+/);
+      if (match) return parseFloat(match[0]);
+      return 0;
+    }
+    function parseAadhaar(item) {
+      return parseField(item, ['aadhar number', 'Aadhaar Number', 'Aadhar Number', 'aadhaar_number', 'aadhaar', 'Aadhaar', 'aadhar']);
+    }
+    function parseFarmerName(item) {
+      return parseField(item, ['farmer name', 'Farmer Name', 'farmer', 'Farmer']);
+    }
+    function parseFatherName(item) {
+      return parseField(item, ['father name', 'Father Name', 'father', 'Father']);
+    }
+    function parseKhatha(item) {
+      return parseField(item, ['khatha number', 'Khatha Number', 'khata number', 'Khata Number', 'khatha', 'Khatha', 'khata', 'Khata']);
+    }
+    function parseBookingId(item) {
+      return parseField(item, ['booking id', 'Booking ID', 'booking_id', 'Booking_Id']);
+    }
+
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        parsedData = XLSX.utils.sheet_to_json(worksheet, {defval: ''});
+        if (!parsedData.length) {
+          alert('Excel file is empty or cannot be parsed.');
+          return;
+        }
+        showSurveySelection(parsedData);
+        document.getElementById('damagedSurveysCard').style.display = 'none';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function showSurveySelection(data) {
+      let surveyNumbersSet = new Set();
+      let surveyDataMap = new Map();
+
+      data.forEach(item => {
+        const surveyNo = parseSurveyNumber(item);
+        if (!surveyNo) return;
+        let area = parseArea(item);
+        let crop = parseCropName(item);
+        if (!surveyDataMap.has(surveyNo)) {
+          surveyDataMap.set(surveyNo, { areaSum: 0, crops: new Set() });
+        }
+        let val = surveyDataMap.get(surveyNo);
+        val.areaSum += area;
+        if (crop) val.crops.add(crop);
+        surveyNumbersSet.add(surveyNo);
+      });
+
+      const sortedSurveyNumbers = Array.from(surveyNumbersSet).sort((a, b) => {
+        const numA = parseFloat(a) || 0;
+        const numB = parseFloat(b) || 0;
+        if (numA !== numB) return numA - numB;
+        return a.localeCompare(b);
+      });
+
+      const tbody = document.querySelector('#surveyTable tbody');
+      tbody.innerHTML = '';
+      sortedSurveyNumbers.forEach(surveyNo => {
+        const surveyData = surveyDataMap.get(surveyNo);
+        if (surveyData.areaSum <= 0) return;
+
+        let cropDisplay = '';
+        if (surveyData.crops.size === 1) {
+          cropDisplay = Array.from(surveyData.crops)[0];
+        } else if (surveyData.crops.size > 1) {
+          cropDisplay = 'Multiple';
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="checkbox" name="survey" value="${surveyNo}"></td>
+          <td>${surveyNo}</td>
+          <td>${surveyData.areaSum.toFixed(2)}</td>
+          <td>${cropDisplay}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (tbody.children.length > 0) {
+        document.getElementById('dataSection').style.display = 'block';
+      } else {
+        alert('No valid survey numbers with area found in Excel.');
+        document.getElementById('dataSection').style.display = 'none';
+      }
+    }
+
+    function handleSubmit(event) {
+      event.preventDefault();
+      const selectedSurveys = Array.from(document.querySelectorAll('input[name="survey"]:checked')).map(input => input.value);
+      if (selectedSurveys.length === 0) {
+        alert('Please select at least one damaged survey number.');
+        return;
+      }
+      showDamagedSurveysCard(selectedSurveys);
+    }
+
+    function showDamagedSurveysCard(selectedSurveys) {
+      const damagedSurveysDiv = document.getElementById('damagedSurveyNumbers');
+      damagedSurveysDiv.textContent = 'Selected Survey Numbers: ' + selectedSurveys.join(', ');
+
+      const grouped = new Map();
+      parsedData.forEach(item => {
+        const surveyNo = parseSurveyNumber(item);
+        if (!surveyNo || !selectedSurveys.includes(surveyNo)) return;
+
+        const aadhaarRaw = parseAadhaar(item);
+        const aadhaar = aadhaarRaw ? aadhaarRaw : '';
+        const farmerName = parseFarmerName(item);
+        const fatherName = parseFatherName(item);
+        const bookingId = parseBookingId(item);
+        const khatha = parseKhatha(item);
+        const area = parseArea(item);
+        const crop = parseCropName(item);
+
+        const key = `${aadhaar}|${farmerName}|${fatherName}`;
+
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            farmerName,
+            fatherName,
+            aadhaars: new Set(),
+            bookingIds: new Set(),
+            khathaNumbers: new Set(),
+            surveyNumbers: new Set(),
+            areaSum: 0,
+            crops: new Set()
+          });
+        }
+        const grp = grouped.get(key);
+        if (aadhaar) grp.aadhaars.add(aadhaar);
+        grp.areaSum += area;
+        if (bookingId) grp.bookingIds.add(bookingId);
+        if (khatha) grp.khathaNumbers.add(khatha);
+        if (surveyNo) grp.surveyNumbers.add(surveyNo);
+        if (crop) grp.crops.add(crop);
+      });
+
+      const tbody = document.querySelector('#farmerDetails tbody');
+      tbody.innerHTML = '';
+      grouped.forEach(grp => {
+        const tr = document.createElement('tr');
+        const aadhaarStr = Array.from(grp.aadhaars).join(',\n');
+        tr.innerHTML = `
+          <td>${grp.farmerName}</td>
+          <td>${grp.fatherName}</td>
+          <td style="white-space: pre-line;">${aadhaarStr}</td>
+          <td>${Array.from(grp.bookingIds).join(', ')}</td>
+          <td>${Array.from(grp.khathaNumbers).join(', ')}</td>
+          <td>${Array.from(grp.surveyNumbers).join(', ')}</td>
+          <td>${grp.areaSum.toFixed(2)}</td>
+          <td>${Array.from(grp.crops).join(', ')}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('damagedSurveysCard').style.display = 'block';
+    }
+  </script>
 
 </body>
 
