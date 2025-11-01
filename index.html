@@ -1132,7 +1132,15 @@ cc-experiments-container {
   </div>
 
   <div id="dataSection" class="section" style="display:none;">
-    <h3>Select Damaged Survey Numbers (Use Shift + Click for range selection)</h3>
+    <h3>Select Damaged Survey Numbers (Use Shift+Click or Enter List)</h3>
+
+    <!-- Input for manual survey number entry -->
+    <div class="mb-3">
+      <label for="manualSurveyInput" class="form-label">Enter Survey Numbers (e.g., 21,33,37,336-344):</label>
+      <input type="text" id="manualSurveyInput" class="form-control" placeholder="Enter survey numbers" />
+      <button id="applySurveyInput" class="btn btn-secondary mt-2">Apply</button>
+    </div>
+
     <form id="surveyForm">
       <table id="surveyTable" class="table table-bordered" aria-describedby="Select damaged survey numbers">
         <thead>
@@ -3151,6 +3159,7 @@ window.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+
   // Attach Shift + Click event listener for checkbox range selection
   function attachCheckboxShiftClickHandler() {
     let lastChecked = null;
@@ -3178,6 +3187,62 @@ window.addEventListener('DOMContentLoaded', function () {
 
         lastChecked = this;
       });
+    });
+  }
+
+  // Handle manual survey number input and apply selection
+  document.getElementById('applySurveyInput').addEventListener('click', function() {
+    const inputVal = document.getElementById('manualSurveyInput').value.trim();
+    if (!inputVal) {
+      alert('Please enter survey numbers.');
+      return;
+    }
+    // Clear previous selections
+    document.querySelectorAll('#surveyTable tbody input[type="checkbox"]').forEach(cb => cb.checked = false);
+
+    const surveyNumbers = parseSurveyInput(inputVal); // Parse input
+    selectSurveys(surveyNumbers);
+  });
+
+  // parseSurveyInput function splits comma separated and handles simple numeric ranges
+  function parseSurveyInput(inputStr) {
+    const result = new Set();
+    const parts = inputStr.split(',');
+
+    parts.forEach(part => {
+      part = part.trim();
+      // If there is a pure numeric range like 336-344, expand it
+      if (/^\d+-\d+$/.test(part)) {
+        const [start, end] = part.split('-');
+        const startNum = parseInt(start, 10);
+        const endNum = parseInt(end, 10);
+        if (startNum <= endNum) {
+          for (let i = startNum; i <= endNum; i++) {
+            result.add(i.toString());
+          }
+        }
+      } else {
+        // Otherwise treat as survey number prefix or exact match
+        if (part) {
+          result.add(part);
+        }
+      }
+    });
+    return Array.from(result);
+  }
+
+  // selectSurveys filters each checkbox if it starts with any of the selected prefixes
+  function selectSurveys(surveyNumbers) {
+    const checkboxes = document.querySelectorAll('#surveyTable tbody input[type="checkbox"]');
+
+    checkboxes.forEach(cb => {
+      const cbVal = cb.value.toLowerCase();
+      const selected = surveyNumbers.some(selNum => {
+        selNum = selNum.toLowerCase();
+        return cbVal === selNum || cbVal.startsWith(selNum + '-');
+      });
+
+      cb.checked = selected;
     });
   }
 
@@ -3210,8 +3275,8 @@ window.addEventListener('DOMContentLoaded', function () {
       const area = Number(item['Area']) || 0;
       const crop = item['Crop Name'] ? item['Crop Name'].toString().trim() : '';
 
-      // Group by farmer + khatha to avoid duplicate rows for same farmer & khatha
-      const key = `${aadhaar}|${farmerName}|${fatherName}|${khatha}`;
+      // Group by farmer only, not khatha
+      const key = `${aadhaar}|${farmerName}|${fatherName}`;
 
       if (!grouped.has(key)) {
         grouped.set(key, {
@@ -3220,7 +3285,7 @@ window.addEventListener('DOMContentLoaded', function () {
           aadhaars: new Set(),
           bookingIds: new Set(),
           khathaNumbers: new Set(),
-          surveyNumbers: new Set(),
+          surveyNumbersArea: [],  // Store survey number with area info
           areaSum: 0,
           crops: new Set()
         });
@@ -3229,7 +3294,7 @@ window.addEventListener('DOMContentLoaded', function () {
       if (aadhaar) grp.aadhaars.add(aadhaar);
       if (bookingId) grp.bookingIds.add(bookingId);
       if (khatha) grp.khathaNumbers.add(khatha);
-      if (surveyNo) grp.surveyNumbers.add(surveyNo);
+      grp.surveyNumbersArea.push(`${surveyNo}(${area.toFixed(2)})`);  // Add survey number with area in brackets
       grp.areaSum += area;
       if (crop) grp.crops.add(crop);
     });
@@ -3240,7 +3305,7 @@ window.addEventListener('DOMContentLoaded', function () {
       const aadhaarStr = Array.from(grp.aadhaars).join('<br>');
       const bookingIdStr = Array.from(grp.bookingIds).join('<br>');
       const khathaStr = Array.from(grp.khathaNumbers).join('<br>');
-      const surveyStr = Array.from(grp.surveyNumbers).join('<br>');
+      const surveyStr = grp.surveyNumbersArea.join('<br>');  // Use survey number with area
       const cropsStr = Array.from(grp.crops).join(', ');
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -3259,24 +3324,24 @@ window.addEventListener('DOMContentLoaded', function () {
     document.getElementById('damagedSurveysCard').style.display = 'block';
   }
 
-  // Back button: Hide damagedSurveysCard and show dashboard
+  // Back button: Hide damagedSurveysCard and show data section
   document.getElementById('backToDamageSurveyBtn').addEventListener('click', () => {
     document.getElementById('damagedSurveysCard').style.display = 'none';
     document.getElementById('dataSection').style.display = 'block';
   });
 
-  // Export to Excel button functionality
+  // Export to Excel
   document.getElementById('exportDamageDataBtn').addEventListener('click', () => {
-    const table = document.querySelector('#damagedSurveysCard table');
+    const table = document.querySelector('#farmerDetails');
     if (!table || table.tBodies[0].rows.length === 0) {
-      alert('No data available to export!');
+      alert('No data to export!');
       return;
     }
-    const workbook = XLSX.utils.table_to_book(table, { sheet: 'CropDamageDetails' });
-    XLSX.writeFile(workbook, 'CropDamageDetails.xlsx');
+    const wb = XLSX.utils.table_to_book(table, { sheet: 'FarmerDetails' });
+    XLSX.writeFile(wb, 'FarmerDetails.xlsx');
   });
 
-  // Function to clear uploaded file data and reset UI as needed
+  // Clear data function for reset
   function clearStoredFileData() {
     parsedData = [];
     document.getElementById('inputExcel').value = '';
