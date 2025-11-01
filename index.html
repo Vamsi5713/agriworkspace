@@ -1134,6 +1134,17 @@ cc-experiments-container {
   <div id="dataSection" class="section" style="display:none;">
     <h3>Select Damaged Survey Numbers (Use Shift+Click or Enter List)</h3>
 
+    <!-- Option for record grouping mode -->
+    <div class="mb-2">
+      <label class="form-label">Record Grouping:</label>
+      <div>
+        <input type="radio" name="groupMode" id="bookingPerRow" value="booking" />
+        <label for="bookingPerRow">One Booking ID per Record</label>
+        <input type="radio" name="groupMode" id="farmerPerRow" value="farmer" checked />
+        <label for="farmerPerRow">All Booking IDs per Farmer</label>
+      </div>
+    </div>
+
     <!-- Input for manual survey number entry -->
     <div class="mb-3">
       <label for="manualSurveyInput" class="form-label">Enter Survey Numbers (e.g., 21,33,37,336-344):</label>
@@ -3159,7 +3170,6 @@ window.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-
   // Attach Shift + Click event listener for checkbox range selection
   function attachCheckboxShiftClickHandler() {
     let lastChecked = null;
@@ -3259,6 +3269,8 @@ window.addEventListener('DOMContentLoaded', function () {
 
   // Show detailed farmer grouping results for selected survey numbers
   function showDamagedSurveysCard(selectedSurveys) {
+    const groupBy = document.querySelector('input[name="groupMode"]:checked').value;
+
     const damagedSurveysDiv = document.getElementById('damagedSurveyNumbers');
     damagedSurveysDiv.textContent = 'Selected Survey Numbers:\n' + selectedSurveys.join(', ');
 
@@ -3275,8 +3287,10 @@ window.addEventListener('DOMContentLoaded', function () {
       const area = Number(item['Area']) || 0;
       const crop = item['Crop Name'] ? item['Crop Name'].toString().trim() : '';
 
-      // Group by farmer only, not khatha
-      const key = `${aadhaar}|${farmerName}|${fatherName}`;
+      const key = 
+        (groupBy === 'booking')
+        ? `${aadhaar}|${farmerName}|${fatherName}|${bookingId}`
+        : `${aadhaar}|${farmerName}|${fatherName}`;
 
       if (!grouped.has(key)) {
         grouped.set(key, {
@@ -3285,7 +3299,7 @@ window.addEventListener('DOMContentLoaded', function () {
           aadhaars: new Set(),
           bookingIds: new Set(),
           khathaNumbers: new Set(),
-          surveyNumbersArea: [],  // Store survey number with area info
+          surveyNumbersArea: [],
           areaSum: 0,
           crops: new Set()
         });
@@ -3294,7 +3308,7 @@ window.addEventListener('DOMContentLoaded', function () {
       if (aadhaar) grp.aadhaars.add(aadhaar);
       if (bookingId) grp.bookingIds.add(bookingId);
       if (khatha) grp.khathaNumbers.add(khatha);
-      grp.surveyNumbersArea.push(`${surveyNo}(${area.toFixed(2)})`);  // Add survey number with area in brackets
+      grp.surveyNumbersArea.push(`${surveyNo}(${area.toFixed(2)})`);
       grp.areaSum += area;
       if (crop) grp.crops.add(crop);
     });
@@ -3302,10 +3316,10 @@ window.addEventListener('DOMContentLoaded', function () {
     const tbody = document.querySelector('#farmerDetails tbody');
     tbody.innerHTML = '';
     grouped.forEach(grp => {
-      const aadhaarStr = Array.from(grp.aadhaars).join('<br>');
-      const bookingIdStr = Array.from(grp.bookingIds).join('<br>');
-      const khathaStr = Array.from(grp.khathaNumbers).join('<br>');
-      const surveyStr = grp.surveyNumbersArea.join('<br>');  // Use survey number with area
+      const aadhaarStr = Array.from(grp.aadhaars).join('\n');
+      const bookingIdStr = Array.from(grp.bookingIds).join('\n');
+      const khathaStr = Array.from(grp.khathaNumbers).join('\n');
+      const surveyStr = grp.surveyNumbersArea.join('\n');
       const cropsStr = Array.from(grp.crops).join(', ');
       const tr = document.createElement('tr');
       tr.innerHTML = `
