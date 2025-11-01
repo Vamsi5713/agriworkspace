@@ -1123,7 +1123,7 @@ cc-experiments-container {
   </div>
 
  <!-- Crop Damage Record Section -->
-  <div class="container" id="cropDamageSection" role="main" aria-label="Crop Damage Record Section" style="display:none;">
+<div class="container" id="cropDamageSection" role="main" aria-label="Crop Damage Record Section" style="display:none;">
 
   <h2>Step 1: Upload Crop Details Excel</h2>
   <input type="file" id="inputExcel" accept=".xls,.xlsx" />
@@ -1132,9 +1132,9 @@ cc-experiments-container {
   </div>
 
   <div id="dataSection" class="section" style="display:none;">
-    <h3>Select Damaged Survey Numbers</h3>
+    <h3>Select Damaged Survey Numbers (Use Shift + Click for range selection)</h3>
     <form id="surveyForm">
-      <table id="surveyTable" class="table table-bordered">
+      <table id="surveyTable" class="table table-bordered" aria-describedby="Select damaged survey numbers">
         <thead>
           <tr>
             <th>Select</th>
@@ -1150,30 +1150,28 @@ cc-experiments-container {
   </div>
 
   <div id="damagedSurveysCard" class="section" style="display:none;">
-  <h3>Crop Damaged Survey Numbers and Farmer Details</h3>
-  <div id="damagedSurveyNumbers" style="white-space: pre-wrap; font-weight: 600;"></div>
-  <table id="farmerDetails" class="table table-striped table-bordered mt-3">
-    <thead>
-      <tr>
-        <th>Farmer Name</th>
-        <th>Father Name</th>
-        <th>Aadhaar Number</th>
-        <th>Booking ID</th>
-        <th>Khatha Number</th>
-        <th>Survey Number</th>
-        <th>Area</th>
-        <th>Crop Name</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <div class="mt-3 d-flex justify-content-between">
-    <button id="backToDamageSurveyBtn" class="btn btn-secondary">Back</button>
-    <button id="exportDamageDataBtn" class="btn btn-success">Export to Excel</button>
+    <h3>Crop Damaged Survey Numbers and Farmer Details</h3>
+    <div id="damagedSurveyNumbers" style="white-space: pre-wrap; font-weight: 600;"></div>
+    <table id="farmerDetails" class="table table-striped table-bordered mt-3" aria-label="Damaged survey farmer details">
+      <thead>
+        <tr>
+          <th>Farmer Name</th>
+          <th>Father Name</th>
+          <th>Aadhaar Number</th>
+          <th>Booking ID</th>
+          <th>Khatha Number</th>
+          <th>Survey Number</th>
+          <th>Area</th>
+          <th>Crop Name</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="mt-3 d-flex justify-content-between">
+      <button id="backToDamageSurveyBtn" class="btn btn-secondary">Back</button>
+      <button id="exportDamageDataBtn" class="btn btn-success">Export to Excel</button>
+    </div>
   </div>
-</div>
-
-
 </div>
 
   <!-- CC Experiments Section Placeholder -->
@@ -3075,211 +3073,220 @@ window.addEventListener('DOMContentLoaded', function () {
 
     let parsedData = [];
 
-    document.getElementById('inputExcel').addEventListener('change', handleFile);
-    document.getElementById('surveyForm').addEventListener('submit', handleSubmit);
-
-    function parseField(item, keys) {
-      for (const key of keys) {
-        if (item[key] !== undefined && item[key] !== '') return item[key];
-      }
-      return '';
-    }
-
-    // Key parsing helper functions
-    function parseSurveyNumber(item) {
-      return parseField(item, ['survey number', 'Survey Number', 'survey_number', 'Survey_Number', 'Survey No', 'Survey No.', 'SurveyNo', 'Survey No']);
-    }
-    function parseCropName(item) {
-      return parseField(item, ['crop name', 'Crop Name', 'crop_name', 'Crop_Name']);
-    }
-    function parseArea(item) {
-      let val = parseField(item, ['area', 'Area', 'plot area', 'Plot Area']);
-      let num = parseFloat(val);
-      if (!isNaN(num)) return num;
-      let match = val.toString().match(/[\d\.]+/);
-      if (match) return parseFloat(match[0]);
-      return 0;
-    }
-    function parseAadhaar(item) {
-      return parseField(item, ['aadhar number', 'Aadhaar Number', 'Aadhar Number', 'aadhaar_number', 'aadhaar', 'Aadhaar', 'aadhar']);
-    }
-    function parseFarmerName(item) {
-      return parseField(item, ['farmer name', 'Farmer Name', 'farmer', 'Farmer']);
-    }
-    function parseFatherName(item) {
-      return parseField(item, ['father name', 'Father Name', 'father', 'Father']);
-    }
-    function parseKhatha(item) {
-      return parseField(item, ['khatha number', 'Khatha Number', 'khata number', 'Khata Number', 'khatha', 'Khatha', 'khata', 'Khata']);
-    }
-    function parseBookingId(item) {
-      return parseField(item, ['booking id', 'Booking ID', 'booking_id', 'Booking_Id']);
-    }
-
-    function handleFile(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        parsedData = XLSX.utils.sheet_to_json(worksheet, {defval: ''});
-        if (!parsedData.length) {
-          alert('Excel file is empty or cannot be parsed.');
-          return;
-        }
-        showSurveySelection(parsedData);
-        document.getElementById('damagedSurveysCard').style.display = 'none';
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    function showSurveySelection(data) {
-      let surveyNumbersSet = new Set();
-      let surveyDataMap = new Map();
-
-      data.forEach(item => {
-        const surveyNo = parseSurveyNumber(item);
-        if (!surveyNo) return;
-        let area = parseArea(item);
-        let crop = parseCropName(item);
-        if (!surveyDataMap.has(surveyNo)) {
-          surveyDataMap.set(surveyNo, { areaSum: 0, crops: new Set() });
-        }
-        let val = surveyDataMap.get(surveyNo);
-        val.areaSum += area;
-        if (crop) val.crops.add(crop);
-        surveyNumbersSet.add(surveyNo);
-      });
-
-      const sortedSurveyNumbers = Array.from(surveyNumbersSet).sort((a, b) => {
-        const numA = parseFloat(a) || 0;
-        const numB = parseFloat(b) || 0;
-        if (numA !== numB) return numA - numB;
-        return a.localeCompare(b);
-      });
-
-      const tbody = document.querySelector('#surveyTable tbody');
-      tbody.innerHTML = '';
-      sortedSurveyNumbers.forEach(surveyNo => {
-        const surveyData = surveyDataMap.get(surveyNo);
-        if (surveyData.areaSum <= 0) return;
-
-        let cropDisplay = '';
-        if (surveyData.crops.size === 1) {
-          cropDisplay = Array.from(surveyData.crops)[0];
-        } else if (surveyData.crops.size > 1) {
-          cropDisplay = 'Multiple';
-        }
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="checkbox" name="survey" value="${surveyNo}"></td>
-          <td>${surveyNo}</td>
-          <td>${surveyData.areaSum.toFixed(2)}</td>
-          <td>${cropDisplay}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      if (tbody.children.length > 0) {
-        document.getElementById('dataSection').style.display = 'block';
-      } else {
-        alert('No valid survey numbers with area found in Excel.');
-        document.getElementById('dataSection').style.display = 'none';
-      }
-    }
-
-    function handleSubmit(event) {
-      event.preventDefault();
-      const selectedSurveys = Array.from(document.querySelectorAll('input[name="survey"]:checked')).map(input => input.value);
-      if (selectedSurveys.length === 0) {
-        alert('Please select at least one damaged survey number.');
+  // Handle file input and parsing
+  document.getElementById('inputExcel').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const data = new Uint8Array(event.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.SheetNames[0];
+      parsedData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
+      if (!parsedData.length) {
+        alert('Excel file is empty or cannot be parsed.');
         return;
       }
-      showDamagedSurveysCard(selectedSurveys);
+      showSurveySelection(parsedData);
+      document.getElementById('damagedSurveysCard').style.display = 'none';
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  // Display survey numbers from parsed data for selection
+  function showSurveySelection(data) {
+    let surveyNumbersSet = new Set();
+    let surveyDataMap = new Map();
+
+    data.forEach(item => {
+      const surveyNo = item['Survey Number'] ? item['Survey Number'].toString().trim() : '';
+      if (!surveyNo) return;
+      const area = Number(item['Area']) || 0;
+      const crop = item['Crop Name'] ? item['Crop Name'].toString().trim() : '';
+      if (!surveyDataMap.has(surveyNo)) {
+        surveyDataMap.set(surveyNo, { areaSum: 0, crops: new Set() });
+      }
+      let val = surveyDataMap.get(surveyNo);
+      val.areaSum += area;
+      if (crop) val.crops.add(crop);
+      surveyNumbersSet.add(surveyNo);
+    });
+
+    const sortedSurveyNumbers = Array.from(surveyNumbersSet).sort((a, b) => {
+      const numA = parseFloat(a) || 0;
+      const numB = parseFloat(b) || 0;
+      if (numA !== numB) return numA - numB;
+      return a.localeCompare(b);
+    });
+
+    const tbody = document.querySelector('#surveyTable tbody');
+    tbody.innerHTML = '';
+    sortedSurveyNumbers.forEach(surveyNo => {
+      const surveyData = surveyDataMap.get(surveyNo);
+      if (surveyData.areaSum <= 0) return;
+
+      let cropDisplay = '';
+      if (surveyData.crops.size === 1) {
+        cropDisplay = Array.from(surveyData.crops)[0];
+      } else if (surveyData.crops.size > 1) {
+        cropDisplay = 'Multiple';
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="checkbox" name="survey" value="${surveyNo}"></td>
+        <td class="survey-number-cell">${surveyNo}</td>
+        <td>${surveyData.areaSum.toFixed(2)}</td>
+        <td>${cropDisplay}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    if (tbody.children.length > 0) {
+      document.getElementById('dataSection').style.display = 'block';
+      attachCheckboxShiftClickHandler(); // Attach shift+click handler each time after rendering
+    } else {
+      alert('No valid survey numbers with area found in Excel.');
+      document.getElementById('dataSection').style.display = 'none';
     }
-
-    function showDamagedSurveysCard(selectedSurveys) {
-      const damagedSurveysDiv = document.getElementById('damagedSurveyNumbers');
-      damagedSurveysDiv.textContent = 'Selected Survey Numbers: ' + selectedSurveys.join(', ');
-
-      const grouped = new Map();
-      parsedData.forEach(item => {
-        const surveyNo = parseSurveyNumber(item);
-        if (!surveyNo || !selectedSurveys.includes(surveyNo)) return;
-
-        const aadhaarRaw = parseAadhaar(item);
-        const aadhaar = aadhaarRaw ? aadhaarRaw : '';
-        const farmerName = parseFarmerName(item);
-        const fatherName = parseFatherName(item);
-        const bookingId = parseBookingId(item);
-        const khatha = parseKhatha(item);
-        const area = parseArea(item);
-        const crop = parseCropName(item);
-
-        const key = `${aadhaar}|${farmerName}|${fatherName}`;
-
-        if (!grouped.has(key)) {
-          grouped.set(key, {
-            farmerName,
-            fatherName,
-            aadhaars: new Set(),
-            bookingIds: new Set(),
-            khathaNumbers: new Set(),
-            surveyNumbers: new Set(),
-            areaSum: 0,
-            crops: new Set()
-          });
-        }
-        const grp = grouped.get(key);
-        if (aadhaar) grp.aadhaars.add(aadhaar);
-        grp.areaSum += area;
-        if (bookingId) grp.bookingIds.add(bookingId);
-        if (khatha) grp.khathaNumbers.add(khatha);
-        if (surveyNo) grp.surveyNumbers.add(surveyNo);
-        if (crop) grp.crops.add(crop);
-      });
-
-      const tbody = document.querySelector('#farmerDetails tbody');
-      tbody.innerHTML = '';
-      grouped.forEach(grp => {
-        const tr = document.createElement('tr');
-        const aadhaarStr = Array.from(grp.aadhaars).join(',\n');
-        tr.innerHTML = `
-          <td>${grp.farmerName}</td>
-          <td>${grp.fatherName}</td>
-          <td style="white-space: pre-line;">${aadhaarStr}</td>
-          <td>${Array.from(grp.bookingIds).join(', ')}</td>
-          <td>${Array.from(grp.khathaNumbers).join(', ')}</td>
-          <td>${Array.from(grp.surveyNumbers).join(', ')}</td>
-          <td>${grp.areaSum.toFixed(2)}</td>
-          <td>${Array.from(grp.crops).join(', ')}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById('damagedSurveysCard').style.display = 'block';
-    }
-document.getElementById('backToDamageSurveyBtn').addEventListener('click', () => {
-  // Hide the damagedSurveysCard
-  document.getElementById('damagedSurveysCard').style.display = 'none';
-  // Call the function to show dashboard section
-  showSection('dashboardSection');
-});
-
-document.getElementById('exportDamageDataBtn').addEventListener('click', () => {
-  const table = document.querySelector('#damagedSurveysCard table');
-  if (!table || table.tBodies[0].rows.length === 0) {
-    alert('No data available to export!');
-    return;
   }
-  const workbook = XLSX.utils.table_to_book(table, { sheet: 'CropDamageDetails' });
-  XLSX.writeFile(workbook, 'CropDamageDetails.xlsx');
-});
 
+  // Attach Shift + Click event listener for checkbox range selection
+  function attachCheckboxShiftClickHandler() {
+    let lastChecked = null;
+    const checkboxes = document.querySelectorAll('#surveyTable tbody input[type="checkbox"]');
+
+    checkboxes.forEach(checkbox => {
+      checkbox.addEventListener('click', function (e) {
+        if (!lastChecked) {
+          lastChecked = this;
+          return;
+        }
+
+        if (e.shiftKey) {
+          let start = Array.from(checkboxes).indexOf(this);
+          let end = Array.from(checkboxes).indexOf(lastChecked);
+
+          if (start > end) {
+            [start, end] = [end, start];
+          }
+
+          for (let i = start; i <= end; i++) {
+            checkboxes[i].checked = lastChecked.checked;
+          }
+        }
+
+        lastChecked = this;
+      });
+    });
+  }
+
+  // Form submit handler
+  document.getElementById('surveyForm').addEventListener('submit', function (event) {
+    event.preventDefault();
+    const selectedSurveys = Array.from(document.querySelectorAll('input[name="survey"]:checked')).map(input => input.value);
+    if (selectedSurveys.length === 0) {
+      alert('Please select at least one damaged survey number.');
+      return;
+    }
+    showDamagedSurveysCard(selectedSurveys);
+  });
+
+  // Show detailed farmer grouping results for selected survey numbers
+  function showDamagedSurveysCard(selectedSurveys) {
+    const damagedSurveysDiv = document.getElementById('damagedSurveyNumbers');
+    damagedSurveysDiv.textContent = 'Selected Survey Numbers:\n' + selectedSurveys.join(', ');
+
+    const grouped = new Map();
+    parsedData.forEach(item => {
+      const surveyNo = item['Survey Number'] ? item['Survey Number'].toString().trim() : '';
+      if (!surveyNo || !selectedSurveys.includes(surveyNo)) return;
+
+      const aadhaar = item['Aadhaar Number'] ? item['Aadhaar Number'].toString().trim() : '';
+      const farmerName = item['Farmer Name'] ? item['Farmer Name'].toString().trim() : '';
+      const fatherName = item['Father Name'] ? item['Father Name'].toString().trim() : '';
+      const bookingId = item['Booking ID'] ? item['Booking ID'].toString().trim() : '';
+      const khatha = item['Khatha Number'] ? item['Khatha Number'].toString().trim() : '';
+      const area = Number(item['Area']) || 0;
+      const crop = item['Crop Name'] ? item['Crop Name'].toString().trim() : '';
+
+      // Group by farmer + khatha to avoid duplicate rows for same farmer & khatha
+      const key = `${aadhaar}|${farmerName}|${fatherName}|${khatha}`;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          farmerName,
+          fatherName,
+          aadhaars: new Set(),
+          bookingIds: new Set(),
+          khathaNumbers: new Set(),
+          surveyNumbers: new Set(),
+          areaSum: 0,
+          crops: new Set()
+        });
+      }
+      const grp = grouped.get(key);
+      if (aadhaar) grp.aadhaars.add(aadhaar);
+      if (bookingId) grp.bookingIds.add(bookingId);
+      if (khatha) grp.khathaNumbers.add(khatha);
+      if (surveyNo) grp.surveyNumbers.add(surveyNo);
+      grp.areaSum += area;
+      if (crop) grp.crops.add(crop);
+    });
+
+    const tbody = document.querySelector('#farmerDetails tbody');
+    tbody.innerHTML = '';
+    grouped.forEach(grp => {
+      const aadhaarStr = Array.from(grp.aadhaars).join('<br>');
+      const bookingIdStr = Array.from(grp.bookingIds).join('<br>');
+      const khathaStr = Array.from(grp.khathaNumbers).join('<br>');
+      const surveyStr = Array.from(grp.surveyNumbers).join('<br>');
+      const cropsStr = Array.from(grp.crops).join(', ');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${grp.farmerName}</td>
+        <td>${grp.fatherName}</td>
+        <td style="white-space: pre-line;">${aadhaarStr}</td>
+        <td style="white-space: pre-line;">${bookingIdStr}</td>
+        <td style="white-space: pre-line;">${khathaStr}</td>
+        <td style="white-space: pre-line;">${surveyStr}</td>
+        <td>${grp.areaSum.toFixed(2)}</td>
+        <td>${cropsStr}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('damagedSurveysCard').style.display = 'block';
+  }
+
+  // Back button: Hide damagedSurveysCard and show dashboard
+  document.getElementById('backToDamageSurveyBtn').addEventListener('click', () => {
+    document.getElementById('damagedSurveysCard').style.display = 'none';
+    document.getElementById('dataSection').style.display = 'block';
+  });
+
+  // Export to Excel button functionality
+  document.getElementById('exportDamageDataBtn').addEventListener('click', () => {
+    const table = document.querySelector('#damagedSurveysCard table');
+    if (!table || table.tBodies[0].rows.length === 0) {
+      alert('No data available to export!');
+      return;
+    }
+    const workbook = XLSX.utils.table_to_book(table, { sheet: 'CropDamageDetails' });
+    XLSX.writeFile(workbook, 'CropDamageDetails.xlsx');
+  });
+
+  // Function to clear uploaded file data and reset UI as needed
+  function clearStoredFileData() {
+    parsedData = [];
+    document.getElementById('inputExcel').value = '';
+    document.getElementById('dataSection').style.display = 'none';
+    document.getElementById('damagedSurveysCard').style.display = 'none';
+    const tbody = document.querySelector('#surveyTable tbody');
+    const farmerTbody = document.querySelector('#farmerDetails tbody');
+    if (tbody) tbody.innerHTML = '';
+    if (farmerTbody) farmerTbody.innerHTML = '';
+  }
   </script>
 
 </body>
