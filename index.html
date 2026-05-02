@@ -803,7 +803,8 @@
             </div>
          </div>
       </div>
-      <!-- [UPDATED] UREA DISTRIBUTION SECTION -->
+
+    <!-- [UPDATED] UREA DISTRIBUTION SECTION -->
 <div class="container hidden" id="ureaSection" role="main">
   <div class="card p-4 mt-4" style="max-width: 900px; margin: auto;">
     <h2>Urea Distribution</h2>
@@ -844,16 +845,24 @@
     <div id="ureaFields" class="hidden">
       <div class="row">
         <div class="col-md-4 mb-2">
-          <label>Farmer Name:</label>
+          <label>Farmer Name: <span class="text-danger">*</span></label>
           <input type="text" id="ureaFarmerName" class="form-control" readonly>
         </div>
         <div class="col-md-4 mb-2">
-          <label>Father Name:</label>
+          <label>Father Name: <span class="text-danger">*</span></label>
           <input type="text" id="ureaFatherName" class="form-control" readonly>
         </div>
         <div class="col-md-4 mb-2">
-          <label>Mobile Number:</label>
-          <input type="text" id="ureaMobile" class="form-control">
+          <label>Mobile Number (10 digits): <span class="text-danger">*</span></label>
+          <input
+            type="text"
+            id="ureaMobile"
+            class="form-control"
+            maxlength="10"
+            inputmode="numeric"
+            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,10)"
+            placeholder="Enter 10 digits"
+          >
         </div>
       </div>
 
@@ -887,15 +896,21 @@
           </select>
         </div>
         <div class="col-md-4 mb-2">
-          <label>Bags Eligible:</label>
-          <input type="number" id="ureaBagsEligible" class="form-control">
+          <label>Bags Eligible (from file):</label>
+          <input type="number" id="ureaBagsEligible" class="form-control" readonly>
+          <small id="ureaBagsEligibleToShow" class="text-muted d-block pt-1"></small>
         </div>
       </div>
 
       <div class="row">
         <div class="col-md-6 mb-2">
           <label>Bags Distributing Now:</label>
-          <input type="number" id="ureaBagsDist" class="form-control">
+          <input
+            type="number"
+            id="ureaBagsDist"
+            class="form-control"
+            oninput="this.value = Math.max(0, Math.min(this.max || this.value, this.value)) || ''"
+          >
         </div>
         <div class="col-md-6 mb-2">
           <label>Date:</label>
@@ -907,6 +922,9 @@
         <button class="btn btn-success" onclick="recordDistribution()">
           <i class="fas fa-save"></i> Record Distribution
         </button>
+        <button class="btn btn-warning" onclick="clearUreaForm()">
+          <i class="fas fa-undo"></i> Clear Form
+        </button>
         <div class="btn-group">
           <button class="btn btn-info" onclick="showUreaHistory()">
             <i class="fas fa-eye"></i> View History
@@ -917,6 +935,7 @@
   </div>
 </div>
 
+<!-- [UREA] DISTRIBUTION HISTORY MODAL -->
 <div class="modal fade" id="ureaHistoryModal" tabindex="-1">
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
@@ -936,7 +955,7 @@
             <span id="recordCount" class="badge bg-primary fs-6">0 records</span>
           </div>
           <div class="col-md-3">
-            <button class="btn btn-danger btn-sm w-100" onclick="clearUreaHistory()">
+            <button class="btn btn-danger btn-sm w-100" onclick="showClearUreaPasswordModal('all')">
               <i class="fas fa-trash-alt"></i> Clear All
             </button>
           </div>
@@ -957,6 +976,7 @@
                 <th>Bags</th>
                 <th>Season</th>
                 <th>Year</th>
+                <th class="text-center">Action</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -980,6 +1000,73 @@
   </div>
 </div>
 
+<!-- Clear Urea History Password Modal -->
+<div
+  class="modal fade"
+  id="clearUreaPasswordModal"
+  tabindex="-1"
+  aria-labelledby="clearUreaPasswordModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="clearUreaPasswordModalLabel">Enter Password to Clear History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3 text-danger">⚠️ Clearing urea history cannot be undone.</p>
+        <div class="mb-3">
+          <label for="clearUreaPasswordInput">Administration Password:</label>
+          <input
+            type="password"
+            id="clearUreaPasswordInput"
+            class="form-control"
+            placeholder="Enter password"
+            autocomplete="off"
+          >
+        </div>
+        <div id="clearUreaPasswordError" class="text-danger d-none">Incorrect password.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="submitClearUreaHistory()">Clear History</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Urea Row Modal -->
+<div
+  class="modal fade"
+  id="confirmDeleteUreaModal"
+  tabindex="-1"
+  aria-labelledby="confirmDeleteUreaModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmDeleteUreaModalLabel">Delete Distribution?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>
+          You are about to delete a urea distribution record. This action <strong>cannot be undone</strong>.
+        </p>
+        <p id="confirmDeleteUreaModalText"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteUreaButton" onclick="confirmDeleteUreaRecord()">
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Printed Urea Form (for window.print()) -->
 <div id="printArea" style="display:none; padding: 40px; font-family: 'Poppins', sans-serif; border: 2px solid #000; width: 800px; margin: auto;">
   <div style="text-align: center; margin-bottom: 20px;">
     <h2 style="margin: 0; text-transform: uppercase;">AGRI WORK SPACE</h2>
@@ -3496,7 +3583,7 @@
          if (farmerTbody) farmerTbody.innerHTML = '';
          }
          
-         /* UREA DISTRIBUTION LOGIC */
+      /* UREA DISTRIBUTION LOGIC */
 
 function readJSON(key, fallback) {
   try {
@@ -3514,202 +3601,418 @@ function writeJSON(key, value) {
 function formatToday() {
   const d = new Date();
   const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
 function setMinDate() {
-  const dateInput = document.getElementById('ureaDate');
+  const dateInput = document.getElementById("ureaDate");
   if (dateInput) dateInput.min = formatToday();
 }
 
 function cleanAadhaar(val) {
-  return String(val || '').replace(/[^0-9]/g, '').slice(0, 12);
+  return String(val || "").replace(/[^0-9]/g, "").slice(0, 12);
 }
 
 function getNextSerialNo() {
-  const history = readJSON('ureaHistory', []);
+  const history = readJSON("ureaHistory", []);
   return history.length + 1;
 }
 
-let ureaData = readJSON('ureaData', {});
-let ureaHistory = readJSON('ureaHistory', []);
+let ureaData = readJSON("ureaData", {});
+let ureaHistory = readJSON("ureaHistory", {});
+
+// --- HELPER FUNCTIONS FOR ELIGIBLE BAGS LOGIC ---
+
+function getEligibleBagsFromMaster(aadhaar) {
+  const aad = cleanAadhaar(aadhaar);
+  const farmer = Object.values(ureaData)
+    .flatMap((g) => g.farmers || [])
+    .find((f) => cleanAadhaar(f["Aadhaar"]) === aad);
+  return Number(farmer?.["Bags Eligible"] || 0);
+}
+
+function getTotalBagsTakenByAadhaar(aadhaar) {
+  const aad = cleanAadhaar(aadhaar);
+  const history = readJSON("ureaHistory", []);
+  return history
+    .filter((h) => cleanAadhaar(h.aadhaar) === aad)
+    .reduce((sum, h) => sum + (Number(h.bags) || 0), 0);
+}
+
+function getRemainingEligibleBags(aadhaar) {
+  const eligible = getEligibleBagsFromMaster(aadhaar);
+  const taken = getTotalBagsTakenByAadhaar(aadhaar);
+  return Math.max(0, eligible - taken);
+}
+
+// --- PASSWORD‑PROTECTED CLEAR UREA HISTORY (WITH TYPE) ---
+
+const ureaClearPassword = "urea2026"; // ← change to your own
+
+let pendingClearType = null; // "all" or "one"
+let pendingClearSerialNo = null;
+
+function showClearUreaPasswordModal(type = "all", serialNo = null) {
+  pendingClearType = type;
+  pendingClearSerialNo = serialNo;
+
+  const modalEl = document.getElementById("clearUreaPasswordModal");
+  const modal =
+    bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+  document.getElementById("clearUreaPasswordInput").value = "";
+  document.getElementById("clearUreaPasswordError").classList.add("d-none");
+  modal.show();
+}
+
+function submitClearUreaHistory() {
+  const password = document
+    .getElementById("clearUreaPasswordInput")
+    .value.trim();
+  const errorDiv = document.getElementById("clearUreaPasswordError");
+
+  if (password === ureaClearPassword) {
+    const modalEl = document.getElementById("clearUreaPasswordModal");
+    const modal =
+      bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+    modal.hide();
+
+    if (pendingClearType === "all") {
+      clearUreaHistory();
+    } else if (pendingClearType === "one" && pendingClearSerialNo !== null) {
+      clearOneUreaRecord(pendingClearSerialNo);
+    }
+
+    // Clear pending flags
+    pendingClearType = null;
+    pendingClearSerialNo = null;
+  } else {
+    errorDiv.classList.remove("d-none");
+  }
+}
+
+// --- CLEAR UREA ENTRY FORM ---
+
+function clearUreaForm() {
+  // Clear text / number / date fields
+  document.getElementById("ureaFarmerName").value = "";
+  document.getElementById("ureaFatherName").value = "";
+  document.getElementById("ureaMobile").value = "";
+  document.getElementById("ureaExtent").value = "";
+  document.getElementById("ureaBagsEligible").value = "";
+  document.getElementById("ureaBagsDist").value = "";
+  document.getElementById("ureaDate").value = "";
+  document.getElementById("ureaBagsEligibleToShow").textContent = "";
+
+  // Reset selects to first/default
+  document.getElementById("ureaYear").selectedIndex = 0;
+  document.getElementById("ureaSeason").selectedIndex = 0;
+
+  // Clear Aadhaar search and reset khatha to dropdown
+  document.getElementById("ureaSearch").value = "";
+  const khathaInput = document.getElementById("ureaKhathaInput");
+  const khathaSelect = document.getElementById("ureaKhathaSelect");
+  khathaInput.value = "";
+  khathaInput.style.display = "none";
+  khathaSelect.style.display = "block";
+  khathaSelect.value = "";
+
+  // Make farmer name / father name editable again
+  document.getElementById("ureaFarmerName").readOnly = false;
+  document.getElementById("ureaFatherName").readOnly = false;
+
+  // Hide the filled fields box
+  document.getElementById("ureaFields").classList.add("hidden");
+}
+
+// --- OTHER UREA FUNCTIONS ---
 
 function refreshKhathaDropdown() {
-  const khathaSelect = document.getElementById('ureaKhathaSelect');
+  const khathaSelect = document.getElementById("ureaKhathaSelect");
   if (!khathaSelect) return;
 
   khathaSelect.innerHTML = '<option value="">--Select Khatha--</option>';
-  Object.keys(ureaData || {}).forEach(k => {
+  Object.keys(ureaData || {}).forEach((k) => {
     khathaSelect.innerHTML += `<option value="${k}">${k}</option>`;
   });
 }
 
 function getCurrentKhatha() {
-  return document.getElementById('ureaKhathaInput').value.trim() ||
-         document.getElementById('ureaKhathaSelect').value.trim();
+  return (
+    document.getElementById("ureaKhathaInput").value.trim() ||
+    document.getElementById("ureaKhathaSelect").value.trim()
+  );
 }
 
 function renderHistoryRows(records) {
-  return records.map(rec => `
-    <tr>
-      <td>${rec.serialNo || ''}</td>
-      <td>${rec.date || ''}</td>
-      <td>${rec.farmerName || ''}</td>
-      <td>${rec.fatherName || ''}</td>
-      <td>${rec.aadhaar || ''}</td>
-      <td>${rec.mobile || ''}</td>
-      <td>${rec.khatha || ''}</td>
-      <td>${rec.extent || ''}</td>
-      <td><span class="badge bg-primary">${rec.bags || ''}</span></td>
-      <td>${rec.season || ''}</td>
-      <td>${rec.year || ''}</td>
-    </tr>
-  `).join('');
+  return records
+    .map(
+      (rec) => `
+      <tr>
+        <td>${rec.serialNo || ""}</td>
+        <td>${rec.date || ""}</td>
+        <td>${rec.farmerName || ""}</td>
+        <td>${rec.fatherName || ""}</td>
+        <td>${rec.aadhaar || ""}</td>
+        <td>${rec.mobile || ""}</td>
+        <td>${rec.khatha || ""}</td>
+        <td>${rec.extent || ""}</td>
+        <td><span class="badge bg-primary">${rec.bags || ""}</span></td>
+        <td>${rec.season || ""}</td>
+        <td>${rec.year || ""}</td>
+        <td class="text-center">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger"
+            onclick="showClearUreaPasswordModal('one', ${rec.serialNo})">
+            Delete
+          </button>
+        </td>
+      </tr>
+    `
+    )
+    .join("");
 }
 
 function openHistoryModal(records) {
-  const tbody = document.querySelector('#modalHistoryTable tbody');
-  const noMsg = document.getElementById('noHistoryMsg');
-  const recordCount = document.getElementById('recordCount');
-  const modalEl = document.getElementById('ureaHistoryModal');
+  const tbody = document.querySelector("#modalHistoryTable tbody");
+  const noMsg = document.getElementById("noHistoryMsg");
+  const recordCount = document.getElementById("recordCount");
+  const modalEl = document.getElementById("ureaHistoryModal");
 
   recordCount.textContent = `${records.length} records`;
 
   if (!records.length) {
-    tbody.innerHTML = '';
-    noMsg.classList.remove('hidden');
-    recordCount.classList.add('hidden');
+    tbody.innerHTML = "";
+    noMsg.classList.remove("hidden");
+    recordCount.classList.add("hidden");
   } else {
-    noMsg.classList.add('hidden');
-    recordCount.classList.remove('hidden');
+    noMsg.classList.add("hidden");
+    recordCount.classList.remove("hidden");
     tbody.innerHTML = renderHistoryRows(records);
   }
 
-  const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+  const modal =
+    bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
   modal.show();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  ureaData = readJSON('ureaData', {});
-  ureaHistory = readJSON('ureaHistory', []);
+document.addEventListener("DOMContentLoaded", () => {
+  ureaData = readJSON("ureaData", {});
+  ureaHistory = readJSON("ureaHistory", []);
   refreshKhathaDropdown();
   setMinDate();
 });
 
-document.getElementById('ureaDate').addEventListener('change', e => {
+document.getElementById("ureaDate").addEventListener("change", (e) => {
   const minDate = formatToday();
   if (e.target.value && e.target.value < minDate) {
-    alert('Past dates are not allowed.');
-    e.target.value = '';
+    alert("Past dates are not allowed.");
+    e.target.value = "";
   }
 });
 
-document.getElementById('ureaFileInput').addEventListener('change', e => {
+document.getElementById("ureaFileInput").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = evt => {
-    const wb = XLSX.read(evt.target.result, { type: 'array' });
-    const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+  reader.onload = (evt) => {
+    const wb = XLSX.read(evt.target.result, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+
+    // --- Use normal objects (header row → keys) ---
+    const rawData = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+    // Optional: check if "Bags Eligible" is actually there
+    if (rawData.length > 0) {
+      console.log("Keys from row 0:", Object.keys(rawData[0]));
+    }
 
     ureaData = rawData.reduce((acc, row) => {
-      const k = String(row['Khatha Number'] || row['Khatha'] || '').trim();
+      const k = String(row["Khatha Number"] || row["Khatha"] || "").trim();
       if (!k) return acc;
-      const extent = Number(row['Extent'] || row['Area'] || 0);
+      const extent = Number(row["Extent"] || row["Area"] || 0);
 
-      if (!acc[k]) acc[k] = { khatha: k, extent: 0, farmers: [] };
+      if (!acc[k])
+        acc[k] = {
+          khatha: k,
+          extent: 0,
+          farmers: [],
+        };
       acc[k].extent += isNaN(extent) ? 0 : extent;
       acc[k].farmers.push(row);
       return acc;
     }, {});
 
-    writeJSON('ureaData', ureaData);
+    writeJSON("ureaData", ureaData);
     refreshKhathaDropdown();
-    alert('Data Loaded & Saved!');
+    alert("Data Loaded & Saved!");
   };
 
   reader.readAsArrayBuffer(file);
 });
 
 function searchUreaFarmer() {
-  const searchInput = document.getElementById('ureaSearch');
-  const fieldsDiv = document.getElementById('ureaFields');
-  const khathaSelect = document.getElementById('ureaKhathaSelect');
-  const khathaInput = document.getElementById('ureaKhathaInput');
+  const searchInput = document.getElementById("ureaSearch");
+  const fieldsDiv = document.getElementById("ureaFields");
+  const khathaSelect = document.getElementById("ureaKhathaSelect");
+  const khathaInput = document.getElementById("ureaKhathaInput");
+  const bagsEligibleInput = document.getElementById("ureaBagsEligible");
+  const bagsRemainingLabel = document.getElementById(
+    "ureaBagsEligibleToShow"
+  );
 
   const searchAadhaar = cleanAadhaar(searchInput.value);
   searchInput.value = searchAadhaar;
 
-  if (searchAadhaar.length !== 12) return alert('Please enter exactly 12 digits Aadhaar.');
+  if (searchAadhaar.length !== 12)
+    return alert("Please enter exactly 12 digits Aadhaar.");
 
-  const match = Object.values(ureaData).find(group =>
-    (group.farmers || []).some(f => cleanAadhaar(f['Aadhaar']) === searchAadhaar)
+  const match = Object.values(ureaData).find((group) =>
+    (group.farmers || []).some(
+      (f) => cleanAadhaar(f["Aadhaar"]) === searchAadhaar
+    )
   );
 
-  fieldsDiv.classList.remove('hidden');
+  fieldsDiv.classList.remove("hidden");
+
+  // Always show all previous distributions for this Aadhaar, from history
+  const farmerHistory = readJSON("ureaHistory", []).filter(
+    (rec) => cleanAadhaar(rec.aadhaar) === searchAadhaar
+  );
+  openHistoryModal(farmerHistory);
 
   if (match) {
-    const farmer = match.farmers.find(f => cleanAadhaar(f['Aadhaar']) === searchAadhaar);
+    const farmer = match.farmers.find(
+      (f) => cleanAadhaar(f["Aadhaar"]) === searchAadhaar
+    );
 
-    document.getElementById('ureaFarmerName').value = farmer?.['Farmer Name'] || 'N/A';
-    document.getElementById('ureaFatherName').value = farmer?.['Father Name'] || 'N/A';
-    document.getElementById('ureaFarmerName').readOnly = true;
-    document.getElementById('ureaFatherName').readOnly = true;
+    document.getElementById("ureaFarmerName").value =
+      farmer?.["Farmer Name"] || "N/A";
+    document.getElementById("ureaFatherName").value =
+      farmer?.["Father Name"] || "N/A";
+    document.getElementById("ureaFarmerName").readOnly = true;
+    document.getElementById("ureaFatherName").readOnly = true;
 
-    khathaInput.value = match.khatha || '';
-    khathaInput.style.display = 'block';
-    khathaSelect.style.display = 'none';
+    khathaInput.value = match.khatha || "";
+    khathaInput.style.display = "block";
+    khathaSelect.style.display = "none";
 
-    document.getElementById('ureaExtent').value = Number(match.extent || 0).toFixed(2);
+    document.getElementById("ureaExtent").value = Number(
+      match.extent || 0
+    ).toFixed(2);
 
-    const farmerHistory = readJSON('ureaHistory', []).filter(rec => cleanAadhaar(rec.aadhaar) === searchAadhaar);
-    openHistoryModal(farmerHistory);
+    // Read "Bags Eligible" from Excel and auto‑populate, then show remaining
+    const totalEligible = getEligibleBagsFromMaster(searchAadhaar);
+    bagsEligibleInput.value = totalEligible;
+
+    const remaining = getRemainingEligibleBags(searchAadhaar);
+    bagsRemainingLabel.textContent = `Remaining: ${remaining} bag${
+      remaining !== 1 ? "s" : ""
+    } (Total: ${totalEligible})`;
+
+    // --- Set max on the bags input so it cannot accept more than available ---
+    const bagsDistInput = document.getElementById("ureaBagsDist");
+
+    if (remaining >= 0) {
+      bagsDistInput.max = remaining;
+      bagsDistInput.removeAttribute("placeholder");
+      bagsDistInput.placeholder = `Max: ${remaining} bags`;
+    } else {
+      bagsDistInput.max = 0;
+      bagsDistInput.placeholder = `Max: 0 bags (fully distributed)`;
+    }
   } else {
-    document.getElementById('ureaFarmerName').value = '';
-    document.getElementById('ureaFatherName').value = '';
-    document.getElementById('ureaFarmerName').readOnly = false;
-    document.getElementById('ureaFatherName').readOnly = false;
+    document.getElementById("ureaFarmerName").value = "";
+    document.getElementById("ureaFatherName").value = "";
+    document.getElementById("ureaFarmerName").readOnly = false;
+    document.getElementById("ureaFatherName").readOnly = false;
 
-    alert('No Aadhaar match. Please enter details manually and select Khatha.');
+    bagsEligibleInput.value = "";
+    bagsRemainingLabel.textContent = "";
 
-    khathaInput.value = '';
-    khathaInput.style.display = 'none';
-    khathaSelect.style.display = 'block';
-    document.getElementById('ureaExtent').value = '';
+    alert(
+      "No matching Aadhaar in khatha file. Please enter details manually and select Khatha."
+    );
+
+    khathaInput.value = "";
+    khathaInput.style.display = "none";
+    khathaSelect.style.display = "block";
+    document.getElementById("ureaExtent").value = "";
 
     refreshKhathaDropdown();
   }
 }
 
-document.getElementById('ureaKhathaSelect').addEventListener('change', e => {
+document.getElementById("ureaKhathaSelect").addEventListener("change", (e) => {
   const selectedKhatha = e.target.value;
   if (selectedKhatha && ureaData[selectedKhatha]) {
-    document.getElementById('ureaExtent').value = Number(ureaData[selectedKhatha].extent || 0).toFixed(2);
+    document.getElementById("ureaExtent").value = Number(
+      ureaData[selectedKhatha].extent || 0
+    ).toFixed(2);
   }
 });
 
 function recordDistribution() {
   const currentKhatha = getCurrentKhatha();
-  const aadhaar = cleanAadhaar(document.getElementById('ureaSearch').value);
+  const aadhaar = cleanAadhaar(document.getElementById("ureaSearch").value);
 
-  const farmerName = document.getElementById('ureaFarmerName').value.trim();
-  const fatherName = document.getElementById('ureaFatherName').value.trim();
-  const mobile = document.getElementById('ureaMobile').value.trim();
-  const extent = document.getElementById('ureaExtent').value.trim();
-  const bagsEligible = document.getElementById('ureaBagsEligible').value.trim();
-  const bags = document.getElementById('ureaBagsDist').value.trim();
-  const date = document.getElementById('ureaDate').value.trim();
-  const season = document.getElementById('ureaSeason').value.trim();
-  const year = document.getElementById('ureaYear').value.trim();
+  const farmerName = document.getElementById("ureaFarmerName").value.trim();
+  const fatherName = document.getElementById("ureaFatherName").value.trim();
+  const mobile = document.getElementById("ureaMobile").value.trim();
+  const extent = document.getElementById("ureaExtent").value.trim();
+  const bagsEligible = Number(
+    document.getElementById("ureaBagsEligible").value || 0
+  );
+  const bags = document.getElementById("ureaBagsDist").value.trim();
+  const date = document.getElementById("ureaDate").value.trim();
+  const season = document.getElementById("ureaSeason").value.trim();
+  const year = document.getElementById("ureaYear").value.trim();
 
-  if (!farmerName) return alert('Please search or enter name.');
-  if (!currentKhatha) return alert('Please select or enter Khatha number.');
-  if (!bags || Number(bags) <= 0) return alert('Please enter bags.');
-  if (!date) return alert('Please select date.');
-  if (aadhaar.length !== 12) return alert('Aadhaar must be exactly 12 digits.');
+  // --- MANDATORY VALIDATION + MOBILE 10 DIGITS ---
+  if (!farmerName) {
+    alert("Please enter Farmer Name.");
+    document.getElementById("ureaFarmerName").focus();
+    return;
+  }
+  if (!fatherName) {
+    alert("Please enter Father Name.");
+    document.getElementById("ureaFatherName").focus();
+    return;
+  }
+  if (!mobile) {
+    alert("Please enter Mobile Number.");
+    document.getElementById("ureaMobile").focus();
+    return;
+  }
+  if (!/^[0-9]{10}$/.test(mobile)) {
+    alert("Mobile Number must be exactly 10 digits.");
+    document.getElementById("ureaMobile").focus();
+    return;
+  }
+  // -------------------------------------------------
+
+  if (!currentKhatha)
+    return alert("Please select or enter Khatha number.");
+  if (!bags || Number(bags) <= 0)
+    return alert("Please enter bags.");
+  if (!date) return alert("Please select date.");
+  if (aadhaar.length !== 12)
+    return alert("Aadhaar must be exactly 12 digits.");
+
+  const remainingEligible = getRemainingEligibleBags(aadhaar);
+  const distBags = Number(bags);
+
+  // Final check: block if attempting to take more than available
+  if (distBags > remainingEligible) {
+    return alert(
+      `Farmer has only ${remainingEligible} bag${
+        remainingEligible !== 1 ? "s" : ""
+      } remaining. You cannot distribute ${distBags} bags.`
+    );
+  }
 
   const serialNo = getNextSerialNo();
 
@@ -3725,81 +4028,102 @@ function recordDistribution() {
     bagsEligible,
     bags,
     season,
-    year
+    year,
   };
 
-  ureaHistory = readJSON('ureaHistory', []);
+  ureaHistory = readJSON("ureaHistory", []);
   ureaHistory.push(record);
-  writeJSON('ureaHistory', ureaHistory);
+  writeJSON("ureaHistory", ureaHistory);
 
-  document.getElementById('printSerialNo').textContent = serialNo;
-  document.getElementById('printFarmerName').textContent = farmerName || 'N/A';
-  document.getElementById('printFatherName').textContent = fatherName || 'N/A';
-  document.getElementById('printMobile').textContent = mobile || 'N/A';
-  document.getElementById('printAadhaar').textContent = aadhaar;
-  document.getElementById('printKhatha').textContent = currentKhatha;
-  document.getElementById('printExtent').textContent = extent || '0';
-  document.getElementById('printBags').textContent = bags || '0';
-  document.getElementById('printDate').textContent = date || 'N/A';
+  document.getElementById("printSerialNo").textContent = serialNo;
+  document.getElementById("printFarmerName").textContent =
+    farmerName || "N/A";
+  document.getElementById("printFatherName").textContent =
+    fatherName || "N/A";
+  document.getElementById("printMobile").textContent = mobile || "N/A";
+  document.getElementById("printAadhaar").textContent = aadhaar;
+  document.getElementById("printKhatha").textContent = currentKhatha;
+  document.getElementById("printExtent").textContent = extent || "0";
+  document.getElementById("printBags").textContent = bags || "0";
+  document.getElementById("printDate").textContent = date || "N/A";
 
-  const ureaSection = document.getElementById('ureaSection');
-  const printArea = document.getElementById('printArea');
+  const ureaSection = document.getElementById("ureaSection");
+  const printArea = document.getElementById("printArea");
 
-  ureaSection.style.display = 'none';
-  printArea.style.display = 'block';
+  ureaSection.style.display = "none";
+  printArea.style.display = "block";
 
   setTimeout(() => {
     window.print();
-    printArea.style.display = 'none';
-    ureaSection.style.display = 'block';
-    showSection('ureaSection');
-    document.getElementById('ureaSearch').value = '';
-    document.getElementById('ureaFields').classList.add('hidden');
-    alert('Distribution recorded & printed!');
+    printArea.style.display = "none";
+    ureaSection.style.display = "block";
+    showSection("ureaSection");
+    document.getElementById("ureaSearch").value = "";
+    document.getElementById("ureaFields").classList.add("hidden");
+    alert("Distribution recorded & printed!");
   }, 400);
 }
 
 function exportUreaData() {
-  const data = readJSON('ureaHistory', []);
-  if (data.length === 0) return alert('No history to export.');
+  const data = readJSON("ureaHistory", []);
+  if (data.length === 0) return alert("No history to export.");
 
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'UreaDistributionHistory');
-  XLSX.writeFile(wb, `UreaDistributionHistory_${new Date().toISOString().split('T')[0]}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, "UreaDistributionHistory");
+  XLSX.writeFile(
+    wb,
+    `UreaDistributionHistory_${new Date()
+      .toISOString()
+      .split("T")[0]}.xlsx`
+  );
 }
 
 function showUreaHistory() {
-  const history = readJSON('ureaHistory', []);
+  const history = readJSON("ureaHistory", []);
   openHistoryModal(history);
 }
 
 function filterModalHistory() {
-  const search = document.getElementById('modalSearch').value.toLowerCase();
-  const rows = document.querySelectorAll('#modalHistoryTable tbody tr');
-  rows.forEach(row => {
-    row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+  const search = document.getElementById("modalSearch").value.toLowerCase();
+  const rows = document.querySelectorAll("#modalHistoryTable tbody tr");
+  rows.forEach((row) => {
+    row.style.display = row.textContent.toLowerCase().includes(search) ? "" : "none";
   });
 }
 
 function clearUreaHistory() {
-  if (!confirm('Are you sure you want to clear all urea distribution history? This action cannot be undone.')) return;
-
-  localStorage.removeItem('ureaHistory');
+  localStorage.removeItem("ureaHistory");
   ureaHistory = [];
 
-  document.querySelector('#modalHistoryTable tbody').innerHTML = '';
-  document.getElementById('noHistoryMsg').classList.remove('hidden');
-  document.getElementById('recordCount').textContent = '0 records';
-  document.getElementById('recordCount').classList.add('hidden');
+  document.querySelector("#modalHistoryTable tbody").innerHTML = "";
+  document.getElementById("noHistoryMsg").classList.remove("hidden");
+  document.getElementById("recordCount").textContent = "0 records";
+  document.getElementById("recordCount").classList.add("hidden");
 
-  const modalEl = document.getElementById('ureaHistoryModal');
-  const modal = bootstrap.Modal.getInstance(modalEl);
+  const modalEl = document.getElementById("ureaHistoryModal");
+  const modal =
+    bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
   if (modal) modal.hide();
 
-  alert('Urea distribution history cleared successfully!');
+  alert("Urea distribution history cleared successfully!");
 }
-         
+
+function clearOneUreaRecord(serialNo) {
+  const history = readJSON("ureaHistory", []);
+  const index = history.findIndex((rec) => rec.serialNo === serialNo);
+
+  if (index === -1) {
+    alert("Record not found with that Serial No.");
+    return;
+  }
+
+  history.splice(index, 1);
+  writeJSON("ureaHistory", history);
+
+  openHistoryModal(history);
+  alert(`Record #${serialNo} removed successfully.`);
+}
       </script>
    </body>
 </html>
