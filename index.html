@@ -321,6 +321,15 @@
          #printArea, #printArea * { visibility: visible; }
          #printArea { position: absolute; left: 0; top: 0; }
          }
+         
+#clearUreaPasswordModal {
+  z-index: 1060 !important; /* Higher than modals (1055) */
+}
+
+#clearUreaPasswordModal .modal-backdrop {
+  z-index: 1055 !important;
+}
+
          /* Crop Recommendation Styles */
          #cropRecommendationSection {
          max-width: 600px;
@@ -816,7 +825,7 @@
           <h6 class="mb-2 fw-bold text-primary">📋 Urea Distribution Instructions</h6>
           <ul class="mb-0 fs-6 lh-sm">
             <li>🔍 <strong>Prepare 1B with S.No|Khatha|Survey No|Aadhaar|Farmer Name|Father Name|Extent</strong> in this format and same Spelling</li>
-            <li>📝 Auto-fills farmer details, khatha, and eligible bags</li>
+            <li>📝 Once you upload the file, you don’t need to upload it again unless you want to change it.</li>
             <li>📦 Enter bags distributed today and record</li>
             <li>📊 <strong>View History</strong> or <strong>Export Excel</strong> anytime</li>
             <li>🖨️ Use print button for official receipts</li>
@@ -1070,6 +1079,53 @@
   </div>
 </div>
 
+<!-- Aadhaar History Modal -->
+<div class="modal fade" id="aadhaarHistoryModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Aadhaar Distribution History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <input type="text" class="form-control" id="aadhaarModalSearch" 
+                 placeholder="Search in this Aadhaar history..." 
+                 onkeyup="filterAadhaarModalHistory()">
+        </div>
+        <div id="aadhaarRecordCount" class="alert alert-info hidden"></div>
+        <div id="noAadhaarHistoryMsg" class="alert alert-warning hidden">
+          No distribution history found for this Aadhaar.
+        </div>
+        <div class="table-responsive">
+          <table class="table table-striped" id="aadhaarHistoryTable">
+            <thead class="table-dark">
+              <tr>
+                <th>Serial</th>
+                <th>Date</th>
+                <th>Farmer Name</th>
+                <th>Father Name</th>
+                <th>Khatha</th>
+                <th>Extent</th>
+                <th>Bags</th>
+                <th>Season</th>
+                <th>Year</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
 <!-- Printed Urea Form (for window.print()) -->
 <div id="printArea" style="display:none; padding: 40px; font-family: 'Poppins', sans-serif; border: 2px solid #000; width: 800px; margin: auto;">
   <div style="text-align: center; margin-bottom: 20px;">
@@ -1104,10 +1160,13 @@
     </tr>
   </table>
 
-  <div style="margin-top: 50px; display: flex; justify-content: space-between;">
+ <div style="margin-top: 50px; display: flex; justify-content: space-between;">
     <p><strong>Officer Signature:</strong> _______________</p>
     <p><strong>Farmer Signature:</strong> _______________</p>
-  </div>
+</div>
+<div style="margin-top: 100px; text-align: center; font-size: 14px; color: #d32f2f; font-weight: bold; border-top: 2px solid #ccc; padding-top: 20px;">
+    <p>*ఈ ఫారం 7 రోజులు మాత్రమే చెల్లుతుంది. ఫారం ఇచ్చిన 7 రోజులు లోపు తీసుకోగలరు</p>
+</div>
 </div>
       <!-- Dashboard Section -->
       <!-- Farmer Details Modal for Search Results -->
@@ -3665,12 +3724,18 @@ function showClearUreaPasswordModal(type = "all", serialNo = null) {
 function submitClearUreaHistory() {
   const password = document.getElementById("clearUreaPasswordInput").value.trim();
   const errorDiv = document.getElementById("clearUreaPasswordError");
+  
   if (password === ureaClearPassword) {
     const modalEl = document.getElementById("clearUreaPasswordModal");
-    const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+    const modal = bootstrap.Modal.getInstance(modalEl);
     modal.hide();
-    if (pendingClearType === "all") clearUreaHistory();
-    else if (pendingClearType === "one" && pendingClearSerialNo !== null) clearOneUreaRecord(pendingClearSerialNo);
+    
+    if (pendingClearType === "all") {
+      clearUreaHistory();
+    } else if (pendingClearType === "one" && pendingClearSerialNo !== null) {
+      clearOneUreaRecord(pendingClearSerialNo);
+    }
+    
     pendingClearType = null;
     pendingClearSerialNo = null;
   } else {
@@ -3738,6 +3803,7 @@ function updateRemainingBagsDisplay(khatha) {
   input.max = remaining;
   input.placeholder = `Max: ${remaining} bags`;
 }
+
 
 function renderHistoryRows(records) {
   return records.map((rec) => `
@@ -3838,6 +3904,9 @@ function searchUreaFarmer() {
 
   const searchAadhaar = cleanAadhaar(searchInput.value);
   if (searchAadhaar.length !== 12) return alert("Enter 12 digits Aadhaar.");
+
+  // **NEW: Show Aadhaar history first**
+  showAadhaarHistory(searchAadhaar);
 
   // Check if they are in the master data (Owner)
   const match = Object.values(ureaData).find((group) =>
@@ -3981,11 +4050,109 @@ function clearOneUreaRecord(serialNo) {
   let history = readJSON("ureaHistory", []);
   const index = history.findIndex((rec) => rec.serialNo === serialNo);
   if (index === -1) return alert("Record not found.");
+  
   history.splice(index, 1);
   writeJSON("ureaHistory", history);
-  openHistoryModal(history);
-  alert(`Record #${serialNo} removed.`);
+  
+  // FIXED: Close current modal & refresh BOTH histories
+  const aadhaarModal = bootstrap.Modal.getInstance(document.getElementById("aadhaarHistoryModal"));
+  const mainModal = bootstrap.Modal.getInstance(document.getElementById("ureaHistoryModal"));
+  
+  if (aadhaarModal) aadhaarModal.hide();
+  if (mainModal) mainModal.hide();
+  
+  alert(`Record #${serialNo} removed successfully!`);
+  
+  // Refresh global history variable
+  window.ureaHistory = history;
 }
+
+// --- AADHAAR-WISE HISTORY POPUP (UPDATED) ---
+function showAadhaarHistory(aadhaar) {
+  const history = readJSON("ureaHistory", []);
+  const cleanAadhaarNum = cleanAadhaar(aadhaar);
+  const aadhaarHistory = history.filter(rec => cleanAadhaar(rec.aadhaar) === cleanAadhaarNum);
+  
+  if (aadhaarHistory.length === 0) {
+    alert("No distribution history found for this Aadhaar number.");
+    return;
+  }
+  
+  // FIXED: Direct table selection (no createAadhaarHistoryTable needed)
+  const tbody = document.querySelector("#aadhaarHistoryTable tbody");
+  const noMsg = document.getElementById("noAadhaarHistoryMsg");
+  const recordCount = document.getElementById("aadhaarRecordCount");
+  
+  // Update record count
+  recordCount.textContent = `${aadhaarHistory.length} records for Aadhaar: ${cleanAadhaarNum}`;
+  recordCount.classList.remove("hidden");
+  
+  // Populate table
+  noMsg.classList.add("hidden");
+  tbody.innerHTML = renderAadhaarHistoryRows(aadhaarHistory);
+  
+  // Show modal
+  const modalEl = document.getElementById("aadhaarHistoryModal");
+  if (modalEl) {
+    const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+    modal.show();
+  } else {
+    console.error("Aadhaar history modal not found. Add HTML modal first.");
+  }
+}
+
+function renderAadhaarHistoryRows(records) {
+  return records.map((rec) => `
+    <tr>
+      <td>${rec.serialNo || ""}</td>
+      <td>${rec.date || ""}</td>
+      <td>${rec.farmerName || ""}</td>
+      <td>${rec.fatherName || ""}</td>
+      <td>${rec.khatha || ""}</td>
+      <td>${rec.extent || ""}</td>
+      <td><span class="badge bg-primary">${rec.bags || ""}</span></td>
+      <td>${rec.season || ""}</td>
+      <td>${rec.year || ""}</td>
+      <!-- ADD THIS ENTIRE BLOCK HERE 👇 -->
+      <td class="text-center">
+        <button type="button" class="btn btn-sm btn-outline-danger" 
+                onclick="showClearUreaPasswordModal('one', ${rec.serialNo})">
+          Delete
+        </button>
+      </td>
+      <!-- 👆 END BLOCK -->
+    </tr>
+  `).join("");
+}
+
+function createAadhaarHistoryTable() {
+  // This will be created via HTML - function kept for reference
+  return document.querySelector("#aadhaarHistoryTable tbody");
+}
+
+function filterAadhaarModalHistory() {
+  const search = document.getElementById("aadhaarModalSearch").value.toLowerCase();
+  document.querySelectorAll("#aadhaarHistoryTable tbody tr").forEach((row) => {
+    row.style.display = row.textContent.toLowerCase().includes(search) ? "" : "none";
+  });
+}
+
+function refreshAllHistories() {
+  ureaHistory = readJSON("ureaHistory", []);
+  // Auto-refresh if any history modal is open
+  const mainModal = document.getElementById("ureaHistoryModal");
+  const aadhaarModal = document.getElementById("aadhaarHistoryModal");
+  if (mainModal && bootstrap.Modal.getInstance(mainModal)?._isShown) {
+    showUreaHistory();
+  }
+  if (aadhaarModal && bootstrap.Modal.getInstance(aadhaarModal)?._isShown) {
+    // Re-trigger last Aadhaar search (store in global)
+    if (window.lastAadhaarSearched) {
+      showAadhaarHistory(window.lastAadhaarSearched);
+    }
+  }
+}
+
       </script>
    </body>
 </html>
