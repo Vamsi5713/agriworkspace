@@ -193,6 +193,7 @@
             </div>
          </nav>
       </div>
+
       <!-- Login Page -->
       <div class="center-wrapper" id="loginWrapper">
          <div class="container" id="loginPage" role="main" aria-label="Login Page">
@@ -254,6 +255,7 @@
             </div>
          </div>
       </div>
+
       <!-- Dashboard Section -->
       <div class="hidden pt-4" id="dashboardSection" role="main" aria-label="Dashboard Section">
          <div class="container">
@@ -288,15 +290,18 @@
                margin-top: 0.12em;
                }
             </style>
+            <div class="agri-workspace text-center mt-4 mb-3">
+               <h4 class="mt-2">Agri&nbsp;Work&nbsp;Space</h4>
+               <p class="designer-credit text-muted">Designed by Vamsi</p>
+            </div>
             <div class="dashboard-header mb-4">
-               <h2 class="dashboard-title">Dashboard</h2>
+               <h5 class="dashboard-title">Dashboard</h5>
                <p class="welcome-text">Welcome, <span id="userEmail" aria-live="polite"></span></p>
             </div>
             <div class="row g-4">
                <!-- Left Column: Main Tools Grid -->
                <div class="col-lg-8">
                   <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-                     <!-- e-Panta Report Card -->
                      <div class="col">
                         <div class="dashboard-card" role="button" onclick="showSection('ePantaReportPage')">
                            <i class="fas fa-list-alt fa-3x text-primary"></i>
@@ -304,7 +309,6 @@
                            <p>Manage crop booking data</p>
                         </div>
                      </div>
-                     <!-- Urea Distribution Card -->
                      <div class="col">
                         <div class="dashboard-card" role="button" onclick="showSection('ureaSection')" style="border: 2px solid var(--accent);">
                            <i class="fas fa-seedling fa-3x text-warning"></i>
@@ -312,7 +316,6 @@
                            <p>Track farmer allocations</p>
                         </div>
                      </div>
-                     <!-- Crop Damage Record Card -->
                      <div class="col">
                         <div class="dashboard-card" role="button" onclick="showSection('cropDamageSection')">
                            <i class="fas fa-exclamation-triangle fa-3x text-danger"></i>
@@ -320,7 +323,6 @@
                            <p>Record & assess damage</p>
                         </div>
                      </div>
-                     <!-- CC Experiments Card -->
                      <div class="col">
                         <div class="dashboard-card" role="button" onclick="showSection('ccExperimentsSection')">
                            <i class="fas fa-flask fa-3x text-success"></i>
@@ -328,15 +330,13 @@
                            <p>Survey & subdivision calc</p>
                         </div>
                      </div>
-                     <!-- Crop Recommendation Card -->
                      <div class="col">
                         <div class="dashboard-card" role="button" onclick="showSection('cropRecommendationSection')">
                            <i class="fas fa-leaf fa-3x text-success"></i>
-                           <h5>Crop Recommendations</h5>
+                           <h5>Recommendations</h5>
                            <p>Get personalized crop advice</p>
                         </div>
                      </div>
-                     <!-- Upload Report Card -->
                      <div class="col">
                         <div class="dashboard-card" role="button" onclick="showSection('uploadReportPage')">
                            <i class="fas fa-file-upload fa-3x text-info"></i>
@@ -374,8 +374,10 @@
             </div>
          </div>
       </div>
+
       <!-- Upload Report Page -->
       <div class="container hidden mt-4" id="uploadReportPage" role="main">
+         <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
          <div class="card p-4 mx-auto" style="max-width: 960px;">
             <h2>Upload Farmer / Booking Report (.csv or .xlsx)</h2>
             <div style="background: #eef6ff; border-left: 4px solid #2d6cdf; padding: 12px 16px; margin-bottom: 20px;">
@@ -407,8 +409,10 @@
             <button id="saveSummaryBtn" class="btn btn-primary">Save & View in e-Panta Report</button>
          </div>
       </div>
+
       <!-- e-Panta Report Page -->
       <div class="container hidden mt-4" id="ePantaReportPage" role="main">
+         <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
          <div class="row g-4">
             <!-- Left Column: Filters Sidebar -->
             <div class="col-lg-3">
@@ -449,28 +453,32 @@
             </div>
          </div>
       </div>
+
       <!-- Farmer Details Page (Internal View) -->
       <div class="container hidden mt-4" id="farmerDetailsPage" role="main">
-         <button class="btn btn-outline-secondary mb-3 shadow-sm" id="fdBackBtn">
-         <i class="fas fa-arrow-left me-2"></i>Back to e-Panta Report
+         <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()">
+         <i class="fas fa-arrow-left me-2"></i>Back
          </button>
          <div class="card p-4 border-0 shadow-sm">
             <h2 id="farmerDetailsTitle" class="fw-bold text-primary mb-4"></h2>
             <div id="farmerDetailsContent"></div>
          </div>
       </div>
+
       <!-- Crop Farmers Page -->
       <div class="container hidden mt-4" id="cropFarmersPage" role="main">
-         <button class="btn btn-outline-secondary mb-3 shadow-sm" id="cfBackBtn">
-         <i class="fas fa-arrow-left me-2"></i>Back to e-Panta Report
+         <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()">
+         <i class="fas fa-arrow-left me-2"></i>Back
          </button>
          <div class="card p-4 border-0 shadow-sm">
             <h2 id="cropFarmersTitle" class="fw-bold text-primary mb-4"></h2>
             <div id="cropFarmersContent"></div>
          </div>
       </div>
+
       <!-- UREA DISTRIBUTION SECTION -->
       <div class="container hidden mt-4" id="ureaSection" role="main">
+         <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
          <div class="card p-4 mx-auto" style="max-width: 900px;">
             <h2>Urea Distribution</h2>
             <div class="alert alert-info border-start border-4 border-primary mb-4" role="alert" style="background: linear-gradient(135deg, #e3f2fd 0%, #f5faff 100%);">
@@ -541,8 +549,10 @@
             </div>
          </div>
       </div>
+
       <!-- Crop Damage Record Section -->
       <div class="container hidden mt-4" id="cropDamageSection" role="main">
+         <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
          <div class="card p-4">
             <h2>Step 1: Upload Crop Details Excel</h2>
             <input type="file" id="inputExcel" accept=".xls,.xlsx" />
@@ -604,9 +614,10 @@
             </div>
          </div>
       </div>
+
       <!-- CC Experiments Section -->
       <div class="container hidden cc-experiments-container" id="ccExperimentsSection" role="main">
-         <button type="button" class="btn btn-outline-primary mb-3 btn-sm" onclick="showSection('dashboardSection')"><i class="fas fa-arrow-left"></i> Back</button>
+         <button type="button" class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
          <h3 class="text-center mb-4 text-success">CC Experiments</h3>
          <div class="mb-3">
             <label for="calcTypeSelect" class="form-label">Select Calculator:</label>
@@ -618,10 +629,11 @@
          </div>
          <div id="calculatorContent"></div>
       </div>
+
       <!-- Crop Recommendation Section -->
-      <div class="container hidden" id="cropRecommendationSection" role="main">
+      <div class="container hidden mt-4" id="cropRecommendationSection" role="main">
          <div class="card p-4 mx-auto" style="max-width: 600px;">
-            <button class="btn btn-sm btn-outline-secondary mb-3" onclick="showSection('dashboardSection')">← Back</button>
+            <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
             <h2 class="text-center text-success mb-4">Crop Recommendation</h2>
             <label>Select Crop Type:</label>
             <select id="cropType" class="form-select mb-3" onchange="populateCrops()">
@@ -657,9 +669,11 @@
             <div id="fertilizerScheduleSection" class="mt-3"></div>
          </div>
       </div>
+
       <!-- Profile Section -->
       <div class="container hidden mt-4" id="profileSection" role="main">
          <div class="card p-4 mx-auto" style="max-width: 400px;">
+            <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
             <h2>Profile Settings</h2>
             <form id="profileForm">
                <div class="mb-3"><label class="form-label">Email</label><input type="email" id="profileEmail" class="form-control" readonly /></div>
@@ -676,8 +690,8 @@
             </form>
          </div>
       </div>
+
       <!-- MODALS -->
-      <!-- Farmer Details Modal -->
       <div class="modal fade" id="farmerModal" tabindex="-1">
          <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
@@ -690,7 +704,7 @@
             </div>
          </div>
       </div>
-      <!-- Urea History Modal -->
+
       <div class="modal fade" id="ureaHistoryModal" tabindex="-1">
          <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -733,7 +747,7 @@
             </div>
          </div>
       </div>
-      <!-- Aadhaar History Modal -->
+
       <div class="modal fade" id="aadhaarHistoryModal" tabindex="-1">
          <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -768,7 +782,7 @@
             </div>
          </div>
       </div>
-      <!-- Clear Urea Password Modal -->
+
       <div class="modal fade" id="clearUreaPasswordModal" tabindex="-1">
          <div class="modal-dialog">
             <div class="modal-content">
@@ -784,7 +798,7 @@
             </div>
          </div>
       </div>
-      <!-- Print Area Template -->
+
       <div id="printArea" style="display:none; padding: 40px; font-family: 'Poppins', sans-serif; border: 2px solid #000; width: 800px; margin: auto;">
          <div style="text-align: center; margin-bottom: 20px;">
             <h2>AGRI WORK SPACE</h2>
@@ -821,6 +835,7 @@
             <p>*ఈ ఫారం 7 రోజులు మాత్రమే చెల్లుతుంది.</p>
          </div>
       </div>
+
       <!-- ================= FIREBASE & JAVASCRIPT CORE ================= -->
       <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
       <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -838,27 +853,27 @@
             measurementId: "G-F7E4H3EVQY"
          };
          firebase.initializeApp(firebaseConfig);
-         const database = firebase.database(); // Initialize Database
+         const database = firebase.database();
          
          let uploadData = [];
          let parsedData = [];
          let pageStateStack = [];
+         
          // Global State Variables for Sync
          let allReportsCache = {};
          let ureaData = {};
          let ureaHistory = [];
          let isDataLoaded = false;
+         
          // --- CLOUD SYNC LOGIC ---
          function loadUserCloudData(uid) {
-             const userRef = database.ref('users/' + uid);
-             userRef.once('value').then((snapshot) => {
+             database.ref('users/' + uid).once('value').then((snapshot) => {
                  if (snapshot.exists()) {
                      const data = snapshot.val();
                      allReportsCache = data.allReports || {};
                      ureaData = data.ureaData || {};
                      ureaHistory = data.ureaHistory || [];
                  } else {
-                     // First time user, set empty defaults
                      allReportsCache = {};
                      ureaData = {};
                      ureaHistory = [];
@@ -866,18 +881,17 @@
                  isDataLoaded = true;
                  refreshKhathaDropdown();
                  
-                 // If they are on the report page, refresh it
-                 if(document.getElementById('ePantaReportPage').style.display !== 'none') {
+                 if(document.getElementById('ePantaReportPage').style.display !== 'none' && document.getElementById('ePantaReportPage').style.display !== '') {
                      loadReport();
                  }
              }).catch(err => {
                  console.error("Error loading cloud data: ", err);
-                 alert("Could not load your cloud data. Please check your connection.");
              });
          }
+         
          function saveToCloud() {
              const user = firebase.auth().currentUser;
-             if (!user) return; // Don't save if not logged in
+             if (!user || !isDataLoaded) return; 
              
              const dataToSave = {
                  allReports: allReportsCache,
@@ -886,529 +900,543 @@
                  lastUpdated: new Date().toISOString()
              };
              
-             database.ref('users/' + user.uid).set(dataToSave)
-                 .catch(err => console.error("Cloud Save Error: ", err));
-         }
-         // Override old read/write functions to use Cloud Cache
-         function readJSON(key, fallback) {
-             if (key === 'ureaData') return Object.keys(ureaData).length > 0 ? ureaData : fallback;
-             if (key === 'ureaHistory') return ureaHistory.length > 0 ? ureaHistory : fallback;
-             return fallback;
+             database.ref('users/' + user.uid).set(dataToSave).catch(err => console.error(err));
          }
          
-         function writeJSON(key, value) {
-             if (key === 'ureaData') ureaData = value;
-             if (key === 'ureaHistory') ureaHistory = value;
-             saveToCloud(); // Auto-sync on every change
-         }
          // --- NAVIGATION & STATE LOGIC ---
-         function showSection(sectionId, internalState = null) {
-           const sections = [
-             'dashboardSection', 'uploadReportPage', 'ePantaReportPage', 
-             'farmerDetailsPage', 'cropFarmersPage', 'ureaSection', 'cropDamageSection', 
-             'ccExperimentsSection', 'cropRecommendationSection', 'profileSection',
-             'loginPage', 'registerPage', 'resetPasswordSection'
-           ];
-           
-           sections.forEach(id => {
-             const el = document.getElementById(id);
-             if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
-           });
+         // Go Back logic that perfectly mimics browser back button
+         function goBack() {
+             if (pageStateStack.length > 1) {
+                 history.back(); // Physically triggers window.onpopstate
+             } else {
+                 showSection('dashboardSection');
+             }
+         }
+
+         function showSection(sectionId, pushToHistory = true) {
+             const sections = ['dashboardSection', 'uploadReportPage', 'ePantaReportPage', 'farmerDetailsPage', 'cropFarmersPage', 'ureaSection', 'cropDamageSection', 'ccExperimentsSection', 'cropRecommendationSection', 'profileSection', 'loginPage', 'registerPage', 'resetPasswordSection'];
+             sections.forEach(id => {
+                 const el = document.getElementById(id);
+                 if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
+             });
          
-           const target = document.getElementById(sectionId);
-           if (target) {
-             target.style.display = (sectionId === 'ePantaReportPage') ? 'flex' : 'block';
-             target.classList.remove('hidden');
-           }
+             const target = document.getElementById(sectionId);
+             if (target) {
+                 target.style.display = 'block'; // Force normal block layout for all pages
+                 target.classList.remove('hidden');
+             }
          
-           const authSections = ['loginPage', 'registerPage', 'resetPasswordSection'];
-           const loginWrapper = document.getElementById('loginWrapper');
-           const mainNavbar = document.getElementById('mainNavbar');
-           if (authSections.includes(sectionId)) {
-             if (loginWrapper) { loginWrapper.style.display = 'flex'; loginWrapper.classList.remove('hidden'); }
-             if (mainNavbar) mainNavbar.classList.add('hidden');
-           } else {
-             if (loginWrapper) { loginWrapper.style.display = 'none'; loginWrapper.classList.add('hidden'); }
-             if (mainNavbar) mainNavbar.classList.remove('hidden');
-           }
+             const authSections = ['loginPage', 'registerPage', 'resetPasswordSection'];
+             const loginWrapper = document.getElementById('loginWrapper');
+             const mainNavbar = document.getElementById('mainNavbar');
          
-           const last = pageStateStack.length ? pageStateStack[pageStateStack.length - 1] : {};
-           if (last.section !== sectionId || last.state !== internalState) {
-             pageStateStack.push({ section: sectionId, state: internalState });
-             history.pushState({ section: sectionId, state: internalState }, "");
-           }
+             if (authSections.includes(sectionId)) {
+                 if (loginWrapper) { loginWrapper.style.display = 'flex'; loginWrapper.classList.remove('hidden'); }
+                 if (mainNavbar) mainNavbar.classList.add('hidden');
+             } else {
+                 if (loginWrapper) { loginWrapper.style.display = 'none'; loginWrapper.classList.add('hidden'); }
+                 if (mainNavbar) mainNavbar.classList.remove('hidden');
+             }
+         
+             if (pushToHistory) {
+                 const last = pageStateStack.length ? pageStateStack[pageStateStack.length - 1] : null;
+                 if (last !== sectionId) {
+                     pageStateStack.push(sectionId);
+                     history.pushState({ section: sectionId }, "");
+                 }
+             }
          }
          
          window.onpopstate = function (e) {
-           if (pageStateStack.length > 1) {
-             pageStateStack.pop();
-             const prev = pageStateStack[pageStateStack.length - 1];
-             showSection(prev.section, prev.state);
-             history.replaceState({ section: prev.section, state: prev.state }, "");
-           } else if (getCurrentSection() === "dashboardSection") {
-             if (confirm("Do you want to exit?")) window.close();
-             else history.pushState({ section: "dashboardSection", state: null }, "");
-           }
+             if (pageStateStack.length > 1) {
+                 pageStateStack.pop();
+                 const prev = pageStateStack[pageStateStack.length - 1];
+                 showSection(prev, false);
+             } else if (pageStateStack.length === 1 && pageStateStack[0] === "dashboardSection") {
+                 history.pushState({ section: "dashboardSection" }, ""); // Stay on dashboard
+             }
          };
          
-         function getCurrentSection() {
-           if (pageStateStack.length) return pageStateStack[pageStateStack.length - 1].section;
-           return null;
-         }
-         
+         // Initialize
          window.addEventListener('DOMContentLoaded', function() {
-           pageStateStack = [{ section: "loginPage", state: null }];
-           history.replaceState({ section: "loginPage", state: null }, "");
-           showSection('loginPage');
+             pageStateStack = ["loginPage"];
+             history.replaceState({ section: "loginPage" }, "");
          });
-         
+
          // --- AUTHENTICATION ---
          firebase.auth().onAuthStateChanged(user => {
-           if (user) {
-             const displayName = user.displayName || user.email;
-             document.getElementById("userEmail").textContent = displayName;
-             loadUserProfile();
-             
-             // LOAD CLOUD DATA
-             loadUserCloudData(user.uid);
-             
-             showSection("dashboardSection");
-             populateYearDropdowns();
-           } else {
-             isDataLoaded = false;
-             allReportsCache = {};
-             ureaData = {};
-             ureaHistory = [];
-             showSection('loginPage');
-           }
+             if (user) {
+                 const displayName = user.displayName || user.email;
+                 document.getElementById("userEmail").textContent = displayName;
+                 try{ loadUserProfile(); }catch(e){}
+                 loadUserCloudData(user.uid);
+                 
+                 pageStateStack = ["dashboardSection"];
+                 history.replaceState({ section: "dashboardSection" }, "");
+                 showSection("dashboardSection", false);
+                 
+                 populateYearDropdowns();
+             } else {
+                 isDataLoaded = false;
+                 allReportsCache = {};
+                 ureaData = {};
+                 ureaHistory = [];
+                 
+                 pageStateStack = ["loginPage"];
+                 history.replaceState({ section: "loginPage" }, "");
+                 showSection('loginPage', false);
+             }
          });
          
          function loginUser() {
-           const email = document.getElementById('loginEmail').value;
-           const pass = document.getElementById('loginPassword').value;
-           firebase.auth().signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+             const email = document.getElementById('loginEmail').value;
+             const pass = document.getElementById('loginPassword').value;
+             firebase.auth().signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
          }
+         
          function registerUser() {
-           const email = document.getElementById('registerEmail').value;
-           const pass = document.getElementById('registerPassword').value;
-           firebase.auth().createUserWithEmailAndPassword(email, pass)
-             .then(() => alert('Registration successful! Please login.'))
-             .catch(e => alert(e.message));
+             const email = document.getElementById('registerEmail').value;
+             const pass = document.getElementById('registerPassword').value;
+             firebase.auth().createUserWithEmailAndPassword(email, pass)
+               .then(() => alert('Registration successful! Please login.'))
+               .catch(e => alert(e.message));
          }
+         
          function logoutUser() { 
-           showSection('loginPage');
-           pageStateStack = [{ section: "loginPage", state: null }];
-           history.replaceState({ section: "loginPage", state: null }, "");
-           firebase.auth().signOut().catch(e => alert(e.message)); 
+             firebase.auth().signOut().catch(e => alert(e.message)); 
          }
          
          function sendPasswordReset() {
-           const email = document.getElementById('resetEmail').value;
-           if (!email) return alert('Please enter your email.');
-           firebase.auth().sendPasswordResetEmail(email).then(() => { alert('Password reset email sent!'); showSection('loginPage'); }).catch(e => alert(e.message));
+             const email = document.getElementById('resetEmail').value;
+             if (!email) return alert('Please enter your email.');
+             firebase.auth().sendPasswordResetEmail(email).then(() => { alert('Password reset email sent!'); showSection('loginPage'); }).catch(e => alert(e.message));
          }
          
          function populateYearDropdowns() {
-           ['filterYear', 'cropYear', 'searchCropYear'].forEach(id => {
-             const sel = document.getElementById(id);
-             if(!sel) return;
-             sel.innerHTML = '<option value="">--Choose Year--</option>';
-             for(let y = 2020; y <= new Date().getFullYear(); y++) sel.appendChild(new Option(y, y));
-           });
+             ['filterYear', 'cropYear', 'searchCropYear'].forEach(id => {
+               const sel = document.getElementById(id);
+               if(!sel) return;
+               sel.innerHTML = '<option value="">--Choose Year--</option>';
+               for(let y = 2020; y <= new Date().getFullYear(); y++) sel.appendChild(new Option(y, y));
+             });
          }
          
          function escapeHtml(text) {
-           if(!text) return '';
-           return text.toString().replace(/[&<>"']/g, m => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[m]));
+             if(!text) return '';
+             return text.toString().replace(/[&<>"']/g, m => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[m]));
          }
          
          // --- EPANTA & UPLOAD LOGIC ---
          document.getElementById('fileInput').addEventListener('change', e => {
-           const file = e.target.files[0];
-           if(!file) { document.getElementById('message').textContent = 'No file selected.'; return; }
-           document.getElementById('message').textContent = '';
-           const reader = new FileReader();
-           reader.onload = evt => {
-             try {
-               const wb = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
-               uploadData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-               if(uploadData.length === 0) { document.getElementById('message').textContent = 'File is empty or invalid.'; return; }
-               document.getElementById('previewHeading').style.display = 'block';
-               displayUploadedDataTable(uploadData);
-               summarizeUploadedData(uploadData);
-             } catch(err) {
-               document.getElementById('message').textContent = 'Error processing file: ' + err.message;
-             }
-           };
-           reader.readAsArrayBuffer(file);
+             const file = e.target.files[0];
+             if(!file) { document.getElementById('message').textContent = 'No file selected.'; return; }
+             document.getElementById('message').textContent = '';
+             const reader = new FileReader();
+             reader.onload = evt => {
+               try {
+                 const wb = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
+                 uploadData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+                 if(uploadData.length === 0) { document.getElementById('message').textContent = 'File is empty or invalid.'; return; }
+                 document.getElementById('previewHeading').style.display = 'block';
+                 displayUploadedDataTable(uploadData);
+                 summarizeUploadedData(uploadData);
+               } catch(err) {
+                 document.getElementById('message').textContent = 'Error processing file: ' + err.message;
+               }
+             };
+             reader.readAsArrayBuffer(file);
          });
          
          function displayUploadedDataTable(data) {
-           const table = document.getElementById('dataTable');
-           if(data.length === 0) return table.innerHTML = '';
-           const cols = Object.keys(data[0]);
-           let html = '<thead><tr>' + cols.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr></thead><tbody>';
-           data.forEach(row => html += '<tr>' + cols.map(c => `<td>${escapeHtml(row[c])}</td>`).join('') + '</tr>');
-           table.innerHTML = html + '</tbody>';
+             const table = document.getElementById('dataTable');
+             if(data.length === 0) return table.innerHTML = '';
+             const cols = Object.keys(data[0]);
+             let html = '<thead><tr class="bg-primary text-white">' + cols.map(c => `<th class="text-white">${escapeHtml(c)}</th>`).join('') + '</tr></thead><tbody>';
+             data.forEach(row => html += '<tr>' + cols.map(c => `<td>${escapeHtml(row[c])}</td>`).join('') + '</tr>');
+             table.innerHTML = html + '</tbody>';
          }
          
          function summarizeUploadedData(data) {
-           let uniqueFarmers = new Set(), totalArea = 0, cropMap = {};
-           data.forEach(row => {
-             const aadhaar = (row['Aadhaar Number'] || '').toString().trim();
-             const key = aadhaar || ((row['Farmer Name']||'') + '|' + (row['Village']||''));
-             const crop = (row['Crop Name'] || '').toString().trim();
-             const area = Number(row['Area']) || 0;
-             uniqueFarmers.add(key); totalArea += area;
-             cropMap[crop] = cropMap[crop] || {farmers: new Set(), area: 0};
-             cropMap[crop].farmers.add(key); cropMap[crop].area += area;
-           });
-           let summaryHTML = `<p>Unique Farmers: <strong>${uniqueFarmers.size}</strong> | Total Area: <strong>${totalArea.toFixed(2)}</strong></p>
-           <table class="table table-bordered"><thead><tr style="background:var(--primary); color:#fff;"><th>Crop Name</th><th>Unique Farmers</th><th>Area</th></tr></thead><tbody>`;
-           let grandArea = 0;
-           Object.entries(cropMap).forEach(([crop, val]) => {
-             grandArea += val.area;
-             summaryHTML += `<tr><td>${escapeHtml(crop)}</td><td>${val.farmers.size}</td><td>${val.area.toFixed(2)}</td></tr>`;
-           });
-           document.getElementById('summary').innerHTML = summaryHTML + `<tr style="font-weight:bold; background:#f0f5ff;"><td colspan="2" style="text-align:right;">Total</td><td>${grandArea.toFixed(2)}</td></tr></tbody></table>`;
+             let uniqueFarmers = new Set(), totalArea = 0, cropMap = {};
+             data.forEach(row => {
+               const aadhaar = (row['Aadhaar Number'] || '').toString().trim();
+               const key = aadhaar || ((row['Farmer Name']||'') + '|' + (row['Village']||''));
+               const crop = (row['Crop Name'] || '').toString().trim();
+               const area = Number(row['Area']) || 0;
+               uniqueFarmers.add(key); totalArea += area;
+               cropMap[crop] = cropMap[crop] || {farmers: new Set(), area: 0};
+               cropMap[crop].farmers.add(key); cropMap[crop].area += area;
+             });
+             let summaryHTML = `<p>Unique Farmers: <strong>${uniqueFarmers.size}</strong> | Total Area: <strong>${totalArea.toFixed(2)}</strong></p>
+             <table class="table table-bordered"><thead><tr style="background:var(--primary); color:#fff;"><th class="text-white">Crop Name</th><th class="text-white">Unique Farmers</th><th class="text-white">Area</th></tr></thead><tbody>`;
+             let grandArea = 0;
+             Object.entries(cropMap).forEach(([crop, val]) => {
+               grandArea += val.area;
+               summaryHTML += `<tr><td>${escapeHtml(crop)}</td><td>${val.farmers.size}</td><td>${val.area.toFixed(2)}</td></tr>`;
+             });
+             document.getElementById('summary').innerHTML = summaryHTML + `<tr style="font-weight:bold; background:#f0f5ff;"><td colspan="2" style="text-align:right;">Total</td><td>${grandArea.toFixed(2)}</td></tr></tbody></table>`;
          }
          
          document.getElementById('saveSummaryBtn').addEventListener('click', e => {
-           const year = document.getElementById('cropYear').value, season = document.getElementById('season').value;
-           if (!year || !season) return alert('Select Crop Year and Season');
-           if (uploadData.length === 0) return alert('No data to save. Please upload a report.');
-           
-           let farmersSet = new Set(), farmerDetails = {}, cropsSummary = {};
-           uploadData.forEach(r => {
-             const aadhaar = (r['Aadhaar Number'] || '').toString().trim();
-             const key = aadhaar || ((r['Farmer Name']||'') + '|' + (r['Village']||''));
-             farmersSet.add(key);
-             farmerDetails[key] = farmerDetails[key] || [];
-             farmerDetails[key].push({bookingID: r['Booking ID'], khathaNo: r['Khatha Number'], surveyNo: r['Survey Number'], cropName: r['Crop Name'], area: Number(r['Area'])||0});
-             const crop = (r['Crop Name']||'').trim();
-             cropsSummary[crop] = cropsSummary[crop] || {farmers: new Set(), area: 0};
-             cropsSummary[crop].farmers.add(key); cropsSummary[crop].area += Number(r['Area'])||0;
-           });
-           const uniqueFarmersList = Array.from(farmersSet).map(key => {
-             const f = uploadData.find(r => (r['Aadhaar Number']||'').toString().trim() === key || (r['Farmer Name']+'|'+r['Village']) === key);
-             return {farmerName: f['Farmer Name']||'', fatherName: f['Father Name']||'', aadhaarNumber: f['Aadhaar Number']||'-', village: f['Village']||'', mobileNumber: f['Mobile Number']||'-'};
-           });
-           const cropsArray = Object.entries(cropsSummary).map(([c, v]) => ({cropName: c, uniqueFarmers: v.farmers.size, areaSown: v.area}));
-           
-           // Update Cloud Cache and Sync
-           allReportsCache[year+'_'+season] = { summary: {totalFarmers: farmersSet.size, totalArea: Object.values(cropsSummary).reduce((s,c)=>s+c.area,0), crops: cropsArray}, uniqueFarmers: uniqueFarmersList, farmerDetails };
-           saveToCloud();
-           
-           alert(`Report saved to Cloud for Crop Year: ${year} and Season: ${season}`);
-           showSection('ePantaReportPage');
-           document.getElementById('filterYear').value = year;
-           document.getElementById('filterSeason').value = season;
-           loadReport();
+             const year = document.getElementById('cropYear').value, season = document.getElementById('season').value;
+             if (!year || !season) return alert('Select Crop Year and Season');
+             if (uploadData.length === 0) return alert('No data to save. Please upload a report.');
+             
+             let farmersSet = new Set(), farmerDetails = {}, cropsSummary = {};
+             uploadData.forEach(r => {
+               const aadhaar = (r['Aadhaar Number'] || '').toString().trim();
+               const key = aadhaar || ((r['Farmer Name']||'') + '|' + (r['Village']||''));
+               farmersSet.add(key);
+               farmerDetails[key] = farmerDetails[key] || [];
+               farmerDetails[key].push({bookingID: r['Booking ID'], khathaNo: r['Khatha Number'], surveyNo: r['Survey Number'], cropName: r['Crop Name'], area: Number(r['Area'])||0});
+               const crop = (r['Crop Name']||'').trim();
+               cropsSummary[crop] = cropsSummary[crop] || {farmers: new Set(), area: 0};
+               cropsSummary[crop].farmers.add(key); cropsSummary[crop].area += Number(r['Area'])||0;
+             });
+             const uniqueFarmersList = Array.from(farmersSet).map(key => {
+               const f = uploadData.find(r => (r['Aadhaar Number']||'').toString().trim() === key || (r['Farmer Name']+'|'+r['Village']) === key);
+               return {farmerName: f['Farmer Name']||'', fatherName: f['Father Name']||'', aadhaarNumber: f['Aadhaar Number']||'-', village: f['Village']||'', mobileNumber: f['Mobile Number']||'-'};
+             });
+             const cropsArray = Object.entries(cropsSummary).map(([c, v]) => ({cropName: c, uniqueFarmers: v.farmers.size, areaSown: v.area}));
+             
+             // Sync to Cloud
+             allReportsCache[year+'_'+season] = { summary: {totalFarmers: farmersSet.size, totalArea: Object.values(cropsSummary).reduce((s,c)=>s+c.area,0), crops: cropsArray}, uniqueFarmers: uniqueFarmersList, farmerDetails };
+             saveToCloud();
+             
+             alert(`Report saved to Cloud for Crop Year: ${year} and Season: ${season}`);
+             showSection('ePantaReportPage');
+             document.getElementById('filterYear').value = year;
+             document.getElementById('filterSeason').value = season;
+             loadReport();
          });
          
          document.getElementById('loadReportBtn').addEventListener('click', loadReport);
          function loadReport() {
-            if(!isDataLoaded) return alert("Still loading cloud data...");
-            const year = document.getElementById('filterYear').value, season = document.getElementById('filterSeason').value;
-            if (!year) return alert('Please select Crop Year'); if (!season) return alert('Please select Season');
-            
-            const report = allReportsCache[year+'_'+season];
-            const reportContainer = document.getElementById('reportContainer');
-            
-            if(!report) {
-               reportContainer.innerHTML = `<div class="card p-5 border-0 shadow-sm text-center text-danger"><i class="fas fa-exclamation-circle fa-3x mb-3 opacity-50"></i><h4>No report found</h4><p class="text-muted">No data exists for Crop Year ${year} and Season ${season}.</p></div>`;
-               return;
-            }
-            
-            let html = `
-               <div class="row g-3 mb-4">
-                  <div class="col-md-6"><div class="card p-4 shadow-sm border-0 d-flex flex-row align-items-center gap-4 h-100" style="border-left: 5px solid var(--primary) !important;"><div class="bg-primary bg-opacity-10 p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="fas fa-users fa-2x text-primary"></i></div><div><p class="text-muted mb-1 fw-medium text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Total Unique Farmers</p><h3 class="mb-0 fw-bold text-primary">${report.summary.totalFarmers}</h3></div></div></div>
-                  <div class="col-md-6"><div class="card p-4 shadow-sm border-0 d-flex flex-row align-items-center gap-4 h-100" style="border-left: 5px solid var(--secondary) !important;"><div class="bg-success bg-opacity-10 p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="fas fa-map-marked-alt fa-2x text-success"></i></div><div><p class="text-muted mb-1 fw-medium text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Total Area (Acres)</p><h3 class="mb-0 fw-bold text-success">${report.summary.totalArea.toFixed(2)}</h3></div></div></div>
-               </div>
-               <div class="card p-4 border-0 shadow-sm mb-4"><h4 class="mb-4 text-primary fw-bold"><i class="fas fa-seedling me-2"></i>Crop-wise Details</h4><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th class="text-uppercase text-white" style="font-size: 0.85rem;">Crop Name</th><th class="text-uppercase text-white text-center" style="font-size: 0.85rem;">Unique Farmers</th><th class="text-uppercase text-white text-center" style="font-size: 0.85rem;">Area (Acres)</th></tr></thead><tbody>`;
-            
-            report.summary.crops.forEach(c => { html += `<tr><td><button class="btn btn-link crop-btn p-0 fw-bold text-decoration-none" data-crop="${encodeURIComponent(c.cropName)}">${escapeHtml(c.cropName)}</button></td><td class="text-center"><span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill border border-primary border-opacity-25">${c.uniqueFarmers}</span></td><td class="text-center fw-medium text-dark">${c.areaSown.toFixed(2)}</td></tr>`; });
-            
-            html += `</tbody></table></div></div>
-            <div class="card p-4 border-0 shadow-sm"><div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3"><h4 class="mb-0 text-primary fw-bold"><i class="fas fa-user-friends me-2"></i>Farmers List</h4><div class="d-flex gap-2 align-items-center"><div class="input-group"><span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span><input id="farmerNameSearchInput" class="form-control border-start-0 bg-light" style="max-width:220px;" placeholder="Search Farmer Name..."/></div><button id="exportFarmersBtn" class="btn btn-outline-success text-nowrap shadow-sm"><i class="fas fa-file-excel me-1"></i> Export Excel</button></div></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th class="text-uppercase text-white" style="font-size: 0.85rem;">Farmer Name</th><th class="text-uppercase text-white" style="font-size: 0.85rem;">Father Name</th><th class="text-uppercase text-white" style="font-size: 0.85rem;">Aadhaar Number</th><th class="text-uppercase text-white" style="font-size: 0.85rem;">Village</th><th class="text-uppercase text-white" style="font-size: 0.85rem;">Mobile Number</th></tr></thead><tbody id="farmersTableBody">`;
-            
-            report.uniqueFarmers.forEach(f => {
-               const key = f.aadhaarNumber !== '-' ? f.aadhaarNumber : `${f.farmerName}|${f.village}`;
-               html += `<tr><td><button class="btn btn-link farmer-btn p-0 fw-bold text-decoration-none" data-key="${encodeURIComponent(key)}">${escapeHtml(f.farmerName)}</button></td><td class="text-muted">${escapeHtml(f.fatherName)}</td><td><code class="bg-light px-2 py-1 rounded text-dark border">${escapeHtml(f.aadhaarNumber)}</code></td><td class="text-muted">${escapeHtml(f.village)}</td><td class="text-muted">${escapeHtml(f.mobileNumber||"-")}</td></tr>`;
-            });
-            
-            reportContainer.innerHTML = html + '</tbody></table></div></div>';
-            
-            const exportFarmersBtn = document.getElementById('exportFarmersBtn');
-            if (exportFarmersBtn) {
-               exportFarmersBtn.addEventListener('click', function () {
-                  const rows = [['Farmer Name', 'Father Name', 'Aadhaar Number', 'Village', 'Mobile Number']];
-                  document.querySelectorAll('#farmersTableBody tr').forEach(tr => {
-                     const cells = tr.querySelectorAll('td');
-                     if(cells.length === 5) rows.push([cells[0].innerText.trim(), cells[1].innerText.trim(), cells[2].innerText.trim(), cells[3].innerText.trim(), cells[4].innerText.trim()]);
-                  });
-                  if(rows.length <= 1) return alert('No data to export.');
-                  const wb = XLSX.utils.book_new();
-                  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Farmers');
-                  XLSX.writeFile(wb, `Farmers_${year}_${season}.xlsx`);
-               });
-            }
+             if(!isDataLoaded) return;
+             const year = document.getElementById('filterYear').value, season = document.getElementById('filterSeason').value;
+             if (!year || !season) return;
+             
+             const report = allReportsCache[year+'_'+season];
+             const reportContainer = document.getElementById('reportContainer');
+             
+             if(!report) {
+                reportContainer.innerHTML = `<div class="card p-5 border-0 shadow-sm text-center text-danger"><i class="fas fa-exclamation-circle fa-3x mb-3 opacity-50"></i><h4>No report found</h4><p class="text-muted">No data exists for Crop Year ${year} and Season ${season}.</p></div>`;
+                return;
+             }
+             
+             let html = `
+                <div class="row g-3 mb-4">
+                   <div class="col-md-6"><div class="card p-4 shadow-sm border-0 d-flex flex-row align-items-center gap-4 h-100" style="border-left: 5px solid var(--primary) !important;"><div class="bg-primary bg-opacity-10 p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="fas fa-users fa-2x text-primary"></i></div><div><p class="text-muted mb-1 fw-medium text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Total Unique Farmers</p><h3 class="mb-0 fw-bold text-primary">${report.summary.totalFarmers}</h3></div></div></div>
+                   <div class="col-md-6"><div class="card p-4 shadow-sm border-0 d-flex flex-row align-items-center gap-4 h-100" style="border-left: 5px solid var(--secondary) !important;"><div class="bg-success bg-opacity-10 p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="fas fa-map-marked-alt fa-2x text-success"></i></div><div><p class="text-muted mb-1 fw-medium text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Total Area (Acres)</p><h3 class="mb-0 fw-bold text-success">${report.summary.totalArea.toFixed(2)}</h3></div></div></div>
+                </div>
+                <div class="card p-4 border-0 shadow-sm mb-4">
+                   <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                      <h4 class="mb-0 text-primary fw-bold"><i class="fas fa-seedling me-2"></i>Crop-wise Details</h4>
+                      <button id="exportCropsBtn" class="btn btn-outline-success text-nowrap shadow-sm"><i class="fas fa-file-excel me-1"></i> Export Excel</button>
+                   </div>
+                   <div class="table-responsive">
+                      <table class="table table-hover align-middle mb-0">
+                         <thead><tr class="bg-primary text-white">
+                            <th class="text-uppercase text-white" style="font-size: 0.85rem;">Crop Name</th>
+                            <th class="text-uppercase text-white text-center" style="font-size: 0.85rem;">Unique Farmers</th>
+                            <th class="text-uppercase text-white text-center" style="font-size: 0.85rem;">Area (Acres)</th>
+                         </tr></thead>
+                         <tbody>`;
+             
+             report.summary.crops.forEach(c => { html += `<tr><td><button class="btn btn-link crop-btn p-0 fw-bold text-decoration-none" data-crop="${encodeURIComponent(c.cropName)}">${escapeHtml(c.cropName)}</button></td><td class="text-center"><span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill border border-primary border-opacity-25">${c.uniqueFarmers}</span></td><td class="text-center fw-medium text-dark">${c.areaSown.toFixed(2)}</td></tr>`; });
+             
+             html += `</tbody></table></div></div>
+             <div class="card p-4 border-0 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                   <h4 class="mb-0 text-primary fw-bold"><i class="fas fa-user-friends me-2"></i>Farmers List</h4>
+                   <div class="d-flex gap-2 align-items-center">
+                      <div class="input-group">
+                         <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                         <input id="farmerNameSearchInput" class="form-control border-start-0 bg-light" style="max-width:220px;" placeholder="Search Farmer Name..."/>
+                      </div>
+                      <button id="exportFarmersBtn" class="btn btn-outline-success text-nowrap shadow-sm"><i class="fas fa-file-excel me-1"></i> Export Excel</button>
+                   </div>
+                </div>
+                <div class="table-responsive">
+                   <table class="table table-hover align-middle mb-0">
+                      <thead><tr class="bg-primary text-white">
+                         <th class="text-uppercase text-white" style="font-size: 0.85rem;">Farmer Name</th>
+                         <th class="text-uppercase text-white" style="font-size: 0.85rem;">Father Name</th>
+                         <th class="text-uppercase text-white" style="font-size: 0.85rem;">Aadhaar Number</th>
+                         <th class="text-uppercase text-white" style="font-size: 0.85rem;">Village</th>
+                         <th class="text-uppercase text-white" style="font-size: 0.85rem;">Mobile Number</th>
+                      </tr></thead>
+                      <tbody id="farmersTableBody">`;
+             
+             report.uniqueFarmers.forEach(f => {
+                const key = f.aadhaarNumber !== '-' ? f.aadhaarNumber : `${f.farmerName}|${f.village}`;
+                html += `<tr><td><button class="btn btn-link farmer-btn p-0 fw-bold text-decoration-none" data-key="${encodeURIComponent(key)}">${escapeHtml(f.farmerName)}</button></td><td class="text-muted">${escapeHtml(f.fatherName)}</td><td><code class="bg-light px-2 py-1 rounded text-dark border">${escapeHtml(f.aadhaarNumber)}</code></td><td class="text-muted">${escapeHtml(f.village)}</td><td class="text-muted">${escapeHtml(f.mobileNumber||"-")}</td></tr>`;
+             });
+             
+             reportContainer.innerHTML = html + '</tbody></table></div></div>';
+             
+             const exportCropsBtn = document.getElementById('exportCropsBtn');
+             if (exportCropsBtn) {
+                exportCropsBtn.addEventListener('click', function () {
+                   const rows = [['Crop Name', 'Unique Farmers', 'Area (Acres)']];
+                   report.summary.crops.forEach(c => rows.push([c.cropName, c.uniqueFarmers, c.areaSown.toFixed(2)]));
+                   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Crop_Summary'); XLSX.writeFile(wb, `CropSummary_${year}_${season}.xlsx`);
+                });
+             }
 
-            const farmerNameInput = document.getElementById('farmerNameSearchInput');
-            const farmersTableBody = document.getElementById('farmersTableBody');
-            if (farmerNameInput && farmersTableBody) {
-               farmerNameInput.addEventListener('input', function() {
-                  const searchVal = this.value.trim().toLowerCase();
-                  farmersTableBody.innerHTML = '';
-                  report.uniqueFarmers.forEach(f => {
-                     if (!searchVal || (f.farmerName && f.farmerName.toLowerCase().includes(searchVal))) {
-                        const key = f.aadhaarNumber !== '-' ? f.aadhaarNumber : `${f.farmerName}|${f.village}`;
-                        farmersTableBody.innerHTML += `<tr><td><button class="btn btn-link farmer-btn p-0 fw-bold text-decoration-none" data-key="${encodeURIComponent(key)}">${escapeHtml(f.farmerName)}</button></td><td class="text-muted">${escapeHtml(f.fatherName)}</td><td><code class="bg-light px-2 py-1 rounded text-dark border">${escapeHtml(f.aadhaarNumber)}</code></td><td class="text-muted">${escapeHtml(f.village)}</td><td class="text-muted">${escapeHtml(f.mobileNumber||"-")}</td></tr>`;
-                     }
-                  });
-                  attachFarmerButtons();
-               });
-            }
-
-            document.querySelectorAll('.crop-btn').forEach(b => b.onclick = () => { sessionStorage.setItem('selectedCropName', decodeURIComponent(b.dataset.crop)); sessionStorage.setItem('selectedReportKey', year+'_'+season); showCropFarmersPage(); });
-            attachFarmerButtons();
+             const exportFarmersBtn = document.getElementById('exportFarmersBtn');
+             if (exportFarmersBtn) {
+                exportFarmersBtn.addEventListener('click', function () {
+                   const rows = [['Farmer Name', 'Father Name', 'Aadhaar Number', 'Village', 'Mobile Number']];
+                   document.querySelectorAll('#farmersTableBody tr').forEach(tr => {
+                      const cells = tr.querySelectorAll('td');
+                      if(cells.length === 5) rows.push([cells[0].innerText.trim(), cells[1].innerText.trim(), cells[2].innerText.trim(), cells[3].innerText.trim(), cells[4].innerText.trim()]);
+                   });
+                   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Farmers'); XLSX.writeFile(wb, `Farmers_${year}_${season}.xlsx`);
+                });
+             }
+         
+             const farmerNameInput = document.getElementById('farmerNameSearchInput');
+             if (farmerNameInput) {
+                farmerNameInput.addEventListener('input', function() {
+                   const searchVal = this.value.trim().toLowerCase();
+                   const farmersTableBody = document.getElementById('farmersTableBody');
+                   farmersTableBody.innerHTML = '';
+                   report.uniqueFarmers.forEach(f => {
+                      if (!searchVal || (f.farmerName && f.farmerName.toLowerCase().includes(searchVal))) {
+                         const key = f.aadhaarNumber !== '-' ? f.aadhaarNumber : `${f.farmerName}|${f.village}`;
+                         farmersTableBody.innerHTML += `<tr><td><button class="btn btn-link farmer-btn p-0 fw-bold text-decoration-none" data-key="${encodeURIComponent(key)}">${escapeHtml(f.farmerName)}</button></td><td class="text-muted">${escapeHtml(f.fatherName)}</td><td><code class="bg-light px-2 py-1 rounded text-dark border">${escapeHtml(f.aadhaarNumber)}</code></td><td class="text-muted">${escapeHtml(f.village)}</td><td class="text-muted">${escapeHtml(f.mobileNumber||"-")}</td></tr>`;
+                      }
+                   });
+                   attachFarmerButtons();
+                });
+             }
+         
+             document.querySelectorAll('.crop-btn').forEach(b => b.onclick = () => { sessionStorage.setItem('selectedCropName', decodeURIComponent(b.dataset.crop)); sessionStorage.setItem('selectedReportKey', year+'_'+season); showCropFarmersPage(); });
+             attachFarmerButtons();
          }
          
          function attachFarmerButtons() {
-           document.querySelectorAll('.farmer-btn').forEach(b => b.onclick = () => { sessionStorage.setItem('selectedFarmerKey', decodeURIComponent(b.dataset.key)); sessionStorage.setItem('selectedReportKey', document.getElementById('filterYear').value+'_'+document.getElementById('filterSeason').value); showFarmerDetailsPage(); });
+             document.querySelectorAll('.farmer-btn').forEach(b => b.onclick = () => { sessionStorage.setItem('selectedFarmerKey', decodeURIComponent(b.dataset.key)); sessionStorage.setItem('selectedReportKey', document.getElementById('filterYear').value+'_'+document.getElementById('filterSeason').value); showFarmerDetailsPage(); });
          }
          
          function showCropFarmersPage() { 
-           showSection('cropFarmersPage');
-           const reportKey = sessionStorage.getItem('selectedReportKey');
-           const cropName = sessionStorage.getItem('selectedCropName');
-           const titleEl = document.getElementById('cropFarmersTitle');
-           const contentEl = document.getElementById('cropFarmersContent');
-           if(!reportKey || !cropName) { titleEl.textContent = 'Crop Farmers'; contentEl.innerHTML = '<p>No crop specified.</p>'; return; }
-           
-           const report = allReportsCache[reportKey];
-           if(!report) { titleEl.textContent = 'Crop Farmers'; contentEl.innerHTML = '<p>No report data available.</p>'; return; }
-           titleEl.textContent = `Farmers for Crop: ${cropName}`;
-           
-           let rows = [];
-           report.uniqueFarmers.forEach(farmer => {
-              const farmerKey = farmer.aadhaarNumber !== '-' ? farmer.aadhaarNumber : (farmer.farmerName + '|' + (farmer.village || ''));
-              const details = report.farmerDetails[farmerKey] || [];
-              const cropArea = details.filter(d => d.cropName === cropName).reduce((a, d) => a + Number(d.area || 0), 0);
-              if (cropArea > 0) rows.push({ 
-                 farmerName: farmer.farmerName, 
-                 fatherName: farmer.fatherName, 
-                 area: cropArea, 
-                 aadhaarNumber: farmer.aadhaarNumber || '-', 
-                 phoneNumber: farmer.mobileNumber || '-',
-                 village: farmer.village || '-'
-              });
-           });
-           
-           let sortAscending = true;
-           function renderTable(filteredRows) {
-              let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
-                   <div class="d-flex gap-2 align-items-center" style="max-width:420px;">
-                      <input id="cropFarmerNameSearchInput" class="form-control" placeholder="Search Farmer..." aria-label="Search Farmer Name" />
-                      <button id="sortAreaBtn" class="btn btn-outline-primary text-nowrap">Sort Area ${sortAscending ? '▲' : '▼'}</button>
-                   </div>
-                   <button id="exportSpecificCropBtn" class="btn btn-success shadow-sm">
-                      <i class="fas fa-file-excel me-1"></i> Export ${cropName} List
-                   </button>
-                </div>
-                <div class="table-responsive">
-                   <table class="table table-bordered table-hover" id="specificCropTable">
-                      <thead>
-                         <tr class="bg-primary text-white">
-                            <th>S.No</th>
-                            <th>Farmer Name</th>
-                            <th>Father Name</th>
-                            <th>Aadhaar Number</th>
-                            <th>Phone Number</th>
-                            <th>Village</th>
-                            <th>Total Area</th>
-                         </tr>
-                      </thead>
-                      <tbody id="cropFarmersTableBody">`;
-              
-              let totalArea = 0;
-              filteredRows.forEach((r, idx) => { 
-                 html += `<tr>
-                    <td>${idx+1}</td>
-                    <td>${escapeHtml(r.farmerName)}</td>
-                    <td>${escapeHtml(r.fatherName)}</td>
-                    <td>${escapeHtml(r.aadhaarNumber)}</td>
-                    <td>${escapeHtml(r.phoneNumber)}</td>
-                    <td>${escapeHtml(r.village)}</td>
-                    <td>${r.area.toFixed(2)}</td>
-                 </tr>`; 
-                 totalArea += r.area; 
-              });
-              
-              html += `<tr style="font-weight:bold; background:#f0f5ff;"><td colspan="6" class="text-end">Total Area</td><td>${totalArea.toFixed(2)}</td></tr></tbody></table></div>`;
-              contentEl.innerHTML = html;
-              
-              // Handle Export for this specific crop
-              document.getElementById('exportSpecificCropBtn').onclick = function() {
-                 const exportRows = [['S.No', 'Farmer Name', 'Father Name', 'Aadhaar Number', 'Phone Number', 'Village', 'Total Area']];
-                 filteredRows.forEach((r, idx) => {
-                    exportRows.push([idx + 1, r.farmerName, r.fatherName, r.aadhaarNumber, r.phoneNumber, r.village, r.area.toFixed(2)]);
-                 });
-                 exportRows.push(['', '', '', '', '', 'Total', totalArea.toFixed(2)]);
-                 
-                 const wb = XLSX.utils.book_new();
-                 const ws = XLSX.utils.aoa_to_sheet(exportRows);
-                 XLSX.utils.book_append_sheet(wb, ws, 'Farmers_List');
-                 XLSX.writeFile(wb, `Farmers_${cropName}_${reportKey}.xlsx`);
-              };
-
-              // Re-attach Search Logic
-              const searchInput = document.getElementById('cropFarmerNameSearchInput');
-              if(searchInput) {
-                 searchInput.addEventListener('input', function() {
-                    const val = this.value.trim().toLowerCase();
-                    let filtered = rows.filter(r => !val || (r.farmerName && r.farmerName.toLowerCase().includes(val)));
-                    renderTable(sortAscending ? filtered.sort((a,b)=>a.area-b.area) : filtered.sort((a,b)=>b.area-a.area));
-                    // Keep focus in search box after re-render
-                    document.getElementById('cropFarmerNameSearchInput').focus();
-                 });
-              }
-              
-              // Re-attach Sort Logic
-              const sortBtn = document.getElementById('sortAreaBtn');
-              if(sortBtn) {
-                 sortBtn.addEventListener('click', () => {
-                    sortAscending = !sortAscending;
-                    const val = (document.getElementById('cropFarmerNameSearchInput')?.value || '').trim().toLowerCase();
-                    let filtered = rows.filter(r => !val || (r.farmerName && r.farmerName.toLowerCase().includes(val)));
-                    renderTable(sortAscending ? filtered.sort((a,b)=>a.area-b.area) : filtered.sort((a,b)=>b.area-a.area));
-                 });
-              }
-           }
-           renderTable(rows.sort((a,b)=>a.area-b.area));
-         }
+             showSection('cropFarmersPage');
+             const reportKey = sessionStorage.getItem('selectedReportKey');
+             const cropName = sessionStorage.getItem('selectedCropName');
+             const titleEl = document.getElementById('cropFarmersTitle');
+             const contentEl = document.getElementById('cropFarmersContent');
+             if(!reportKey || !cropName) { titleEl.textContent = 'Crop Farmers'; contentEl.innerHTML = '<p>No crop specified.</p>'; return; }
+             
+             const report = allReportsCache[reportKey];
+             if(!report) { titleEl.textContent = 'Crop Farmers'; contentEl.innerHTML = '<p>No report data available.</p>'; return; }
+             titleEl.textContent = `Farmers for Crop: ${cropName}`;
+             
+             let rows = [];
+             report.uniqueFarmers.forEach(farmer => {
+                const farmerKey = farmer.aadhaarNumber !== '-' ? farmer.aadhaarNumber : (farmer.farmerName + '|' + (farmer.village || ''));
+                const details = report.farmerDetails[farmerKey] || [];
+                const cropArea = details.filter(d => d.cropName === cropName).reduce((a, d) => a + Number(d.area || 0), 0);
+                if (cropArea > 0) rows.push({ 
+                   farmerName: farmer.farmerName, 
+                   fatherName: farmer.fatherName, 
+                   area: cropArea, 
+                   aadhaarNumber: farmer.aadhaarNumber || '-', 
+                   phoneNumber: farmer.mobileNumber || '-',
+                   village: farmer.village || '-'
+                });
+             });
+             
+             let sortAscending = true;
+             function renderTable(filteredRows) {
+                let html = `
+                  <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                     <div class="d-flex gap-2 align-items-center" style="max-width:420px;">
+                        <input id="cropFarmerNameSearchInput" class="form-control" placeholder="Search Farmer..." aria-label="Search Farmer Name" />
+                        <button id="sortAreaBtn" class="btn btn-outline-primary text-nowrap">Sort Area ${sortAscending ? '▲' : '▼'}</button>
+                     </div>
+                     <button id="exportSpecificCropBtn" class="btn btn-success shadow-sm">
+                        <i class="fas fa-file-excel me-1"></i> Export ${cropName} List
+                     </button>
+                  </div>
+                  <div class="table-responsive">
+                     <table class="table table-bordered table-hover" id="specificCropTable">
+                        <thead>
+                           <tr class="bg-primary text-white">
+                              <th class="text-white">S.No</th>
+                              <th class="text-white">Farmer Name</th>
+                              <th class="text-white">Father Name</th>
+                              <th class="text-white">Aadhaar Number</th>
+                              <th class="text-white">Phone Number</th>
+                              <th class="text-white">Village</th>
+                              <th class="text-white">Total Area</th>
+                           </tr>
+                        </thead>
+                        <tbody id="cropFarmersTableBody">`;
+                
+                let totalArea = 0;
+                filteredRows.forEach((r, idx) => { 
+                   html += `<tr>
+                      <td>${idx+1}</td>
+                      <td>${escapeHtml(r.farmerName)}</td>
+                      <td>${escapeHtml(r.fatherName)}</td>
+                      <td>${escapeHtml(r.aadhaarNumber)}</td>
+                      <td>${escapeHtml(r.phoneNumber)}</td>
+                      <td>${escapeHtml(r.village)}</td>
+                      <td>${r.area.toFixed(2)}</td>
+                   </tr>`; 
+                   totalArea += r.area; 
+                });
+                
+                html += `<tr style="font-weight:bold; background:#f0f5ff;"><td colspan="6" class="text-end">Total Area</td><td>${totalArea.toFixed(2)}</td></tr></tbody></table></div>`;
+                contentEl.innerHTML = html;
+                
+                document.getElementById('exportSpecificCropBtn').onclick = function() {
+                   const exportRows = [['S.No', 'Farmer Name', 'Father Name', 'Aadhaar Number', 'Phone Number', 'Village', 'Total Area']];
+                   filteredRows.forEach((r, idx) => exportRows.push([idx + 1, r.farmerName, r.fatherName, r.aadhaarNumber, r.phoneNumber, r.village, r.area.toFixed(2)]));
+                   exportRows.push(['', '', '', '', '', 'Total', totalArea.toFixed(2)]);
+                   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(exportRows), 'Farmers_List'); XLSX.writeFile(wb, `Farmers_${cropName}_${reportKey}.xlsx`);
+                };
          
-         document.getElementById('cfBackBtn').addEventListener('click', () => { showSection('ePantaReportPage'); loadReport(); });
+                const searchInput = document.getElementById('cropFarmerNameSearchInput');
+                if(searchInput) {
+                   searchInput.addEventListener('input', function() {
+                      const val = this.value.trim().toLowerCase();
+                      let filtered = rows.filter(r => !val || (r.farmerName && r.farmerName.toLowerCase().includes(val)));
+                      renderTable(sortAscending ? filtered.sort((a,b)=>a.area-b.area) : filtered.sort((a,b)=>b.area-a.area));
+                      document.getElementById('cropFarmerNameSearchInput').focus();
+                   });
+                }
+                
+                const sortBtn = document.getElementById('sortAreaBtn');
+                if(sortBtn) {
+                   sortBtn.addEventListener('click', () => {
+                      sortAscending = !sortAscending;
+                      const val = (document.getElementById('cropFarmerNameSearchInput')?.value || '').trim().toLowerCase();
+                      let filtered = rows.filter(r => !val || (r.farmerName && r.farmerName.toLowerCase().includes(val)));
+                      renderTable(sortAscending ? filtered.sort((a,b)=>a.area-b.area) : filtered.sort((a,b)=>b.area-a.area));
+                   });
+                }
+             }
+             renderTable(rows.sort((a,b)=>a.area-b.area));
+         }
          
          function showFarmerDetailsPage() { 
-           showSection('farmerDetailsPage'); 
-           const reportKey = sessionStorage.getItem('selectedReportKey');
-           const farmerKey = sessionStorage.getItem('selectedFarmerKey');
-           const title = document.getElementById('farmerDetailsTitle');
-           const content = document.getElementById('farmerDetailsContent');
-           
-           if(!reportKey || !farmerKey) return content.innerHTML = '<p>No details available.</p>';
-           const report = allReportsCache[reportKey];
-           if(!report) return content.innerHTML = '<p>No data available.</p>';
-           
-           const details = report.farmerDetails[farmerKey] || [];
-           if(!details.length) return content.innerHTML = '<p>No bookings found.</p>';
-           
-           const uf = report.uniqueFarmers.find(f => ((f.aadhaarNumber && f.aadhaarNumber !== '-') ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''))) === farmerKey);
-           let cropTotals = {}; details.forEach(d => cropTotals[d.cropName||'(Unknown)'] = (cropTotals[d.cropName||'(Unknown)']||0) + (d.area||0));
-           
-           title.textContent = `Cultivation Details for Farmer: ${uf ? uf.farmerName : '(Unknown)'}`;
-           title.textContent += ' (Total Booked Area: ' + (Object.keys(cropTotals).length ? Object.keys(cropTotals).map(c => `${c}: ${cropTotals[c].toFixed(2)}`).join(', ') : 'None') + ')';
-           
-           let html = `<div class="table-responsive mt-3"><table class="table table-bordered table-striped"><thead><tr><th>Booking ID</th><th>Khatha Number</th><th>Survey Number</th><th>Crop Name</th><th>Area</th></tr></thead><tbody>`;
-           details.forEach(d => html += `<tr><td>${escapeHtml(d.bookingID||'-')}</td><td>${escapeHtml(d.khathaNo||'-')}</td><td>${escapeHtml(d.surveyNo||'-')}</td><td>${escapeHtml(d.cropName||'-')}</td><td>${d.area.toFixed(2)}</td></tr>`);
-           content.innerHTML = html + '</tbody></table></div>';
+             showSection('farmerDetailsPage'); 
+             const reportKey = sessionStorage.getItem('selectedReportKey');
+             const farmerKey = sessionStorage.getItem('selectedFarmerKey');
+             const title = document.getElementById('farmerDetailsTitle');
+             const content = document.getElementById('farmerDetailsContent');
+             
+             if(!reportKey || !farmerKey) return content.innerHTML = '<p>No details available.</p>';
+             const report = allReportsCache[reportKey];
+             if(!report) return content.innerHTML = '<p>No data available.</p>';
+             
+             const details = report.farmerDetails[farmerKey] || [];
+             if(!details.length) return content.innerHTML = '<p>No bookings found.</p>';
+             
+             const uf = report.uniqueFarmers.find(f => ((f.aadhaarNumber && f.aadhaarNumber !== '-') ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''))) === farmerKey);
+             let cropTotals = {}; details.forEach(d => cropTotals[d.cropName||'(Unknown)'] = (cropTotals[d.cropName||'(Unknown)']||0) + (d.area||0));
+             
+             title.textContent = `Cultivation Details for Farmer: ${uf ? uf.farmerName : '(Unknown)'}`;
+             title.textContent += ' (Total Booked Area: ' + (Object.keys(cropTotals).length ? Object.keys(cropTotals).map(c => `${c}: ${cropTotals[c].toFixed(2)}`).join(', ') : 'None') + ')';
+             
+             let html = `<div class="table-responsive mt-3"><table class="table table-bordered table-striped"><thead class="bg-primary text-white"><tr><th class="text-white">Booking ID</th><th class="text-white">Khatha Number</th><th class="text-white">Survey Number</th><th class="text-white">Crop Name</th><th class="text-white">Area</th></tr></thead><tbody>`;
+             details.forEach(d => html += `<tr><td>${escapeHtml(d.bookingID||'-')}</td><td>${escapeHtml(d.khathaNo||'-')}</td><td>${escapeHtml(d.surveyNo||'-')}</td><td>${escapeHtml(d.cropName||'-')}</td><td>${d.area.toFixed(2)}</td></tr>`);
+             content.innerHTML = html + '</tbody></table></div>';
          }
-         
-         document.getElementById('fdBackBtn').addEventListener('click', () => { showSection('ePantaReportPage'); loadReport(); });
          
          // --- QUICK SEARCH / MODAL AADHAAR POPUP ---
          document.getElementById('aadhaarLast4Input').addEventListener('input', e => {
-           const val = e.target.value.trim(), div = document.getElementById('searchResults');
-           div.innerHTML = ''; if (val.length < 1) return;
-           const yr = document.getElementById('searchCropYear').value, szn = document.getElementById('searchSeason').value;
-           if (!yr || !szn) return div.innerHTML = '<p class="text-danger">Select Crop Year and Season first.</p>';
-           const rep = allReportsCache[yr+'_'+szn];
-           if(!rep) return;
-           
-           const matches = rep.uniqueFarmers.filter(f => (f.aadhaarNumber||'').toString() !== '-' && (f.aadhaarNumber||'').toString().endsWith(val));
-           const ul = document.createElement('ul'); ul.className = 'list-group list-group-flush';
-           matches.forEach(m => {
-             const li = document.createElement('li'); li.className = 'list-group-item list-group-item-action'; li.textContent = `${m.farmerName} (${m.aadhaarNumber})`;
-             li.onclick = () => { renderFarmerDetailsModal(yr+'_'+szn, m.aadhaarNumber); };
-             ul.appendChild(li);
-           });
-           div.appendChild(ul);
+             const val = e.target.value.trim(), div = document.getElementById('searchResults');
+             div.innerHTML = ''; if (val.length < 1) return;
+             const yr = document.getElementById('searchCropYear').value, szn = document.getElementById('searchSeason').value;
+             if (!yr || !szn) return div.innerHTML = '<p class="text-danger">Select Crop Year and Season first.</p>';
+             const rep = allReportsCache[yr+'_'+szn];
+             if(!rep) return;
+             
+             const matches = rep.uniqueFarmers.filter(f => (f.aadhaarNumber||'').toString() !== '-' && (f.aadhaarNumber||'').toString().endsWith(val));
+             const ul = document.createElement('ul'); ul.className = 'list-group list-group-flush';
+             matches.forEach(m => {
+               const li = document.createElement('li'); li.className = 'list-group-item list-group-item-action'; li.textContent = `${m.farmerName} (${m.aadhaarNumber})`;
+               li.onclick = () => { renderFarmerDetailsModal(yr+'_'+szn, m.aadhaarNumber); };
+               ul.appendChild(li);
+             });
+             div.appendChild(ul);
          });
          
          function renderFarmerDetailsModal(reportKey, farmerKey) {
-           const report = allReportsCache[reportKey];
-           if (!report) return;
-           const farmer = report.uniqueFarmers.find(f => f.aadhaarNumber === farmerKey);
-           const detailsList = report.farmerDetails[farmerKey] || [];
-           if (!farmer || !detailsList.length) return;
-           
-           let cropWise = {}, grandTotal = 0;
-           detailsList.forEach(d => { cropWise[d.cropName] = (cropWise[d.cropName] || 0) + d.area; grandTotal += d.area; });
-           
-           let html = `<div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid #e0e6ed;">
-             <p class="mb-1"><strong>Farmer:</strong> ${escapeHtml(farmer.farmerName)}</p>
-             <p class="mb-1"><strong>Father Name:</strong> ${escapeHtml(farmer.fatherName)}</p>
-             <p class="mb-1"><strong>Aadhaar:</strong> ${escapeHtml(farmer.aadhaarNumber)}</p>
-             <p class="mb-1"><strong>Village:</strong> ${escapeHtml(farmer.village)}</p>
-             <p class="mb-0"><strong>Mobile:</strong> ${escapeHtml(farmer.mobileNumber || 'N/A')}</p></div>
-             <h5 style="color:var(--primary); font-weight:600;">Crop-wise Area</h5><div class="table-responsive mb-4"><table class="table table-bordered mb-0"><thead><tr><th>Crop</th><th>Area (Acre)</th></tr></thead><tbody>`;
-           Object.keys(cropWise).forEach(c => html += `<tr><td>${escapeHtml(c)}</td><td>${cropWise[c].toFixed(2)}</td></tr>`);
-           html += `<tr style="font-weight:bold;background:#f0f5ff;"><td style="text-align:right;">Total Area</td><td>${grandTotal.toFixed(2)}</td></tr></tbody></table></div>
-             <h5 style="color:var(--primary); font-weight:600;">All Bookings</h5><div class="table-responsive"><table class="table table-bordered table-striped mb-0"><thead><tr><th>Booking ID</th><th>Khatha</th><th>Survey</th><th>Crop Name</th><th>Area</th></tr></thead><tbody>`;
-           detailsList.forEach(d => html += `<tr><td>${escapeHtml(d.bookingID||'-')}</td><td>${escapeHtml(d.khathaNo||'-')}</td><td>${escapeHtml(d.surveyNo||'-')}</td><td>${escapeHtml(d.cropName||'-')}</td><td>${d.area.toFixed(2)}</td></tr>`);
-           document.getElementById('farmerModalBody').innerHTML = html + '</tbody></table></div>';
-           new bootstrap.Modal(document.getElementById('farmerModal')).show();
+             const report = allReportsCache[reportKey];
+             if (!report) return;
+             const farmer = report.uniqueFarmers.find(f => f.aadhaarNumber === farmerKey);
+             const detailsList = report.farmerDetails[farmerKey] || [];
+             if (!farmer || !detailsList.length) return;
+             
+             let cropWise = {}, grandTotal = 0;
+             detailsList.forEach(d => { cropWise[d.cropName] = (cropWise[d.cropName] || 0) + d.area; grandTotal += d.area; });
+             
+             let html = `<div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid #e0e6ed;">
+               <p class="mb-1"><strong>Farmer:</strong> ${escapeHtml(farmer.farmerName)}</p>
+               <p class="mb-1"><strong>Father Name:</strong> ${escapeHtml(farmer.fatherName)}</p>
+               <p class="mb-1"><strong>Aadhaar:</strong> ${escapeHtml(farmer.aadhaarNumber)}</p>
+               <p class="mb-1"><strong>Village:</strong> ${escapeHtml(farmer.village)}</p>
+               <p class="mb-0"><strong>Mobile:</strong> ${escapeHtml(farmer.mobileNumber || 'N/A')}</p></div>
+               <h5 style="color:var(--primary); font-weight:600;">Crop-wise Area</h5><div class="table-responsive mb-4"><table class="table table-bordered mb-0"><thead class="bg-primary text-white"><tr><th class="text-white">Crop</th><th class="text-white">Area (Acre)</th></tr></thead><tbody>`;
+             Object.keys(cropWise).forEach(c => html += `<tr><td>${escapeHtml(c)}</td><td>${cropWise[c].toFixed(2)}</td></tr>`);
+             html += `<tr style="font-weight:bold;background:#f0f5ff;"><td style="text-align:right;">Total Area</td><td>${grandTotal.toFixed(2)}</td></tr></tbody></table></div>
+               <h5 style="color:var(--primary); font-weight:600;">All Bookings</h5><div class="table-responsive"><table class="table table-bordered table-striped mb-0"><thead class="bg-primary text-white"><tr><th class="text-white">Booking ID</th><th class="text-white">Khatha</th><th class="text-white">Survey</th><th class="text-white">Crop Name</th><th class="text-white">Area</th></tr></thead><tbody>`;
+             detailsList.forEach(d => html += `<tr><td>${escapeHtml(d.bookingID||'-')}</td><td>${escapeHtml(d.khathaNo||'-')}</td><td>${escapeHtml(d.surveyNo||'-')}</td><td>${escapeHtml(d.cropName||'-')}</td><td>${d.area.toFixed(2)}</td></tr>`);
+             document.getElementById('farmerModalBody').innerHTML = html + '</tbody></table></div>';
+             new bootstrap.Modal(document.getElementById('farmerModal')).show();
          }
          
          document.getElementById('printFarmerModalBtn').onclick = function() {
-            const modalBody = document.getElementById('farmerModalBody');
-            if (!modalBody) return;
-            const printWindow = window.open('', '', 'width=800,height=600');
-            printWindow.document.write(`<html><head><title>Print Farmer Details</title><link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'/><style>body{font-family:'Poppins',sans-serif;padding:1rem;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;}h5{margin-top:1rem;}</style></head><body><h3>Farmer Details</h3>${modalBody.innerHTML}</body></html>`);
-            printWindow.document.close(); printWindow.focus(); setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+             const modalBody = document.getElementById('farmerModalBody');
+             if (!modalBody) return;
+             const printWindow = window.open('', '', 'width=800,height=600');
+             printWindow.document.write(`<html><head><title>Print Farmer Details</title><link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'/><style>body{font-family:'Poppins',sans-serif;padding:1rem;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;}h5{margin-top:1rem;}</style></head><body><h3>Farmer Details</h3>${modalBody.innerHTML}</body></html>`);
+             printWindow.document.close(); printWindow.focus(); setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
          };
          
          // --- PROFILE ---
          function loadUserProfile() {
-           const user = firebase.auth().currentUser;
-           if (user) { document.getElementById('profileEmail').value = user.email; document.getElementById('profileDisplayName').value = user.displayName || ''; }
+             const user = firebase.auth().currentUser;
+             if (user) { document.getElementById('profileEmail').value = user.email; document.getElementById('profileDisplayName').value = user.displayName || ''; }
          }
          document.getElementById('profileForm').addEventListener('submit', async (e) => {
-           e.preventDefault();
-           try { await firebase.auth().currentUser.updateProfile({ displayName: document.getElementById('profileDisplayName').value.trim() }); alert('Profile updated!'); } catch(error) { alert('Error: ' + error.message); }
+             e.preventDefault();
+             try { await firebase.auth().currentUser.updateProfile({ displayName: document.getElementById('profileDisplayName').value.trim() }); alert('Profile updated!'); } catch(error) { alert('Error: ' + error.message); }
          });
          document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
-           e.preventDefault();
-           const curr = document.getElementById('currentPassword').value, newP = document.getElementById('newPassword').value, conf = document.getElementById('confirmNewPassword').value;
-           if(newP !== conf) return alert('New passwords do not match.');
-           if(newP.length < 6) return alert('Password should be at least 6 characters.');
-           try {
-              const user = firebase.auth().currentUser;
-              await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, curr));
-              await user.updatePassword(newP); alert('Password changed!'); document.getElementById('changePasswordForm').reset();
-           } catch(e) { alert('Error: ' + e.message); }
+             e.preventDefault();
+             const curr = document.getElementById('currentPassword').value, newP = document.getElementById('newPassword').value, conf = document.getElementById('confirmNewPassword').value;
+             if(newP !== conf) return alert('New passwords do not match.');
+             if(newP.length < 6) return alert('Password should be at least 6 characters.');
+             try {
+                const user = firebase.auth().currentUser;
+                await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, curr));
+                await user.updatePassword(newP); alert('Password changed!'); document.getElementById('changePasswordForm').reset();
+             } catch(e) { alert('Error: ' + e.message); }
          });
          
          // --- CC EXPERIMENTS ---
          document.getElementById('calcTypeSelect').addEventListener('change', e => {
-           const content = document.getElementById('calculatorContent'); content.innerHTML = '';
-           if(e.target.value === 'surveyCalculator') {
-              content.innerHTML = `<div><label class="form-label">Random Number:</label><input type="number" id="randomNumberInput" class="form-control mb-3" min="0" /><label class="form-label">Highest Survey Number:</label><input type="number" id="highestSurveyInput" class="form-control mb-3" min="1" /><button id="calcSurvBtn" class="btn btn-primary w-100 mb-3">Calculate</button><p id="surveyResult" class="fw-bold text-center" style="color:#19604b; font-size:1.1rem;"></p></div>`;
-              document.getElementById('calcSurvBtn').onclick = () => {
-                 const r = Number(document.getElementById('randomNumberInput').value), h = Number(document.getElementById('highestSurveyInput').value);
-                 if(isNaN(r)||r<0||isNaN(h)||h<=0) return alert('Invalid inputs');
-                 document.getElementById('surveyResult').textContent = 'Selected Survey Number: ' + (r % h === 0 ? h : r % h);
-              };
-           } else if (e.target.value === 'subDivisionCalculator') {
-              content.innerHTML = `<div><label class="form-label">Survey Number:</label><input type="number" id="manSurvInp" class="form-control mb-3" min="1" /><label class="form-label">Number of Sub Divisions:</label><input type="number" id="numSubDivInp" class="form-control mb-3" min="1" /><button id="calcSubBtn" class="btn btn-primary w-100 mb-3">Calculate</button><p id="subDivResult" class="fw-bold text-center" style="color:#19604b; font-size:1.1rem;"></p></div>`;
-              document.getElementById('calcSubBtn').onclick = () => {
-                 const m = Number(document.getElementById('manSurvInp').value), n = Number(document.getElementById('numSubDivInp').value);
-                 if(isNaN(m)||m<=0||isNaN(n)||n<=0) return alert('Invalid inputs');
-                 document.getElementById('subDivResult').textContent = 'Selected Sub Division: ' + (m % n === 0 ? n : m % n);
-              };
-           }
+             const content = document.getElementById('calculatorContent'); content.innerHTML = '';
+             if(e.target.value === 'surveyCalculator') {
+                content.innerHTML = `<div><label class="form-label">Random Number:</label><input type="number" id="randomNumberInput" class="form-control mb-3" min="0" /><label class="form-label">Highest Survey Number:</label><input type="number" id="highestSurveyInput" class="form-control mb-3" min="1" /><button id="calcSurvBtn" class="btn btn-primary w-100 mb-3">Calculate</button><p id="surveyResult" class="fw-bold text-center" style="color:#19604b; font-size:1.1rem;"></p></div>`;
+                document.getElementById('calcSurvBtn').onclick = () => {
+                   const r = Number(document.getElementById('randomNumberInput').value), h = Number(document.getElementById('highestSurveyInput').value);
+                   if(isNaN(r)||r<0||isNaN(h)||h<=0) return alert('Invalid inputs');
+                   document.getElementById('surveyResult').textContent = 'Selected Survey Number: ' + (r % h === 0 ? h : r % h);
+                };
+             } else if (e.target.value === 'subDivisionCalculator') {
+                content.innerHTML = `<div><label class="form-label">Survey Number:</label><input type="number" id="manSurvInp" class="form-control mb-3" min="1" /><label class="form-label">Number of Sub Divisions:</label><input type="number" id="numSubDivInp" class="form-control mb-3" min="1" /><button id="calcSubBtn" class="btn btn-primary w-100 mb-3">Calculate</button><p id="subDivResult" class="fw-bold text-center" style="color:#19604b; font-size:1.1rem;"></p></div>`;
+                document.getElementById('calcSubBtn').onclick = () => {
+                   const m = Number(document.getElementById('manSurvInp').value), n = Number(document.getElementById('numSubDivInp').value);
+                   if(isNaN(m)||m<=0||isNaN(n)||n<=0) return alert('Invalid inputs');
+                   document.getElementById('subDivResult').textContent = 'Selected Sub Division: ' + (m % n === 0 ? n : m % n);
+                };
+             }
          });
          
          // --- CROP RECOMMENDATION SYSTEM ---
@@ -1417,99 +1445,99 @@
          const horticulturalCrops = ["Yam","Banana","Oilpalm","Vegetables","Tomato","Potato","Onion","Brinjal","Cabbage","Carrot","Cauliflower","Cucumber","Peas","Chili","Garlic","Apple","Mango","Grapes","Orange"];
          
          const fertilizerDosage = {
-           paddy: {N: 120, P: 70, K: 50, Ca: 10, Mg: 8, S: 30, splits: "Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation."},
-           maize: {N: 150, P: 75, K: 75, Ca: 15, Mg: 12, S: 35, splits: "Apply half nitrogen and full P and K at planting, rest N at knee height."},
-           jowar: {N: 60, P: 40, K: 40, Ca: 10, Mg: 8, S: 25, splits: "Apply full P and K basally, N in two splits."},
-           sugarcane: {N: 150, P: 50, K: 50, Ca: 12, Mg: 10, S: 40, splits: "Full P & K basal, N split in 3 doses at 0, 30-40, 60-70 days."},
-           blackgram: {N: 20, P: 40, K: 40, Ca: 8, Mg: 6, S: 20, splits: "Entire dose as basal before sowing."},
-           greengram: {N: 20, P: 40, K: 40, Ca: 8, Mg: 6, S: 20, splits: "Entire dose as basal."},
-           cotton: {N: 150, P: 60, K: 60, Ca: 12, Mg: 10, S: 35, splits: "1/3 N basal, 1/3 at 30 days, 1/3 at flowering."},
-           bengalgram: {N: 30, P: 60, K: 40, Ca: 10, Mg: 8, S: 25, splits: "Apply full dose basal."},
-           turmeric: {N: 110, P: 60, K: 150, Ca: 15, Mg: 12, S: 40, splits: "50% basal, 50% split at 30 and 60 days."},
-           yam: {N: 80, P: 40, K: 120, Ca: 12, Mg: 10, S: 30, splits: "Full P and K basal; N in 2 splits."},
-           banana: {N: 500, P: 100, K: 300, Ca: 35, Mg: 30, S: 70, splits: "6 split doses over the year."},
-           oilpalm: {N: 120, P: 60, K: 100, Ca: 25, Mg: 20, S: 50, splits: "2-3 splits annually."},
-           vegetables: {N: 120, P: 80, K: 80, Ca: 15, Mg: 12, S: 30, splits: "1/3 basal, 2/3 split during growth."},
-           tomato: {N: 150, P: 100, K: 100, Ca: 18, Mg: 15, S: 40, splits: "1/3 at planting, 2/3 flowering/fruiting."},
-           potato: {N: 220, P: 100, K: 200, Ca: 20, Mg: 18, S: 50, splits: "50% basal, 50% at tuber initiation."},
-           onion: {N: 120, P: 60, K: 120, Ca: 15, Mg: 12, S: 40, splits: "Full P and K basal; N in 3 splits."},
-           brinjal: {N: 120, P: 80, K: 120, Ca: 18, Mg: 15, S: 40, splits: "1/3 basal, 2/3 flowering/fruiting."}
+             paddy: {N: 120, P: 70, K: 50, Ca: 10, Mg: 8, S: 30, splits: "Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation."},
+             maize: {N: 150, P: 75, K: 75, Ca: 15, Mg: 12, S: 35, splits: "Apply half nitrogen and full P and K at planting, rest N at knee height."},
+             jowar: {N: 60, P: 40, K: 40, Ca: 10, Mg: 8, S: 25, splits: "Apply full P and K basally, N in two splits."},
+             sugarcane: {N: 150, P: 50, K: 50, Ca: 12, Mg: 10, S: 40, splits: "Full P & K basal, N split in 3 doses at 0, 30-40, 60-70 days."},
+             blackgram: {N: 20, P: 40, K: 40, Ca: 8, Mg: 6, S: 20, splits: "Entire dose as basal before sowing."},
+             greengram: {N: 20, P: 40, K: 40, Ca: 8, Mg: 6, S: 20, splits: "Entire dose as basal."},
+             cotton: {N: 150, P: 60, K: 60, Ca: 12, Mg: 10, S: 35, splits: "1/3 N basal, 1/3 at 30 days, 1/3 at flowering."},
+             bengalgram: {N: 30, P: 60, K: 40, Ca: 10, Mg: 8, S: 25, splits: "Apply full dose basal."},
+             turmeric: {N: 110, P: 60, K: 150, Ca: 15, Mg: 12, S: 40, splits: "50% basal, 50% split at 30 and 60 days."},
+             yam: {N: 80, P: 40, K: 120, Ca: 12, Mg: 10, S: 30, splits: "Full P and K basal; N in 2 splits."},
+             banana: {N: 500, P: 100, K: 300, Ca: 35, Mg: 30, S: 70, splits: "6 split doses over the year."},
+             oilpalm: {N: 120, P: 60, K: 100, Ca: 25, Mg: 20, S: 50, splits: "2-3 splits annually."},
+             vegetables: {N: 120, P: 80, K: 80, Ca: 15, Mg: 12, S: 30, splits: "1/3 basal, 2/3 split during growth."},
+             tomato: {N: 150, P: 100, K: 100, Ca: 18, Mg: 15, S: 40, splits: "1/3 at planting, 2/3 flowering/fruiting."},
+             potato: {N: 220, P: 100, K: 200, Ca: 20, Mg: 18, S: 50, splits: "50% basal, 50% at tuber initiation."},
+             onion: {N: 120, P: 60, K: 120, Ca: 15, Mg: 12, S: 40, splits: "Full P and K basal; N in 3 splits."},
+             brinjal: {N: 120, P: 80, K: 120, Ca: 18, Mg: 15, S: 40, splits: "1/3 basal, 2/3 flowering/fruiting."}
          };
          
          const fertilizerSchedule = {
-           paddy: [{stage: "Basal", N: "1/3", P: "Full", K: "Full"}, {stage: "Tillering", N: "1/3", P: "-", K: "-"}, {stage: "Panicle", N: "1/3", P: "-", K: "-"}],
-           maize: [{stage: "Planting", N: "1/2", P: "Full", K: "Full"}, {stage: "Knee height", N: "1/2", P: "-", K: "-"}],
-           sugarcane: [{stage: "Basal", N: "-", P: "Full", K: "Full"}, {stage: "30-40 days", N: "1/3", P: "-", K: "-"}, {stage: "60-70 days", N: "1/3", P: "-", K: "-"}],
-           turmeric: [{stage: "Basal", N: "50%", P: "Full", K: "Full"}, {stage: "30 & 60 days", N: "Remaining split", P: "-", K: "-"}],
-           tomato: [{stage: "Planting", N: "1/3", P: "1/3", K: "1/3"}, {stage: "Flowering", N: "Remaining split", P: "Remaining split", K: "Remaining split"}],
-           banana: [{stage: "Year-round", N: "6 doses", P: "6 doses", K: "6 doses"}]
+             paddy: [{stage: "Basal", N: "1/3", P: "Full", K: "Full"}, {stage: "Tillering", N: "1/3", P: "-", K: "-"}, {stage: "Panicle", N: "1/3", P: "-", K: "-"}],
+             maize: [{stage: "Planting", N: "1/2", P: "Full", K: "Full"}, {stage: "Knee height", N: "1/2", P: "-", K: "-"}],
+             sugarcane: [{stage: "Basal", N: "-", P: "Full", K: "Full"}, {stage: "30-40 days", N: "1/3", P: "-", K: "-"}, {stage: "60-70 days", N: "1/3", P: "-", K: "-"}],
+             turmeric: [{stage: "Basal", N: "50%", P: "Full", K: "Full"}, {stage: "30 & 60 days", N: "Remaining split", P: "-", K: "-"}],
+             tomato: [{stage: "Planting", N: "1/3", P: "1/3", K: "1/3"}, {stage: "Flowering", N: "Remaining split", P: "Remaining split", K: "Remaining split"}],
+             banana: [{stage: "Year-round", N: "6 doses", P: "6 doses", K: "6 doses"}]
          };
          
          const pestList = { paddy: ["Stem Borer", "Leaf Folder", "Brown Plant Hopper", "Gall Midge", "Rice Hispa", "Rice Weevil", "Caseworm"], maize: ["Fall Armyworm", "Maize Weevil", "Stem Borer", "Aphids", "Cutworm"], jowar: ["Shoot Fly", "Stem Borer", "Aphids", "Sorghum Midge"], sugarcane: ["Top Shoot Borer", "Sugarcane Aphid", "White Grub", "Root Borer", "Termites"], blackgram: ["Pod Borer", "Aphids", "Thrips", "Leaf Miner"], greengram: ["Pod Borer", "Aphids", "Thrips", "Leaf Miner"], cotton: ["Bollworm", "Aphids", "Whitefly", "Jassids", "Mealy Bugs"], bengalgram: ["Gram Pod Borer", "Aphids", "Cutworm"], turmeric: ["Rhizome Scale", "Shoot Borer", "Leaf Spot"], yam: ["Yam Beetle", "Scale Insect", "Nematodes"], banana: ["Banana Weevil", "Nematodes", "Thrips", "Banana Aphids"], oilpalm: ["Rhinoceros Beetle", "Eriophyid Mite", "Red Palm Weevil"], vegetables: ["Aphids", "Thrips", "Whitefly", "Leaf Miner", "Diamondback Moth"], tomato: ["Tomato Fruit Borer", "Whitefly", "Aphids", "Thrips"], potato: ["Colorado Potato Beetle", "Aphids", "Potato Tuber Moth"], onion: ["Onion Thrips", "Stemphylium", "Onion Fly"], brinjal: ["Brinjal Shoot and Fruit Borer", "Aphids", "Whitefly"] };
          const diseaseList = { paddy: ["Blast", "Bacterial Leaf Blight", "Sheath Blight", "Brown Spot", "False Smut"], maize: ["Leaf Spot", "Rust", "Downy Mildew", "Gray Leaf Spot"], jowar: ["Smut", "Ergot", "Downy Mildew"], sugarcane: ["Red Rot", "Smut", "Ratoon Stunting"], blackgram: ["Anthracnose", "Yellow Mosaic Virus", "Powdery Mildew"], greengram: ["Anthracnose", "Yellow Mosaic Virus", "Powdery Mildew"], cotton: ["Fusarium Wilt", "Root Rot", "Alternaria Leaf Spot"], bengalgram: ["Ascochyta Blight", "Fusarium Wilt", "Dry Root Rot"], turmeric: ["Leaf Blight", "Rhizome Rot", "Leaf Spot"], yam: ["Yam Mosaic Virus", "Anthracnose", "Soft Rot"], banana: ["Panama Wilt", "Sigatoka Leaf Spot", "Black Sigatoka"], oilpalm: ["Fusarium Wilt", "Bud Rot", "Leaf Spot"], vegetables: ["Downy Mildew", "Leaf Curl Virus", "Powdery Mildew"], tomato: ["Late Blight", "Powdery Mildew", "Bacterial Spot"], potato: ["Late Blight", "Black Scurf", "Early Blight"], onion: ["Purple Blotch", "Downy Mildew", "Neck Rot"], brinjal: ["Phomopsis Blight", "Verticillium Wilt", "Bacterial Wilt"] };
          
          const chemicalRecommendations = {
-           pest: {
-             stem_borer: ["Lambda-cyhalothrin 5% EC, 2 ml/L", "Chlorantraniliprole 18.5 SC, 10 ml/acre", "Bt formulations"],
-             leaf_folder: ["Carbaryl 50 WP 2 kg/acre", "Spinosad 45 SC, 20 ml/acre"],
-             brown_plant_hopper: ["Fipronil 5 SC, 25 ml/acre", "Imidacloprid 17.8 SL, 10 ml/acre"],
-             gall_midge: ["BHC dust 2 kg/acre"], rice_hispa: ["Quinalphos 25 EC 2 ml/L", "Malathion 2 kg/acre"],
-             rice_weevil: ["Malathion dust 2 kg/acre"], caseworm: ["Chlorpyrifos 20 EC 2 ml/L"],
-             fall_armyworm: ["Spinosad 45 SC 20 ml/acre", "Emamectin benzoate 5 SG"],
-             maize_weevil: ["Malathion dust 2 kg/acre"], aphids: ["Imidacloprid 17.8 SL 10 ml/acre", "Dimethoate 30 EC 1.5 ml/L"],
-             cutworm: ["Diazinon 60 EC 1.25 ml/L"], shoot_fly: ["Endosulfan 35 EC 2 ml/L"], sorghum_midge: ["Chlorpyrifos 20 EC 2 ml/L"],
-             top_shoot_borer: ["Chlorantraniliprole 18.5 SC 10 ml/acre"], sugarcane_aphid: ["Imidacloprid 17.8 SL 10 ml/acre"],
-             white_grub: ["Carbofuran granules 10 kg/acre"], root_borer: ["Chlorpyrifos 20 EC 2 ml/L"],
-             termites: ["Fipronil 5 SC 25 ml/acre"], pod_borer: ["Indoxacarb 14.5 SC 10 ml/acre"],
-             thrips: ["Spinosad 45 SC 20 ml/acre", "Neem oil 2%"], leaf_miner: ["Neem oil 2%", "Spinosad"],
-             bollworm: ["Bt formulations", "Indoxacarb 14.5 SC 10 ml/acre"], whitefly: ["Imidacloprid 17.8 SL 10 ml/acre"],
-             jassids: ["Dimethoate 30 EC 1.5 ml/L"], mealy_bugs: ["Insecticidal soap", "Neem oil"],
-             gram_pod_borer: ["Spinosad 45 SC 20 ml/acre"], rhizome_scale: ["Carbaryl 50 WP 2 kg/acre"],
-             yam_beetle: ["Carbaryl dust 2 kg/acre"], banana_weevil: ["Carbofuran granules 10 kg/acre"],
-             banana_aphids: ["Imidacloprid 17.8 SL 10 ml/acre", "Neem oil 2%"], nematodes: ["Nematicides per label"],
-             rhinoceros_beetle: ["Carbaryl dust 2 kg/acre"], eriophyid_mite: ["Sulfur-based acaricides"],
-             diamondback_moth: ["Bt sprays"], potato_tuber_moth: ["Pheromone traps", "Bt sprays"],
-             onion_fly: ["Carbofuran granules 10 kg/acre"], brinjal_shoot_and_fruit_borer: ["Lambda-cyhalothrin 5% EC 2 ml/L", "Bt sprays"]
-           },
-           disease: {
-             blast: ["Tricyclazole 75 WP 2 g/L", "Validamycin 1% 10 ml/L", "Copper oxychloride 3 g/L"],
-             bacterial_leaf_blight: ["Copper oxychloride 3 g/L", "Kasugamycin 2 g/L"], sheath_blight: ["Validamycin 10 ml/L", "Azoxystrobin 1 g/L"],
-             brown_spot: ["Mancozeb 2.5 g/L", "Copper fungicide 3 g/L"], false_smut: ["Propiconazole 1 ml/L", "Carbendazim 1 g/L"],
-             leaf_spot: ["Mancozeb 2.5 g/L", "Copper oxychloride 3 g/L"], rust: ["Sulfur dust 2 kg/acre", "Mancozeb 2.5 g/L"],
-             downy_mildew: ["Metalaxyl 2 g/L", "Mancozeb 2.5 g/L"], gray_leaf_spot: ["Chlorothalonil 2 g/L"],
-             smut: ["Carbendazim 1 g/L seed treatment"], ergot: ["Crop rotation", "Disease-free seed"],
-             red_rot: ["Carbendazim 1 g/L spray"], ratoon_stunting: ["Disease-free sets"], anthracnose: ["Bordeaux mix 3 g/L", "Carbendazim 1 g/L"],
-             yellow_mosaic_virus: ["Control whitefly"], powdery_mildew: ["Sulfur dust 2 kg/acre", "Neem oil 2%"],
-             fusarium_wilt: ["Fumigation", "Resistant varieties"], root_rot: ["Trichoderma", "Carbendazim 1 g/L"],
-             ascochyta_blight: ["Mancozeb 2.5 g/L", "Chlorothalonil 2 g/L"], dry_root_rot: ["Improve drainage", "Carbendazim"],
-             leaf_blight: ["Chlorothalonil 2 g/L"], rhizome_rot: ["Disease-free planting material"], yam_mosaic_virus: ["Virus-free material"],
-             panama_wilt: ["Sanitation"], sigatoka_leaf_spot: ["Mancozeb 2.5 g/L", "Sulfur dust 2 kg/acre"], black_sigatoka: ["Sulfur dust"],
-             bud_rot: ["Field sanitation", "Fungicides"], leaf_curl_virus: ["Control leafhoppers"], bacterial_spot: ["Copper oxychloride 3 g/L"],
-             black_scurf: ["Carbendazim seed treatment"], early_blight: ["Mancozeb 2.5 g/L"], purple_blotch: ["Mancozeb 2.5 g/L"],
-             neck_rot: ["Sterile bulbs"], phomopsis_blight: ["Carbendazim 1 g/L"], verticillium_wilt: ["Crop rotation"], bacterial_wilt: ["Avoid waterlogging"]
-           }
+             pest: {
+               stem_borer: ["Lambda-cyhalothrin 5% EC, 2 ml/L", "Chlorantraniliprole 18.5 SC, 10 ml/acre", "Bt formulations"],
+               leaf_folder: ["Carbaryl 50 WP 2 kg/acre", "Spinosad 45 SC, 20 ml/acre"],
+               brown_plant_hopper: ["Fipronil 5 SC, 25 ml/acre", "Imidacloprid 17.8 SL, 10 ml/acre"],
+               gall_midge: ["BHC dust 2 kg/acre"], rice_hispa: ["Quinalphos 25 EC 2 ml/L", "Malathion 2 kg/acre"],
+               rice_weevil: ["Malathion dust 2 kg/acre"], caseworm: ["Chlorpyrifos 20 EC 2 ml/L"],
+               fall_armyworm: ["Spinosad 45 SC 20 ml/acre", "Emamectin benzoate 5 SG"],
+               maize_weevil: ["Malathion dust 2 kg/acre"], aphids: ["Imidacloprid 17.8 SL 10 ml/acre", "Dimethoate 30 EC 1.5 ml/L"],
+               cutworm: ["Diazinon 60 EC 1.25 ml/L"], shoot_fly: ["Endosulfan 35 EC 2 ml/L"], sorghum_midge: ["Chlorpyrifos 20 EC 2 ml/L"],
+               top_shoot_borer: ["Chlorantraniliprole 18.5 SC 10 ml/acre"], sugarcane_aphid: ["Imidacloprid 17.8 SL 10 ml/acre"],
+               white_grub: ["Carbofuran granules 10 kg/acre"], root_borer: ["Chlorpyrifos 20 EC 2 ml/L"],
+               termites: ["Fipronil 5 SC 25 ml/acre"], pod_borer: ["Indoxacarb 14.5 SC 10 ml/acre"],
+               thrips: ["Spinosad 45 SC 20 ml/acre", "Neem oil 2%"], leaf_miner: ["Neem oil 2%", "Spinosad"],
+               bollworm: ["Bt formulations", "Indoxacarb 14.5 SC 10 ml/acre"], whitefly: ["Imidacloprid 17.8 SL 10 ml/acre"],
+               jassids: ["Dimethoate 30 EC 1.5 ml/L"], mealy_bugs: ["Insecticidal soap", "Neem oil"],
+               gram_pod_borer: ["Spinosad 45 SC 20 ml/acre"], rhizome_scale: ["Carbaryl 50 WP 2 kg/acre"],
+               yam_beetle: ["Carbaryl dust 2 kg/acre"], banana_weevil: ["Carbofuran granules 10 kg/acre"],
+               banana_aphids: ["Imidacloprid 17.8 SL 10 ml/acre", "Neem oil 2%"], nematodes: ["Nematicides per label"],
+               rhinoceros_beetle: ["Carbaryl dust 2 kg/acre"], eriophyid_mite: ["Sulfur-based acaricides"],
+               diamondback_moth: ["Bt sprays"], potato_tuber_moth: ["Pheromone traps", "Bt sprays"],
+               onion_fly: ["Carbofuran granules 10 kg/acre"], brinjal_shoot_and_fruit_borer: ["Lambda-cyhalothrin 5% EC 2 ml/L", "Bt sprays"]
+             },
+             disease: {
+               blast: ["Tricyclazole 75 WP 2 g/L", "Validamycin 1% 10 ml/L", "Copper oxychloride 3 g/L"],
+               bacterial_leaf_blight: ["Copper oxychloride 3 g/L", "Kasugamycin 2 g/L"], sheath_blight: ["Validamycin 10 ml/L", "Azoxystrobin 1 g/L"],
+               brown_spot: ["Mancozeb 2.5 g/L", "Copper fungicide 3 g/L"], false_smut: ["Propiconazole 1 ml/L", "Carbendazim 1 g/L"],
+               leaf_spot: ["Mancozeb 2.5 g/L", "Copper oxychloride 3 g/L"], rust: ["Sulfur dust 2 kg/acre", "Mancozeb 2.5 g/L"],
+               downy_mildew: ["Metalaxyl 2 g/L", "Mancozeb 2.5 g/L"], gray_leaf_spot: ["Chlorothalonil 2 g/L"],
+               smut: ["Carbendazim 1 g/L seed treatment"], ergot: ["Crop rotation", "Disease-free seed"],
+               red_rot: ["Carbendazim 1 g/L spray"], ratoon_stunting: ["Disease-free sets"], anthracnose: ["Bordeaux mix 3 g/L", "Carbendazim 1 g/L"],
+               yellow_mosaic_virus: ["Control whitefly"], powdery_mildew: ["Sulfur dust 2 kg/acre", "Neem oil 2%"],
+               fusarium_wilt: ["Fumigation", "Resistant varieties"], root_rot: ["Trichoderma", "Carbendazim 1 g/L"],
+               ascochyta_blight: ["Mancozeb 2.5 g/L", "Chlorothalonil 2 g/L"], dry_root_rot: ["Improve drainage", "Carbendazim"],
+               leaf_blight: ["Chlorothalonil 2 g/L"], rhizome_rot: ["Disease-free planting material"], yam_mosaic_virus: ["Virus-free material"],
+               panama_wilt: ["Sanitation"], sigatoka_leaf_spot: ["Mancozeb 2.5 g/L", "Sulfur dust 2 kg/acre"], black_sigatoka: ["Sulfur dust"],
+               bud_rot: ["Field sanitation", "Fungicides"], leaf_curl_virus: ["Control leafhoppers"], bacterial_spot: ["Copper oxychloride 3 g/L"],
+               black_scurf: ["Carbendazim seed treatment"], early_blight: ["Mancozeb 2.5 g/L"], purple_blotch: ["Mancozeb 2.5 g/L"],
+               neck_rot: ["Sterile bulbs"], phomopsis_blight: ["Carbendazim 1 g/L"], verticillium_wilt: ["Crop rotation"], bacterial_wilt: ["Avoid waterlogging"]
+             }
          };
          
          function populateCrops() {
-           const type = document.getElementById('cropType').value, sel = document.getElementById('cropName');
-           sel.innerHTML = '<option value="">-- Select Crop Name --</option>';
-           (type === 'agricultural' ? agriculturalCrops : type === 'horticultural' ? horticulturalCrops : []).forEach(c => sel.add(new Option(c, c.toLowerCase())));
-           clearPestDisease(); hideRecommendation(); hideFertilizerSchedule();
+             const type = document.getElementById('cropType').value, sel = document.getElementById('cropName');
+             sel.innerHTML = '<option value="">-- Select Crop Name --</option>';
+             (type === 'agricultural' ? agriculturalCrops : type === 'horticultural' ? horticulturalCrops : []).forEach(c => sel.add(new Option(c, c.toLowerCase())));
+             clearPestDisease(); hideRecommendation(); hideFertilizerSchedule();
          }
          
          function togglePestDisease() {
-           const t = document.getElementById('recType').value, sec = document.getElementById('pestSection');
-           if(t === 'pest' || t === 'disease') { sec.style.display = 'block'; populatePestDiseaseOptions(t); } 
-           else { sec.style.display = 'none'; clearPestDisease(); }
-           hideRecommendation(); hideFertilizerSchedule();
+             const t = document.getElementById('recType').value, sec = document.getElementById('pestSection');
+             if(t === 'pest' || t === 'disease') { sec.style.display = 'block'; populatePestDiseaseOptions(t); } 
+             else { sec.style.display = 'none'; clearPestDisease(); }
+             hideRecommendation(); hideFertilizerSchedule();
          }
          
          function populatePestDiseaseOptions(type) {
-           const crop = document.getElementById('cropName').value, sel = document.getElementById('pestName');
-           sel.innerHTML = '<option value="">-- Select Pest/Disease --</option>';
-           if(!crop) return;
-           (type === 'pest' ? (pestList[crop]||[]) : type === 'disease' ? (diseaseList[crop]||[]) : []).forEach(i => sel.add(new Option(i, i.toLowerCase().replace(/\s+/g, '_'))));
-           hideRecommendation(); hideFertilizerSchedule();
+             const crop = document.getElementById('cropName').value, sel = document.getElementById('pestName');
+             sel.innerHTML = '<option value="">-- Select Pest/Disease --</option>';
+             if(!crop) return;
+             (type === 'pest' ? (pestList[crop]||[]) : type === 'disease' ? (diseaseList[crop]||[]) : []).forEach(i => sel.add(new Option(i, i.toLowerCase().replace(/\s+/g, '_'))));
+             hideRecommendation(); hideFertilizerSchedule();
          }
          
          function clearPestDisease() { document.getElementById('pestName').innerHTML = '<option value="">-- Select Pest/Disease --</option>'; }
@@ -1517,130 +1545,128 @@
          function hideFertilizerSchedule() { document.getElementById('fertilizerScheduleSection').style.display = 'none'; }
          
          document.getElementById('cropName').addEventListener('change', () => {
-            const t = document.getElementById('recType').value;
-            if(t==='pest'||t==='disease') populatePestDiseaseOptions(t);
-            hideRecommendation(); hideFertilizerSchedule();
+             const t = document.getElementById('recType').value;
+             if(t==='pest'||t==='disease') populatePestDiseaseOptions(t);
+             hideRecommendation(); hideFertilizerSchedule();
          });
          
          function showFertilizerSchedule(cropKey) {
-           const sec = document.getElementById('fertilizerScheduleSection');
-           const sch = fertilizerSchedule[cropKey];
-           if(!sch) { sec.style.display = 'none'; return; }
-           let html = '<h3 style="color:var(--primary); font-weight:600; margin-bottom:1rem;">Fertilizer Schedule (N, P, K Split)</h3><div class="table-responsive"><table class="table table-bordered table-striped"><thead><tr><th>Stage</th><th>N</th><th>P2O5</th><th>K2O</th></tr></thead><tbody>';
-           sch.forEach(e => html += `<tr><td>${e.stage}</td><td>${e.N}</td><td>${e.P}</td><td>${e.K}</td></tr>`);
-           sec.innerHTML = html + '</tbody></table></div>'; sec.style.display = 'block';
+             const sec = document.getElementById('fertilizerScheduleSection');
+             const sch = fertilizerSchedule[cropKey];
+             if(!sch) { sec.style.display = 'none'; return; }
+             let html = '<h3 style="color:var(--primary); font-weight:600; margin-bottom:1rem;">Fertilizer Schedule (N, P, K Split)</h3><div class="table-responsive"><table class="table table-bordered table-striped"><thead class="bg-primary text-white"><tr><th class="text-white">Stage</th><th class="text-white">N</th><th class="text-white">P2O5</th><th class="text-white">K2O</th></tr></thead><tbody>';
+             sch.forEach(e => html += `<tr><td>${e.stage}</td><td>${e.N}</td><td>${e.P}</td><td>${e.K}</td></tr>`);
+             sec.innerHTML = html + '</tbody></table></div>'; sec.style.display = 'block';
          }
          
          function getRecommendation() {
-           const cType = document.getElementById('cropType').value, cName = document.getElementById('cropName').value, szn = document.getElementById('recSeason').value, rType = document.getElementById('recType').value, pName = document.getElementById('pestName').value;
-           if(!cType||!cName||!szn||!rType) return alert('Select all required options.');
-           if((rType==='pest'||rType==='disease') && !pName) return alert('Select pest or disease.');
-           
-           let res = `Recommendation:\nCrop Type: ${cType}\nCrop Name: ${cName}\nSeason: ${szn}\n\n`;
-           if(rType === 'fertilizer') {
-              const f = fertilizerDosage[cName];
-              if(!f) { res += 'Not available.'; hideFertilizerSchedule(); } else {
-                 res += `Fertilizer Dosage (kg/acre):\nNitrogen (N): ${(f.N*haToAcres).toFixed(1)}\nPhosphorus: ${(f.P*haToAcres).toFixed(1)}\nPotassium: ${(f.K*haToAcres).toFixed(1)}\n`;
-                 if(f.Ca) res += `Calcium: ${(f.Ca*haToAcres).toFixed(1)}\n`; if(f.Mg) res += `Magnesium: ${(f.Mg*haToAcres).toFixed(1)}\n`; if(f.S) res += `Sulfur: ${(f.S*haToAcres).toFixed(1)}\n`;
-                 res += `\nSplits:\n${f.splits}`; showFertilizerSchedule(cName);
-              }
-           } else {
-              let recs = rType==='pest' ? (chemicalRecommendations.pest[pName] || chemicalRecommendations.disease[pName]) : (chemicalRecommendations.disease[pName] || chemicalRecommendations.pest[pName]);
-              res += `${rType==='pest'?'Pest':'Disease'}: ${pName.replace(/_/g, ' ')}\nChemical Recommendations:\n`;
-              if(recs && recs.length) recs.forEach((r,i) => res += `${i+1}. ${r}\n`); else res += 'Not available.';
-              hideFertilizerSchedule();
-           }
-           document.getElementById('recommendationBox').textContent = res;
-           document.getElementById('recommendationBox').style.display = 'block';
+             const cType = document.getElementById('cropType').value, cName = document.getElementById('cropName').value, szn = document.getElementById('recSeason').value, rType = document.getElementById('recType').value, pName = document.getElementById('pestName').value;
+             if(!cType||!cName||!szn||!rType) return alert('Select all required options.');
+             if((rType==='pest'||rType==='disease') && !pName) return alert('Select pest or disease.');
+             
+             let res = `Recommendation:\nCrop Type: ${cType}\nCrop Name: ${cName}\nSeason: ${szn}\n\n`;
+             if(rType === 'fertilizer') {
+                const f = fertilizerDosage[cName];
+                if(!f) { res += 'Not available.'; hideFertilizerSchedule(); } else {
+                   res += `Fertilizer Dosage (kg/acre):\nNitrogen (N): ${(f.N*haToAcres).toFixed(1)}\nPhosphorus: ${(f.P*haToAcres).toFixed(1)}\nPotassium: ${(f.K*haToAcres).toFixed(1)}\n`;
+                   if(f.Ca) res += `Calcium: ${(f.Ca*haToAcres).toFixed(1)}\n`; if(f.Mg) res += `Magnesium: ${(f.Mg*haToAcres).toFixed(1)}\n`; if(f.S) res += `Sulfur: ${(f.S*haToAcres).toFixed(1)}\n`;
+                   res += `\nSplits:\n${f.splits}`; showFertilizerSchedule(cName);
+                }
+             } else {
+                let recs = rType==='pest' ? (chemicalRecommendations.pest[pName] || chemicalRecommendations.disease[pName]) : (chemicalRecommendations.disease[pName] || chemicalRecommendations.pest[pName]);
+                res += `${rType==='pest'?'Pest':'Disease'}: ${pName.replace(/_/g, ' ')}\nChemical Recommendations:\n`;
+                if(recs && recs.length) recs.forEach((r,i) => res += `${i+1}. ${r}\n`); else res += 'Not available.';
+                hideFertilizerSchedule();
+             }
+             document.getElementById('recommendationBox').textContent = res;
+             document.getElementById('recommendationBox').style.display = 'block';
          }
-         
-         function backToDashboard() { showSection('dashboardSection'); }
          
          // --- CROP DAMAGE LOGIC ---
          document.getElementById('inputExcel').addEventListener('change', function(e) {
-           const file = e.target.files[0]; if(!file) return;
-           const reader = new FileReader();
-           reader.onload = function(evt) {
-              parsedData = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(evt.target.result), {type: 'array'}).Sheets[XLSX.read(new Uint8Array(evt.target.result), {type: 'array'}).SheetNames[0]], {defval: ''});
-              if(!parsedData.length) return alert('Empty/invalid file.');
-              showSurveySelection(parsedData);
-           };
-           reader.readAsArrayBuffer(file);
+             const file = e.target.files[0]; if(!file) return;
+             const reader = new FileReader();
+             reader.onload = function(evt) {
+                parsedData = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(evt.target.result), {type: 'array'}).Sheets[XLSX.read(new Uint8Array(evt.target.result), {type: 'array'}).SheetNames[0]], {defval: ''});
+                if(!parsedData.length) return alert('Empty/invalid file.');
+                showSurveySelection(parsedData);
+             };
+             reader.readAsArrayBuffer(file);
          });
          
          function showSurveySelection(data) {
-           let map = new Map(), set = new Set();
-           data.forEach(i => {
-              const s = i['Survey Number']?i['Survey Number'].toString().trim():'', a = Number(i['Area'])||0, c = i['Crop Name']?i['Crop Name'].toString().trim():'';
-              if(!s) return;
-              if(!map.has(s)) map.set(s, {a: 0, c: new Set()});
-              map.get(s).a += a; if(c) map.get(s).c.add(c); set.add(s);
-           });
-           const sorted = Array.from(set).sort((a,b)=>(parseFloat(a)||0)-(parseFloat(b)||0) || a.localeCompare(b));
-           const tb = document.querySelector('#surveyTable tbody'); tb.innerHTML = '';
-           sorted.forEach(s => {
-              const v = map.get(s); if(v.a<=0) return;
-              tb.innerHTML += `<tr><td><input type="checkbox" name="survey" value="${s}"></td><td>${s}</td><td>${v.a.toFixed(2)}</td><td>${v.c.size>1?'Multiple':Array.from(v.c)[0]||''}</td></tr>`;
-           });
-           if(tb.children.length > 0) { document.getElementById('dataSection').style.display = 'block'; attachCheckboxShiftClickHandler(); } 
-           else { alert('No valid survey numbers found.'); document.getElementById('dataSection').style.display = 'none'; }
+             let map = new Map(), set = new Set();
+             data.forEach(i => {
+                const s = i['Survey Number']?i['Survey Number'].toString().trim():'', a = Number(i['Area'])||0, c = i['Crop Name']?i['Crop Name'].toString().trim():'';
+                if(!s) return;
+                if(!map.has(s)) map.set(s, {a: 0, c: new Set()});
+                map.get(s).a += a; if(c) map.get(s).c.add(c); set.add(s);
+             });
+             const sorted = Array.from(set).sort((a,b)=>(parseFloat(a)||0)-(parseFloat(b)||0) || a.localeCompare(b));
+             const tb = document.querySelector('#surveyTable tbody'); tb.innerHTML = '';
+             sorted.forEach(s => {
+                const v = map.get(s); if(v.a<=0) return;
+                tb.innerHTML += `<tr><td><input type="checkbox" name="survey" value="${s}"></td><td>${s}</td><td>${v.a.toFixed(2)}</td><td>${v.c.size>1?'Multiple':Array.from(v.c)[0]||''}</td></tr>`;
+             });
+             if(tb.children.length > 0) { document.getElementById('dataSection').style.display = 'block'; attachCheckboxShiftClickHandler(); } 
+             else { alert('No valid survey numbers found.'); document.getElementById('dataSection').style.display = 'none'; }
          }
          
          function attachCheckboxShiftClickHandler() {
-           let last = null; const cbs = document.querySelectorAll('#surveyTable tbody input[type="checkbox"]');
-           cbs.forEach(cb => cb.addEventListener('click', function(e) {
-              if(!last) { last = this; return; }
-              if(e.shiftKey) {
-                 let s = Array.from(cbs).indexOf(this), eIdx = Array.from(cbs).indexOf(last);
-                 if(s>eIdx) [s,eIdx] = [eIdx,s];
-                 for(let i=s; i<=eIdx; i++) cbs[i].checked = last.checked;
-              }
-              last = this;
-           }));
+             let last = null; const cbs = document.querySelectorAll('#surveyTable tbody input[type="checkbox"]');
+             cbs.forEach(cb => cb.addEventListener('click', function(e) {
+                if(!last) { last = this; return; }
+                if(e.shiftKey) {
+                   let s = Array.from(cbs).indexOf(this), eIdx = Array.from(cbs).indexOf(last);
+                   if(s>eIdx) [s,eIdx] = [eIdx,s];
+                   for(let i=s; i<=eIdx; i++) cbs[i].checked = last.checked;
+                }
+                last = this;
+             }));
          }
          
          document.getElementById('applySurveyInput').addEventListener('click', () => {
-           const v = document.getElementById('manualSurveyInput').value.trim(); if(!v) return alert('Enter numbers.');
-           document.querySelectorAll('#surveyTable tbody input[type="checkbox"]').forEach(c=>c.checked=false);
-           let res = new Set();
-           v.split(',').forEach(p => { p = p.trim(); if(/^\d+-\d+$/.test(p)) { let [s,e]=p.split('-'); for(let i=parseInt(s);i<=parseInt(e);i++) res.add(i.toString()); } else if(p) res.add(p); });
-           const arr = Array.from(res);
-           document.querySelectorAll('#surveyTable tbody input[type="checkbox"]').forEach(cb => { cb.checked = arr.some(sel => cb.value.toLowerCase() === sel.toLowerCase() || cb.value.toLowerCase().startsWith(sel.toLowerCase()+'-')); });
+             const v = document.getElementById('manualSurveyInput').value.trim(); if(!v) return alert('Enter numbers.');
+             document.querySelectorAll('#surveyTable tbody input[type="checkbox"]').forEach(c=>c.checked=false);
+             let res = new Set();
+             v.split(',').forEach(p => { p = p.trim(); if(/^\d+-\d+$/.test(p)) { let [s,e]=p.split('-'); for(let i=parseInt(s);i<=parseInt(e);i++) res.add(i.toString()); } else if(p) res.add(p); });
+             const arr = Array.from(res);
+             document.querySelectorAll('#surveyTable tbody input[type="checkbox"]').forEach(cb => { cb.checked = arr.some(sel => cb.value.toLowerCase() === sel.toLowerCase() || cb.value.toLowerCase().startsWith(sel.toLowerCase()+'-')); });
          });
          
          document.getElementById('surveyForm').addEventListener('submit', e => {
-           e.preventDefault();
-           const sel = Array.from(document.querySelectorAll('input[name="survey"]:checked')).map(i => i.value);
-           if(!sel.length) return alert('Select at least one survey number.');
-           
-           const mode = document.querySelector('input[name="groupMode"]:checked').value;
-           document.getElementById('damagedSurveyNumbers').textContent = 'Selected Surveys:\n' + sel.join(', ');
-           
-           const map = new Map();
-           parsedData.forEach(i => {
-              const s = i['Survey Number']?i['Survey Number'].toString().trim():'';
-              if(!s || !sel.includes(s)) return;
-              const a = i['Aadhaar Number']?i['Aadhaar Number'].toString().trim():'', fn = i['Farmer Name']?i['Farmer Name'].toString().trim():'', fth = i['Father Name']?i['Father Name'].toString().trim():'', b = i['Booking ID']?i['Booking ID'].toString().trim():'', k = i['Khatha Number']?i['Khatha Number'].toString().trim():'', area = Number(i['Area'])||0, c = i['Crop Name']?i['Crop Name'].toString().trim():'';
-              const key = mode==='booking' ? `${a}|${fn}|${fth}|${b}` : `${a}|${fn}|${fth}`;
-              if(!map.has(key)) map.set(key, {fn, fth, as: new Set(), bs: new Set(), ks: new Set(), sa: [], sum: 0, cs: new Set()});
-              const g = map.get(key);
-              if(a) g.as.add(a); if(b) g.bs.add(b); if(k) g.ks.add(k); g.sa.push(`${s}(${area.toFixed(2)})`); g.sum += area; if(c) g.cs.add(c);
-           });
-           
-           const tb = document.querySelector('#farmerDetails tbody'); tb.innerHTML = '';
-           map.forEach(g => tb.innerHTML += `<tr><td>${g.fn}</td><td>${g.fth}</td><td style="white-space:pre-line">${Array.from(g.as).join('\n')}</td><td style="white-space:pre-line">${Array.from(g.bs).join('\n')}</td><td style="white-space:pre-line">${Array.from(g.ks).join('\n')}</td><td style="white-space:pre-line">${g.sa.join('\n')}</td><td>${g.sum.toFixed(2)}</td><td>${Array.from(g.cs).join(', ')}</td></tr>`);
-           document.getElementById('damagedSurveysCard').style.display = 'block';
+             e.preventDefault();
+             const sel = Array.from(document.querySelectorAll('input[name="survey"]:checked')).map(i => i.value);
+             if(!sel.length) return alert('Select at least one survey number.');
+             
+             const mode = document.querySelector('input[name="groupMode"]:checked').value;
+             document.getElementById('damagedSurveyNumbers').textContent = 'Selected Surveys:\n' + sel.join(', ');
+             
+             const map = new Map();
+             parsedData.forEach(i => {
+                const s = i['Survey Number']?i['Survey Number'].toString().trim():'';
+                if(!s || !sel.includes(s)) return;
+                const a = i['Aadhaar Number']?i['Aadhaar Number'].toString().trim():'', fn = i['Farmer Name']?i['Farmer Name'].toString().trim():'', fth = i['Father Name']?i['Father Name'].toString().trim():'', b = i['Booking ID']?i['Booking ID'].toString().trim():'', k = i['Khatha Number']?i['Khatha Number'].toString().trim():'', area = Number(i['Area'])||0, c = i['Crop Name']?i['Crop Name'].toString().trim():'';
+                const key = mode==='booking' ? `${a}|${fn}|${fth}|${b}` : `${a}|${fn}|${fth}`;
+                if(!map.has(key)) map.set(key, {fn, fth, as: new Set(), bs: new Set(), ks: new Set(), sa: [], sum: 0, cs: new Set()});
+                const g = map.get(key);
+                if(a) g.as.add(a); if(b) g.bs.add(b); if(k) g.ks.add(k); g.sa.push(`${s}(${area.toFixed(2)})`); g.sum += area; if(c) g.cs.add(c);
+             });
+             
+             const tb = document.querySelector('#farmerDetails tbody'); tb.innerHTML = '';
+             map.forEach(g => tb.innerHTML += `<tr><td>${g.fn}</td><td>${g.fth}</td><td style="white-space:pre-line">${Array.from(g.as).join('\n')}</td><td style="white-space:pre-line">${Array.from(g.bs).join('\n')}</td><td style="white-space:pre-line">${Array.from(g.ks).join('\n')}</td><td style="white-space:pre-line">${g.sa.join('\n')}</td><td>${g.sum.toFixed(2)}</td><td>${Array.from(g.cs).join(', ')}</td></tr>`);
+             document.getElementById('damagedSurveysCard').style.display = 'block';
          });
          
          document.getElementById('backToDamageSurveyBtn').addEventListener('click', () => { document.getElementById('damagedSurveysCard').style.display = 'none'; });
          document.getElementById('exportDamageDataBtn').addEventListener('click', () => {
-           const tb = document.querySelector('#farmerDetails'); if(!tb || !tb.tBodies[0].rows.length) return alert('No data to export!');
-           XLSX.writeFile(XLSX.utils.table_to_book(tb, {sheet: 'FarmerDetails'}), 'DamageDetails.xlsx');
+             const tb = document.querySelector('#farmerDetails'); if(!tb || !tb.tBodies[0].rows.length) return alert('No data to export!');
+             XLSX.writeFile(XLSX.utils.table_to_book(tb, {sheet: 'FarmerDetails'}), 'DamageDetails.xlsx');
          });
          
          function clearStoredFileData() {
-           parsedData = []; document.getElementById('inputExcel').value = '';
-           document.getElementById('dataSection').style.display = 'none'; document.getElementById('damagedSurveysCard').style.display = 'none';
+             parsedData = []; document.getElementById('inputExcel').value = '';
+             document.getElementById('dataSection').style.display = 'none'; document.getElementById('damagedSurveysCard').style.display = 'none';
          }
          
          // --- UREA DISTRIBUTION LOGIC ---
@@ -1655,127 +1681,147 @@
          
          const ureaClearPassword = "urea2026"; let pendingClearType = null, pendingClearSerialNo = null;
          function showClearUreaPasswordModal(type = "all", sNo = null) {
-           pendingClearType = type; pendingClearSerialNo = sNo;
-           document.getElementById("clearUreaPasswordInput").value = ""; document.getElementById("clearUreaPasswordError").classList.add("d-none");
-           new bootstrap.Modal(document.getElementById("clearUreaPasswordModal")).show();
+             pendingClearType = type; pendingClearSerialNo = sNo;
+             document.getElementById("clearUreaPasswordInput").value = ""; document.getElementById("clearUreaPasswordError").classList.add("d-none");
+             new bootstrap.Modal(document.getElementById("clearUreaPasswordModal")).show();
          }
          function submitClearUreaHistory() {
-           if(document.getElementById("clearUreaPasswordInput").value.trim() === ureaClearPassword) {
-              bootstrap.Modal.getInstance(document.getElementById("clearUreaPasswordModal")).hide();
-              if(pendingClearType === "all") clearUreaHistory(); else if(pendingClearType === "one" && pendingClearSerialNo !== null) clearOneUreaRecord(pendingClearSerialNo);
-           } else document.getElementById("clearUreaPasswordError").classList.remove("d-none");
+             if(document.getElementById("clearUreaPasswordInput").value.trim() === ureaClearPassword) {
+                bootstrap.Modal.getInstance(document.getElementById("clearUreaPasswordModal")).hide();
+                if(pendingClearType === "all") clearUreaHistory(); else if(pendingClearType === "one" && pendingClearSerialNo !== null) clearOneUreaRecord(pendingClearSerialNo);
+             } else document.getElementById("clearUreaPasswordError").classList.remove("d-none");
          }
          
          function clearUreaForm() {
-           ['ureaFarmerName','ureaFatherName','ureaMobile','ureaExtent','ureaBagsEligible','ureaBagsDist','ureaDate','ureaSearch'].forEach(id => document.getElementById(id).value = '');
-           document.getElementById('ureaBagsEligibleToShow').textContent = ''; document.getElementById('ureaYear').selectedIndex = 0; document.getElementById('ureaSeason').selectedIndex = 0;
-           document.getElementById('ureaKhathaInput').style.display = 'none'; document.getElementById('ureaKhathaSelect').style.display = 'block'; document.getElementById('ureaKhathaSelect').value = '';
-           document.getElementById('ureaFarmerName').readOnly = false; document.getElementById('ureaFatherName').readOnly = false;
-           document.getElementById('ureaFields').classList.add('hidden');
+             ['ureaFarmerName','ureaFatherName','ureaMobile','ureaExtent','ureaBagsEligible','ureaBagsDist','ureaDate','ureaSearch'].forEach(id => document.getElementById(id).value = '');
+             document.getElementById('ureaBagsEligibleToShow').textContent = ''; document.getElementById('ureaYear').selectedIndex = 0; document.getElementById('ureaSeason').selectedIndex = 0;
+             document.getElementById('ureaKhathaInput').style.display = 'none'; document.getElementById('ureaKhathaSelect').style.display = 'block'; document.getElementById('ureaKhathaSelect').value = '';
+             document.getElementById('ureaFarmerName').readOnly = false; document.getElementById('ureaFatherName').readOnly = false;
+             document.getElementById('ureaFields').classList.add('hidden');
          }
          
          function refreshKhathaDropdown() {
-           const sel = document.getElementById("ureaKhathaSelect"); if(!sel) return;
-           sel.innerHTML = '<option value="">--Select Khatha--</option>' + Object.keys(ureaData||{}).map(k => `<option value="${k}">${k}</option>`).join('');
+             const sel = document.getElementById("ureaKhathaSelect"); if(!sel) return;
+             sel.innerHTML = '<option value="">--Select Khatha--</option>' + Object.keys(ureaData||{}).map(k => `<option value="${k}">${k}</option>`).join('');
          }
          function getCurrentKhatha() { return document.getElementById("ureaKhathaInput").value.trim() || document.getElementById("ureaKhathaSelect").value.trim(); }
          function updateRemainingBagsDisplay(k) {
-           const rem = getRemainingBagsForKhatha(k), tot = getEligibleBagsForKhatha(k);
-           if(document.getElementById("ureaRemainingBags")) document.getElementById("ureaRemainingBags").value = rem;
-           document.getElementById("ureaBagsEligibleToShow").textContent = `(Total: ${tot})`;
-           document.getElementById("ureaBagsDist").max = rem; document.getElementById("ureaBagsDist").placeholder = `Max: ${rem} bags`;
+             const rem = getRemainingBagsForKhatha(k), tot = getEligibleBagsForKhatha(k);
+             if(document.getElementById("ureaRemainingBags")) document.getElementById("ureaRemainingBags").value = rem;
+             document.getElementById("ureaBagsEligibleToShow").textContent = `(Total: ${tot})`;
+             document.getElementById("ureaBagsDist").max = rem; document.getElementById("ureaBagsDist").placeholder = `Max: ${rem} bags`;
          }
          
+         document.addEventListener("DOMContentLoaded", () => { refreshKhathaDropdown(); setMinDate(); });
          document.getElementById("ureaDate").addEventListener("change", e => { if(e.target.value && e.target.value < formatToday()) { alert("Past dates not allowed."); e.target.value = ""; } });
          
          document.getElementById("ureaFileInput").addEventListener("change", e => {
-           const file = e.target.files[0]; if(!file) return;
-           const reader = new FileReader();
-           reader.onload = evt => {
-              ureaData = XLSX.utils.sheet_to_json(XLSX.read(evt.target.result, { type: "array" }).Sheets[XLSX.read(evt.target.result, { type: "array" }).SheetNames[0]], { defval: "" }).reduce((acc, r) => {
-                 const k = String(r["Khatha"] || "").trim(); if(!k) return acc;
-                 if(!acc[k]) acc[k] = { khatha: k, extent: 0, bagsEligible: Number(r["Bags Eligible"]||0), farmers: [] };
-                 acc[k].extent += isNaN(Number(r["Extent"])) ? 0 : Number(r["Extent"]); acc[k].farmers.push(r); return acc;
-              }, {});
-              saveToCloud(); refreshKhathaDropdown(); alert("Data Loaded & Synced to Cloud!");
-           };
-           reader.readAsArrayBuffer(file);
+             const file = e.target.files[0]; if(!file) return;
+             const reader = new FileReader();
+             reader.onload = evt => {
+                ureaData = XLSX.utils.sheet_to_json(XLSX.read(evt.target.result, { type: "array" }).Sheets[XLSX.read(evt.target.result, { type: "array" }).SheetNames[0]], { defval: "" }).reduce((acc, r) => {
+                   const k = String(r["Khatha"] || "").trim(); if(!k) return acc;
+                   if(!acc[k]) acc[k] = { khatha: k, extent: 0, bagsEligible: Number(r["Bags Eligible"]||0), farmers: [] };
+                   acc[k].extent += isNaN(Number(r["Extent"])) ? 0 : Number(r["Extent"]); acc[k].farmers.push(r); return acc;
+                }, {});
+                saveToCloud(); refreshKhathaDropdown(); alert("1B Data Loaded & Synced to Cloud!");
+             };
+             reader.readAsArrayBuffer(file);
          });
          
          function searchUreaFarmer() {
-           const a = cleanAadhaar(document.getElementById("ureaSearch").value); if(a.length !== 12) return alert("Enter 12 digits Aadhaar.");
-           showAadhaarHistory(a);
-           const match = Object.values(ureaData).find(g => (g.farmers||[]).some(f => cleanAadhaar(f["Aadhaar"]) === a));
-           document.getElementById("ureaFields").classList.remove("hidden");
-           if(match) {
-              const f = match.farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
-              document.getElementById("ureaFarmerName").value = f["Farmer Name"]||""; document.getElementById("ureaFatherName").value = f["Father Name"]||"";
-              document.getElementById("ureaFarmerName").readOnly = true; document.getElementById("ureaFatherName").readOnly = true;
-              document.getElementById("ureaKhathaInput").value = match.khatha; document.getElementById("ureaKhathaInput").style.display = "block"; document.getElementById("ureaKhathaSelect").style.display = "none";
-              document.getElementById("ureaExtent").value = Number(match.extent||0).toFixed(2); document.getElementById("ureaBagsEligible").value = match.bagsEligible||0;
-              updateRemainingBagsDisplay(match.khatha);
-           } else {
-              alert("Farmer not in master list. Please enter details manually.");
-              document.getElementById("ureaFarmerName").value = ""; document.getElementById("ureaFatherName").value = ""; document.getElementById("ureaFarmerName").readOnly = false; document.getElementById("ureaFatherName").readOnly = false;
-              document.getElementById("ureaExtent").value = ""; document.getElementById("ureaBagsEligible").value = ""; document.getElementById("ureaBagsEligibleToShow").textContent = "";
-              document.getElementById("ureaKhathaInput").style.display = "none"; document.getElementById("ureaKhathaSelect").style.display = "block"; refreshKhathaDropdown();
-           }
+             // --- NEW: Check if 1B File is uploaded first ---
+             if (Object.keys(ureaData).length === 0) {
+                 return alert("No 1B data found! Please upload the Village 1B Excel file first.");
+             }
+             
+             const a = cleanAadhaar(document.getElementById("ureaSearch").value); 
+             if(a.length !== 12) return alert("Enter 12 digits Aadhaar.");
+             showAadhaarHistory(a);
+             
+             const match = Object.values(ureaData).find(g => (g.farmers||[]).some(f => cleanAadhaar(f["Aadhaar"]) === a));
+             document.getElementById("ureaFields").classList.remove("hidden");
+             
+             if(match) {
+                const f = match.farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
+                document.getElementById("ureaFarmerName").value = f["Farmer Name"]||""; 
+                document.getElementById("ureaFatherName").value = f["Father Name"]||"";
+                document.getElementById("ureaFarmerName").readOnly = true; 
+                document.getElementById("ureaFatherName").readOnly = true;
+                document.getElementById("ureaKhathaInput").value = match.khatha; 
+                document.getElementById("ureaKhathaInput").style.display = "block"; 
+                document.getElementById("ureaKhathaSelect").style.display = "none";
+                document.getElementById("ureaExtent").value = Number(match.extent||0).toFixed(2); 
+                document.getElementById("ureaBagsEligible").value = match.bagsEligible||0;
+                updateRemainingBagsDisplay(match.khatha);
+             } else {
+                alert("Farmer not in master list. Please enter details manually.");
+                document.getElementById("ureaFarmerName").value = ""; 
+                document.getElementById("ureaFatherName").value = ""; 
+                document.getElementById("ureaFarmerName").readOnly = false; 
+                document.getElementById("ureaFatherName").readOnly = false;
+                document.getElementById("ureaExtent").value = ""; 
+                document.getElementById("ureaBagsEligible").value = ""; 
+                document.getElementById("ureaBagsEligibleToShow").textContent = "";
+                document.getElementById("ureaKhathaInput").style.display = "none"; 
+                document.getElementById("ureaKhathaSelect").style.display = "block"; 
+                refreshKhathaDropdown();
+             }
          }
          
          document.getElementById("ureaKhathaSelect").addEventListener("change", e => {
-           const k = e.target.value;
-           if(k && ureaData[k]) { document.getElementById("ureaExtent").value = Number(ureaData[k].extent||0).toFixed(2); document.getElementById("ureaBagsEligible").value = ureaData[k].bagsEligible||0; updateRemainingBagsDisplay(k); } 
-           else { document.getElementById("ureaBagsEligible").value = ""; document.getElementById("ureaBagsEligibleToShow").textContent = ""; }
+             const k = e.target.value;
+             if(k && ureaData[k]) { document.getElementById("ureaExtent").value = Number(ureaData[k].extent||0).toFixed(2); document.getElementById("ureaBagsEligible").value = ureaData[k].bagsEligible||0; updateRemainingBagsDisplay(k); } 
+             else { document.getElementById("ureaBagsEligible").value = ""; document.getElementById("ureaBagsEligibleToShow").textContent = ""; }
          });
          
          function recordDistribution() {
-           const k = getCurrentKhatha(), a = cleanAadhaar(document.getElementById("ureaSearch").value), n = document.getElementById("ureaFarmerName").value.trim(), fn = document.getElementById("ureaFatherName").value.trim(), m = document.getElementById("ureaMobile").value.trim(), e = document.getElementById("ureaExtent").value.trim(), b = document.getElementById("ureaBagsDist").value.trim(), d = document.getElementById("ureaDate").value.trim(), s = document.getElementById("ureaSeason").value.trim(), y = document.getElementById("ureaYear").value.trim();
-           if(!n||!fn||!m||!/^[0-9]{10}$/.test(m)) return alert("Check farmer details/mobile (10 digits)."); if(!k) return alert("Select/enter Khatha."); if(!b||Number(b)<=0) return alert("Enter bags.");
-           if(Number(b) > getRemainingBagsForKhatha(k)) return alert(`Khatha ${k} has only ${getRemainingBagsForKhatha(k)} bags remaining.`);
-           
-           const sno = getNextSerialNo();
-           ureaHistory.push({ serialNo: sno, date: d, farmerName: n, fatherName: fn, aadhaar: a, mobile: m, khatha: k, extent: e, bags: b, season: s, year: y }); 
-           saveToCloud();
-           
-           document.getElementById("printSerialNo").textContent = sno; document.getElementById("printFarmerName").textContent = n; document.getElementById("printFatherName").textContent = fn; document.getElementById("printMobile").textContent = m; document.getElementById("printAadhaar").textContent = a; document.getElementById("printKhatha").textContent = k; document.getElementById("printExtent").textContent = e; document.getElementById("printBags").textContent = b; document.getElementById("printDate").textContent = d;
-           
-           document.getElementById("ureaSection").style.display = "none"; document.getElementById("printArea").style.display = "block";
-           setTimeout(() => { window.print(); document.getElementById("printArea").style.display = "none"; document.getElementById("ureaSection").style.display = "block"; clearUreaForm(); alert("Recorded & Printed!"); }, 400);
+             const k = getCurrentKhatha(), a = cleanAadhaar(document.getElementById("ureaSearch").value), n = document.getElementById("ureaFarmerName").value.trim(), fn = document.getElementById("ureaFatherName").value.trim(), m = document.getElementById("ureaMobile").value.trim(), e = document.getElementById("ureaExtent").value.trim(), b = document.getElementById("ureaBagsDist").value.trim(), d = document.getElementById("ureaDate").value.trim(), s = document.getElementById("ureaSeason").value.trim(), y = document.getElementById("ureaYear").value.trim();
+             if(!n||!fn||!m||!/^[0-9]{10}$/.test(m)) return alert("Check farmer details/mobile (10 digits)."); if(!k) return alert("Select/enter Khatha."); if(!b||Number(b)<=0) return alert("Enter bags.");
+             if(Number(b) > getRemainingBagsForKhatha(k)) return alert(`Khatha ${k} has only ${getRemainingBagsForKhatha(k)} bags remaining.`);
+             
+             const sno = getNextSerialNo();
+             ureaHistory.push({ serialNo: sno, date: d, farmerName: n, fatherName: fn, aadhaar: a, mobile: m, khatha: k, extent: e, bags: b, season: s, year: y }); 
+             saveToCloud();
+             
+             document.getElementById("printSerialNo").textContent = sno; document.getElementById("printFarmerName").textContent = n; document.getElementById("printFatherName").textContent = fn; document.getElementById("printMobile").textContent = m; document.getElementById("printAadhaar").textContent = a; document.getElementById("printKhatha").textContent = k; document.getElementById("printExtent").textContent = e; document.getElementById("printBags").textContent = b; document.getElementById("printDate").textContent = d;
+             
+             document.getElementById("ureaSection").style.display = "none"; document.getElementById("printArea").style.display = "block";
+             setTimeout(() => { window.print(); document.getElementById("printArea").style.display = "none"; document.getElementById("ureaSection").style.display = "block"; clearUreaForm(); alert("Recorded & Printed!"); }, 400);
          }
          
          function exportUreaData() {
-           if(!ureaHistory.length) return alert("No history.");
-           const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ureaHistory), "UreaHistory"); XLSX.writeFile(wb, `UreaDistributionHistory_${new Date().toISOString().split("T")[0]}.xlsx`);
+             if(!ureaHistory.length) return alert("No history.");
+             const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ureaHistory), "UreaHistory"); XLSX.writeFile(wb, `UreaDistributionHistory_${new Date().toISOString().split("T")[0]}.xlsx`);
          }
          
          function renderHistoryRows(rec) { return rec.map(r => `<tr><td>${r.serialNo||""}</td><td>${r.date||""}</td><td>${r.farmerName||""}</td><td>${r.fatherName||""}</td><td>${r.aadhaar||""}</td><td>${r.mobile||""}</td><td>${r.khatha||""}</td><td>${r.extent||""}</td><td><span class="badge bg-primary">${r.bags||""}</span></td><td>${r.season||""}</td><td>${r.year||""}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button></td></tr>`).join(""); }
          function openHistoryModal(recs) {
-           document.getElementById("recordCount").textContent = `${recs.length} records`;
-           if(!recs.length) { document.querySelector("#modalHistoryTable tbody").innerHTML = ""; document.getElementById("noHistoryMsg").classList.remove("hidden"); } 
-           else { document.getElementById("noHistoryMsg").classList.add("hidden"); document.querySelector("#modalHistoryTable tbody").innerHTML = renderHistoryRows(recs); }
-           new bootstrap.Modal(document.getElementById("ureaHistoryModal")).show();
+             document.getElementById("recordCount").textContent = `${recs.length} records`;
+             if(!recs.length) { document.querySelector("#modalHistoryTable tbody").innerHTML = ""; document.getElementById("noHistoryMsg").classList.remove("hidden"); } 
+             else { document.getElementById("noHistoryMsg").classList.add("hidden"); document.querySelector("#modalHistoryTable tbody").innerHTML = renderHistoryRows(recs); }
+             new bootstrap.Modal(document.getElementById("ureaHistoryModal")).show();
          }
          function showUreaHistory() { openHistoryModal(ureaHistory); }
          function filterModalHistory() { const s = document.getElementById("modalSearch").value.toLowerCase(); document.querySelectorAll("#modalHistoryTable tbody tr").forEach(r => r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none"); }
          function clearUreaHistory() { ureaHistory = []; saveToCloud(); openHistoryModal([]); alert("Cleared!"); }
          
          function clearOneUreaRecord(sno) {
-           let idx = ureaHistory.findIndex(r => r.serialNo === sno); if(idx === -1) return alert("Not found.");
-           ureaHistory.splice(idx, 1); saveToCloud();
-           [bootstrap.Modal.getInstance(document.getElementById("aadhaarHistoryModal")), bootstrap.Modal.getInstance(document.getElementById("ureaHistoryModal"))].forEach(m => { if(m) m.hide(); });
-           alert(`Record #${sno} removed!`);
+             let idx = ureaHistory.findIndex(r => r.serialNo === sno); if(idx === -1) return alert("Not found.");
+             ureaHistory.splice(idx, 1); saveToCloud();
+             [bootstrap.Modal.getInstance(document.getElementById("aadhaarHistoryModal")), bootstrap.Modal.getInstance(document.getElementById("ureaHistoryModal"))].forEach(m => { if(m) m.hide(); });
+             alert(`Record #${sno} removed!`);
          }
          
          function showAadhaarHistory(a) {
-           const c = cleanAadhaar(a), h = ureaHistory.filter(r => cleanAadhaar(r.aadhaar) === c);
-           if(!h.length) return alert("No history found for this Aadhaar.");
-           document.getElementById("aadhaarRecordCount").textContent = `${h.length} records for Aadhaar: ${c}`; document.getElementById("aadhaarRecordCount").classList.remove("hidden");
-           document.getElementById("noAadhaarHistoryMsg").classList.add("hidden");
-           document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => `<tr><td>${r.serialNo||""}</td><td>${r.date||""}</td><td>${r.farmerName||""}</td><td>${r.fatherName||""}</td><td>${r.khatha||""}</td><td>${r.extent||""}</td><td><span class="badge bg-primary">${r.bags||""}</span></td><td>${r.season||""}</td><td>${r.year||""}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button></td></tr>`).join("");
-           new bootstrap.Modal(document.getElementById("aadhaarHistoryModal")).show();
+             const c = cleanAadhaar(a), h = ureaHistory.filter(r => cleanAadhaar(r.aadhaar) === c);
+             if(!h.length) return alert("No history found for this Aadhaar.");
+             document.getElementById("aadhaarRecordCount").textContent = `${h.length} records for Aadhaar: ${c}`; document.getElementById("aadhaarRecordCount").classList.remove("hidden");
+             document.getElementById("noAadhaarHistoryMsg").classList.add("hidden");
+             document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => `<tr><td>${r.serialNo||""}</td><td>${r.date||""}</td><td>${r.farmerName||""}</td><td>${r.fatherName||""}</td><td>${r.khatha||""}</td><td>${r.extent||""}</td><td><span class="badge bg-primary">${r.bags||""}</span></td><td>${r.season||""}</td><td>${r.year||""}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button></td></tr>`).join("");
+             new bootstrap.Modal(document.getElementById("aadhaarHistoryModal")).show();
          }
          function filterAadhaarModalHistory() { const s = document.getElementById("aadhaarModalSearch").value.toLowerCase(); document.querySelectorAll("#aadhaarHistoryTable tbody tr").forEach(r => r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none"); }
-
       </script>
    </body>
 </html>
