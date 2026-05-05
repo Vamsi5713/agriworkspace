@@ -1059,18 +1059,23 @@ function loadUserCloudData(uid) {
 }
 
 function saveToCloud() {
-    const user = firebase.auth().currentUser;
-    if (!user || !isDataLoaded) return;
+    const user = firebase.auth.currentUser;
+    if (!user || !isDataLoaded) return Promise.resolve(false);
 
     const dataToSave = {
-        allReports  : allReportsCache,
-        ureaData    : ureaData,
-        ureaHistory : ureaHistory,
-        lastUpdated : new Date().toISOString()
+        allReports: allReportsCache || {},
+        ureaData: ureaData || {},
+        ureaHistory: ureaHistory || [],
+        lastUpdated: new Date().toISOString()
     };
 
-    database.ref('users/' + user.uid).set(dataToSave)
-        .catch(err => console.error("Save error: ", err));
+    return database.ref('users/' + user.uid).update(dataToSave)
+        .then(() => true)
+        .catch(err => {
+            console.error('Save error:', err);
+            alert('Cloud save failed: ' + err.message);
+            return false;
+        });
 }
 
 // Call this from logoutUser() to cleanly remove the listener
@@ -1327,16 +1332,25 @@ database.ref('users/' + user.uid + '/profile').once('value').then(snap => {
              });
              const cropsArray = Object.entries(cropsSummary).map(([c, v]) => ({cropName: c, uniqueFarmers: v.farmers.size, areaSown: v.area}));
              
-             // Sync to Cloud
-             allReportsCache[year+'_'+season] = { summary: {totalFarmers: farmersSet.size, totalArea: Object.values(cropsSummary).reduce((s,c)=>s+c.area,0), crops: cropsArray}, uniqueFarmers: uniqueFarmersList, farmerDetails };
-             saveToCloud();
-             
-             alert(`Report saved to Cloud for Crop Year: ${year} and Season: ${season}`);
-             showSection('ePantaReportPage');
-             document.getElementById('filterYear').value = year;
-             document.getElementById('filterSeason').value = season;
-             loadReport();
-         });
+                     // Sync to Cloud
+        allReportsCache = allReportsCache || {};
+        allReportsCache[year + '_' + season] = {
+            summary: {
+                totalFarmers: farmersSet.size,
+                totalArea: Object.values(cropsSummary).reduce((s, c) => s + c.area, 0),
+                crops: cropsArray
+            },
+            uniqueFarmers: uniqueFarmersList,
+            farmerDetails: farmerDetails
+        };
+
+        saveToCloud();
+        alert(`✅ Report saved to Cloud!\nCrop Year: ${year} | Season: ${season}`);
+        showSection('ePantaReportPage');
+        document.getElementById('filterYear').value = year;
+        document.getElementById('filterSeason').value = season;
+        loadReport();
+    });
          
          document.getElementById('loadReportBtn').addEventListener('click', loadReport);
          function loadReport() {
