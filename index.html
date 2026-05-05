@@ -866,42 +866,75 @@
          let isDataLoaded = false;
          
          // --- CLOUD SYNC LOGIC ---
-         function loadUserCloudData(uid) {
-             database.ref('users/' + uid).once('value').then((snapshot) => {
-                 if (snapshot.exists()) {
-                     const data = snapshot.val();
-                     allReportsCache = data.allReports || {};
-                     ureaData = data.ureaData || {};
-                     ureaHistory = data.ureaHistory || [];
-                 } else {
-                     allReportsCache = {};
-                     ureaData = {};
-                     ureaHistory = [];
-                 }
-                 isDataLoaded = true;
-                 refreshKhathaDropdown();
-                 
-                 if(document.getElementById('ePantaReportPage').style.display !== 'none' && document.getElementById('ePantaReportPage').style.display !== '') {
-                     loadReport();
-                 }
-             }).catch(err => {
-                 console.error("Error loading cloud data: ", err);
-             });
-         }
-         
-         function saveToCloud() {
-             const user = firebase.auth().currentUser;
-             if (!user || !isDataLoaded) return; 
-             
-             const dataToSave = {
-                 allReports: allReportsCache,
-                 ureaData: ureaData,
-                 ureaHistory: ureaHistory,
-                 lastUpdated: new Date().toISOString()
-             };
-             
-             database.ref('users/' + user.uid).set(dataToSave).catch(err => console.error(err));
-         }
+let _cloudListenerUid = null;
+
+function loadUserCloudData(uid) {
+    // Detach any previous listener to avoid duplicates on re-login
+    if (_cloudListenerUid) {
+        database.ref('users/' + _cloudListenerUid).off('value');
+        _cloudListenerUid = null;
+    }
+
+    _cloudListenerUid = uid;
+
+    // Real-time listener: all devices sync instantly when data changes
+    database.ref('users/' + uid).on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            allReportsCache = data.allReports || {};
+            ureaData       = data.ureaData   || {};
+            // Firebase can return an object instead of array — convert safely
+            ureaHistory = Array.isArray(data.ureaHistory)
+                ? data.ureaHistory
+                : (data.ureaHistory ? Object.values(data.ureaHistory) : []);
+        } else {
+            allReportsCache = {};
+            ureaData        = {};
+            ureaHistory     = [];
+        }
+
+        isDataLoaded = true;
+        refreshKhathaDropdown();
+
+        // Re-render e-Panta report if that page is currently visible
+        const reportPage = document.getElementById('ePantaReportPage');
+        if (reportPage && reportPage.style.display !== 'none' && reportPage.style.display !== '') {
+            loadReport();
+        }
+
+        // Auto-refresh the history modal if it is open on this device
+        const histModal = document.getElementById('ureaHistoryModal');
+        if (histModal && histModal.classList.contains('show')) {
+            openHistoryModal(ureaHistory);
+        }
+
+    }, (err) => {
+        console.error("Firebase sync error: ", err);
+    });
+}
+
+function saveToCloud() {
+    const user = firebase.auth().currentUser;
+    if (!user || !isDataLoaded) return;
+
+    const dataToSave = {
+        allReports  : allReportsCache,
+        ureaData    : ureaData,
+        ureaHistory : ureaHistory,
+        lastUpdated : new Date().toISOString()
+    };
+
+    database.ref('users/' + user.uid).set(dataToSave)
+        .catch(err => console.error("Save error: ", err));
+}
+
+// Call this from logoutUser() to cleanly remove the listener
+function detachCloudListener() {
+    if (_cloudListenerUid) {
+        database.ref('users/' + _cloudListenerUid).off('value');
+        _cloudListenerUid = null;
+    }
+}
          
          // --- NAVIGATION & STATE LOGIC ---
          // Go Back logic that perfectly mimics browser back button
@@ -1002,9 +1035,10 @@
                .catch(e => alert(e.message));
          }
          
-         function logoutUser() { 
-             firebase.auth().signOut().catch(e => alert(e.message)); 
-         }
+         function logoutUser() {
+    detachCloudListener();   // ← add this line
+    firebase.auth().signOut().catch(e => alert(e.message));
+}
          
          function sendPasswordReset() {
              const email = document.getElementById('resetEmail').value;
@@ -1723,25 +1757,110 @@ const chemicalRecommendations = {
          function getRemainingBagsForKhatha(k){ return Math.max(0, getEligibleBagsForKhatha(k) - getTotalBagsTakenByKhatha(k)); }
          
          const ureaClearPassword = "urea2026"; let pendingClearType = null, pendingClearSerialNo = null;
-         function showClearUreaPasswordModal(type = "all", sNo = null) {
-             pendingClearType = type; pendingClearSerialNo = sNo;
-             document.getElementById("clearUreaPasswordInput").value = ""; document.getElementById("clearUreaPasswordError").classList.add("d-none");
-             new bootstrap.Modal(document.getElementById("clearUreaPasswordModal")).show();
-         }
+         function showClearUreaPasswordModal(type, sNo = null) {
+    pendingClearType = type;
+    pendingClearSerialNo = sNo;
+    document.getElementById('clearUreaPasswordInput').value = '';
+    document.getElementById('clearUreaPasswordError').classList.add('d-none');
+
+    // Close history modal first if open, then open password modal
+    const histEl = document.getElementById('ureaHistoryModal');
+    const histInstance = bootstrap.Modal.getInstance(histEl);
+
+    function openPasswordModal() {
+        const pwdEl = document.getElementById('clearUreaPasswordModal');
+        const old = bootstrap.Modal.getInstance(pwdEl);
+        if (old) old.dispose();
+        new bootstrap.Modal(pwdEl, { backdrop: true, keyboard: true }).show();
+    }
+
+    if (histInstance) {
+        histEl.addEventListener('hidden.bs.modal', function handler() {
+            histEl.removeEventListener('hidden.bs.modal', handler);
+            openPasswordModal();
+        });
+        histInstance.hide();
+    } else {
+        openPasswordModal();
+    }
+}
          function submitClearUreaHistory() {
-             if(document.getElementById("clearUreaPasswordInput").value.trim() === ureaClearPassword) {
-                bootstrap.Modal.getInstance(document.getElementById("clearUreaPasswordModal")).hide();
-                if(pendingClearType === "all") clearUreaHistory(); else if(pendingClearType === "one" && pendingClearSerialNo !== null) clearOneUreaRecord(pendingClearSerialNo);
-             } else document.getElementById("clearUreaPasswordError").classList.remove("d-none");
-         }
+    if (document.getElementById('clearUreaPasswordInput').value.trim !== ureaClearPassword) {
+        if (document.getElementById('clearUreaPasswordInput').value.trim() !== ureaClearPassword) {
+            document.getElementById('clearUreaPasswordError').classList.remove('d-none');
+            return;
+        }
+    }
+
+    document.getElementById('clearUreaPasswordInput').value = '';
+    document.getElementById('clearUreaPasswordError').classList.add('d-none');
+
+    // Step 1: Force close ALL modals
+    ['clearUreaPasswordModal', 'ureaHistoryModal', 'aadhaarHistoryModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const inst = bootstrap.Modal.getInstance(el);
+        if (inst) inst.hide();
+        el.classList.remove('show');
+        el.style.display = 'none';
+        el.setAttribute('aria-hidden', 'true');
+        el.removeAttribute('aria-modal');
+    });
+
+    // Step 2: Remove stuck backdrop
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+
+    // Step 3: Clear data and navigate
+    setTimeout(() => {
+        if (pendingClearType === 'all') {
+            ureaHistory = [];
+            saveToCloud();
+            showSection('ureaSection');
+            clearUreaForm();
+            alert('✅ Urea history cleared!');
+        } else if (pendingClearType === 'one' && pendingClearSerialNo !== null) {
+            clearOneUreaRecord(pendingClearSerialNo);
+        }
+        pendingClearType = null;
+        pendingClearSerialNo = null;
+    }, 150);
+}
          
          function clearUreaForm() {
-             ['ureaFarmerName','ureaFatherName','ureaMobile','ureaExtent','ureaBagsEligible','ureaBagsDist','ureaDate','ureaSearch'].forEach(id => document.getElementById(id).value = '');
-             document.getElementById('ureaBagsEligibleToShow').textContent = ''; document.getElementById('ureaYear').selectedIndex = 0; document.getElementById('ureaSeason').selectedIndex = 0;
-             document.getElementById('ureaKhathaInput').style.display = 'none'; document.getElementById('ureaKhathaSelect').style.display = 'block'; document.getElementById('ureaKhathaSelect').value = '';
-             document.getElementById('ureaFarmerName').readOnly = false; document.getElementById('ureaFatherName').readOnly = false;
-             document.getElementById('ureaFields').classList.add('hidden');
-         }
+    // Clear all input fields
+    ['ureaSearch', 'ureaFarmerName', 'ureaFatherName', 'ureaMobile',
+     'ureaExtent', 'ureaBagsDist', 'ureaBagsEligible', 'ureaRemainingBags'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    // Reset khatha controls
+    const khathaInput  = document.getElementById('ureaKhathaInput');
+    const khathaSelect = document.getElementById('ureaKhathaSelect');
+    if (khathaInput)  { khathaInput.value = '';  khathaInput.style.display  = 'none'; }
+    if (khathaSelect) { khathaSelect.innerHTML = '<option value="">--Select Khatha--</option>'; khathaSelect.style.display = 'none'; }
+
+    // Reset eligible bags note
+    const eligibleNote = document.getElementById('ureaBagsEligibleToShow');
+    if (eligibleNote) eligibleNote.textContent = '';
+
+    // Set today's date
+    const dateEl = document.getElementById('ureaDate');
+    if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+
+    // Hide the fields panel
+    const ureaFields = document.getElementById('ureaFields');
+    if (ureaFields) ureaFields.classList.add('hidden');
+
+    // Focus the search box for immediate new entry
+    setTimeout(() => {
+        const searchEl = document.getElementById('ureaSearch');
+        if (searchEl) searchEl.focus();
+    }, 200);
+}
          
          function refreshKhathaDropdown() {
              const sel = document.getElementById("ureaKhathaSelect"); if(!sel) return;
@@ -1857,9 +1976,39 @@ const chemicalRecommendations = {
          }
 
          function exportUreaData() {
-             if(!ureaHistory.length) return alert("No history.");
-             const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ureaHistory), "UreaHistory"); XLSX.writeFile(wb, `UreaDistributionHistory_${new Date().toISOString().split("T")[0]}.xlsx`);
-         }
+    if (!ureaHistory.length) return alert("No history.");
+
+    // Define exact column order matching the table headers
+    const headers = ['serialNo', 'date', 'farmerName', 'fatherName', 'aadhaar', 'mobile', 'khatha', 'extent', 'bags', 'season', 'year'];
+    const displayHeaders = ['S.No', 'Date', 'Name', 'Father', 'Aadhaar', 'Mobile', 'Khatha', 'Extent', 'Bags', 'Season', 'Year'];
+
+    // Build rows in exact column order
+    const rows = [displayHeaders];
+    ureaHistory.forEach(r => {
+        rows.push(headers.map(key => r[key] || ''));
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // Set column widths for better readability
+    ws['!cols'] = [
+        { wch: 6  },  // S.No
+        { wch: 12 },  // Date
+        { wch: 20 },  // Name
+        { wch: 20 },  // Father
+        { wch: 14 },  // Aadhaar
+        { wch: 13 },  // Mobile
+        { wch: 10 },  // Khatha
+        { wch: 10 },  // Extent
+        { wch: 8  },  // Bags
+        { wch: 10 },  // Season
+        { wch: 10 },  // Year
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "UreaHistory");
+    XLSX.writeFile(wb, `UreaDistributionHistory_${new Date().toISOString().split("T")[0]}.xlsx`);
+}
 
          function renderHistoryRows(rec) { return rec.map(r => `<tr><td>${r.serialNo||""}</td><td>${r.date||""}</td><td>${r.farmerName||""}</td><td>${r.fatherName||""}</td><td>${r.aadhaar||""}</td><td>${r.mobile||""}</td><td>${r.khatha||""}</td><td>${r.extent||""}</td><td><span class="badge bg-primary">${r.bags||""}</span></td><td>${r.season||""}</td><td>${r.year||""}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button></td></tr>`).join(""); }
          function openHistoryModal(recs) {
@@ -1870,14 +2019,54 @@ const chemicalRecommendations = {
          }
          function showUreaHistory() { openHistoryModal(ureaHistory); }
          function filterModalHistory() { const s = document.getElementById("modalSearch").value.toLowerCase(); document.querySelectorAll("#modalHistoryTable tbody tr").forEach(r => r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none"); }
-         function clearUreaHistory() { ureaHistory = []; saveToCloud(); openHistoryModal([]); alert("Cleared!"); }
+         function clearUreaHistory() {
+    ureaHistory = [];
+    saveToCloud();
 
-         function clearOneUreaRecord(sno) {
-             let idx = ureaHistory.findIndex(r => r.serialNo === sno); if(idx === -1) return alert("Not found.");
-             ureaHistory.splice(idx, 1); saveToCloud();
-             [bootstrap.Modal.getInstance(document.getElementById("aadhaarHistoryModal")), bootstrap.Modal.getInstance(document.getElementById("ureaHistoryModal"))].forEach(m => { if(m) m.hide(); });
-             alert(`Record #${sno} removed!`);
-         }
+    // Hide the modal first, then re-open cleanly after it fully closes
+    const modalEl = document.getElementById('ureaHistoryModal');
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+    if (modalInstance) {
+        // Wait for modal to fully close before re-opening
+        modalEl.addEventListener('hidden.bs.modal', function handler() {
+            modalEl.removeEventListener('hidden.bs.modal', handler); // remove once used
+            openHistoryModal([]);
+        });
+        modalInstance.hide();
+    } else {
+        openHistoryModal([]);
+    }
+
+    alert("Cleared!");
+}
+        function clearOneUreaRecord(sno) {
+    let idx = ureaHistory.findIndex(r => r.serialNo === sno);
+    if (idx === -1) return alert("Not found.");
+
+    ureaHistory.splice(idx, 1);
+    saveToCloud();
+
+    // Close ALL open modals cleanly
+    ['aadhaarHistoryModal', 'ureaHistoryModal', 'clearUreaPasswordModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const instance = bootstrap.Modal.getInstance(el);
+        if (instance) instance.hide();
+    });
+
+    // Remove any leftover Bootstrap backdrop (safety net)
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+
+    // Go to urea section with a clean fresh form
+    showSection('ureaSection');
+    clearUreaForm();
+
+    alert(`Record #${sno} deleted. You can now enter a new distribution.`);
+}
 
          function showAadhaarHistory(a) {
              const c = cleanAadhaar(a), h = ureaHistory.filter(r => cleanAadhaar(r.aadhaar) === c);
