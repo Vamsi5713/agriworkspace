@@ -1199,17 +1199,18 @@
              const farmerNameInput = document.getElementById('farmerNameSearchInput');
              if (farmerNameInput) {
                 farmerNameInput.addEventListener('input', function() {
-                   const searchVal = this.value.trim().toLowerCase();
-                   const farmersTableBody = document.getElementById('farmersTableBody');
-                   farmersTableBody.innerHTML = '';
-                   report.uniqueFarmers.forEach(f => {
-                      if (!searchVal || (f.farmerName && f.farmerName.toLowerCase().includes(searchVal))) {
-                         const key = f.aadhaarNumber !== '-' ? f.aadhaarNumber : `${f.farmerName}|${f.village}`;
-                         farmersTableBody.innerHTML += `<tr><td><button class="btn btn-link farmer-btn p-0 fw-bold text-decoration-none" data-key="${encodeURIComponent(key)}">${escapeHtml(f.farmerName)}</button></td><td class="text-muted">${escapeHtml(f.fatherName)}</td><td><code class="bg-light px-2 py-1 rounded text-dark border">${escapeHtml(f.aadhaarNumber)}</code></td><td class="text-muted">${escapeHtml(f.village)}</td><td class="text-muted">${escapeHtml(f.mobileNumber||"-")}</td></tr>`;
-                      }
-                   });
-                   attachFarmerButtons();
-                });
+   const searchVal = this.value.trim().toLowerCase();
+   const farmersTableBody = document.getElementById('farmersTableBody');
+   let rows = '';
+   report.uniqueFarmers.forEach(f => {
+      if (!searchVal || (f.farmerName && f.farmerName.toLowerCase().includes(searchVal))) {
+         const key = f.aadhaarNumber !== '-' ? f.aadhaarNumber : `${f.farmerName}|${f.village}`;
+         rows += `<tr><td><button class="btn btn-link farmer-btn p-0 fw-bold text-decoration-none" data-key="${encodeURIComponent(key)}">${escapeHtml(f.farmerName)}</button></td><td class="text-muted">${escapeHtml(f.fatherName)}</td><td><code class="bg-light px-2 py-1 rounded text-dark border">${escapeHtml(f.aadhaarNumber)}</code></td><td class="text-muted">${escapeHtml(f.village)}</td><td class="text-muted">${escapeHtml(f.mobileNumber||"-")}</td></tr>`;
+      }
+   });
+   farmersTableBody.innerHTML = rows;
+   attachFarmerButtons();
+});
              }
          
              document.querySelectorAll('.crop-btn').forEach(b => b.onclick = () => { sessionStorage.setItem('selectedCropName', decodeURIComponent(b.dataset.crop)); sessionStorage.setItem('selectedReportKey', year+'_'+season); showCropFarmersPage(); });
@@ -1299,14 +1300,16 @@
                 };
          
                 const searchInput = document.getElementById('cropFarmerNameSearchInput');
-                if(searchInput) {
-                   searchInput.addEventListener('input', function() {
-                      const val = this.value.trim().toLowerCase();
-                      let filtered = rows.filter(r => !val || (r.farmerName && r.farmerName.toLowerCase().includes(val)));
-                      renderTable(sortAscending ? filtered.sort((a,b)=>a.area-b.area) : filtered.sort((a,b)=>b.area-a.area));
-                      document.getElementById('cropFarmerNameSearchInput').focus();
-                   });
-                }
+if(searchInput) {
+   searchInput.addEventListener('input', function() {
+      const val = this.value.trim().toLowerCase();
+      const cursorPos = this.selectionStart;
+      let filtered = rows.filter(r => !val || (r.farmerName && r.farmerName.toLowerCase().includes(val)));
+      renderTable(sortAscending ? filtered.sort((a,b)=>a.area-b.area) : filtered.sort((a,b)=>b.area-a.area));
+      const newInput = document.getElementById('cropFarmerNameSearchInput');
+      if(newInput) { newInput.value = val; newInput.focus(); newInput.setSelectionRange(cursorPos, cursorPos); }
+   });
+}
                 
                 const sortBtn = document.getElementById('sortAreaBtn');
                 if(sortBtn) {
@@ -1439,84 +1442,124 @@
              }
          });
          
-         // --- CROP RECOMMENDATION SYSTEM ---
-         const haToAcres = 1 / 2.471;
-         const agriculturalCrops = ["Paddy","Maize","Jowar","Sugarcane","Blackgram","Greengram","Cotton","Bengalgram","Turmeric","Wheat","Rice","Barley","Millet","Sorghum","Soybean","Groundnut","Oilseeds"];
-         const horticulturalCrops = ["Yam","Banana","Oilpalm","Vegetables","Tomato","Potato","Onion","Brinjal","Cabbage","Carrot","Cauliflower","Cucumber","Peas","Chili","Garlic","Apple","Mango","Grapes","Orange"];
-         
-         const fertilizerDosage = {
-             paddy: {N: 120, P: 70, K: 50, Ca: 10, Mg: 8, S: 30, splits: "Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation."},
-             maize: {N: 150, P: 75, K: 75, Ca: 15, Mg: 12, S: 35, splits: "Apply half nitrogen and full P and K at planting, rest N at knee height."},
-             jowar: {N: 60, P: 40, K: 40, Ca: 10, Mg: 8, S: 25, splits: "Apply full P and K basally, N in two splits."},
-             sugarcane: {N: 150, P: 50, K: 50, Ca: 12, Mg: 10, S: 40, splits: "Full P & K basal, N split in 3 doses at 0, 30-40, 60-70 days."},
-             blackgram: {N: 20, P: 40, K: 40, Ca: 8, Mg: 6, S: 20, splits: "Entire dose as basal before sowing."},
-             greengram: {N: 20, P: 40, K: 40, Ca: 8, Mg: 6, S: 20, splits: "Entire dose as basal."},
-             cotton: {N: 150, P: 60, K: 60, Ca: 12, Mg: 10, S: 35, splits: "1/3 N basal, 1/3 at 30 days, 1/3 at flowering."},
-             bengalgram: {N: 30, P: 60, K: 40, Ca: 10, Mg: 8, S: 25, splits: "Apply full dose basal."},
-             turmeric: {N: 110, P: 60, K: 150, Ca: 15, Mg: 12, S: 40, splits: "50% basal, 50% split at 30 and 60 days."},
-             yam: {N: 80, P: 40, K: 120, Ca: 12, Mg: 10, S: 30, splits: "Full P and K basal; N in 2 splits."},
-             banana: {N: 500, P: 100, K: 300, Ca: 35, Mg: 30, S: 70, splits: "6 split doses over the year."},
-             oilpalm: {N: 120, P: 60, K: 100, Ca: 25, Mg: 20, S: 50, splits: "2-3 splits annually."},
-             vegetables: {N: 120, P: 80, K: 80, Ca: 15, Mg: 12, S: 30, splits: "1/3 basal, 2/3 split during growth."},
-             tomato: {N: 150, P: 100, K: 100, Ca: 18, Mg: 15, S: 40, splits: "1/3 at planting, 2/3 flowering/fruiting."},
-             potato: {N: 220, P: 100, K: 200, Ca: 20, Mg: 18, S: 50, splits: "50% basal, 50% at tuber initiation."},
-             onion: {N: 120, P: 60, K: 120, Ca: 15, Mg: 12, S: 40, splits: "Full P and K basal; N in 3 splits."},
-             brinjal: {N: 120, P: 80, K: 120, Ca: 18, Mg: 15, S: 40, splits: "1/3 basal, 2/3 flowering/fruiting."}
-         };
-         
-         const fertilizerSchedule = {
-             paddy: [{stage: "Basal", N: "1/3", P: "Full", K: "Full"}, {stage: "Tillering", N: "1/3", P: "-", K: "-"}, {stage: "Panicle", N: "1/3", P: "-", K: "-"}],
-             maize: [{stage: "Planting", N: "1/2", P: "Full", K: "Full"}, {stage: "Knee height", N: "1/2", P: "-", K: "-"}],
-             sugarcane: [{stage: "Basal", N: "-", P: "Full", K: "Full"}, {stage: "30-40 days", N: "1/3", P: "-", K: "-"}, {stage: "60-70 days", N: "1/3", P: "-", K: "-"}],
-             turmeric: [{stage: "Basal", N: "50%", P: "Full", K: "Full"}, {stage: "30 & 60 days", N: "Remaining split", P: "-", K: "-"}],
-             tomato: [{stage: "Planting", N: "1/3", P: "1/3", K: "1/3"}, {stage: "Flowering", N: "Remaining split", P: "Remaining split", K: "Remaining split"}],
-             banana: [{stage: "Year-round", N: "6 doses", P: "6 doses", K: "6 doses"}]
-         };
-         
-         const pestList = { paddy: ["Stem Borer", "Leaf Folder", "Brown Plant Hopper", "Gall Midge", "Rice Hispa", "Rice Weevil", "Caseworm"], maize: ["Fall Armyworm", "Maize Weevil", "Stem Borer", "Aphids", "Cutworm"], jowar: ["Shoot Fly", "Stem Borer", "Aphids", "Sorghum Midge"], sugarcane: ["Top Shoot Borer", "Sugarcane Aphid", "White Grub", "Root Borer", "Termites"], blackgram: ["Pod Borer", "Aphids", "Thrips", "Leaf Miner"], greengram: ["Pod Borer", "Aphids", "Thrips", "Leaf Miner"], cotton: ["Bollworm", "Aphids", "Whitefly", "Jassids", "Mealy Bugs"], bengalgram: ["Gram Pod Borer", "Aphids", "Cutworm"], turmeric: ["Rhizome Scale", "Shoot Borer", "Leaf Spot"], yam: ["Yam Beetle", "Scale Insect", "Nematodes"], banana: ["Banana Weevil", "Nematodes", "Thrips", "Banana Aphids"], oilpalm: ["Rhinoceros Beetle", "Eriophyid Mite", "Red Palm Weevil"], vegetables: ["Aphids", "Thrips", "Whitefly", "Leaf Miner", "Diamondback Moth"], tomato: ["Tomato Fruit Borer", "Whitefly", "Aphids", "Thrips"], potato: ["Colorado Potato Beetle", "Aphids", "Potato Tuber Moth"], onion: ["Onion Thrips", "Stemphylium", "Onion Fly"], brinjal: ["Brinjal Shoot and Fruit Borer", "Aphids", "Whitefly"] };
-         const diseaseList = { paddy: ["Blast", "Bacterial Leaf Blight", "Sheath Blight", "Brown Spot", "False Smut"], maize: ["Leaf Spot", "Rust", "Downy Mildew", "Gray Leaf Spot"], jowar: ["Smut", "Ergot", "Downy Mildew"], sugarcane: ["Red Rot", "Smut", "Ratoon Stunting"], blackgram: ["Anthracnose", "Yellow Mosaic Virus", "Powdery Mildew"], greengram: ["Anthracnose", "Yellow Mosaic Virus", "Powdery Mildew"], cotton: ["Fusarium Wilt", "Root Rot", "Alternaria Leaf Spot"], bengalgram: ["Ascochyta Blight", "Fusarium Wilt", "Dry Root Rot"], turmeric: ["Leaf Blight", "Rhizome Rot", "Leaf Spot"], yam: ["Yam Mosaic Virus", "Anthracnose", "Soft Rot"], banana: ["Panama Wilt", "Sigatoka Leaf Spot", "Black Sigatoka"], oilpalm: ["Fusarium Wilt", "Bud Rot", "Leaf Spot"], vegetables: ["Downy Mildew", "Leaf Curl Virus", "Powdery Mildew"], tomato: ["Late Blight", "Powdery Mildew", "Bacterial Spot"], potato: ["Late Blight", "Black Scurf", "Early Blight"], onion: ["Purple Blotch", "Downy Mildew", "Neck Rot"], brinjal: ["Phomopsis Blight", "Verticillium Wilt", "Bacterial Wilt"] };
-         
-         const chemicalRecommendations = {
-             pest: {
-               stem_borer: ["Lambda-cyhalothrin 5% EC, 2 ml/L", "Chlorantraniliprole 18.5 SC, 10 ml/acre", "Bt formulations"],
-               leaf_folder: ["Carbaryl 50 WP 2 kg/acre", "Spinosad 45 SC, 20 ml/acre"],
-               brown_plant_hopper: ["Fipronil 5 SC, 25 ml/acre", "Imidacloprid 17.8 SL, 10 ml/acre"],
-               gall_midge: ["BHC dust 2 kg/acre"], rice_hispa: ["Quinalphos 25 EC 2 ml/L", "Malathion 2 kg/acre"],
-               rice_weevil: ["Malathion dust 2 kg/acre"], caseworm: ["Chlorpyrifos 20 EC 2 ml/L"],
-               fall_armyworm: ["Spinosad 45 SC 20 ml/acre", "Emamectin benzoate 5 SG"],
-               maize_weevil: ["Malathion dust 2 kg/acre"], aphids: ["Imidacloprid 17.8 SL 10 ml/acre", "Dimethoate 30 EC 1.5 ml/L"],
-               cutworm: ["Diazinon 60 EC 1.25 ml/L"], shoot_fly: ["Endosulfan 35 EC 2 ml/L"], sorghum_midge: ["Chlorpyrifos 20 EC 2 ml/L"],
-               top_shoot_borer: ["Chlorantraniliprole 18.5 SC 10 ml/acre"], sugarcane_aphid: ["Imidacloprid 17.8 SL 10 ml/acre"],
-               white_grub: ["Carbofuran granules 10 kg/acre"], root_borer: ["Chlorpyrifos 20 EC 2 ml/L"],
-               termites: ["Fipronil 5 SC 25 ml/acre"], pod_borer: ["Indoxacarb 14.5 SC 10 ml/acre"],
-               thrips: ["Spinosad 45 SC 20 ml/acre", "Neem oil 2%"], leaf_miner: ["Neem oil 2%", "Spinosad"],
-               bollworm: ["Bt formulations", "Indoxacarb 14.5 SC 10 ml/acre"], whitefly: ["Imidacloprid 17.8 SL 10 ml/acre"],
-               jassids: ["Dimethoate 30 EC 1.5 ml/L"], mealy_bugs: ["Insecticidal soap", "Neem oil"],
-               gram_pod_borer: ["Spinosad 45 SC 20 ml/acre"], rhizome_scale: ["Carbaryl 50 WP 2 kg/acre"],
-               yam_beetle: ["Carbaryl dust 2 kg/acre"], banana_weevil: ["Carbofuran granules 10 kg/acre"],
-               banana_aphids: ["Imidacloprid 17.8 SL 10 ml/acre", "Neem oil 2%"], nematodes: ["Nematicides per label"],
-               rhinoceros_beetle: ["Carbaryl dust 2 kg/acre"], eriophyid_mite: ["Sulfur-based acaricides"],
-               diamondback_moth: ["Bt sprays"], potato_tuber_moth: ["Pheromone traps", "Bt sprays"],
-               onion_fly: ["Carbofuran granules 10 kg/acre"], brinjal_shoot_and_fruit_borer: ["Lambda-cyhalothrin 5% EC 2 ml/L", "Bt sprays"]
-             },
-             disease: {
-               blast: ["Tricyclazole 75 WP 2 g/L", "Validamycin 1% 10 ml/L", "Copper oxychloride 3 g/L"],
-               bacterial_leaf_blight: ["Copper oxychloride 3 g/L", "Kasugamycin 2 g/L"], sheath_blight: ["Validamycin 10 ml/L", "Azoxystrobin 1 g/L"],
-               brown_spot: ["Mancozeb 2.5 g/L", "Copper fungicide 3 g/L"], false_smut: ["Propiconazole 1 ml/L", "Carbendazim 1 g/L"],
-               leaf_spot: ["Mancozeb 2.5 g/L", "Copper oxychloride 3 g/L"], rust: ["Sulfur dust 2 kg/acre", "Mancozeb 2.5 g/L"],
-               downy_mildew: ["Metalaxyl 2 g/L", "Mancozeb 2.5 g/L"], gray_leaf_spot: ["Chlorothalonil 2 g/L"],
-               smut: ["Carbendazim 1 g/L seed treatment"], ergot: ["Crop rotation", "Disease-free seed"],
-               red_rot: ["Carbendazim 1 g/L spray"], ratoon_stunting: ["Disease-free sets"], anthracnose: ["Bordeaux mix 3 g/L", "Carbendazim 1 g/L"],
-               yellow_mosaic_virus: ["Control whitefly"], powdery_mildew: ["Sulfur dust 2 kg/acre", "Neem oil 2%"],
-               fusarium_wilt: ["Fumigation", "Resistant varieties"], root_rot: ["Trichoderma", "Carbendazim 1 g/L"],
-               ascochyta_blight: ["Mancozeb 2.5 g/L", "Chlorothalonil 2 g/L"], dry_root_rot: ["Improve drainage", "Carbendazim"],
-               leaf_blight: ["Chlorothalonil 2 g/L"], rhizome_rot: ["Disease-free planting material"], yam_mosaic_virus: ["Virus-free material"],
-               panama_wilt: ["Sanitation"], sigatoka_leaf_spot: ["Mancozeb 2.5 g/L", "Sulfur dust 2 kg/acre"], black_sigatoka: ["Sulfur dust"],
-               bud_rot: ["Field sanitation", "Fungicides"], leaf_curl_virus: ["Control leafhoppers"], bacterial_spot: ["Copper oxychloride 3 g/L"],
-               black_scurf: ["Carbendazim seed treatment"], early_blight: ["Mancozeb 2.5 g/L"], purple_blotch: ["Mancozeb 2.5 g/L"],
-               neck_rot: ["Sterile bulbs"], phomopsis_blight: ["Carbendazim 1 g/L"], verticillium_wilt: ["Crop rotation"], bacterial_wilt: ["Avoid waterlogging"]
-             }
-         };
+        // --- CROP RECOMMENDATION SYSTEM (Per Acre - AP Vyavasaya Panchangam 2025-26) ---
+const haToAcres = 1 / 2.471;
+const agriculturalCrops = ["Paddy","Maize","Jowar","Sugarcane","Blackgram","Greengram","Cotton","Bengalgram","Turmeric","Wheat","Rice","Barley","Millet","Sorghum","Soybean","Groundnut","Oilseeds"];
+const horticulturalCrops = ["Yam","Banana","Oilpalm","Vegetables","Tomato","Potato","Onion","Brinjal","Cabbage","Carrot","Cauliflower","Cucumber","Peas","Chili","Garlic","Apple","Mango","Grapes","Orange"];
+
+const fertilizerDosage = {
+    // Values converted to kg/acre
+    paddy: {N: 48, P: 28, K: 20, Ca: 4, Mg: 3, S: 12, splits: "Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation."},
+    maize: {N: 60, P: 30, K: 30, Ca: 6, Mg: 5, S: 14, splits: "Apply half nitrogen and full P and K at planting, rest N at knee height."},
+    jowar: {N: 24, P: 16, K: 16, Ca: 4, Mg: 3, S: 10, splits: "Apply full P and K basally, N in two splits."},
+    sugarcane: {N: 60, P: 20, K: 20, Ca: 5, Mg: 4, S: 16, splits: "Full P & K basal, N split in 3 doses at 0, 30-40, 60-70 days."},
+    blackgram: {N: 8, P: 16, K: 16, Ca: 3, Mg: 2, S: 8, splits: "Entire dose as basal before sowing."},
+    greengram: {N: 8, P: 16, K: 16, Ca: 3, Mg: 2, S: 8, splits: "Entire dose as basal."},
+    cotton: {N: 60, P: 24, K: 24, Ca: 5, Mg: 4, S: 14, splits: "1/3 N basal, 1/3 at 30 days, 1/3 at flowering."},
+    bengalgram: {N: 12, P: 24, K: 16, Ca: 4, Mg: 3, S: 10, splits: "Apply full dose basal."},
+    turmeric: {N: 44, P: 24, K: 60, Ca: 6, Mg: 5, S: 16, splits: "50% basal, 50% split at 30 and 60 days."},
+    yam: {N: 32, P: 16, K: 48, Ca: 5, Mg: 4, S: 12, splits: "Full P and K basal; N in 2 splits."},
+    banana: {N: 200, P: 40, K: 120, Ca: 14, Mg: 12, S: 28, splits: "6 split doses over the year."},
+    oilpalm: {N: 48, P: 24, K: 40, Ca: 10, Mg: 8, S: 20, splits: "2-3 splits annually."},
+    vegetables: {N: 48, P: 32, K: 32, Ca: 6, Mg: 5, S: 12, splits: "1/3 basal, 2/3 split during growth."},
+    tomato: {N: 60, P: 40, K: 40, Ca: 7, Mg: 6, S: 16, splits: "1/3 at planting, 2/3 flowering/fruiting."},
+    potato: {N: 88, P: 40, K: 80, Ca: 8, Mg: 7, S: 20, splits: "50% basal, 50% at tuber initiation."},
+    onion: {N: 48, P: 24, K: 48, Ca: 6, Mg: 5, S: 16, splits: "Full P and K basal; N in 3 splits."},
+    brinjal: {N: 48, P: 32, K: 48, Ca: 7, Mg: 6, S: 16, splits: "1/3 basal, 2/3 flowering/fruiting."}
+};
+
+const fertilizerSchedule = {
+    paddy: [{stage: "Basal", N: "1/3", P: "Full", K: "Full"}, {stage: "Tillering", N: "1/3", P: "-", K: "-"}, {stage: "Panicle", N: "1/3", P: "-", K: "-"}],
+    maize: [{stage: "Planting", N: "1/2", P: "Full", K: "Full"}, {stage: "Knee height", N: "1/2", P: "-", K: "-"}],
+    sugarcane: [{stage: "Basal", N: "-", P: "Full", K: "Full"}, {stage: "30-40 days", N: "1/3", P: "-", K: "-"}, {stage: "60-70 days", N: "1/3", P: "-", K: "-"}],
+    turmeric: [{stage: "Basal", N: "50%", P: "Full", K: "Full"}, {stage: "30 & 60 days", N: "Remaining split", P: "-", K: "-"}],
+    tomato: [{stage: "Planting", N: "1/3", P: "1/3", K: "1/3"}, {stage: "Flowering", N: "Remaining split", P: "Remaining split", K: "Remaining split"}],
+    banana: [{stage: "Year-round", N: "6 doses", P: "6 doses", K: "6 doses"}]
+};
+
+const pestList = { paddy: ["Stem Borer", "Leaf Folder", "Brown Plant Hopper", "Gall Midge", "Rice Hispa", "Rice Weevil", "Caseworm"], maize: ["Fall Armyworm", "Maize Weevil", "Stem Borer", "Aphids", "Cutworm"], jowar: ["Shoot Fly", "Stem Borer", "Aphids", "Sorghum Midge"], sugarcane: ["Top Shoot Borer", "Sugarcane Aphid", "White Grub", "Root Borer", "Termites"], blackgram: ["Pod Borer", "Aphids", "Thrips", "Leaf Miner"], greengram: ["Pod Borer", "Aphids", "Thrips", "Leaf Miner"], cotton: ["Bollworm", "Aphids", "Whitefly", "Jassids", "Mealy Bugs"], bengalgram: ["Gram Pod Borer", "Aphids", "Cutworm"], turmeric: ["Rhizome Scale", "Shoot Borer", "Leaf Spot"], yam: ["Yam Beetle", "Scale Insect", "Nematodes"], banana: ["Banana Weevil", "Nematodes", "Thrips", "Banana Aphids"], oilpalm: ["Rhinoceros Beetle", "Eriophyid Mite", "Red Palm Weevil"], vegetables: ["Aphids", "Thrips", "Whitefly", "Leaf Miner", "Diamondback Moth"], tomato: ["Tomato Fruit Borer", "Whitefly", "Aphids", "Thrips"], potato: ["Colorado Potato Beetle", "Aphids", "Potato Tuber Moth"], onion: ["Onion Thrips", "Stemphylium", "Onion Fly"], brinjal: ["Brinjal Shoot and Fruit Borer", "Aphids", "Whitefly"] };
+
+const diseaseList = { paddy: ["Blast", "Bacterial Leaf Blight", "Sheath Blight", "Brown Spot", "False Smut"], maize: ["Leaf Spot", "Rust", "Downy Mildew", "Gray Leaf Spot"], jowar: ["Smut", "Ergot", "Downy Mildew"], sugarcane: ["Red Rot", "Smut", "Ratoon Stunting"], blackgram: ["Anthracnose", "Yellow Mosaic Virus", "Powdery Mildew"], greengram: ["Anthracnose", "Yellow Mosaic Virus", "Powdery Mildew"], cotton: ["Fusarium Wilt", "Root Rot", "Alternaria Leaf Spot"], bengalgram: ["Ascochyta Blight", "Fusarium Wilt", "Dry Root Rot"], turmeric: ["Leaf Blight", "Rhizome Rot", "Leaf Spot"], yam: ["Yam Mosaic Virus", "Anthracnose", "Soft Rot"], banana: ["Panama Wilt", "Sigatoka Leaf Spot", "Black Sigatoka"], oilpalm: ["Fusarium Wilt", "Bud Rot", "Leaf Spot"], vegetables: ["Downy Mildew", "Leaf Curl Virus", "Powdery Mildew"], tomato: ["Late Blight", "Powdery Mildew", "Bacterial Spot"], potato: ["Late Blight", "Black Scurf", "Early Blight"], onion: ["Purple Blotch", "Downy Mildew", "Neck Rot"], brinjal: ["Phomopsis Blight", "Verticillium Wilt", "Bacterial Wilt"] };
+
+const chemicalRecommendations = {
+    pest: {
+        stem_borer: ["Chlorantraniliprole 0.4% G @ 4 kg/acre", "Cartap Hydrochloride 4G @ 8 kg/acre"],
+        leaf_folder: ["Flubendiamide 39.35 SC @ 20 ml/acre", "Spinosad 45 SC @ 20 ml/acre"],
+        brown_plant_hopper: ["Pymetrozine 50 WG @ 120 g/acre", "Dinotefuran 20 SG @ 80 g/acre"],
+        gall_midge: ["Carbofuran 3G @ 10 kg/acre", "Phorate 10G @ 4 kg/acre"],
+        rice_hispa: ["Quinalphos 25 EC 2 ml/L", "Profenofos 50 EC 2 ml/L"],
+        rice_weevil: ["Malathion 50 EC 2 ml/L"], 
+        caseworm: ["Chlorpyrifos 20 EC 2.5 ml/L"],
+        fall_armyworm: ["Spinetoram 11.7 SC @ 100 ml/acre", "Emamectin benzoate 5 SG @ 80 g/acre"],
+        maize_weevil: ["Malathion 50 EC 2 ml/L"], 
+        aphids: ["Imidacloprid 17.8 SL @ 40 ml/acre", "Dimethoate 30 EC 2 ml/L"],
+        cutworm: ["Chlorpyrifos 20 EC 2.5 ml/L"], 
+        shoot_fly: ["Cypermethrin 10 EC 1 ml/L"], 
+        sorghum_midge: ["Chlorpyrifos 20 EC 2 ml/L"],
+        top_shoot_borer: ["Chlorantraniliprole 18.5 SC @ 150 ml/acre"], 
+        sugarcane_aphid: ["Imidacloprid 17.8 SL @ 40 ml/acre"],
+        white_grub: ["Fipronil 0.3 G @ 10 kg/acre"], 
+        root_borer: ["Chlorpyrifos 20 EC 2.5 ml/L"],
+        termites: ["Fipronil 5 SC @ 250 ml/acre"], 
+        pod_borer: ["Indoxacarb 14.5 SC @ 100 ml/acre"],
+        thrips: ["Fipronil 5 SC @ 400 ml/acre", "Neem oil 10000 ppm @ 2 ml/L"], 
+        leaf_miner: ["Neem oil 10000 ppm @ 2 ml/L", "Spinosad 45 SC @ 60 ml/acre"],
+        bollworm: ["Emamectin benzoate 5 SG @ 100 g/acre", "Indoxacarb 14.5 SC @ 200 ml/acre"], 
+        whitefly: ["Diafenthiuron 50 WP @ 250 g/acre", "Afidopyropen 50g/L @ 400 ml/acre"],
+        jassids: ["Flonicamid 50 WG @ 60 g/acre"], 
+        mealy_bugs: ["Profenofos 50 EC 2 ml/L", "Neem oil 2 ml/L"],
+        gram_pod_borer: ["Spinosad 45 SC @ 60 ml/acre"], 
+        rhizome_scale: ["Dimethoate 30 EC 2 ml/L"],
+        yam_beetle: ["Chlorpyrifos 20 EC 2.5 ml/L"], 
+        banana_weevil: ["Carbofuran 3G @ 10 kg/acre"],
+        banana_aphids: ["Imidacloprid 17.8 SL @ 40 ml/acre"], 
+        nematodes: ["Carbofuran 3G @ 10 kg/acre"],
+        rhinoceros_beetle: ["Phorate 10G @ 10 g/palm"], 
+        eriophyid_mite: ["Propargite 57 EC 2 ml/L"],
+        diamondback_moth: ["Spinosad 45 SC @ 60 ml/acre", "Emamectin benzoate 5 SG @ 80 g/acre"], 
+        potato_tuber_moth: ["Quinalphos 25 EC 2 ml/L"],
+        onion_fly: ["Carbofuran 3G @ 10 kg/acre"], 
+        brinjal_shoot_and_fruit_borer: ["Chlorantraniliprole 18.5 SC @ 80 ml/acre", "Emmamectin Benzoate 5 SG @ 80 g/acre"]
+    },
+    disease: {
+        blast: ["Tricyclazole 75 WP 0.6 g/L", "Isoprothiolane 40 EC 1.5 ml/L"],
+        bacterial_leaf_blight: ["Streptocycline 1 g/10 L + Copper oxychloride 3 g/L"], 
+        sheath_blight: ["Hexaconazole 5 SC 2 ml/L", "Propiconazole 25 EC 1 ml/L"],
+        brown_spot: ["Mancozeb 2.5 g/L", "Propiconazole 1 ml/L"], 
+        false_smut: ["Propiconazole 1 ml/L", "Trifloxystrobin + Tebuconazole 0.4 g/L"],
+        leaf_spot: ["Mancozeb 2.5 g/L", "Carbendazim 1 g/L"], 
+        rust: ["Mancozeb 2.5 g/L", "Hexaconazole 2 ml/L"],
+        downy_mildew: ["Metalaxyl + Mancozeb 2.5 g/L"], 
+        gray_leaf_spot: ["Chlorothalonil 2 g/L"],
+        smut: ["Carbendazim 2 g/kg seed treatment"], 
+        ergot: ["Propiconazole 1 ml/L at flowering"],
+        red_rot: ["Carbendazim 1 g/L spray/sett treatment"], 
+        ratoon_stunting: ["Disease-free sets and hot water treatment"], 
+        anthracnose: ["Carbendazim 1 g/L", "Thiophanate methyl 1 g/L"],
+        yellow_mosaic_virus: ["Control vector (whitefly) with Diafenthiuron"], 
+        powdery_mildew: ["Wettable Sulphur 3 g/L", "Hexaconazole 2 ml/L"],
+        fusarium_wilt: ["Trichoderma viride 2 kg/acre in FYM", "Carbendazim drenching 1 g/L"], 
+        root_rot: ["Trichoderma soil application", "Carbendazim 1 g/L drench"],
+        ascochyta_blight: ["Chlorothalonil 2 g/L"], 
+        dry_root_rot: ["Carbendazim 1 g/L drench"],
+        leaf_blight: ["Chlorothalonil 2 g/L", "Mancozeb 2.5 g/L"], 
+        rhizome_rot: ["Metalaxyl + Mancozeb 2.5 g/L drenching"], 
+        yam_mosaic_virus: ["Virus-free material and vector control"],
+        panama_wilt: ["Carbendazim injection 2% or drenching"], 
+        sigatoka_leaf_spot: ["Propiconazole 1 ml/L", "Mancozeb 2.5 g/L"], 
+        black_sigatoka: ["Chlorothalonil 2 g/L"],
+        bud_rot: ["Copper oxychloride 3 g/L crown application"], 
+        leaf_curl_virus: ["Control vector (thrips/whitefly)"], 
+        bacterial_spot: ["Streptocycline 1 g/10 L + Copper oxychloride 3 g/L"],
+        black_scurf: ["Carbendazim seed treatment"], 
+        early_blight: ["Mancozeb 2.5 g/L"], 
+        purple_blotch: ["Mancozeb 2.5 g/L", "Tebuconazole 1 ml/L"],
+        neck_rot: ["Proper curing and storage"], 
+        phomopsis_blight: ["Carbendazim 1 g/L"], 
+        verticillium_wilt: ["Crop rotation and solarization"], 
+        bacterial_wilt: ["Bleaching powder 6 kg/acre application"]
+    }
+};
          
          function populateCrops() {
              const type = document.getElementById('cropType').value, sel = document.getElementById('cropName');
@@ -1730,89 +1773,112 @@
          });
          
          function searchUreaFarmer() {
-             // --- NEW: Check if 1B File is uploaded first ---
-             if (Object.keys(ureaData).length === 0) {
-                 return alert("No 1B data found! Please upload the Village 1B Excel file first.");
-             }
-             
-             const a = cleanAadhaar(document.getElementById("ureaSearch").value); 
-             if(a.length !== 12) return alert("Enter 12 digits Aadhaar.");
-             showAadhaarHistory(a);
-             
-             const match = Object.values(ureaData).find(g => (g.farmers||[]).some(f => cleanAadhaar(f["Aadhaar"]) === a));
-             document.getElementById("ureaFields").classList.remove("hidden");
-             
-             if(match) {
-                const f = match.farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
-                document.getElementById("ureaFarmerName").value = f["Farmer Name"]||""; 
-                document.getElementById("ureaFatherName").value = f["Father Name"]||"";
-                document.getElementById("ureaFarmerName").readOnly = true; 
-                document.getElementById("ureaFatherName").readOnly = true;
-                document.getElementById("ureaKhathaInput").value = match.khatha; 
-                document.getElementById("ureaKhathaInput").style.display = "block"; 
-                document.getElementById("ureaKhathaSelect").style.display = "none";
-                document.getElementById("ureaExtent").value = Number(match.extent||0).toFixed(2); 
-                document.getElementById("ureaBagsEligible").value = match.bagsEligible||0;
-                updateRemainingBagsDisplay(match.khatha);
-             } else {
-                alert("Farmer not in master list. Please enter details manually.");
-                document.getElementById("ureaFarmerName").value = ""; 
-                document.getElementById("ureaFatherName").value = ""; 
-                document.getElementById("ureaFarmerName").readOnly = false; 
-                document.getElementById("ureaFatherName").readOnly = false;
-                document.getElementById("ureaExtent").value = ""; 
-                document.getElementById("ureaBagsEligible").value = ""; 
-                document.getElementById("ureaBagsEligibleToShow").textContent = "";
-                document.getElementById("ureaKhathaInput").style.display = "none"; 
-                document.getElementById("ureaKhathaSelect").style.display = "block"; 
-                refreshKhathaDropdown();
-             }
+            if (Object.keys(ureaData).length === 0) {
+                return alert("No 1B data found! Please upload the Village 1B Excel file first.");
+            }
+
+            const a = cleanAadhaar(document.getElementById("ureaSearch").value);
+            if(a.length !== 12) return alert("Enter 12 digits Aadhaar.");
+            showAadhaarHistory(a);
+
+            const matches = Object.values(ureaData).filter(g => (g.farmers||[]).some(f => cleanAadhaar(f["Aadhaar"]) === a));
+            document.getElementById("ureaFields").classList.remove("hidden");
+
+            if(matches.length > 1) {
+               // Farmer found in multiple khathas — show dropdown to pick correct one
+               const f = matches[0].farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
+               document.getElementById("ureaFarmerName").value = f["Farmer Name"]||"";
+               document.getElementById("ureaFatherName").value = f["Father Name"]||"";
+               document.getElementById("ureaFarmerName").readOnly = true;
+               document.getElementById("ureaFatherName").readOnly = true;
+               const sel = document.getElementById("ureaKhathaSelect");
+               sel.innerHTML = '<option value="">--Select Khatha--</option>';
+               matches.forEach(m => {
+                  const opt = document.createElement('option');
+                  opt.value = m.khatha;
+                  opt.textContent = `Khatha ${m.khatha} (Extent: ${Number(m.extent||0).toFixed(2)})`;
+                  sel.appendChild(opt);
+               });
+               document.getElementById("ureaKhathaInput").style.display = "none";
+               sel.style.display = "block";
+               document.getElementById("ureaExtent").value = "";
+               document.getElementById("ureaBagsEligible").value = "";
+               document.getElementById("ureaBagsEligibleToShow").textContent = "";
+               document.getElementById("ureaRemainingBags").value = "";
+            } else if(matches.length === 1) {
+               // Exactly one khatha — fill everything automatically
+               const match = matches[0];
+               const f = match.farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
+               document.getElementById("ureaFarmerName").value = f["Farmer Name"]||"";
+               document.getElementById("ureaFatherName").value = f["Father Name"]||"";
+               document.getElementById("ureaFarmerName").readOnly = true;
+               document.getElementById("ureaFatherName").readOnly = true;
+               document.getElementById("ureaKhathaInput").value = match.khatha;
+               document.getElementById("ureaKhathaInput").style.display = "block";
+               document.getElementById("ureaKhathaSelect").style.display = "none";
+               document.getElementById("ureaExtent").value = Number(match.extent||0).toFixed(2);
+               document.getElementById("ureaBagsEligible").value = match.bagsEligible||0;
+               updateRemainingBagsDisplay(match.khatha);
+            } else {
+               // Farmer not found in 1B file
+               alert("Farmer not in master list. Please enter details manually.");
+               document.getElementById("ureaFarmerName").value = "";
+               document.getElementById("ureaFatherName").value = "";
+               document.getElementById("ureaFarmerName").readOnly = false;
+               document.getElementById("ureaFatherName").readOnly = false;
+               document.getElementById("ureaExtent").value = "";
+               document.getElementById("ureaBagsEligible").value = "";
+               document.getElementById("ureaBagsEligibleToShow").textContent = "";
+               document.getElementById("ureaKhathaInput").style.display = "none";
+               document.getElementById("ureaKhathaSelect").style.display = "block";
+               refreshKhathaDropdown();
+            }
          }
-         
+
          document.getElementById("ureaKhathaSelect").addEventListener("change", e => {
              const k = e.target.value;
-             if(k && ureaData[k]) { document.getElementById("ureaExtent").value = Number(ureaData[k].extent||0).toFixed(2); document.getElementById("ureaBagsEligible").value = ureaData[k].bagsEligible||0; updateRemainingBagsDisplay(k); } 
+             if(k && ureaData[k]) { document.getElementById("ureaExtent").value = Number(ureaData[k].extent||0).toFixed(2); document.getElementById("ureaBagsEligible").value = ureaData[k].bagsEligible||0; updateRemainingBagsDisplay(k); }
              else { document.getElementById("ureaBagsEligible").value = ""; document.getElementById("ureaBagsEligibleToShow").textContent = ""; }
          });
-         
+
          function recordDistribution() {
              const k = getCurrentKhatha(), a = cleanAadhaar(document.getElementById("ureaSearch").value), n = document.getElementById("ureaFarmerName").value.trim(), fn = document.getElementById("ureaFatherName").value.trim(), m = document.getElementById("ureaMobile").value.trim(), e = document.getElementById("ureaExtent").value.trim(), b = document.getElementById("ureaBagsDist").value.trim(), d = document.getElementById("ureaDate").value.trim(), s = document.getElementById("ureaSeason").value.trim(), y = document.getElementById("ureaYear").value.trim();
              if(!n||!fn||!m||!/^[0-9]{10}$/.test(m)) return alert("Check farmer details/mobile (10 digits)."); if(!k) return alert("Select/enter Khatha."); if(!b||Number(b)<=0) return alert("Enter bags.");
              if(Number(b) > getRemainingBagsForKhatha(k)) return alert(`Khatha ${k} has only ${getRemainingBagsForKhatha(k)} bags remaining.`);
-             
+
              const sno = getNextSerialNo();
-             ureaHistory.push({ serialNo: sno, date: d, farmerName: n, fatherName: fn, aadhaar: a, mobile: m, khatha: k, extent: e, bags: b, season: s, year: y }); 
+             ureaHistory.push({ serialNo: sno, date: d, farmerName: n, fatherName: fn, aadhaar: a, mobile: m, khatha: k, extent: e, bags: b, season: s, year: y });
              saveToCloud();
-             
+
              document.getElementById("printSerialNo").textContent = sno; document.getElementById("printFarmerName").textContent = n; document.getElementById("printFatherName").textContent = fn; document.getElementById("printMobile").textContent = m; document.getElementById("printAadhaar").textContent = a; document.getElementById("printKhatha").textContent = k; document.getElementById("printExtent").textContent = e; document.getElementById("printBags").textContent = b; document.getElementById("printDate").textContent = d;
-             
+
              document.getElementById("ureaSection").style.display = "none"; document.getElementById("printArea").style.display = "block";
              setTimeout(() => { window.print(); document.getElementById("printArea").style.display = "none"; document.getElementById("ureaSection").style.display = "block"; clearUreaForm(); alert("Recorded & Printed!"); }, 400);
          }
-         
+
          function exportUreaData() {
              if(!ureaHistory.length) return alert("No history.");
              const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ureaHistory), "UreaHistory"); XLSX.writeFile(wb, `UreaDistributionHistory_${new Date().toISOString().split("T")[0]}.xlsx`);
          }
-         
+
          function renderHistoryRows(rec) { return rec.map(r => `<tr><td>${r.serialNo||""}</td><td>${r.date||""}</td><td>${r.farmerName||""}</td><td>${r.fatherName||""}</td><td>${r.aadhaar||""}</td><td>${r.mobile||""}</td><td>${r.khatha||""}</td><td>${r.extent||""}</td><td><span class="badge bg-primary">${r.bags||""}</span></td><td>${r.season||""}</td><td>${r.year||""}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button></td></tr>`).join(""); }
          function openHistoryModal(recs) {
              document.getElementById("recordCount").textContent = `${recs.length} records`;
-             if(!recs.length) { document.querySelector("#modalHistoryTable tbody").innerHTML = ""; document.getElementById("noHistoryMsg").classList.remove("hidden"); } 
+             if(!recs.length) { document.querySelector("#modalHistoryTable tbody").innerHTML = ""; document.getElementById("noHistoryMsg").classList.remove("hidden"); }
              else { document.getElementById("noHistoryMsg").classList.add("hidden"); document.querySelector("#modalHistoryTable tbody").innerHTML = renderHistoryRows(recs); }
              new bootstrap.Modal(document.getElementById("ureaHistoryModal")).show();
          }
          function showUreaHistory() { openHistoryModal(ureaHistory); }
          function filterModalHistory() { const s = document.getElementById("modalSearch").value.toLowerCase(); document.querySelectorAll("#modalHistoryTable tbody tr").forEach(r => r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none"); }
          function clearUreaHistory() { ureaHistory = []; saveToCloud(); openHistoryModal([]); alert("Cleared!"); }
-         
+
          function clearOneUreaRecord(sno) {
              let idx = ureaHistory.findIndex(r => r.serialNo === sno); if(idx === -1) return alert("Not found.");
              ureaHistory.splice(idx, 1); saveToCloud();
              [bootstrap.Modal.getInstance(document.getElementById("aadhaarHistoryModal")), bootstrap.Modal.getInstance(document.getElementById("ureaHistoryModal"))].forEach(m => { if(m) m.hide(); });
              alert(`Record #${sno} removed!`);
          }
-         
+
          function showAadhaarHistory(a) {
              const c = cleanAadhaar(a), h = ureaHistory.filter(r => cleanAadhaar(r.aadhaar) === c);
              if(!h.length) return alert("No history found for this Aadhaar.");
