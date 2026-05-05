@@ -458,34 +458,45 @@
          </div>
       </div>
 
-      <!-- e-Panta Report Page -->
+      <<!-- e-Panta Report Page -->
       <div class="container hidden mt-4" id="ePantaReportPage" role="main">
          <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
          <div class="row g-4">
+            
             <!-- Left Column: Filters Sidebar -->
             <div class="col-lg-3">
-               <h2 class="fw-bold mb-4" style="color: var(--primary);">e-Panta Crop Booking Report</h2>
-               <div class="card p-4 border-0 shadow-sm sticky-lg-top" style="top: 100px;">
-                  <h5 class="mb-4 text-primary"><i class="fas fa-filter me-2"></i>Report Filters</h5>
-                  <div class="mb-3">
-                     <label for="filterYear" class="form-label text-muted fw-medium">Crop Year</label>
-                     <select id="filterYear" class="form-select"></select>
+               <h2 class="fw-bold mb-3" style="color: var(--primary);">e-Panta Crop Booking Report</h2>
+               
+               <!-- FIX: Removed sticky-lg-top and forced a smaller padding to stop global CSS override -->
+               <div class="card border-0 shadow-sm" style="padding: 1.25rem !important;">
+                  <h5 class="mb-3 text-primary"><i class="fas fa-filter me-2"></i>Report Filters</h5>
+                  
+                  <!-- FIX: Used a compact Bootstrap Grid to pack items tightly and save vertical space -->
+                  <div class="row g-2">
+                     <div class="col-sm-6 col-lg-12">
+                        <label for="filterYear" class="form-label text-muted fw-medium mb-1 small">Crop Year</label>
+                        <select id="filterYear" class="form-select"></select>
+                     </div>
+                     <div class="col-sm-6 col-lg-12">
+                        <label for="filterSeason" class="form-label text-muted fw-medium mb-1 small">Season</label>
+                        <select id="filterSeason" class="form-select">
+                           <option value="">--Choose Season--</option>
+                           <option value="Kharif">Kharif</option>
+                           <option value="Rabi">Rabi</option>
+                           <option value="Summer">Summer</option>
+                           <option value="Other">Other</option>
+                        </select>
+                     </div>
+                     <div class="col-12 mt-3">
+                        <button id="loadReportBtn" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">
+                           <i class="fas fa-sync-alt me-2"></i> Load Report
+                        </button>
+                     </div>
                   </div>
-                  <div class="mb-4">
-                     <label for="filterSeason" class="form-label text-muted fw-medium">Season</label>
-                     <select id="filterSeason" class="form-select">
-                        <option value="">--Choose Season--</option>
-                        <option value="Kharif">Kharif</option>
-                        <option value="Rabi">Rabi</option>
-                        <option value="Summer">Summer</option>
-                        <option value="Other">Other</option>
-                     </select>
-                  </div>
-                  <button id="loadReportBtn" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">
-                  <i class="fas fa-sync-alt me-2"></i> Load Report
-                  </button>
+                  
                </div>
             </div>
+            
             <!-- Right Column: Report Content Output -->
             <div class="col-lg-9">
                <div id="reportContainer">
