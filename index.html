@@ -1,176 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
-   <head>
-      <meta charset="UTF-8" />
-      <title>e-Panta Agriculture Dashboard</title>
-      <!-- Bootstrap CSS for styling and responsive layout -->
-      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <!-- SheetJS library for Excel/CSV file reading -->
-      <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-      <!-- Google Fonts -->
-      <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-      <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-      <!-- Internal CSS: Modern Design System + Specific Tool Styles -->
-      <style>
-         /* Global Theme Variables */
-         :root {
-         --primary: #1862ab;
-         --primary-hover: #124d86;
-         --secondary: #27ae60;
-         --accent: #f39c12;
-         --danger: #e74c3c;
-         --bg-gradient: linear-gradient(135deg, #f4f7f6 0%, #eef2f5 100%);
-         --surface: #ffffff;
-         --text-main: #2c3e50;
-         --text-muted: #7f8c8d;
-         --border-color: #e0e6ed;
-         --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-         --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
-         --shadow-hover: 0 12px 32px rgba(24, 98, 171, 0.15);
-         --radius-md: 12px;
-         --radius-lg: 20px;
-         }
-         /* Base Styles */
-         body {
-         background: var(--bg-gradient);
-         min-height: 100vh;
-         font-family: 'Poppins', sans-serif;
-         color: var(--text-main);
-         padding-bottom: 2rem;
-         }
-         .hidden { display: none !important; }
-         .center-wrapper {
-         min-height: 100vh;
-         display: flex;
-         align-items: center;
-         justify-content: center;
-         padding: 2rem 1rem;
-         }
-         /* Typography */
-         h1, h2, h3, h4, h5 { font-weight: 600; color: var(--text-main); }
-         h2 { margin-bottom: 1.5rem; color: var(--primary); }
-         /* Navbar Styling */
-         .navbar {
-         background: var(--primary) !important;
-         box-shadow: var(--shadow-md);
-         padding: 0.8rem 1rem;
-         }
-         .navbar-brand { font-weight: 700; letter-spacing: 1px; }
-         .nav-link {
-         font-weight: 500;
-         margin: 0 0.5rem;
-         position: relative;
-         transition: opacity 0.3s ease;
-         }
-         .nav-link:hover { opacity: 0.8; }
-         /* Universal Cards */
-         .card, .dashboard-card, .search-farmer-card, #cropDamageSection, #ureaSection .card {
-         background: var(--surface);
-         border: 1px solid var(--border-color);
-         border-radius: var(--radius-lg);
-         box-shadow: var(--shadow-sm);
-         padding: 2rem;
-         transition: all 0.3s ease;
-         }
-         /* Dashboard Specific */
-         .dashboard-header { text-align: center; margin-bottom: 3rem; }
-         .dashboard-title { font-size: 2.5rem; font-weight: 700; }
-         .dashboard-card {
-         cursor: pointer;
-         text-align: center;
-         height: 100%;
-         display: flex;
-         flex-direction: column;
-         justify-content: center;
-         align-items: center;
-         padding: 2rem 1rem;
-         position: relative;
-         overflow: hidden;
-         }
-         .dashboard-card i { margin-bottom: 1rem; transition: transform 0.3s ease; }
-         .dashboard-card:hover {
-         transform: translateY(-5px);
-         box-shadow: var(--shadow-hover);
-         border-color: rgba(24, 98, 171, 0.2);
-         }
-         .dashboard-card:hover i { transform: scale(1.1); }
-         .dashboard-card h5 { font-size: 1.2rem; margin-bottom: 0.5rem; }
-         .dashboard-card p { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
-         .search-results { background: #f8f9fa; border-radius: 8px; margin-top: 1rem; max-height: 180px; overflow-y: auto; }
-         .search-results .list-group-item { border: none; border-radius: 6px; margin-bottom: 0.5rem; transition: all 0.3s ease; cursor: pointer; }
-         .search-results .list-group-item:hover { background: #e9ecef; }
-         /* Form Elements & Inputs */
-         .form-control, .form-select {
-         border-radius: var(--radius-md);
-         border: 1px solid var(--border-color);
-         padding: 0.75rem 1rem;
-         transition: all 0.2s ease;
-         background-color: #fbfcfd;
-         }
-         .form-control:focus, .form-select:focus {
-         border-color: var(--primary);
-         box-shadow: 0 0 0 4px rgba(24, 98, 171, 0.1);
-         background-color: var(--surface);
-         }
-         .form-label { font-weight: 500; color: var(--text-main); margin-bottom: 0.5rem; }
-         /* Buttons */
-         .btn {
-         border-radius: 30px;
-         padding: 0.6rem 1.5rem;
-         font-weight: 500;
-         letter-spacing: 0.5px;
-         transition: all 0.3s ease;
-         }
-         .btn-primary { background: var(--primary); border: none; }
-         .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(24, 98, 171, 0.3); }
-         /* Tables */
-         .table-responsive { border-radius: var(--radius-md); overflow-x: auto; box-shadow: var(--shadow-sm); }
-         table.table { margin-bottom: 0; background: var(--surface); }
-         table.table thead th {
-         background: var(--primary);
-         color: white;
-         font-weight: 500;
-         border: none;
-         padding: 1rem;
-         }
-         table.table tbody td { padding: 1rem; vertical-align: middle; border-color: var(--border-color); }
-         table.table-hover tbody tr:hover { background-color: #f8faff; }
-         /* Modals */
-         .modal-content { border-radius: var(--radius-lg); border: none; box-shadow: var(--shadow-md); }
-         .modal-header { border-bottom: 1px solid var(--border-color); background: #f8faff; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
-         /* ---- Section Specific Styles (From Original Code) ---- */
-         /* Crop Damage Section */
-         #inputExcel { width: 100%; max-width: 460px; display: block; margin-bottom: 1.5rem; padding: 14px 20px; font-size: 1.1rem; border: 2px dashed #3498db; border-radius: 14px; cursor: pointer; }
-         #damagedSurveyNumbers { white-space: pre-line; font-weight: 600; color: #1862ab; font-size: 1.15rem; margin-bottom: 1.5rem; background: #f1f8ff; border-left: 4px solid #2979ff; padding: 15px 25px; border-radius: 10px; }
-         #damagedSurveysCard table { width: 100%; border-radius: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06); }
-         #damagedSurveysCard thead th { background: linear-gradient(to right, #3366ff, #6699ff); color: white; padding: 14px 22px; }
-         /* Crop Recommendation Section */
-         #cropRecommendationSection { max-width: 600px; margin: 2rem auto; background: #f0f4f8; padding: 20px; border-radius: 10px; box-shadow: 0 6px 15px rgba(0,0,0,0.1); color: #333; }
-         #cropRecommendationSection label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.9rem; }
-         #cropRecommendationSection select, #cropRecommendationSection button { width: 100%; padding: 12px 10px; margin-bottom: 18px; border: 1.5px solid #ccc; border-radius: 8px; font-size: 1rem; }
-         #cropRecommendationSection button { background-color: #2d6cdf; color: white; font-weight: 600; cursor: pointer; }
-         #recommendationBox { background: white; border: 1px solid #ccc; padding: 16px 20px; white-space: pre-line; border-radius: 10px; font-family: Consolas, monospace; margin-top: 15px; min-height: 140px; display: none; }
-         /* Urea & Print Styles */
-         #clearUreaPasswordModal { z-index: 1060 !important; }
-         #clearUreaPasswordModal .modal-backdrop { z-index: 1055 !important; }
-         @media print {
-         body * { visibility: hidden; }
-         #printArea, #printArea * { visibility: visible; }
-         #printArea { position: absolute; left: 0; top: 0; }
-         }
-         /* CC Experiments */
-         .cc-experiments-container { max-width: 360px; margin: 1.5rem auto 0 auto; background: #eafaf1; border-radius: 20px; padding: 2rem;}
-         #calcTypeSelect { background: #f6fffa; color: #19604b; font-weight: 500; border-color: #b2dfdb; }
-         @media (max-width: 768px) {
-         .dashboard-title { font-size: 2rem; }
-         .card, .dashboard-card { padding: 1.5rem 1rem; }
-         }
-      </style>
-   </head>
-   <body>
-      <!-- Navigation Bar -->
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-Panta Agriculture Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    
+    <!-- ✅ BOOTSTRAP ICONS - ADDED FOR DELETE/REPRINT BUTTONS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        /* =========================================
+           1. GLOBAL VARIABLES & BASE
+           ========================================= */
+        :root {
+            --primary: #1862ab;
+            --primary-hover: #124d86;
+            --secondary: #27ae60;
+            --accent: #f39c12;
+            --danger: #e74c3c;
+            --bg-gradient: linear-gradient(135deg, #f4f7f6 0%, #eef2f5 100%);
+            --surface: #ffffff;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --border-color: #e0e6ed;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 12px 32px rgba(24, 98, 171, 0.15);
+            --radius-md: 12px;
+            --radius-lg: 20px;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-main);
+            padding-bottom: 2rem;
+        }
+
+        .hidden { display: none !important; }
+
+        .center-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        h1, h2, h3, h4, h5 { font-weight: 600; color: var(--text-main); }
+        h2 { margin-bottom: 1.5rem; color: var(--primary); }
+
+        /* =========================================
+           2. NAVIGATION BAR
+           ========================================= */
+        .navbar { background: var(--primary) !important; box-shadow: var(--shadow-md); padding: 0.8rem 1rem; }
+        .navbar-brand { font-weight: 700; letter-spacing: 1px; }
+        .nav-link { font-weight: 500; margin: 0 0.5rem; position: relative; transition: opacity 0.3s ease; }
+        .nav-link:hover { opacity: 0.8; }
+
+        /* =========================================
+           3. CARDS & LAYOUTS
+           ========================================= */
+        .card, .dashboard-card, .search-farmer-card, #cropDamageSection, #ureaSection .card {
+            background: var(--surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        /* Dashboard Specific */
+        .dashboard-header { text-align: center; margin-bottom: 3rem; }
+        .dashboard-title { font-size: 2.5rem; font-weight: 700; }
+        .dashboard-card {
+            cursor: pointer; text-align: center; height: 100%; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; padding: 2rem 1rem; position: relative; overflow: hidden;
+        }
+        .dashboard-card i { margin-bottom: 1rem; transition: transform 0.3s ease; }
+        .dashboard-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-hover); border-color: rgba(24, 98, 171, 0.2); }
+        .dashboard-card:hover i { transform: scale(1.1); }
+        .dashboard-card h5 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+        .dashboard-card p { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+        
+        .search-results { background: #f8f9fa; border-radius: 8px; margin-top: 1rem; max-height: 180px; overflow-y: auto; }
+        .search-results .list-group-item { border: none; border-radius: 6px; margin-bottom: 0.5rem; transition: all 0.3s ease; cursor: pointer; }
+        .search-results .list-group-item:hover { background: #e9ecef; }
+
+        /* CC Experiments */
+        .cc-experiments-container { max-width: 360px; margin: 1.5rem auto 0 auto; background: #eafaf1; border-radius: 20px; padding: 2rem; }
+        #calcTypeSelect { background: #f6fffa; color: #19604b; font-weight: 500; border-color: #b2dfdb; }
+
+        /* =========================================
+           4. FORMS & INPUTS
+           ========================================= */
+        .form-control, .form-select {
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            transition: all 0.2s ease;
+            background-color: #fbfcfd;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(24, 98, 171, 0.1);
+            background-color: var(--surface);
+        }
+        .form-label { font-weight: 500; color: var(--text-main); margin-bottom: 0.5rem; }
+
+        .btn { border-radius: 30px; padding: 0.6rem 1.5rem; font-weight: 500; letter-spacing: 0.5px; transition: all 0.3s ease; }
+        .btn-primary { background: var(--primary); border: none; }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(24, 98, 171, 0.3); }
+
+        /* =========================================
+           5. TABLES
+           ========================================= */
+        .table-responsive { border-radius: var(--radius-md); overflow-x: auto; box-shadow: var(--shadow-sm); }
+        table.table { margin-bottom: 0; background: var(--surface); }
+        table.table thead th { background: var(--primary); color: white; font-weight: 500; border: none; padding: 1rem; }
+        table.table tbody td { padding: 1rem; vertical-align: middle; border-color: var(--border-color); }
+        table.table-hover tbody tr:hover { background-color: #f8faff; }
+
+        /* =========================================
+           6. MODALS & PRINT
+           ========================================= */
+        .modal-content { border-radius: var(--radius-lg); border: none; box-shadow: var(--shadow-md); }
+        .modal-header { border-bottom: 1px solid var(--border-color); background: #f8faff; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+        #clearUreaPasswordModal { z-index: 1060 !important; }
+        #clearUreaPasswordModal .modal-backdrop { z-index: 1055 !important; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea { position: absolute; left: 0; top: 0; }
+        }
+        @media (max-width: 768px) {
+            .dashboard-title { font-size: 2rem; }
+            .card, .dashboard-card { padding: 1.5rem 1rem; }
+        }
+
+       .agri-workspace {
+               font-family: 'Montserrat', 'Poppins', sans-serif;
+               background: linear-gradient(90deg, #e3fcef 0%, #cbe1ff 100%);
+               padding: 1.5rem 0.8rem;
+               border-radius: 14px;
+               box-shadow: 0 4px 22px rgba(24, 98, 171, 0.10);
+               margin: 0 auto;
+               max-width: 370px;
+               }
+               .agri-workspace h3 {
+               color: #1862ab;
+               font-weight: 700;
+               font-size: 2.0rem;
+               margin-bottom: 0.5rem;
+               letter-spacing: 0.02em;
+               text-shadow: 0 2px 8px #b3d0fc;
+               }
+               .agri-workspace .designer-credit {
+               font-size: 1rem;
+               color: #3c60be;
+               font-family: 'Poppins', sans-serif;
+               font-weight: 500;
+               background: #daf0ff;
+               padding: 0.28em 0.8em;
+               border-radius: 7px;
+               display: inline-block;
+               box-shadow: 0 1px 8px rgba(24, 98, 171, 0.08);
+               margin-top: 0.12em;
+               }
+    </style>
+    </head>
+<body>
+
+
+ <!-- Navigation Bar -->
       <div id="mainNavbar" class="hidden" role="navigation" aria-label="Main Navigation">
          <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
             <div class="container">
@@ -199,7 +212,7 @@
          </nav>
       </div>
 
-      <!-- Login Page -->
+    <!-- Login Page -->
       <div class="center-wrapper" id="loginWrapper">
          <div class="container" id="loginPage" role="main" aria-label="Login Page">
             <div class="card shadow-lg mx-auto overflow-hidden" style="max-width: 440px; border-radius: 20px; border: 1px solid #dee2e6;">
@@ -308,41 +321,10 @@
          </div>
       </div>
 
-      <!-- Dashboard Section -->
-      <div class="hidden pt-4" id="dashboardSection" role="main" aria-label="Dashboard Section">
+<!-- Dashboard Section -->
+<div class="hidden pt-4" id="dashboardSection" role="main" aria-label="Dashboard Section">
          <div class="container">
-            <style>
-               .agri-workspace {
-               font-family: 'Montserrat', 'Poppins', sans-serif;
-               background: linear-gradient(90deg, #e3fcef 0%, #cbe1ff 100%);
-               padding: 1.5rem 0.8rem;
-               border-radius: 14px;
-               box-shadow: 0 4px 22px rgba(24, 98, 171, 0.10);
-               margin: 0 auto;
-               max-width: 370px;
-               }
-               .agri-workspace h3 {
-               color: #1862ab;
-               font-weight: 700;
-               font-size: 2.0rem;
-               margin-bottom: 0.5rem;
-               letter-spacing: 0.02em;
-               text-shadow: 0 2px 8px #b3d0fc;
-               }
-               .agri-workspace .designer-credit {
-               font-size: 1rem;
-               color: #3c60be;
-               font-family: 'Poppins', sans-serif;
-               font-weight: 500;
-               background: #daf0ff;
-               padding: 0.28em 0.8em;
-               border-radius: 7px;
-               display: inline-block;
-               box-shadow: 0 1px 8px rgba(24, 98, 171, 0.08);
-               margin-top: 0.12em;
-               }
-            </style>
-            <div class="dashboard-header mb-4">
+ <div class="dashboard-header mb-4">
                <h5 class="dashboard-title">Dashboard</h5>
                <p class="welcome-text">Welcome, <span id="userEmail" aria-live="polite"></span></p>
             </div>
@@ -458,7 +440,7 @@
          </div>
       </div>
 
-      <<!-- e-Panta Report Page -->
+      <!-- e-Panta Report Page -->
       <div class="container hidden mt-4" id="ePantaReportPage" role="main">
          <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
          <div class="row g-4">
@@ -497,6 +479,7 @@
                </div>
             </div>
             
+
             <!-- Right Column: Report Content Output -->
             <div class="col-lg-9">
                <div id="reportContainer">
@@ -535,79 +518,219 @@
          </div>
       </div>
 
-      <!-- UREA DISTRIBUTION SECTION -->
-      <div class="container hidden mt-4" id="ureaSection" role="main">
-         <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
-         <div class="card p-4 mx-auto" style="max-width: 900px;">
-            <h2>Urea Distribution</h2>
-            <div class="alert alert-info border-start border-4 border-primary mb-4" role="alert" style="background: linear-gradient(135deg, #e3f2fd 0%, #f5faff 100%);">
-               <div class="d-flex align-items-center">
-                  <i class="fas fa-info-circle fa-2x text-primary me-3 flex-shrink-0"></i>
-                  <div>
-                     <h6 class="mb-2 fw-bold text-primary">📋 Urea Distribution Instructions</h6>
-                     <ul class="mb-0 fs-6 lh-sm">
+     <!-- UREA DISTRIBUTION SECTION -->
+<div class="container hidden mt-4" id="ureaSection" role="main">
+    <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()">
+        <i class="fas fa-arrow-left me-2"></i> Back
+    </button>
+
+    <div class="card p-4 mx-auto" style="max-width: 900px;">
+        <h2><i class="fas fa-seedling me-2 text-success"></i>Fertilizer Distribution</h2>
+
+        <div class="alert alert-info border-start border-4 border-primary mb-4" role="alert"
+             style="background: linear-gradient(135deg, #e3f2fd 0%, #f5faff 100%);">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-info-circle fa-2x text-primary me-3 flex-shrink-0"></i>
+                <div>
+                    <h6 class="mb-2 fw-bold text-primary">📋 Fertilizer Distribution Instructions</h6>
+                    <ul class="mb-0 fs-6 lh-sm">
+                        <li>🌱 <strong>Select Fertilizer Type</strong> (Urea, DAP, etc.) before uploading file.</li>
                         <li>🔍 <strong>Prepare 1B with S.No|Khatha|Survey No|Aadhaar|Farmer Name|Father Name|Extent</strong></li>
-                        <li>📝 Upload file once. Enter bags distributed today and record.</li>
+                        <li>📝 Upload the 1B file once, and re-upload anytime to update the records. </li>
                         <li>📊 <strong>View History</strong> or <strong>Export Excel</strong> anytime.</li>
-                     </ul>
-                  </div>
-               </div>
+                    </ul>
+                </div>
             </div>
-            <label class="form-label">Upload Village 1B Excel:</label>
-            <input type="file" id="ureaFileInput" class="form-control mb-3" accept=".xlsx,.xls" />
-            <div class="mb-3 border p-3 rounded bg-light">
-               <label class="form-label">Search Farmer (Aadhaar):</label>
-               <div class="d-flex gap-2">
-                  <input type="text" id="ureaSearch" class="form-control" placeholder="Enter 12-digit Aadhaar" maxlength="12" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,12)" />
-                  <button class="btn btn-primary" onclick="searchUreaFarmer()">Search</button>
-               </div>
+        </div>
+
+        <!-- FERTILIZER TYPE SELECTOR -->
+        <div class="mb-4 p-3 rounded border border-success border-opacity-50"
+             style="background: linear-gradient(135deg, #f0fff4, #e8f5e9);">
+            <label class="form-label fw-bold text-success">
+                <i class="fas fa-flask me-1"></i> Select Fertilizer Type: <span class="text-danger">*</span>
+            </label>
+
+            <div class="d-flex flex-wrap gap-3">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="fertilizerType"
+                           id="fertUrea" value="Urea" onchange="onFertilizerChange()" checked>
+                    <label class="form-check-label fw-semibold" for="fertUrea">🟡 Urea</label>
+                </div>
+
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="fertilizerType"
+                           id="fertDAP" value="DAP" onchange="onFertilizerChange()">
+                    <label class="form-check-label fw-semibold" for="fertDAP">🔵 DAP</label>
+                </div>
+
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="fertilizerType"
+                           id="fertMOP" value="MOP" onchange="onFertilizerChange()">
+                    <label class="form-check-label fw-semibold" for="fertMOP">🟠 MOP</label>
+                </div>
+
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="fertilizerType"
+                           id="fertNPK" value="NPK" onchange="onFertilizerChange()">
+                    <label class="form-check-label fw-semibold" for="fertNPK">🟢 NPK</label>
+                </div>
+
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="fertilizerType"
+                           id="fertOther" value="Other" onchange="onFertilizerChange()">
+                    <label class="form-check-label fw-semibold" for="fertOther">⚪ Other</label>
+                </div>
             </div>
-            <div id="ureaFields" class="hidden">
-               <div class="row">
-                  <div class="col-md-4 mb-2"><label>Farmer Name: *</label><input type="text" id="ureaFarmerName" class="form-control" readonly></div>
-                  <div class="col-md-4 mb-2"><label>Father Name: *</label><input type="text" id="ureaFatherName" class="form-control" readonly></div>
-                  <div class="col-md-4 mb-2"><label>Mobile (10 digits): *</label><input type="text" id="ureaMobile" class="form-control" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,10)"></div>
-               </div>
-               <div class="row">
-                  <div class="col-md-6 mb-2">
-                     <label>Khatha Number:</label>
-                     <input type="text" id="ureaKhathaInput" class="form-control" readonly style="display:none;">
-                     <select id="ureaKhathaSelect" class="form-select" style="display:none;">
+
+            <div id="fertOtherBox" class="mt-2 hidden">
+                <input type="text" id="fertOtherInput" class="form-control"
+                       placeholder="Enter fertilizer name..." style="max-width:300px;">
+            </div>
+
+            <div class="mt-2">
+                <span class="text-muted" style="font-size:0.85rem;">Selected:</span>
+                <span id="selectedFertBadge" class="badge bg-success ms-1">Urea</span>
+            </div>
+        </div>
+
+        <!-- FILE UPLOAD -->
+        <div class="mb-3 p-3 border rounded bg-light">
+            <label for="ureaFileInput" class="form-label fw-semibold">📊 Upload 1B Excel File</label>
+            <input type="file" id="ureaFileInput" class="form-control" accept=".xlsx,.xls">
+            <div id="fileStatus" class="mt-2"></div>
+            <div id="uploadInfo" class="small text-muted mt-1">Status: waiting for file upload...</div>
+        </div>
+
+        <!-- SEARCH -->
+        <div class="mb-3 border p-3 rounded bg-light">
+            <label class="form-label">Search Farmer (Aadhaar):</label>
+            <div class="d-flex gap-2">
+                <input type="text" id="ureaSearch" class="form-control"
+                       placeholder="Enter 12-digit Aadhaar" maxlength="12"
+                       oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,12)">
+                <button class="btn btn-primary" onclick="searchUreaFarmer()">Search</button>
+            </div>
+        </div>
+
+        <!-- FORM FIELDS -->
+        <div id="ureaFields" class="hidden">
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <label>Farmer Name: *</label>
+                    <input type="text" id="ureaFarmerName" class="form-control" readonly>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label>Father Name: *</label>
+                    <input type="text" id="ureaFatherName" class="form-control" readonly>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label>Mobile (10 digits): *</label>
+                    <input type="text" id="ureaMobile" class="form-control" maxlength="10"
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,10)">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <label>Crop: *</label>
+                    <select id="ureaCrop" class="form-select" onchange="updateBagRecommendation()">
+                        <option value="">--Select Crop--</option>
+                        <option value="paddy">Paddy</option>
+                        <option value="maize">Maize</option>
+                        <option value="jowar">Jowar</option>
+                        <option value="sugarcane">Sugarcane</option>
+                        <option value="blackgram">Blackgram</option>
+                        <option value="greengram">Greengram</option>
+                        <option value="cotton">Cotton</option>
+                        <option value="bengalgram">Bengalgram</option>
+                        <option value="turmeric">Turmeric</option>
+                        <option value="yam">Yam</option>
+                        <option value="banana">Banana</option>
+                        <option value="oilpalm">Oilpalm</option>
+                        <option value="vegetables">Vegetables</option>
+                        <option value="tomato">Tomato</option>
+                        <option value="potato">Potato</option>
+                        <option value="onion">Onion</option>
+                        <option value="brinjal">Brinjal</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4 mb-2">
+                    <label>Khatha Number:</label>
+                    <input type="text" id="ureaKhathaInput" class="form-control" readonly>
+                    <select id="ureaKhathaSelect" class="form-select" style="display:none;">
                         <option value="">--Select Khatha--</option>
-                     </select>
-                  </div>
-                  <div class="col-md-6 mb-2"><label>Extent:</label><input type="text" id="ureaExtent" class="form-control" readonly></div>
-               </div>
-               <div class="row">
-                  <div class="col-md-4 mb-2">
-                     <label>Crop Year:</label>
-                     <select id="ureaYear" class="form-select">
+                    </select>
+                </div>
+
+                <div class="col-md-4 mb-2">
+                    <label>Extent:</label>
+                    <input type="text" id="ureaExtent" class="form-control" readonly>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <label>Crop Year:</label>
+                    <select id="ureaYear" class="form-select">
                         <option>2026-27</option>
                         <option>2027-28</option>
-                     </select>
-                  </div>
-                  <div class="col-md-4 mb-2">
-                     <label>Season:</label>
-                     <select id="ureaSeason" class="form-select">
-                        <option>Kharif</option>
-                        <option>Rabi</option>
-                     </select>
-                  </div>
-                  <div class="col-md-4 mb-2"><label>Bags Eligible:</label><input type="number" id="ureaBagsEligible" class="form-control" readonly><small id="ureaBagsEligibleToShow" class="text-muted d-block pt-1"></small></div>
-               </div>
-               <div class="row">
-                  <div class="col-md-4 mb-2"><label>Remaining Bags:</label><input type="number" id="ureaRemainingBags" class="form-control" readonly></div>
-                  <div class="col-md-4 mb-2"><label>Bags Distributing Now:</label><input type="number" id="ureaBagsDist" class="form-control" oninput="this.value = Math.max(0, Math.min(this.max || this.value, this.value)) || ''"></div>
-                  <div class="col-md-4 mb-2"><label>Date:</label><input type="date" id="ureaDate" class="form-control"></div>
-               </div>
-               <div class="mt-4 pt-3 border-top d-flex gap-2 justify-content-between">
-                  <button class="btn btn-success" onclick="recordDistribution()"><i class="fas fa-save"></i> Record Distribution</button>
-                  <button class="btn btn-warning" onclick="clearUreaForm()"><i class="fas fa-undo"></i> Clear</button>
-                  <button class="btn btn-info text-white" onclick="showUreaHistory()"><i class="fas fa-eye"></i> View History</button>
-               </div>
+                    </select>
+                </div>
+
+                <div class="col-md-4 mb-2">
+                    <label>Season:</label>
+                    <select id="ureaSeason" class="form-select" onchange="updateBagRecommendation()">
+                        <option value="">--Select Season--</option>
+                        <option value="Kharif">Kharif</option>
+                        <option value="Rabi">Rabi</option>
+                        <option value="Summer">Summer</option>
+                    </select>
+                </div>
+
+                <div id="ureaBagBlock" class="col-md-4 mb-2 d-none">
+                    <label class="form-label">Urea Bags:</label>
+                    <input type="number" id="ureaBagsEligible" class="form-control bg-light" readonly>
+                    <small id="ureaBagsEligibleToShow" class="text-muted d-block pt-1"></small>
+                </div>
+
+                <div id="dapBagBlock" class="col-md-4 mb-2 d-none">
+                    <label class="form-label">DAP Bags:</label>
+                    <input type="number" id="dapBagsEligible" class="form-control bg-light" readonly>
+                    <small id="dapBagsEligibleToShow" class="text-muted d-block pt-1"></small>
+                </div>
             </div>
-         </div>
-      </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <label>Remaining Bags:</label>
+                    <input type="number" id="ureaRemainingBags" class="form-control" readonly>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label>Bags Distributing Now:</label>
+                    <input type="number" id="ureaBagsDist" class="form-control" placeholder="Enter bags">
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label>Date:</label>
+                    <input type="date" id="ureaDate" class="form-control">
+                </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-top d-flex gap-2 justify-content-between">
+                <button class="btn btn-success" onclick="recordDistribution()">
+                    <i class="fas fa-save"></i> Record Distribution
+                </button>
+                <button class="btn btn-warning" onclick="clearUreaForm()">
+                    <i class="fas fa-undo"></i> Clear
+                </button>
+                <button class="btn btn-info text-white" onclick="showUreaHistory()">
+                    <i class="fas fa-eye"></i> View History
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+       
 
       <!-- Crop Damage Record Section -->
       <div class="container hidden mt-4" id="cropDamageSection" role="main">
@@ -795,27 +918,33 @@
             <span class="badge bg-danger fs-6">Admin Access</span>
         </div>
 
-        <!-- Stats Row -->
-        <div class="row g-3 mb-4" id="adminStatsRow">
-            <div class="col-md-4">
-                <div class="card p-3 border-0 shadow-sm text-center">
-                    <h3 class="text-primary fw-bold" id="adminTotalUsers">0</h3>
-                    <p class="text-muted mb-0">Total Users</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card p-3 border-0 shadow-sm text-center">
-                    <h3 class="text-success fw-bold" id="adminTotalDistributions">0</h3>
-                    <p class="text-muted mb-0">Total Distributions</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card p-3 border-0 shadow-sm text-center">
-                    <h3 class="text-warning fw-bold" id="adminTotalBags">0</h3>
-                    <p class="text-muted mb-0">Total Bags Distributed</p>
-                </div>
-            </div>
-        </div>
+       <!-- Stats Row -->
+<div class="row g-3 mb-4" id="adminStatsRow">
+  <div class="col-md-3">
+    <div class="card p-3 border-0 shadow-sm text-center">
+      <h3 class="text-primary fw-bold" id="adminTotalUsers">0</h3>
+      <p class="text-muted mb-0">Total Users</p>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3 border-0 shadow-sm text-center">
+      <h3 class="text-success fw-bold" id="adminTotalDistributions">0</h3>
+      <p class="text-muted mb-0">Total Distributions</p>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3 border-0 shadow-sm text-center bg-warning-subtle">
+      <h3 class="text-warning fw-bold" id="adminTotalUreaBags">0</h3>
+      <p class="text-muted mb-0">🌾 Total Urea Bags</p>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3 border-0 shadow-sm text-center bg-info-subtle">
+      <h3 class="text-info fw-bold" id="adminTotalDapBags">0</h3>
+      <p class="text-muted mb-0">🌿 Total DAP Bags</p>
+    </div>
+  </div>
+</div>
 
         <!-- Search & Export -->
         <div class="d-flex gap-2 mb-3 flex-wrap">
@@ -830,6 +959,81 @@
             </button>
         </div>
 
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs mb-3" id="adminReportTabs">
+  <li class="nav-item">
+    <button class="nav-link active" id="tab-all" onclick="switchAdminTab('all')">
+      <i class="fas fa-list me-1"></i> All Users
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" id="tab-urea" onclick="switchAdminTab('urea')">
+      <i class="fas fa-flask me-1 text-warning"></i> Urea Report
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" id="tab-dap" onclick="switchAdminTab('dap')">
+      <i class="fas fa-seedling me-1 text-info"></i> DAP Report
+    </button>
+  </li>
+</ul>
+
+<!-- Urea Report Table -->
+<div id="ureaReportSection" class="d-none">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="text-warning fw-bold"><i class="fas fa-flask me-2"></i>Urea Distribution Report</h5>
+    <button class="btn btn-sm btn-warning" onclick="exportFertilizerData('urea')">
+      <i class="fas fa-file-excel me-1"></i> Export Urea Excel
+    </button>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover table-sm" id="ureaTable">
+      <thead class="table-warning">
+        <tr>
+          <th>#</th>
+          <th>Farmer Name</th>
+          <th>Aadhaar</th>
+          <th>Village</th>
+          <th>Bags</th>
+          <th>Date</th>
+          <th>Entered By</th>
+        </tr>
+      </thead>
+      <tbody id="ureaTableBody">
+        <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DAP Report Table -->
+<div id="dapReportSection" class="d-none">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="text-info fw-bold"><i class="fas fa-seedling me-2"></i>DAP Distribution Report</h5>
+    <button class="btn btn-sm btn-info text-white" onclick="exportFertilizerData('dap')">
+      <i class="fas fa-file-excel me-1"></i> Export DAP Excel
+    </button>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover table-sm" id="dapTable">
+      <thead class="table-info">
+        <tr>
+          <th>#</th>
+          <th>Farmer Name</th>
+          <th>Aadhaar</th>
+          <th>Village</th>
+          <th>Bags</th>
+          <th>Date</th>
+          <th>Entered By</th>
+        </tr>
+      </thead>
+      <tbody id="dapTableBody">
+        <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
         <!-- Users + their data -->
         <div id="adminUsersContainer">
             <div class="text-center text-muted p-5">
@@ -839,99 +1043,127 @@
         </div>
     </div>
 </div>
-      <!-- MODALS -->
-      <div class="modal fade" id="farmerModal" tabindex="-1">
-         <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-               <div class="modal-header">
-                  <h5 class="modal-title">Farmer Details</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+     <!-- MODALS -->
+<div class="modal fade" id="farmerModal" tabindex="-1">
+   <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+         <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-people"></i> Farmer Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+         </div>
+         <div class="modal-body" id="farmerModalBody"></div>
+         <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="printFarmerModalBtn">
+               <i class="bi bi-printer"></i> Print
+            </button>
+         </div>
+      </div>
+   </div>
+</div>
+
+<div class="modal fade" id="ureaHistoryModal" tabindex="-1">
+   <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+         <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-clock-history"></i> Fertilizer History (<span id="modalSelectedFertBadge">Urea</span>)</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+         </div>
+         <div class="modal-body">
+            <div class="row mb-3 g-2">
+               <div class="col-md-5">
+                  <input type="text" id="modalSearch" class="form-control" placeholder="🔍 Search name, khatha, aadhaar..." onkeyup="filterModalHistory()">
                </div>
-               <div class="modal-body" id="farmerModalBody"></div>
-               <div class="modal-footer"><button type="button" class="btn btn-primary" id="printFarmerModalBtn"><i class="fas fa-print"></i> Print</button></div>
+               <div class="col-md-4 text-end">
+                  <span id="recordCount" class="badge bg-primary fs-6 me-2">0 records</span>
+                  <span class="badge bg-info fs-6" id="totalBagsBadge">0 bags</span>
+               </div>
+               <div class="col-md-3">
+                  <button class="btn btn-outline-danger btn-sm w-100" onclick="showClearUreaPasswordModal('all')">
+                     <i class="bi bi-trash"></i> Clear All
+                  </button>
+               </div>
+            </div>
+            <div class="table-responsive">
+               <table class="table table-hover table-sm" id="modalHistoryTable">
+                  <thead class="table-dark">
+                     <tr>
+                        <th style="width:60px">S.No</th>
+                        <th style="width:90px">Date</th>
+                        <th style="width:80px">Fertilizer</th>
+                        <th style="width:140px">Name</th>
+                        <th style="width:120px">Father</th>
+                        <th style="width:130px">Aadhaar</th>
+                        <th style="width:110px">Mobile</th>
+                        <th style="width:90px">Khatha</th>
+                        <th style="width:70px">Extent</th>
+                        <th style="width:60px">Bags</th>
+                        <th style="width:80px">Season</th>
+                        <th style="width:60px">Year</th>
+                        <th style="width:140px" class="text-center">Action</th>
+                     </tr>
+                  </thead>
+                  <tbody></tbody>
+               </table>
+            </div>
+            <div id="noHistoryMsg" class="text-center text-muted p-5">
+               <i class="bi bi-inbox display-4 text-muted mb-3"></i>
+               <h5>No records found</h5>
+               <p>Upload 1B data and start distributing fertilizer.</p>
+            </div>
+         </div>
+         <div class="modal-footer">
+            <button type="button" class="btn btn-success" onclick="exportUreaData()">
+               <i class="bi bi-file-earmark-excel"></i> Export Excel
+            </button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+         </div>
+      </div>
+   </div>
+</div>
+
+<div class="modal fade" id="aadhaarHistoryModal" tabindex="-1">
+   <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+         <div class="modal-header bg-warning">
+            <h5 class="modal-title"><i class="bi bi-fingerprint"></i> Aadhaar History</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+         </div>
+         <div class="modal-body">
+            <input type="text" class="form-control mb-3" id="aadhaarModalSearch" placeholder="🔍 Filter records..." onkeyup="filterAadhaarModalHistory()">
+            <div id="aadhaarRecordCount" class="alert alert-info mb-3 hidden"></div>
+            <div class="table-responsive">
+               <table class="table table-striped table-sm" id="aadhaarHistoryTable">
+                  <thead>
+                     <tr>
+                        <th style="width:60px">S.No</th>
+                        <th style="width:90px">Date</th>
+                        <th style="width:80px">Fertilizer</th>
+                        <th style="width:120px">Name</th>
+                        <th style="width:110px">Father</th>
+                        <th style="width:90px">Khatha</th>
+                        <th style="width:70px">Extent</th>
+                        <th style="width:60px">Bags</th>
+                        <th style="width:80px">Season</th>
+                        <th style="width:60px">Year</th>
+                        <th style="width:140px" class="text-center">Action</th>
+                     </tr>
+                  </thead>
+                  <tbody></tbody>
+               </table>
+            </div>
+            <div id="noAadhaarHistoryMsg" class="alert alert-warning text-center p-4">
+               <i class="bi bi-search display-4 mb-3"></i>
+               <p>No matching records found for this Aadhaar.</p>
             </div>
          </div>
       </div>
+   </div>
+</div>
 
-      <div class="modal fade" id="ureaHistoryModal" tabindex="-1">
-         <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-               <div class="modal-header">
-                  <h5 class="modal-title"><i class="fas fa-history"></i> Urea Distribution History</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-               </div>
-               <div class="modal-body">
-                  <div class="row mb-3">
-                     <div class="col-md-4"><input type="text" id="modalSearch" class="form-control" placeholder="Search..." onkeyup="filterModalHistory()"></div>
-                     <div class="col-md-5 text-end"><span id="recordCount" class="badge bg-primary fs-6">0 records</span></div>
-                     <div class="col-md-3"><button class="btn btn-danger btn-sm w-100" onclick="showClearUreaPasswordModal('all')">Clear All</button></div>
-                  </div>
-                  <div class="table-responsive">
-                     <table class="table table-hover" id="modalHistoryTable">
-                        <thead>
-                           <tr>
-                              <th>S.No</th>
-                              <th>Date</th>
-                              <th>Name</th>
-                              <th>Father</th>
-                              <th>Aadhaar</th>
-                              <th>Mobile</th>
-                              <th>Khatha</th>
-                              <th>Extent</th>
-                              <th>Bags</th>
-                              <th>Season</th>
-                              <th>Year</th>
-                              <th>Action</th>
-                           </tr>
-                        </thead>
-                        <tbody></tbody>
-                     </table>
-                  </div>
-                  <div id="noHistoryMsg" class="text-center text-muted p-5 hidden">
-                     <h5>No records found</h5>
-                  </div>
-               </div>
-               <div class="modal-footer"><button type="button" class="btn btn-success" onclick="exportUreaData()">Export Excel</button></div>
-            </div>
-         </div>
-      </div>
-
-      <div class="modal fade" id="aadhaarHistoryModal" tabindex="-1">
-         <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-               <div class="modal-header">
-                  <h5 class="modal-title">Aadhaar Distribution History</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-               </div>
-               <div class="modal-body">
-                  <input type="text" class="form-control mb-3" id="aadhaarModalSearch" placeholder="Search..." onkeyup="filterAadhaarModalHistory()">
-                  <div id="aadhaarRecordCount" class="alert alert-info hidden"></div>
-                  <div id="noAadhaarHistoryMsg" class="alert alert-warning hidden">No history found.</div>
-                  <div class="table-responsive">
-                     <table class="table table-striped" id="aadhaarHistoryTable">
-                        <thead>
-                           <tr>
-                              <th>S.No</th>
-                              <th>Date</th>
-                              <th>Name</th>
-                              <th>Father</th>
-                              <th>Khatha</th>
-                              <th>Extent</th>
-                              <th>Bags</th>
-                              <th>Season</th>
-                              <th>Year</th>
-                              <th>Action</th>
-                           </tr>
-                        </thead>
-                        <tbody></tbody>
-                     </table>
-                  </div>
-               </div>
-            </div>
-         </div>
-      </div>
-
-      <div class="modal fade" id="clearUreaPasswordModal" tabindex="-1">
+<!-- Password modal unchanged -->
+<div class="modal fade" id="clearUreaPasswordModal" tabindex="-1">
          <div class="modal-dialog">
             <div class="modal-content">
                <div class="modal-header">
@@ -947,155 +1179,212 @@
          </div>
       </div>
 
-      <div id="printArea" style="display:none; padding: 40px; font-family: 'Poppins', sans-serif; border: 2px solid #000; width: 800px; margin: auto;">
-         <div style="text-align: center; margin-bottom: 20px;">
-            <h2>AGRI WORK SPACE</h2>
-            <h3>Urea Distribution Form</h3>
-         </div>
-         <p><strong>Village:</strong> ________________ &nbsp;&nbsp; <strong>Mandal:</strong> ________________</p>
-         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <tr>
-               <td style="padding: 8px; border: 1px solid #ccc;"><strong>Form Serial No:</strong> <span id="printSerialNo"></span></td>
-               <td style="padding: 8px; border: 1px solid #ccc;"></td>
-            </tr>
-            <tr>
-               <td style="padding: 8px; border: 1px solid #ccc;"><strong>Farmer Name:</strong> <span id="printFarmerName"></span></td>
-               <td style="padding: 8px; border: 1px solid #ccc;"><strong>Father Name:</strong> <span id="printFatherName"></span></td>
-            </tr>
-            <tr>
-               <td style="padding: 8px; border: 1px solid #ccc;"><strong>Mobile:</strong> <span id="printMobile"></span></td>
-               <td style="padding: 8px; border: 1px solid #ccc;"><strong>Aadhaar:</strong> <span id="printAadhaar"></span></td>
-            </tr>
-            <tr>
-               <td style="padding: 8px; border: 1px solid #ccc;"><strong>Khatha:</strong> <span id="printKhatha"></span></td>
-               <td style="padding: 8px; border: 1px solid #ccc;"><strong>Extent:</strong> <span id="printExtent"></span></td>
-            </tr>
-            <tr>
-               <td style="padding: 8px; border: 1px solid #ccc;"><strong>Bags Distributed:</strong> <span id="printBags"></span></td>
-               <td style="padding: 8px; border: 1px solid #ccc;"><strong>Date:</strong> <span id="printDate"></span></td>
-            </tr>
-         </table>
-         <div style="margin-top: 50px; display: flex; justify-content: space-between;">
-            <p><strong>Officer Sig:</strong> _______________</p>
-            <p><strong>Farmer Sig:</strong> _______________</p>
-         </div>
-         <div style="margin-top: 50px; text-align: center; font-size: 14px; color: #d32f2f; border-top: 2px solid #ccc; padding-top: 20px;">
-            <p>*ఈ ఫారం 7 రోజులు మాత్రమే చెల్లుతుంది.</p>
-         </div>
-      </div>
+<!-- Enhanced Print Area -->
+<div id="printArea" style="display:none; padding:40px; font-family:'Noto Sans Telugu',Poppins,sans-serif; border:2px solid #000; max-width:800px; margin:40px auto; background:#fff;">
+   <div style="text-align:center; margin-bottom:30px;">
+      <h2 style="margin:0; color:#d32f2f;">🌾 AGRI WORK SPACE</h2>
+      <h3 id="printFormTitle" style="margin:10px 0 0 0; color:#1976d2;">Fertilizer Distribution</h3>
+      <p style="margin:5px 0; font-size:14px;"><strong>Village:</strong> ________ &nbsp; <strong>Mandal:</strong> ________</p>
+   </div>
+   <table style="width:100%; border-collapse:collapse; margin-bottom:30px; font-size:14px;">
+      <tr><td style="padding:12px; border:1px solid #333; width:50%;"><strong>Form S.No:</strong></td><td style="padding:12px; border:1px solid #333;"><strong>Fertilizer:</strong></td></tr>
+      <tr><td style="padding:12px; border:1px solid #333;"><strong>Name:</strong> <span id="printFarmerName" style="font-weight:600;"></span></td><td style="padding:12px; border:1px solid #333;"><strong>Father:</strong> <span id="printFatherName"></span></td></tr>
+      <tr><td style="padding:12px; border:1px solid #333;"><strong>Mobile:</strong> <span id="printMobile"></span></td><td style="padding:12px; border:1px solid #333;"><strong>Aadhaar:</strong> <span id="printAadhaar"></span></td></tr>
+      <tr><td style="padding:12px; border:1px solid #333;"><strong>Khatha:</strong> <span id="printKhatha" style="font-weight:600;"></span></td><td style="padding:12px; border:1px solid #333;"><strong>Extent:</strong> <span id="printExtent"></span> Ac</td></tr>
+      <tr><td style="padding:12px; border:1px solid #333;"><strong>Bags:</strong> <span id="printBags" style="font-size:18px; color:#1976d2;"></span></td><td style="padding:12px; border:1px solid #333;"><strong>Date:</strong> <span id="printDate"></span></td></tr>
+   </table>
+   <div style="display:flex; justify-content:space-between; margin-top:50px;">
+      <div><strong>Officer:</strong> ________________<br><small>Date: __________</small></div>
+      <div><strong>Farmer:</strong> ________________<br><small>Signature</small></div>
+   </div>
+   <div style="margin-top:40px; text-align:center; font-size:16px; color:#d32f2f; border-top:2px solid #333; padding-top:20px;">
+      <p><strong>⚠️ ఈ ఫారం 7 రోజులు మాత్రమే చెల్లుతుంది</strong></p>
+      <small style="color:#666;">Valid for 7 days only</small>
+   </div>
+</div>
 
-      <!-- ================= FIREBASE & JAVASCRIPT CORE ================= -->
-      <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-      <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-      <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-      <script>
-         // Firebase initialization
-         const firebaseConfig = {
-            apiKey: "AIzaSyD67V05oD0VRpRITR0z0R61NqIfuaiFih4",
-            authDomain: "agri-work-space.firebaseapp.com",
-            databaseURL: "https://agri-work-space-default-rtdb.firebaseio.com",
-            projectId: "agri-work-space",
-            storageBucket: "agri-work-space.firebasestorage.app",
-            messagingSenderId: "13945141436",
-            appId: "1:13945141436:web:0eacfa11b7a0e864bb38b9",
-            measurementId: "G-F7E4H3EVQY"
-         };
-         firebase.initializeApp(firebaseConfig);
-         const database = firebase.database();
-         
-         let uploadData = [];
-         let parsedData = [];
-         let pageStateStack = [];
-         
-         // Global State Variables for Sync
-         let allReportsCache = {};
-         let ureaData = {};
-         let ureaHistory = [];
-         let isDataLoaded = false;
 
-         // Admin config — only this email gets admin access
-const ADMIN_EMAIL = 'adminagriworkspace@gmail.com'; // ← change to your actual email
+<!-- ================= FIREBASE & JAVASCRIPT CORE ================= -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-function isAdmin() {
-    const user = firebase.auth().currentUser;
-    return user && user.email === ADMIN_EMAIL;
-}
-         
-         // --- CLOUD SYNC LOGIC ---
-let _cloudListenerUid = null;
+<!-- ✅ SheetJS — required for Excel upload/export -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
-function loadUserCloudData(uid) {
-    // Detach any previous listener to avoid duplicates on re-login
-    if (_cloudListenerUid) {
-        database.ref('users/' + _cloudListenerUid).off('value');
-        _cloudListenerUid = null;
-    }
+<!-- ✅ Bootstrap JS — MUST load before any bootstrap.Modal() calls -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    _cloudListenerUid = uid;
-
-    // Real-time listener: all devices sync instantly when data changes
-    database.ref('users/' + uid).on('value', (snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            allReportsCache = data.allReports || {};
-            ureaData       = data.ureaData   || {};
-            // Firebase can return an object instead of array — convert safely
-            ureaHistory = Array.isArray(data.ureaHistory)
-                ? data.ureaHistory
-                : (data.ureaHistory ? Object.values(data.ureaHistory) : []);
-        } else {
-            allReportsCache = {};
-            ureaData        = {};
-            ureaHistory     = [];
-        }
-
-        isDataLoaded = true;
-        refreshKhathaDropdown();
-
-        // Re-render e-Panta report if that page is currently visible
-        const reportPage = document.getElementById('ePantaReportPage');
-        if (reportPage && reportPage.style.display !== 'none' && reportPage.style.display !== '') {
-            loadReport();
-        }
-
-        // Auto-refresh the history modal if it is open on this device
-        const histModal = document.getElementById('ureaHistoryModal');
-        if (histModal && histModal.classList.contains('show')) {
-            openHistoryModal(ureaHistory);
-        }
-
-    }, (err) => {
-        console.error("Firebase sync error: ", err);
-    });
-}
-
-function saveToCloud() {
-    const user = firebase.auth.currentUser;
-    if (!user || !isDataLoaded) return Promise.resolve(false);
-
-    const dataToSave = {
-        allReports: allReportsCache || {},
-        ureaData: ureaData || {},
-        ureaHistory: ureaHistory || [],
-        lastUpdated: new Date().toISOString()
+<script>
+    const firebaseConfig = {
+        apiKey:            "AIzaSyD67V05oD0VRpRITR0z0R61NqIfuaiFih4",
+        authDomain:        "agri-work-space.firebaseapp.com",
+        databaseURL:       "https://agri-work-space-default-rtdb.firebaseio.com",
+        projectId:         "agri-work-space",
+        storageBucket:     "agri-work-space.firebasestorage.app",
+        messagingSenderId: "13945141436",
+        appId:             "1:13945141436:web:0eacfa11b7a0e864bb38b9",
+        measurementId:     "G-F7E4H3EVQY"
     };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
-    return database.ref('users/' + user.uid).update(dataToSave)
-        .then(() => true)
-        .catch(err => {
-            console.error('Save error:', err);
-            alert('Cloud save failed: ' + err.message);
-            return false;
-        });
-}
+    let uploadData     = [];
+    let parsedData     = [];
+    let pageStateStack = [];
 
-// Call this from logoutUser() to cleanly remove the listener
-function detachCloudListener() {
-    if (_cloudListenerUid) {
-        database.ref('users/' + _cloudListenerUid).off('value');
-        _cloudListenerUid = null;
+    let allReportsCache = {};
+    let ureaData        = {};  // { Urea: { khatha1: {...}, ... }, DAP: { ... } }
+    let ureaHistory     = [];
+    let isDataLoaded    = false;
+
+    const ADMIN_EMAIL = 'adminagriworkspace@gmail.com';
+    function isAdmin() {
+        const user = firebase.auth().currentUser;
+        return user && user.email === ADMIN_EMAIL;
     }
-}
+
+    // ✅ Fixes Firebase objects-as-arrays back to real arrays
+    function fixFirebaseArrays(obj) {
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+        const keys = Object.keys(obj);
+        const allNumeric = keys.length > 0 && keys.every(k => /^\d+$/.test(k));
+        if (allNumeric) {
+            return keys.sort((a, b) => Number(a) - Number(b)).map(k => fixFirebaseArrays(obj[k]));
+        }
+        const result = {};
+        keys.forEach(k => { result[k] = fixFirebaseArrays(obj[k]); });
+        return result;
+    }
+
+    // ✅ Fixes farmers[] arrays inside ureaData corrupted by Firebase
+    function fixUreaDataFromFirebase(raw) {
+        if (!raw || typeof raw !== 'object') return {};
+        const fixed = {};
+        Object.keys(raw).forEach(fert => {
+            fixed[fert] = {};
+            const fertData = raw[fert];
+            if (!fertData || typeof fertData !== 'object') return;
+            Object.keys(fertData).forEach(khatha => {
+                const kObj = fertData[khatha];
+                if (!kObj) return;
+                fixed[fert][khatha] = {
+                    khatha:       kObj.khatha       || khatha,
+                    extent:       kObj.extent       || 0,
+                    bagsEligible: kObj.bagsEligible || 0,
+                    // ✅ Convert Firebase object back to real array
+                    farmers: Array.isArray(kObj.farmers)
+                        ? kObj.farmers
+                        : (kObj.farmers ? Object.values(kObj.farmers) : [])
+                };
+            });
+        });
+        return fixed;
+    }
+
+    // ✅ Always returns khatha data for currently selected fertilizer
+    function getCurrentFertData() {
+        const fert = (typeof getSelectedFertilizer === 'function') ? getSelectedFertilizer() : 'Urea';
+        const data = ureaData[fert];
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+        return data;
+    }
+
+    // ✅ Safely converts any value to array (handles Firebase object-as-array)
+    function toArray(val) {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'object') return Object.values(val);
+        return [];
+    }
+
+    // --- CLOUD SYNC LOGIC ---
+    let _cloudListenerUid = null;
+
+    function loadUserCloudData(uid) {
+        if (_cloudListenerUid) {
+            database.ref('users/' + _cloudListenerUid).off('value');
+            _cloudListenerUid = null;
+        }
+
+        _cloudListenerUid = uid;
+
+        database.ref('users/' + uid).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const data      = snapshot.val();
+                allReportsCache = data.allReports || {};
+
+                // ✅ Detect old flat vs new per-fertilizer structure
+                let rawUreaData = {};
+                if (data.ureaData) {
+                    const keys      = Object.keys(data.ureaData);
+                    const fertNames = ['Urea', 'DAP', 'MOP', 'SSP', 'Other'];
+                    const isNewStruct = keys.some(k => fertNames.includes(k));
+                    rawUreaData = isNewStruct
+                        ? data.ureaData
+                        : { Urea: data.ureaData }; // migrate old flat data
+                }
+
+                // ✅ Fix farmers arrays corrupted by Firebase storage
+                ureaData = fixUreaDataFromFirebase(rawUreaData);
+
+                // ✅ Fix ureaHistory (Firebase may return as object)
+                ureaHistory = Array.isArray(data.ureaHistory)
+                    ? data.ureaHistory
+                    : (data.ureaHistory ? Object.values(data.ureaHistory) : []);
+
+            } else {
+                allReportsCache = {};
+                ureaData        = {};
+                ureaHistory     = [];
+            }
+
+            isDataLoaded = true;
+            if (typeof refreshKhathaDropdown === 'function') refreshKhathaDropdown();
+            if (typeof refreshUploadInfo === 'function') refreshUploadInfo(); // ✅ FIXED: refresh upload status after cloud data loads
+
+            const reportPage = document.getElementById('ePantaReportPage');
+            if (reportPage && reportPage.style.display !== 'none' && reportPage.style.display !== '') {
+                if (typeof loadReport === 'function') loadReport();
+            }
+
+            const histModal = document.getElementById('ureaHistoryModal');
+            if (histModal && histModal.classList.contains('show')) {
+                if (typeof openHistoryModal === 'function') openHistoryModal(ureaHistory);
+            }
+
+        }, (err) => {
+            console.error("Firebase sync error:", err);
+        });
+    }
+
+    function saveToCloud() {
+        const user = firebase.auth().currentUser;
+        if (!user || !isDataLoaded) return Promise.resolve(false);
+
+        const dataToSave = {
+            allReports:  allReportsCache || {},
+            ureaData:    ureaData        || {},
+            ureaHistory: ureaHistory     || [],
+            lastUpdated: new Date().toISOString()
+        };
+
+        return database.ref('users/' + user.uid).update(dataToSave)
+            .then(() => true)
+            .catch(err => {
+                console.error('Save error:', err);
+                alert('Cloud save failed: ' + err.message);
+                return false;
+            });
+    }
+
+    function detachCloudListener() {
+        if (_cloudListenerUid) {
+            database.ref('users/' + _cloudListenerUid).off('value');
+            _cloudListenerUid = null;
+        }
+    }
+
          
          // --- NAVIGATION & STATE LOGIC ---
          // Go Back logic that perfectly mimics browser back button
@@ -2135,308 +2424,781 @@ function getRecommendation() {
              document.getElementById('dataSection').style.display = 'none'; document.getElementById('damagedSurveysCard').style.display = 'none';
          }
          
-         // --- UREA DISTRIBUTION LOGIC ---
-         function formatToday(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-         function setMinDate(){ const i = document.getElementById("ureaDate"); if(i) i.min = formatToday(); }
-         function cleanAadhaar(v){ return String(v||"").replace(/[^0-9]/g, "").slice(0, 12); }
-         function getNextSerialNo(){ return ureaHistory.length + 1; }
-         
-         function getEligibleBagsForKhatha(k){ return Number(ureaData[k]?.bagsEligible || 0); }
-         function getTotalBagsTakenByKhatha(k){ return ureaHistory.filter(h => String(h.khatha) === String(k)).reduce((s, h) => s + (Number(h.bags) || 0), 0); }
-         function getRemainingBagsForKhatha(k){ return Math.max(0, getEligibleBagsForKhatha(k) - getTotalBagsTakenByKhatha(k)); }
-         
-         const ureaClearPassword = "urea2026"; let pendingClearType = null, pendingClearSerialNo = null;
-         function showClearUreaPasswordModal(type, sNo = null) {
+       // --- FERTILIZER / UREA DISTRIBUTION LOGIC ---
+
+let uploadedFertilizers = {};
+let selectedFertilizerKey = 'Urea';
+
+function formatToday() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function setMinDate() {
+    const i = document.getElementById("ureaDate");
+    if (i) i.min = formatToday();
+}
+
+function cleanAadhaar(v) {
+    return String(v || "").replace(/[^0-9]/g, "").slice(0, 12);
+}
+
+function getNextSerialNo() {
+    return ureaHistory.length + 1;
+}
+
+function toArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'object') return Object.values(val);
+    return [];
+}
+
+function getSelectedFertilizer() {
+    const val = document.querySelector('input[name="fertilizerType"]:checked')?.value || 'Urea';
+    if (val === 'Other') return document.getElementById('fertOtherInput')?.value.trim() || 'Other';
+    return val;
+}
+
+function setSelectedFertilizerKey() {
+    selectedFertilizerKey = getSelectedFertilizer();
+}
+
+function toggleFertilizerBagBlocks() {
+    const fert = getSelectedFertilizer();
+    const ureaBlock = document.getElementById('ureaBagBlock');
+    const dapBlock = document.getElementById('dapBagBlock');
+    if (ureaBlock) ureaBlock.classList.toggle('d-none', fert !== 'Urea');
+    if (dapBlock) dapBlock.classList.toggle('d-none', fert !== 'DAP');
+}
+
+function getCurrentFertData() {
+    const fert = selectedFertilizerKey;
+    const data = ureaData[fert];
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+    return data;
+}
+
+function getEligibleBagsForKhatha(k) {
+    return Number(getCurrentFertData()[k]?.bagsEligible || 0);
+}
+
+function getTotalBagsTakenByKhatha(k, fertType) {
+    return ureaHistory
+        .filter(h => String(h.khatha) === String(k) && (h.fertilizerType || 'Urea') === fertType)
+        .reduce((s, h) => s + (Number(h.bags) || 0), 0);
+}
+
+function getRemainingBagsForKhathaByFert(k, fertType, eligible) {
+    const already = getTotalBagsTakenByKhatha(k, fertType);
+    return Math.max(0, Number(eligible || 0) - already);
+}
+
+function getCurrentKhatha() {
+    return (document.getElementById("ureaKhathaInput")?.value.trim() ||
+           document.getElementById("ureaKhathaSelect")?.value.trim() || '');
+}
+
+function onFertilizerChange() {
+    const selected = document.querySelector('input[name="fertilizerType"]:checked')?.value || 'Urea';
+    const otherBox = document.getElementById('fertOtherBox');
+    
+    // Grab BOTH badges
+    const badge = document.getElementById('selectedFertBadge');
+    const modalBadge = document.getElementById('modalSelectedFertBadge');
+
+    const displayValue = selected === 'Other' ? (document.getElementById('fertOtherInput')?.value.trim() || 'Other') : selected;
+
+    if (selected === 'Other') {
+        if (otherBox) otherBox.classList.remove('hidden');
+    } else {
+        if (otherBox) otherBox.classList.add('hidden');
+    }
+    
+    // Update both badges
+    if (badge) badge.textContent = displayValue;
+    if (modalBadge) modalBadge.textContent = displayValue;
+
+    toggleFertilizerBagBlocks();
+    refreshKhathaDropdown();
+    updateBagRecommendation();
+
+    setTimeout(() => {
+        refreshUploadInfo();
+    }, 0);
+}
+
+const ureaClearPassword = "urea2026";
+let pendingClearType = null, pendingClearSerialNo = null;
+
+function showClearUreaPasswordModal(type, sNo = null) {
     pendingClearType = type;
     pendingClearSerialNo = sNo;
-    document.getElementById('clearUreaPasswordInput').value = '';
-    document.getElementById('clearUreaPasswordError').classList.add('d-none');
+    const pwd = document.getElementById('clearUreaPasswordInput');
+    const err = document.getElementById('clearUreaPasswordError');
+    if (pwd) pwd.value = '';
+    if (err) err.classList.add('d-none');
 
-    // Close history modal first if open, then open password modal
-    const histEl = document.getElementById('ureaHistoryModal');
-    const histInstance = bootstrap.Modal.getInstance(histEl);
-
-    function openPasswordModal() {
-        const pwdEl = document.getElementById('clearUreaPasswordModal');
-        const old = bootstrap.Modal.getInstance(pwdEl);
-        if (old) old.dispose();
-        new bootstrap.Modal(pwdEl, { backdrop: true, keyboard: true }).show();
-    }
-
-    if (histInstance) {
-        histEl.addEventListener('hidden.bs.modal', function handler() {
-            histEl.removeEventListener('hidden.bs.modal', handler);
-            openPasswordModal();
-        });
-        histInstance.hide();
-    } else {
-        openPasswordModal();
-    }
-}
-         function submitClearUreaHistory() {
-    if (document.getElementById('clearUreaPasswordInput').value.trim !== ureaClearPassword) {
-        if (document.getElementById('clearUreaPasswordInput').value.trim() !== ureaClearPassword) {
-            document.getElementById('clearUreaPasswordError').classList.remove('d-none');
-            return;
-        }
-    }
-
-    document.getElementById('clearUreaPasswordInput').value = '';
-    document.getElementById('clearUreaPasswordError').classList.add('d-none');
-
-    // Step 1: Force close ALL modals
-    ['clearUreaPasswordModal', 'ureaHistoryModal', 'aadhaarHistoryModal'].forEach(id => {
+    // Check if any modals are open and close them safely
+    let delayNeeded = false;
+    ['aadhaarHistoryModal', 'ureaHistoryModal'].forEach(id => {
         const el = document.getElementById(id);
-        if (!el) return;
-        const inst = bootstrap.Modal.getInstance(el);
-        if (inst) inst.hide();
-        el.classList.remove('show');
-        el.style.display = 'none';
-        el.setAttribute('aria-hidden', 'true');
-        el.removeAttribute('aria-modal');
+        if (el && el.classList.contains('show')) {
+            const inst = bootstrap.Modal.getInstance(el);
+            if (inst) inst.hide();
+            delayNeeded = true;
+        }
     });
 
-    // Step 2: Remove stuck backdrop
-    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-    document.body.classList.remove('modal-open');
-    document.body.style.removeProperty('overflow');
-    document.body.style.removeProperty('padding-right');
+    // Wait for the closing animation to finish before opening the password box
+    setTimeout(() => {
+        const pwdEl = document.getElementById('clearUreaPasswordModal');
+        if (pwdEl) new bootstrap.Modal(pwdEl, { backdrop: true, keyboard: true }).show();
+    }, delayNeeded ? 300 : 0);
+}
 
-    // Step 3: Clear data and navigate
+function submitClearUreaHistory() {
+    const input = document.getElementById('clearUreaPasswordInput');
+    const err = document.getElementById('clearUreaPasswordError');
+    if ((input?.value || '').trim() !== ureaClearPassword) {
+        if (err) err.classList.remove('d-none');
+        return;
+    }
+
+    if (input) input.value = '';
+    if (err) err.classList.add('d-none');
+
+    const pwdEl = document.getElementById('clearUreaPasswordModal');
+    if (pwdEl && pwdEl.classList.contains('show')) {
+        const pwdInst = bootstrap.Modal.getInstance(pwdEl);
+        if (pwdInst) pwdInst.hide();
+    }
+
+    // Wait for password modal to disappear before triggering alerts
     setTimeout(() => {
         if (pendingClearType === 'all') {
             ureaHistory = [];
             saveToCloud();
-            showSection('ureaSection');
             clearUreaForm();
-            alert('✅ Urea history cleared!');
+            alert('✅ History cleared!');
         } else if (pendingClearType === 'one' && pendingClearSerialNo !== null) {
-            clearOneUreaRecord(pendingClearSerialNo);
+            const idx = ureaHistory.findIndex(r => r.serialNo === pendingClearSerialNo);
+            if (idx !== -1) {
+                ureaHistory.splice(idx, 1);
+                saveToCloud();
+                alert(`✅ Record #${pendingClearSerialNo} deleted.`);
+            }
         }
         pendingClearType = null;
         pendingClearSerialNo = null;
-    }, 150);
+        refreshUploadInfo();
+        showSection('ureaSection');
+    }, 300);
 }
-         
-         function clearUreaForm() {
-    // Clear all input fields
+
+function clearUreaHistory() {
+    ureaHistory = [];
+    saveToCloud();
+    
+    const modalEl = document.getElementById('ureaHistoryModal');
+    if (modalEl && modalEl.classList.contains('show')) {
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+    }
+    
+    setTimeout(() => {
+        openHistoryModal([]);
+        alert("Cleared!");
+        refreshUploadInfo();
+    }, 300);
+}
+
+function clearOneUreaRecord(sno) {
+    const idx = ureaHistory.findIndex(r => r.serialNo === sno);
+    if (idx === -1) return alert("Not found.");
+    ureaHistory.splice(idx, 1);
+    saveToCloud();
+
+    let delayNeeded = false;
+    ['aadhaarHistoryModal', 'ureaHistoryModal', 'clearUreaPasswordModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.classList.contains('show')) {
+            const instance = bootstrap.Modal.getInstance(el);
+            if (instance) instance.hide();
+            delayNeeded = true;
+        }
+    });
+
+    setTimeout(() => {
+        showSection('ureaSection');
+        clearUreaForm();
+        alert(`✅ Record #${sno} deleted.`);
+        refreshUploadInfo();
+    }, delayNeeded ? 300 : 0);
+}
+
+function clearUreaForm() {
     ['ureaSearch', 'ureaFarmerName', 'ureaFatherName', 'ureaMobile',
-     'ureaExtent', 'ureaBagsDist', 'ureaBagsEligible', 'ureaRemainingBags'].forEach(id => {
+     'ureaExtent', 'ureaBagsDist', 'ureaBagsEligible', 'ureaRemainingBags',
+     'dapBagsEligible', 'dapAlreadyGiven', 'dapRemainingBags', 'ureaAlreadyGiven'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
 
-    // Reset khatha controls
-    const khathaInput  = document.getElementById('ureaKhathaInput');
+    const cropEl = document.getElementById('ureaCrop');
+    if (cropEl) cropEl.value = '';
+
+    // FIX: Always keep the input visible as a placeholder so the layout doesn't collapse
+    const khathaInput = document.getElementById('ureaKhathaInput');
     const khathaSelect = document.getElementById('ureaKhathaSelect');
-    if (khathaInput)  { khathaInput.value = '';  khathaInput.style.display  = 'none'; }
-    if (khathaSelect) { khathaSelect.innerHTML = '<option value="">--Select Khatha--</option>'; khathaSelect.style.display = 'none'; }
+    if (khathaInput) { 
+        khathaInput.value = ''; 
+        khathaInput.style.display = 'block'; 
+    }
+    if (khathaSelect) { 
+        khathaSelect.innerHTML = '<option value="">--Select Khatha--</option>'; 
+        khathaSelect.style.display = 'none'; 
+    }
 
-    // Reset eligible bags note
-    const eligibleNote = document.getElementById('ureaBagsEligibleToShow');
-    if (eligibleNote) eligibleNote.textContent = '';
+    const ureaNote = document.getElementById('ureaBagsEligibleToShow');
+    const dapNote = document.getElementById('dapBagsEligibleToShow');
+    if (ureaNote) ureaNote.textContent = '';
+    if (dapNote) dapNote.textContent = '';
 
-    // Set today's date
     const dateEl = document.getElementById('ureaDate');
-    if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+    if (dateEl) dateEl.value = formatToday();
 
-    // Hide the fields panel
     const ureaFields = document.getElementById('ureaFields');
     if (ureaFields) ureaFields.classList.add('hidden');
 
-    // Focus the search box for immediate new entry
     setTimeout(() => {
         const searchEl = document.getElementById('ureaSearch');
         if (searchEl) searchEl.focus();
     }, 200);
 }
-         
-         function refreshKhathaDropdown() {
-             const sel = document.getElementById("ureaKhathaSelect"); if(!sel) return;
-             sel.innerHTML = '<option value="">--Select Khatha--</option>' + Object.keys(ureaData||{}).map(k => `<option value="${k}">${k}</option>`).join('');
-         }
-         function getCurrentKhatha() { return document.getElementById("ureaKhathaInput").value.trim() || document.getElementById("ureaKhathaSelect").value.trim(); }
-         function updateRemainingBagsDisplay(k) {
-             const rem = getRemainingBagsForKhatha(k), tot = getEligibleBagsForKhatha(k);
-             if(document.getElementById("ureaRemainingBags")) document.getElementById("ureaRemainingBags").value = rem;
-             document.getElementById("ureaBagsEligibleToShow").textContent = `(Total: ${tot})`;
-             document.getElementById("ureaBagsDist").max = rem; document.getElementById("ureaBagsDist").placeholder = `Max: ${rem} bags`;
-         }
-         
-         document.addEventListener("DOMContentLoaded", () => { refreshKhathaDropdown(); setMinDate(); });
-         document.getElementById("ureaDate").addEventListener("change", e => { if(e.target.value && e.target.value < formatToday()) { alert("Past dates not allowed."); e.target.value = ""; } });
-         
-         document.getElementById("ureaFileInput").addEventListener("change", e => {
-             const file = e.target.files[0]; if(!file) return;
-             const reader = new FileReader();
-             reader.onload = evt => {
-                ureaData = XLSX.utils.sheet_to_json(XLSX.read(evt.target.result, { type: "array" }).Sheets[XLSX.read(evt.target.result, { type: "array" }).SheetNames[0]], { defval: "" }).reduce((acc, r) => {
-                   const k = String(r["Khatha"] || "").trim(); if(!k) return acc;
-                   if(!acc[k]) acc[k] = { khatha: k, extent: 0, bagsEligible: Number(r["Bags Eligible"]||0), farmers: [] };
-                   acc[k].extent += isNaN(Number(r["Extent"])) ? 0 : Number(r["Extent"]); acc[k].farmers.push(r); return acc;
+
+function refreshKhathaDropdown() {
+    const sel = document.getElementById("ureaKhathaSelect");
+    if (!sel) return;
+    const data = getCurrentFertData();
+    sel.innerHTML = '<option value="">--Select Khatha--</option>' +
+        Object.keys(data).map(k => `<option value="${k}">${k}</option>`).join('');
+}
+
+function updateRemainingBagsDisplay(k) {
+    const fert = getSelectedFertilizer();
+    const eligible = getEligibleBagsForKhatha(k);
+    const already = getTotalBagsTakenByKhatha(k, fert);
+    const rem = Math.max(0, eligible - already);
+
+    const remEl = document.getElementById("ureaRemainingBags");
+    const noteEl = document.getElementById("ureaBagsEligibleToShow");
+    const bagsEl = document.getElementById("ureaBagsDist");
+
+    if (remEl) remEl.value = rem;
+    if (noteEl) noteEl.textContent = `(Total: ${eligible} | Already given [${fert}]: ${already})`;
+    if (bagsEl) {
+        bagsEl.max = rem;
+        bagsEl.placeholder = `Max: ${rem} bags`;
+    }
+}
+
+function updateUploadStatus(type, msg) {
+    const el = document.getElementById('fileStatus');
+    if (!el) return;
+    el.innerHTML = `<div class="alert alert-${type} py-2 mb-0">${msg}</div>`;
+}
+
+function refreshUploadInfo() {
+    const fert = getSelectedFertilizer(); // Uses your helper function to get the correct name
+    selectedFertilizerKey = fert;
+
+    const info = document.getElementById('uploadInfo');
+    if (!info) return;
+
+    const hasData = !!(ureaData[fert] && Object.keys(ureaData[fert]).length > 0);
+    const alreadyUploaded = !!uploadedFertilizers[fert];
+
+    if (hasData) {
+        info.textContent = `Status: ${fert} file available in cloud.`;
+        updateUploadStatus('success', `✅ ${fert} file available in cloud.`);
+    } else if (alreadyUploaded) {
+        info.textContent = `Status: ${fert} file already uploaded.`;
+        updateUploadStatus('warning', `⚠️ ${fert} file already uploaded.`);
+    } else {
+        info.textContent = `Status: ${fert} file not available. Please upload 1B Excel file.`;
+        updateUploadStatus('danger', `❌ ${fert} file not available. Please upload 1B Excel file.`);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    selectedFertilizerKey = document.querySelector('input[name="fertilizerType"]:checked')?.value || 'Urea';
+    refreshKhathaDropdown();
+    setMinDate();
+    toggleFertilizerBagBlocks();
+    refreshUploadInfo();
+});
+
+const dateInput = document.getElementById("ureaDate");
+if (dateInput) {
+    dateInput.addEventListener("change", e => {
+        if (e.target.value && e.target.value < formatToday()) {
+            alert("Past dates not allowed.");
+            e.target.value = "";
+        }
+    });
+}
+
+const fileInput = document.getElementById("ureaFileInput");
+if (fileInput) {
+    fileInput.addEventListener("change", e => {
+        const file = e.target.files[0];
+        if (!file) {
+            refreshUploadInfo();
+            return;
+        }
+
+        setSelectedFertilizerKey();
+        const fert = selectedFertilizerKey;
+        const reader = new FileReader();
+
+        reader.onload = evt => {
+            try {
+                const wb = XLSX.read(evt.target.result, { type: "array" });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+                if (!rows.length) {
+                    updateUploadStatus('danger', `❌ ${fert} file is empty.`);
+                    return alert("File is empty or unreadable.");
+                }
+
+                const parsed = rows.reduce((acc, r) => {
+                    const k = String(r["Khatha"] || "").trim();
+                    if (!k) return acc;
+
+                    if (!acc[k]) acc[k] = {
+                        khatha: k,
+                        extent: 0,
+                        bagsEligible: Number(r["Bags Eligible"] || 0),
+                        farmers: []
+                    };
+
+                    acc[k].extent += Number(r["Extent"] || 0) || 0;
+                    acc[k].farmers.push(r);
+                    return acc;
                 }, {});
-                saveToCloud(); refreshKhathaDropdown(); alert("1B Data Loaded & Synced to Cloud!");
-             };
-             reader.readAsArrayBuffer(file);
-         });
-         
-         function searchUreaFarmer() {
-            if (Object.keys(ureaData).length === 0) {
-                return alert("No 1B data found! Please upload the Village 1B Excel file first.");
+
+                if (!Object.keys(parsed).length) {
+                    updateUploadStatus('danger', `❌ No valid khatha found in ${fert} file.`);
+                    return alert("No valid Khatha data found.");
+                }
+
+                ureaData[fert] = parsed;
+                uploadedFertilizers[fert] = true;
+                saveToCloud();
+
+                updateUploadStatus('success', `✅ ${fert} file uploaded successfully. Khathas: ${Object.keys(parsed).length}`);
+                refreshUploadInfo();
+                refreshKhathaDropdown();
+                updateBagRecommendation();
+            } catch (err) {
+                updateUploadStatus('danger', `❌ Upload error: ${err.message}`);
             }
+        };
 
-            const a = cleanAadhaar(document.getElementById("ureaSearch").value);
-            if(a.length !== 12) return alert("Enter 12 digits Aadhaar.");
-            showAadhaarHistory(a);
+        reader.readAsArrayBuffer(file);
+    });
+}
 
-            const matches = Object.values(ureaData).filter(g => (g.farmers||[]).some(f => cleanAadhaar(f["Aadhaar"]) === a));
-            document.getElementById("ureaFields").classList.remove("hidden");
+const cropNPKRecommendations = {
+    paddy:      { N: 48,  P: 28, K: 20 },
+    maize:      { N: 60,  P: 30, K: 30 },
+    jowar:      { N: 24,  P: 16, K: 16 },
+    sugarcane:  { N: 60,  P: 20, K: 20 },
+    blackgram:  { N: 8,   P: 16, K: 16 },
+    greengram:  { N: 8,   P: 16, K: 16 },
+    cotton:     { N: 60,  P: 24, K: 24 },
+    bengalgram: { N: 12,  P: 24, K: 16 },
+    turmeric:   { N: 44,  P: 24, K: 60 },
+    yam:        { N: 32,  P: 16, K: 48 },
+    banana:     { N: 200, P: 40, K: 120 },
+    oilpalm:    { N: 48,  P: 24, K: 40 },
+    vegetables: { N: 48,  P: 32, K: 32 },
+    tomato:     { N: 60,  P: 40, K: 40 },
+    potato:     { N: 88,  P: 40, K: 80 },
+    onion:      { N: 48,  P: 24, K: 48 },
+    brinjal:    { N: 48,  P: 32, K: 48 }
+};
 
-            if(matches.length > 1) {
-               // Farmer found in multiple khathas — show dropdown to pick correct one
-               const f = matches[0].farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
-               document.getElementById("ureaFarmerName").value = f["Farmer Name"]||"";
-               document.getElementById("ureaFatherName").value = f["Father Name"]||"";
-               document.getElementById("ureaFarmerName").readOnly = true;
-               document.getElementById("ureaFatherName").readOnly = true;
-               const sel = document.getElementById("ureaKhathaSelect");
-               sel.innerHTML = '<option value="">--Select Khatha--</option>';
-               matches.forEach(m => {
-                  const opt = document.createElement('option');
-                  opt.value = m.khatha;
-                  opt.textContent = `Khatha ${m.khatha} (Extent: ${Number(m.extent||0).toFixed(2)})`;
-                  sel.appendChild(opt);
-               });
-               document.getElementById("ureaKhathaInput").style.display = "none";
-               sel.style.display = "block";
-               document.getElementById("ureaExtent").value = "";
-               document.getElementById("ureaBagsEligible").value = "";
-               document.getElementById("ureaBagsEligibleToShow").textContent = "";
-               document.getElementById("ureaRemainingBags").value = "";
-            } else if(matches.length === 1) {
-               // Exactly one khatha — fill everything automatically
-               const match = matches[0];
-               const f = match.farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
-               document.getElementById("ureaFarmerName").value = f["Farmer Name"]||"";
-               document.getElementById("ureaFatherName").value = f["Father Name"]||"";
-               document.getElementById("ureaFarmerName").readOnly = true;
-               document.getElementById("ureaFatherName").readOnly = true;
-               document.getElementById("ureaKhathaInput").value = match.khatha;
-               document.getElementById("ureaKhathaInput").style.display = "block";
-               document.getElementById("ureaKhathaSelect").style.display = "none";
-               document.getElementById("ureaExtent").value = Number(match.extent||0).toFixed(2);
-               document.getElementById("ureaBagsEligible").value = match.bagsEligible||0;
-               updateRemainingBagsDisplay(match.khatha);
-            } else {
-               // Farmer not found in 1B file
-               alert("Farmer not in master list. Please enter details manually.");
-               document.getElementById("ureaFarmerName").value = "";
-               document.getElementById("ureaFatherName").value = "";
-               document.getElementById("ureaFarmerName").readOnly = false;
-               document.getElementById("ureaFatherName").readOnly = false;
-               document.getElementById("ureaExtent").value = "";
-               document.getElementById("ureaBagsEligible").value = "";
-               document.getElementById("ureaBagsEligibleToShow").textContent = "";
-               document.getElementById("ureaKhathaInput").style.display = "none";
-               document.getElementById("ureaKhathaSelect").style.display = "block";
-               refreshKhathaDropdown();
-            }
-         }
+function getUreaBagsFromN(nKg) {
+    return Math.ceil(Number(nKg || 0) / (45 * 0.46));
+}
 
-         document.getElementById("ureaKhathaSelect").addEventListener("change", e => {
-             const k = e.target.value;
-             if(k && ureaData[k]) { document.getElementById("ureaExtent").value = Number(ureaData[k].extent||0).toFixed(2); document.getElementById("ureaBagsEligible").value = ureaData[k].bagsEligible||0; updateRemainingBagsDisplay(k); }
-             else { document.getElementById("ureaBagsEligible").value = ""; document.getElementById("ureaBagsEligibleToShow").textContent = ""; }
-         });
+function getDapBagsFromP(pKg) {
+    return Math.ceil(Number(pKg || 0) / (50 * 0.46));
+}
 
-         function recordDistribution() {
-             const k = getCurrentKhatha(), a = cleanAadhaar(document.getElementById("ureaSearch").value), n = document.getElementById("ureaFarmerName").value.trim(), fn = document.getElementById("ureaFatherName").value.trim(), m = document.getElementById("ureaMobile").value.trim(), e = document.getElementById("ureaExtent").value.trim(), b = document.getElementById("ureaBagsDist").value.trim(), d = document.getElementById("ureaDate").value.trim(), s = document.getElementById("ureaSeason").value.trim(), y = document.getElementById("ureaYear").value.trim();
-             if(!n||!fn||!m||!/^[0-9]{10}$/.test(m)) return alert("Check farmer details/mobile (10 digits)."); if(!k) return alert("Select/enter Khatha."); if(!b||Number(b)<=0) return alert("Enter bags.");
-             if(Number(b) > getRemainingBagsForKhatha(k)) return alert(`Khatha ${k} has only ${getRemainingBagsForKhatha(k)} bags remaining.`);
+function updateBagRecommendation() {
+    const crop = document.getElementById('ureaCrop')?.value || '';
+    const season = document.getElementById('ureaSeason')?.value || '';
+    const extent = Number(document.getElementById('ureaExtent')?.value || 0);
 
-             const sno = getNextSerialNo();
-             ureaHistory.push({ serialNo: sno, date: d, farmerName: n, fatherName: fn, aadhaar: a, mobile: m, khatha: k, extent: e, bags: b, season: s, year: y });
-             saveToCloud();
+    const card = document.getElementById('cropRecommendationCard');
+    const ureaEligible = document.getElementById('ureaBagsEligible');
+    const dapEligible = document.getElementById('dapBagsEligible');
+    const ureaRemaining = document.getElementById('ureaRemainingBags');
+    const dapRemaining = document.getElementById('dapRemainingBags');
 
-             document.getElementById("printSerialNo").textContent = sno; document.getElementById("printFarmerName").textContent = n; document.getElementById("printFatherName").textContent = fn; document.getElementById("printMobile").textContent = m; document.getElementById("printAadhaar").textContent = a; document.getElementById("printKhatha").textContent = k; document.getElementById("printExtent").textContent = e; document.getElementById("printBags").textContent = b; document.getElementById("printDate").textContent = d;
+    if (!crop || !season || !extent) {
+        if (card) card.innerHTML = 'Select crop and season to auto-calculate eligible Urea/DAP bags.';
+        if (ureaEligible) ureaEligible.value = '';
+        if (dapEligible) dapEligible.value = '';
+        if (ureaRemaining) ureaRemaining.value = '';
+        if (dapRemaining) dapRemaining.value = '';
+        const uNote = document.getElementById('ureaBagsEligibleToShow');
+        const dNote = document.getElementById('dapBagsEligibleToShow');
+        if (uNote) uNote.textContent = '';
+        if (dNote) dNote.textContent = '';
+        return;
+    }
 
-             document.getElementById("ureaSection").style.display = "none"; document.getElementById("printArea").style.display = "block";
-             setTimeout(() => { window.print(); document.getElementById("printArea").style.display = "none"; document.getElementById("ureaSection").style.display = "block"; clearUreaForm(); alert("Recorded & Printed!"); }, 400);
-         }
+    const rec = cropNPKRecommendations[crop];
+    if (!rec) {
+        if (card) card.innerHTML = `<span class="text-danger">No recommendation found for this crop.</span>`;
+        if (ureaEligible) ureaEligible.value = '';
+        if (dapEligible) dapEligible.value = '';
+        if (ureaRemaining) ureaRemaining.value = '';
+        if (dapRemaining) dapRemaining.value = '';
+        return;
+    }
 
-         function exportUreaData() {
+    const ureaBags = getUreaBagsFromN(rec.N * extent);
+    const dapBags = getDapBagsFromP(rec.P * extent);
+
+    if (card) {
+        card.innerHTML = `
+            <strong>Crop:</strong> ${crop.toUpperCase()}<br>
+            <strong>Season:</strong> ${season}<br>
+            <strong>Extent:</strong> ${extent.toFixed(2)} Acres<br>
+            <strong>Recommended N:</strong> ${rec.N} kg/acre → Urea Bags: ${ureaBags}<br>
+            <strong>Recommended P:</strong> ${rec.P} kg/acre → DAP Bags: ${dapBags}
+        `;
+    }
+
+    const khatha = getCurrentKhatha();
+    const fert = getSelectedFertilizer();
+    const ureaGiven = khatha ? getTotalBagsTakenByKhatha(khatha, 'Urea') : 0;
+    const dapGiven = khatha ? getTotalBagsTakenByKhatha(khatha, 'DAP') : 0;
+    const ureaRem = Math.max(0, ureaBags - ureaGiven);
+    const dapRem = Math.max(0, dapBags - dapGiven);
+
+    if (fert === 'Urea') {
+        if (ureaEligible) ureaEligible.value = ureaBags;
+        if (ureaRemaining) ureaRemaining.value = ureaRem;
+        const noteEl = document.getElementById('ureaBagsEligibleToShow');
+        if (noteEl) noteEl.textContent = `Eligible ${ureaBags}, Remaining ${ureaRem}`;
+    } else if (fert === 'DAP') {
+        if (dapEligible) dapEligible.value = dapBags;
+        if (dapRemaining) dapRemaining.value = dapRem;
+        const noteEl = document.getElementById('dapBagsEligibleToShow');
+        if (noteEl) noteEl.textContent = `Eligible ${dapBags}, Remaining ${dapRem}`;
+    }
+}
+
+function searchUreaFarmer() {
+    setSelectedFertilizerKey();
+    const fert = selectedFertilizerKey;
+    const data = getCurrentFertData();
+
+    if (Object.keys(data).length === 0) {
+        updateUploadStatus('danger', `❌ No [${fert}] data found. Upload 1B file first.`);
+        refreshUploadInfo();
+        return;
+    }
+
+    const a = cleanAadhaar(document.getElementById("ureaSearch")?.value);
+    if (a.length !== 12) return alert("Enter 12 digits Aadhaar.");
+
+    showAadhaarHistory(a);
+
+    const matches = Object.values(data).filter(g => {
+        const farmers = toArray(g.farmers);
+        return farmers.some(f => cleanAadhaar(f["Aadhaar"]) === a);
+    });
+
+    document.getElementById("ureaFields")?.classList.remove("hidden");
+
+    if (matches.length > 1) {
+        const farmers0 = toArray(matches[0].farmers);
+        const f = farmers0.find(x => cleanAadhaar(x["Aadhaar"]) === a);
+
+        document.getElementById("ureaFarmerName").value = f?.["Farmer Name"] || "";
+        document.getElementById("ureaFatherName").value = f?.["Father Name"] || "";
+        document.getElementById("ureaFarmerName").readOnly = true;
+        document.getElementById("ureaFatherName").readOnly = true;
+
+        const sel = document.getElementById("ureaKhathaSelect");
+        sel.innerHTML = '<option value="">--Select Khatha--</option>';
+        matches.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.khatha;
+            opt.textContent = `Khatha ${m.khatha} (Extent: ${Number(m.extent || 0).toFixed(2)})`;
+            sel.appendChild(opt);
+        });
+
+        document.getElementById("ureaKhathaInput").style.display = "none";
+        sel.style.display = "block";
+        document.getElementById("ureaExtent").value = "";
+        document.getElementById("ureaBagsEligible").value = "";
+        document.getElementById("ureaRemainingBags").value = "";
+        document.getElementById("ureaCrop").value = "";
+        document.getElementById("cropRecommendationCard").innerHTML = 'Select crop and season to auto-calculate eligible Urea/DAP bags.';
+    } else if (matches.length === 1) {
+        const match = matches[0];
+        const farmers = toArray(match.farmers);
+        const f = farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
+
+        document.getElementById("ureaFarmerName").value = f?.["Farmer Name"] || "";
+        document.getElementById("ureaFatherName").value = f?.["Father Name"] || "";
+        document.getElementById("ureaFarmerName").readOnly = true;
+        document.getElementById("ureaFatherName").readOnly = true;
+        document.getElementById("ureaKhathaInput").value = match.khatha;
+        document.getElementById("ureaKhathaInput").style.display = "block";
+        document.getElementById("ureaKhathaSelect").style.display = "none";
+        document.getElementById("ureaExtent").value = Number(match.extent || 0).toFixed(2);
+        document.getElementById("ureaBagsEligible").value = match.bagsEligible || 0;
+        document.getElementById("ureaCrop").value = "";
+        updateRemainingBagsDisplay(match.khatha);
+    } else {
+        alert(`Farmer not found in [${fert}] master list. Please enter details manually.`);
+        document.getElementById("ureaFarmerName").value = "";
+        document.getElementById("ureaFatherName").value = "";
+        document.getElementById("ureaFarmerName").readOnly = false;
+        document.getElementById("ureaFatherName").readOnly = false;
+        document.getElementById("ureaExtent").value = "";
+        document.getElementById("ureaBagsEligible").value = "";
+        document.getElementById("ureaKhathaInput").style.display = "none";
+        document.getElementById("ureaKhathaSelect").style.display = "block";
+        refreshKhathaDropdown();
+        document.getElementById("ureaCrop").value = "";
+        document.getElementById("cropRecommendationCard").innerHTML = 'Select crop and season to auto-calculate eligible Urea/DAP bags.';
+    }
+
+    updateBagRecommendation();
+}
+
+const khathaSelect = document.getElementById("ureaKhathaSelect");
+if (khathaSelect) {
+    khathaSelect.addEventListener("change", e => {
+        const k = e.target.value;
+        const data = getCurrentFertData();
+        if (k && data[k]) {
+            document.getElementById("ureaExtent").value = Number(data[k].extent || 0).toFixed(2);
+            document.getElementById("ureaBagsEligible").value = data[k].bagsEligible || 0;
+            updateRemainingBagsDisplay(k);
+        } else {
+            document.getElementById("ureaBagsEligible").value = "";
+            document.getElementById("ureaBagsEligibleToShow").textContent = "";
+        }
+        updateBagRecommendation();
+    });
+}
+
+function recordDistribution() {
+    setSelectedFertilizerKey();
+    const k = getCurrentKhatha();
+    const a = cleanAadhaar(document.getElementById("ureaSearch")?.value);
+    const n = document.getElementById("ureaFarmerName")?.value.trim();
+    const fn = document.getElementById("ureaFatherName")?.value.trim();
+    const m = document.getElementById("ureaMobile")?.value.trim();
+    const e = document.getElementById("ureaExtent")?.value.trim();
+    const b = document.getElementById("ureaBagsDist")?.value.trim();
+    const d = document.getElementById("ureaDate")?.value.trim();
+    const s = document.getElementById("ureaSeason")?.value.trim();
+    const y = document.getElementById("ureaYear")?.value.trim();
+    const crop = document.getElementById("ureaCrop")?.value || '';
+    const fert = selectedFertilizerKey;
+
+    if (!crop) return alert("Select crop.");
+    if (!s) return alert("Select season.");
+    if (!n || !fn || !m || !/^[0-9]{10}$/.test(m)) return alert("Check farmer details/mobile (10 digits).");
+    if (!k) return alert("Select/enter Khatha.");
+    if (!b || Number(b) <= 0) return alert("Enter bags.");
+
+    // FIX: Safely calculate eligible bags across ALL fertilizer types
+    let eligible = 0;
+    if (fert === 'Urea') {
+        eligible = Number(document.getElementById('ureaBagsEligible')?.value || 0);
+    } else if (fert === 'DAP') {
+        eligible = Number(document.getElementById('dapBagsEligible')?.value || 0);
+    }
+    
+    // Fallback to Excel upload data for MOP/NPK/Other, or if crop calc was empty
+    if (eligible === 0) {
+        eligible = getEligibleBagsForKhatha(k);
+    }
+
+    const given = getTotalBagsTakenByKhatha(k, fert);
+    const remain = Math.max(0, eligible - given);
+
+    // Only strictly block if we know they have a limit and they exceeded it
+    if (Number(b) > remain && eligible > 0) {
+        return alert(`Khatha ${k} has only ${remain} bags remaining for [${fert}].`);
+    }
+
+    const sno = getNextSerialNo();
+    ureaHistory.push({
+        serialNo: sno,
+        date: d,
+        farmerName: n,
+        fatherName: fn,
+        aadhaar: a,
+        mobile: m,
+        khatha: k,
+        extent: e,
+        crop: crop,
+        bags: b,
+        season: s,
+        year: y,
+        fertilizerType: fert
+    });
+    saveToCloud();
+
+    // SAFELY inject data into the print receipt
+    const printData = {
+        printSerialNo: sno,
+        printFarmerName: n,
+        printFatherName: fn,
+        printMobile: m,
+        printAadhaar: a,
+        printKhatha: k,
+        printExtent: e,
+        printBags: b,
+        printDate: d,
+        printFertilizer: fert
+    };
+
+    Object.keys(printData).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = printData[id];
+    });
+
+    document.getElementById("ureaSection").style.display = "none";
+    document.getElementById("printArea").style.display = "block";
+
+    setTimeout(() => {
+        window.print();
+        document.getElementById("printArea").style.display = "none";
+        document.getElementById("ureaSection").style.display = "block";
+        clearUreaForm();
+        alert("✅ Recorded & Printed!");
+    }, 400);
+}
+
+function exportUreaData() {
     if (!ureaHistory.length) return alert("No history.");
 
-    // Define exact column order matching the table headers
-    const headers = ['serialNo', 'date', 'farmerName', 'fatherName', 'aadhaar', 'mobile', 'khatha', 'extent', 'bags', 'season', 'year'];
-    const displayHeaders = ['S.No', 'Date', 'Name', 'Father', 'Aadhaar', 'Mobile', 'Khatha', 'Extent', 'Bags', 'Season', 'Year'];
-
-    // Build rows in exact column order
-    const rows = [displayHeaders];
+    const rows = [['S.No', 'Date', 'Fertilizer', 'Crop', 'Name', 'Father', 'Aadhaar', 'Mobile', 'Khatha', 'Extent', 'Bags', 'Season', 'Year']];
     ureaHistory.forEach(r => {
-        rows.push(headers.map(key => r[key] || ''));
+        rows.push([
+            r.serialNo || '',
+            r.date || '',
+            r.fertilizerType || 'Urea',
+            r.crop || '',
+            r.farmerName || '',
+            r.fatherName || '',
+            r.aadhaar || '',
+            r.mobile || '',
+            r.khatha || '',
+            r.extent || '',
+            r.bags || '',
+            r.season || '',
+            r.year || ''
+        ]);
     });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(rows);
-
-    // Set column widths for better readability
     ws['!cols'] = [
-        { wch: 6  },  // S.No
-        { wch: 12 },  // Date
-        { wch: 20 },  // Name
-        { wch: 20 },  // Father
-        { wch: 14 },  // Aadhaar
-        { wch: 13 },  // Mobile
-        { wch: 10 },  // Khatha
-        { wch: 10 },  // Extent
-        { wch: 8  },  // Bags
-        { wch: 10 },  // Season
-        { wch: 10 },  // Year
+        { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 14 },
+        { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 13 },
+        { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 10 }
     ];
-
-    XLSX.utils.book_append_sheet(wb, ws, "UreaHistory");
-    XLSX.writeFile(wb, `UreaDistributionHistory_${new Date().toISOString().split("T")[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "FertilizerHistory");
+    XLSX.writeFile(wb, `FertilizerDistributionHistory_${formatToday()}.xlsx`);
 }
 
-         function renderHistoryRows(rec) { return rec.map(r => `<tr><td>${r.serialNo||""}</td><td>${r.date||""}</td><td>${r.farmerName||""}</td><td>${r.fatherName||""}</td><td>${r.aadhaar||""}</td><td>${r.mobile||""}</td><td>${r.khatha||""}</td><td>${r.extent||""}</td><td><span class="badge bg-primary">${r.bags||""}</span></td><td>${r.season||""}</td><td>${r.year||""}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button></td></tr>`).join(""); }
-         function openHistoryModal(recs) {
-             document.getElementById("recordCount").textContent = `${recs.length} records`;
-             if(!recs.length) { document.querySelector("#modalHistoryTable tbody").innerHTML = ""; document.getElementById("noHistoryMsg").classList.remove("hidden"); }
-             else { document.getElementById("noHistoryMsg").classList.add("hidden"); document.querySelector("#modalHistoryTable tbody").innerHTML = renderHistoryRows(recs); }
-             new bootstrap.Modal(document.getElementById("ureaHistoryModal")).show();
-         }
-         function showUreaHistory() { openHistoryModal(ureaHistory); }
-         function filterModalHistory() { const s = document.getElementById("modalSearch").value.toLowerCase(); document.querySelectorAll("#modalHistoryTable tbody tr").forEach(r => r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none"); }
-         function clearUreaHistory() {
+function renderHistoryRows(rec) {
+    return rec.map(r => `
+        <tr>
+            <td>${r.serialNo || ""}</td>
+            <td>${r.date || ""}</td>
+            <td><span class="badge bg-success">${r.fertilizerType || 'Urea'}</span></td>
+            <td>${r.crop || ""}</td>
+            <td>${r.farmerName || ""}</td>
+            <td>${r.fatherName || ""}</td>
+            <td>${r.aadhaar || ""}</td>
+            <td>${r.mobile || ""}</td>
+            <td>${r.khatha || ""}</td>
+            <td>${r.extent || ""}</td>
+            <td><span class="badge bg-primary">${r.bags || ""}</span></td>
+            <td>${r.season || ""}</td>
+            <td>${r.year || ""}</td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-danger"
+                        onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button>
+            </td>
+        </tr>`).join("");
+}
+
+function openHistoryModal(recs) {
+    document.getElementById("recordCount").textContent = `${recs.length} records`;
+    if (!recs.length) {
+        document.querySelector("#modalHistoryTable tbody").innerHTML = "";
+        document.getElementById("noHistoryMsg").classList.remove("hidden");
+    } else {
+        document.getElementById("noHistoryMsg").classList.add("hidden");
+        document.querySelector("#modalHistoryTable tbody").innerHTML = renderHistoryRows(recs);
+    }
+    new bootstrap.Modal(document.getElementById("ureaHistoryModal")).show();
+}
+
+function showUreaHistory() {
+    openHistoryModal(ureaHistory);
+}
+
+function filterModalHistory() {
+    const s = document.getElementById("modalSearch").value.toLowerCase();
+    document.querySelectorAll("#modalHistoryTable tbody tr").forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none";
+    });
+}
+
+function clearUreaHistory() {
     ureaHistory = [];
     saveToCloud();
-
-    // Hide the modal first, then re-open cleanly after it fully closes
     const modalEl = document.getElementById('ureaHistoryModal');
     const modalInstance = bootstrap.Modal.getInstance(modalEl);
-
     if (modalInstance) {
-        // Wait for modal to fully close before re-opening
         modalEl.addEventListener('hidden.bs.modal', function handler() {
-            modalEl.removeEventListener('hidden.bs.modal', handler); // remove once used
+            modalEl.removeEventListener('hidden.bs.modal', handler);
             openHistoryModal([]);
         });
         modalInstance.hide();
     } else {
         openHistoryModal([]);
     }
-
     alert("Cleared!");
+    refreshUploadInfo();
 }
-        function clearOneUreaRecord(sno) {
-    let idx = ureaHistory.findIndex(r => r.serialNo === sno);
-    if (idx === -1) return alert("Not found.");
 
+function clearOneUreaRecord(sno) {
+    const idx = ureaHistory.findIndex(r => r.serialNo === sno);
+    if (idx === -1) return alert("Not found.");
     ureaHistory.splice(idx, 1);
     saveToCloud();
 
-    // Close ALL open modals cleanly
     ['aadhaarHistoryModal', 'ureaHistoryModal', 'clearUreaPasswordModal'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -2444,31 +3206,60 @@ function getRecommendation() {
         if (instance) instance.hide();
     });
 
-    // Remove any leftover Bootstrap backdrop (safety net)
     document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
     document.body.classList.remove('modal-open');
     document.body.style.removeProperty('overflow');
     document.body.style.removeProperty('padding-right');
 
-    // Go to urea section with a clean fresh form
     showSection('ureaSection');
     clearUreaForm();
-
-    alert(`Record #${sno} deleted. You can now enter a new distribution.`);
+    alert(`✅ Record #${sno} deleted.`);
+    refreshUploadInfo();
 }
 
-         function showAadhaarHistory(a) {
-             const c = cleanAadhaar(a), h = ureaHistory.filter(r => cleanAadhaar(r.aadhaar) === c);
-             if(!h.length) return alert("No history found for this Aadhaar.");
-             document.getElementById("aadhaarRecordCount").textContent = `${h.length} records for Aadhaar: ${c}`; document.getElementById("aadhaarRecordCount").classList.remove("hidden");
-             document.getElementById("noAadhaarHistoryMsg").classList.add("hidden");
-             document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => `<tr><td>${r.serialNo||""}</td><td>${r.date||""}</td><td>${r.farmerName||""}</td><td>${r.fatherName||""}</td><td>${r.khatha||""}</td><td>${r.extent||""}</td><td><span class="badge bg-primary">${r.bags||""}</span></td><td>${r.season||""}</td><td>${r.year||""}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button></td></tr>`).join("");
-             new bootstrap.Modal(document.getElementById("aadhaarHistoryModal")).show();
-         }
-         function filterAadhaarModalHistory() { const s = document.getElementById("aadhaarModalSearch").value.toLowerCase(); document.querySelectorAll("#aadhaarHistoryTable tbody tr").forEach(r => r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none"); }
-     // ---- ADMIN PANEL FUNCTIONS ----
+function showAadhaarHistory(a) {
+    const c = cleanAadhaar(a);
+    const h = ureaHistory.filter(r => cleanAadhaar(r.aadhaar) === c);
+    if (!h.length) return;
 
-let allAdminData = []; // cache for filtering/export
+    document.getElementById("aadhaarRecordCount").textContent = `${h.length} records for Aadhaar: ${c}`;
+    document.getElementById("aadhaarRecordCount").classList.remove("hidden");
+    document.getElementById("noAadhaarHistoryMsg").classList.add("hidden");
+
+    document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => `
+        <tr>
+            <td>${r.serialNo || ""}</td>
+            <td>${r.date || ""}</td>
+            <td><span class="badge bg-success">${r.fertilizerType || 'Urea'}</span></td>
+            <td>${r.crop || ""}</td>
+            <td>${r.farmerName || ""}</td>
+            <td>${r.fatherName || ""}</td>
+            <td>${r.khatha || ""}</td>
+            <td>${r.extent || ""}</td>
+            <td><span class="badge bg-primary">${r.bags || ""}</span></td>
+            <td>${r.season || ""}</td>
+            <td>${r.year || ""}</td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-danger"
+                        onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button>
+            </td>
+        </tr>`).join("");
+
+    new bootstrap.Modal(document.getElementById("aadhaarHistoryModal")).show();
+}
+
+function filterAadhaarModalHistory() {
+    const s = document.getElementById("aadhaarModalSearch").value.toLowerCase();
+    document.querySelectorAll("#aadhaarHistoryTable tbody tr").forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none";
+    });
+}
+
+
+    // ---- ADMIN PANEL FUNCTIONS ----
+
+let allAdminData = [];     // cache for Urea
+let allAdminDapData = [];  // cache for DAP
 
 function toggleAdminUser(id) {
     const el = document.getElementById(id);
@@ -2476,10 +3267,193 @@ function toggleAdminUser(id) {
     el.classList.toggle('hidden');
 }
 
+function toTitleCase(str) {
+    return (str || '').trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function normalizeHistory(raw) {
+    if (!raw) return [];
+    return Array.isArray(raw) ? raw : Object.values(raw);
+}
+
+function sumBags(hist) {
+    return hist.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+}
+
+function escapeId(str) {
+    return String(str || '').replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function buildGroupedReport(hist, userMeta, type) {
+    const mandalMap = {};
+
+    hist.forEach(r => {
+        const mandal = toTitleCase(r.mandal || userMeta.mandal || 'Unknown Mandal');
+        const village = toTitleCase(r.village || userMeta.village || 'Unknown Village');
+
+        if (!mandalMap[mandal]) mandalMap[mandal] = {};
+        if (!mandalMap[mandal][village]) mandalMap[mandal][village] = { rows: [], bags: 0 };
+
+        mandalMap[mandal][village].rows.push({
+            ...r,
+            mandal,
+            village,
+            userUID: userMeta.uid,
+            email: userMeta.email,
+            name: userMeta.name,
+            type
+        });
+
+        mandalMap[mandal][village].bags += Number(r.bags) || 0;
+    });
+
+    return mandalMap;
+}
+
+function renderFarmerList(rows) {
+    if (!rows.length) {
+        return `<div class="alert alert-light py-2 mb-0">No farmer records found.</div>`;
+    }
+
+    return `
+    <div class="table-responsive mt-2">
+        <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width:60px;">S.No</th>
+                    <th>Farmer Name</th>
+                    <th>Father Name</th>
+                    <th>Aadhaar</th>
+                    <th>Mobile</th>
+                    <th>Khatha</th>
+                    <th>Extent</th>
+                    <th>Bags</th>
+                    <th>Season</th>
+                    <th>Year</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows.map((r, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${escapeHtml(r.farmerName || '')}</td>
+                        <td>${escapeHtml(r.fatherName || '')}</td>
+                        <td>${escapeHtml(r.aadhaar || '')}</td>
+                        <td>${escapeHtml(r.mobile || '')}</td>
+                        <td>${escapeHtml(String(r.khatha || ''))}</td>
+                        <td>${escapeHtml(String(r.extent || ''))}</td>
+                        <td><strong>${Number(r.bags) || 0}</strong></td>
+                        <td>${escapeHtml(r.season || '')}</td>
+                        <td>${escapeHtml(r.year || '')}</td>
+                    </tr>`).join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function renderVillageRows(type, mandal, villages) {
+    const villageNames = Object.keys(villages).sort();
+    const mandalKey = escapeId(mandal);
+
+    return `
+    <div class="ms-3 mt-2">
+        <table class="table table-sm table-bordered mb-0">
+            <thead class="${type === 'urea' ? 'table-warning' : 'table-info'}">
+                <tr>
+                    <th style="width:70px;">S.No</th>
+                    <th>Village Name</th>
+                    <th style="width:180px;">Bags Distributed</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${villageNames.map((village, i) => {
+                    const vId = `${type}_village_${mandalKey}_${escapeId(village)}`;
+                    return `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>
+                            <a href="javascript:void(0)" class="fw-semibold text-decoration-none text-success"
+                               onclick="toggleAdminUser('${vId}')">
+                                ${escapeHtml(village)}
+                            </a>
+                        </td>
+                        <td>${villages[village].bags}</td>
+                    </tr>
+                    <tr id="${vId}" class="hidden">
+                        <td colspan="3" class="bg-white">
+                            ${renderFarmerList(villages[village].rows)}
+                        </td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function renderMandalReport(type, grouped) {
+    const mandals = Object.keys(grouped).sort();
+
+    if (!mandals.length) {
+        return `<div class="alert alert-light">No ${type.toUpperCase()} records found.</div>`;
+    }
+
+    return `
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="${type === 'urea' ? 'table-warning' : 'table-info'}">
+                <tr>
+                    <th style="width:70px;">S.No</th>
+                    <th>Mandal Name</th>
+                    <th style="width:200px;">Number of Bags Distributed</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${mandals.map((mandal, i) => {
+                    const villages = grouped[mandal];
+                    const totalBags = Object.values(villages).reduce((s, v) => s + v.bags, 0);
+                    const mId = `${type}_mandal_${escapeId(mandal)}`;
+
+                    return `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>
+                            <a href="javascript:void(0)" class="fw-bold text-decoration-none ${type === 'urea' ? 'text-warning' : 'text-primary'}"
+                               onclick="toggleAdminUser('${mId}')">
+                                ${escapeHtml(mandal)}
+                            </a>
+                        </td>
+                        <td>${totalBags}</td>
+                    </tr>
+                    <tr id="${mId}" class="hidden">
+                        <td colspan="3" class="bg-light">
+                            ${renderVillageRows(type, mandal, villages)}
+                        </td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function switchAdminTab(tab) {
+    const all = document.getElementById('allUsersView');
+    const urea = document.getElementById('ureaReportView');
+    const dap = document.getElementById('dapReportView');
+
+    if (all) all.classList.add('hidden');
+    if (urea) urea.classList.add('hidden');
+    if (dap) dap.classList.add('hidden');
+
+    if (tab === 'all' && all) all.classList.remove('hidden');
+    if (tab === 'urea' && urea) urea.classList.remove('hidden');
+    if (tab === 'dap' && dap) dap.classList.remove('hidden');
+}
+
 function loadAdminData() {
     if (!isAdmin()) return alert('Access denied.');
 
-    document.getElementById('adminUsersContainer').innerHTML = `
+    const container = document.getElementById('adminUsersContainer');
+    container.innerHTML = `
         <div class="text-center text-muted p-5">
             <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
             <p>Loading all users data...</p>
@@ -2488,273 +3462,105 @@ function loadAdminData() {
     database.ref('users').once('value')
         .then(snapshot => {
             if (!snapshot.exists()) {
-                document.getElementById('adminUsersContainer').innerHTML =
-                    '<div class="alert alert-warning">No user data found.</div>';
+                container.innerHTML = '<div class="alert alert-warning">No user data found.</div>';
                 return;
             }
 
             const usersData = snapshot.val();
-            let totalUsers = 0, totalDist = 0, totalBags = 0;
-            allAdminData = [];
+let totalUsers = 0, totalDist = 0, totalUreaBags = 0, totalDapBags = 0;
 
-            // Group: mandalMap[mandal][village] = [ {uid, email, ureaHist, reports, bags}, ... ]
-            const mandalMap = {};
+allAdminData = [];     // Urea Cache
+allAdminDapData = [];  // DAP Cache
 
-            Object.entries(usersData).forEach(([uid, data]) => {
-                if (!data || typeof data !== 'object') return;
-                totalUsers++;
+const ureaGrouped = {};
+const dapGrouped = {};
 
-                const profile  = data.profile  || {};
-                const mandal   = (profile.mandal  || 'Unknown Mandal').trim();
-                const village  = (profile.village || 'Unknown Village').trim();
-                const email    = data.userEmail || profile.email || uid;
-                const name     = profile.name   || data.displayName || email;
+Object.entries(usersData).forEach(([uid, data]) => {
+    if (!data || typeof data !== 'object') return;
+    totalUsers++;
 
-                const ureaHist = Array.isArray(data.ureaHistory)
-                    ? data.ureaHistory
-                    : (data.ureaHistory ? Object.values(data.ureaHistory) : []);
-                const reports  = data.allReports || {};
-                const bags     = ureaHist.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+    const profile = data.profile || {};
+    const mandal = toTitleCase(profile.mandal || 'Unknown Mandal');
+    const village = toTitleCase(profile.village || 'Unknown Village');
+    const email = data.userEmail || profile.email || uid;
+    const name = profile.name || data.displayName || email;
 
-                totalDist += ureaHist.length;
-                totalBags += bags;
-                ureaHist.forEach(r => allAdminData.push({ ...r, userUID: uid, email, mandal, village }));
+    // Everything is saved in ureaHistory, so we fetch it and filter dynamically
+    const allFertHistory = normalizeHistory(data.ureaHistory);
+    
+    // Split the data by fertilizer type
+    const ureaHist = allFertHistory.filter(r => r.fertilizerType === 'Urea' || !r.fertilizerType);
+    const dapHist = allFertHistory.filter(r => r.fertilizerType === 'DAP');
 
-                if (!mandalMap[mandal])          mandalMap[mandal] = {};
-                if (!mandalMap[mandal][village]) mandalMap[mandal][village] = [];
-                mandalMap[mandal][village].push({ uid, email, name, ureaHist, reports, bags });
-            });
+    const ureaBags = sumBags(ureaHist);
+    const dapBags = sumBags(dapHist);
 
-            let html = '';
+    totalDist += ureaHist.length + dapHist.length;
+    totalUreaBags += ureaBags;
+    totalDapBags += dapBags;
 
-            Object.keys(mandalMap).sort().forEach(mandal => {
-                const villages   = mandalMap[mandal];
-                const mandalBags = Object.values(villages).flat().reduce((s, u) => s + u.bags, 0);
-                const mandalDist = Object.values(villages).flat().reduce((s, u) => s + u.ureaHist.length, 0);
-                const mandalRpts = Object.values(villages).flat().reduce((s, u) => s + Object.keys(u.reports).length, 0);
-                const safeMandalId = 'mandal_' + mandal.replace(/[^a-zA-Z0-9]/g, '_');
+    ureaHist.forEach(r => {
+        allAdminData.push({ ...r, userUID: uid, email, mandal, village });
+    });
 
-                html += `
-                <div class="card mb-4 border-0 shadow">
-                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
-                         style="background:linear-gradient(135deg,#1862ab,#2980b9);color:white;cursor:pointer;border-radius:12px 12px 0 0;"
-                         onclick="toggleAdminUser('${safeMandalId}')">
-                        <h5 class="mb-0">
-                            <i class="fas fa-map-marker-alt me-2"></i>
-                            ${escapeHtml(mandal)} Mandal
-                            <small class="ms-2 opacity-75" style="font-size:0.75rem;">
-                                (${Object.keys(villages).length} village${Object.keys(villages).length > 1 ? 's' : ''})
-                            </small>
-                        </h5>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <span class="badge bg-warning text-dark">${mandalRpts} Reports</span>
-                            <span class="badge bg-info text-dark">${mandalDist} Distributions</span>
-                            <span class="badge bg-success">${mandalBags} Bags</span>
-                        </div>
-                    </div>
+    dapHist.forEach(r => {
+        allAdminDapData.push({ ...r, userUID: uid, email, mandal, village });
+    });
 
-                    <div id="${safeMandalId}" class="hidden p-3" style="background:#f8faff;">`;
+    if (ureaHist.length) {
+        if (!ureaGrouped[mandal]) ureaGrouped[mandal] = {};
+        if (!ureaGrouped[mandal][village]) ureaGrouped[mandal][village] = { rows: [], bags: 0 };
+        ureaHist.forEach(r => {
+            ureaGrouped[mandal][village].rows.push({ ...r, mandal, village, userUID: uid, email, name, type: 'urea' });
+            ureaGrouped[mandal][village].bags += Number(r.bags) || 0;
+        });
+    }
 
-                Object.keys(villages).sort().forEach(village => {
-                    const users     = villages[village];
-                    const vilBags   = users.reduce((s, u) => s + u.bags, 0);
-                    const vilDist   = users.reduce((s, u) => s + u.ureaHist.length, 0);
-                    const vilRpts   = users.reduce((s, u) => s + Object.keys(u.reports).length, 0);
-                    const safeVilId = 'village_' + village.replace(/[^a-zA-Z0-9]/g, '_') + '_' + mandal.replace(/[^a-zA-Z0-9]/g, '_');
+    if (dapHist.length) {
+        if (!dapGrouped[mandal]) dapGrouped[mandal] = {};
+        if (!dapGrouped[mandal][village]) dapGrouped[mandal][village] = { rows: [], bags: 0 };
+        dapHist.forEach(r => {
+            dapGrouped[mandal][village].rows.push({ ...r, mandal, village, userUID: uid, email, name, type: 'dap' });
+            dapGrouped[mandal][village].bags += Number(r.bags) || 0;
+        });
+    }
+});
 
-                    html += `
-                    <div class="card mb-3 border-0 shadow-sm">
-                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
-                             style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9);cursor:pointer;border-radius:10px 10px 0 0;"
-                             onclick="toggleAdminUser('${safeVilId}')">
-                            <h6 class="mb-0 text-success fw-bold">
-                                <i class="fas fa-home me-2"></i>${escapeHtml(village)} Village
-                                <small class="ms-2 text-muted fw-normal" style="font-size:0.75rem;">
-                                    (${users.length} user${users.length > 1 ? 's' : ''})
-                                </small>
-                            </h6>
-                            <div class="d-flex gap-2 flex-wrap">
-                                <span class="badge bg-warning text-dark">${vilRpts} Reports</span>
-                                <span class="badge bg-primary">${vilDist} Distributions</span>
-                                <span class="badge bg-success">${vilBags} Bags</span>
-                            </div>
-                        </div>
+            document.getElementById('adminTotalUsers').textContent = totalUsers;
+    document.getElementById('adminTotalDistributions').textContent = totalDist;
+    document.getElementById('adminTotalUreaBags').textContent = totalUreaBags;
+    document.getElementById('adminTotalDapBags').textContent = totalDapBags;
 
-                        <div id="${safeVilId}" class="hidden p-3">`;
+    // Inject the export buttons directly into the dynamically built views
+    container.innerHTML = `
+        <div id="allUsersView" class="hidden">
+            <div class="alert alert-info">Use the tabs to view Urea or DAP mandal-wise reports.</div>
+        </div>
 
-                    users.sort((a, b) => a.email.localeCompare(b.email)).forEach(u => {
-                        const safeUid    = u.uid.replace(/[^a-zA-Z0-9]/g, '_');
-                        const reportKeys = Object.keys(u.reports);
+        <div id="ureaReportView" class="hidden">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="text-warning fw-bold"><i class="fas fa-flask me-2"></i>Urea Report</h5>
+                <button class="btn btn-sm btn-warning" onclick="exportFertilizerData('urea')">
+                    <i class="fas fa-file-excel me-1"></i> Export Urea Excel
+                </button>
+            </div>
+            ${renderMandalReport('urea', ureaGrouped)}
+        </div>
 
-                        html += `
-                        <div class="card mb-3 border border-primary border-opacity-25 shadow-sm">
-                            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
-                                 style="background:linear-gradient(135deg,#e3f2fd,#f5f8ff);border-radius:8px 8px 0 0;">
-                                <div>
-                                    <i class="fas fa-user-circle text-primary me-2"></i>
-                                    <strong>${escapeHtml(u.email)}</strong>
-                                    ${u.name && u.name !== u.email
-                                        ? `<span class="text-muted ms-2" style="font-size:0.85rem;">(${escapeHtml(u.name)})</span>`
-                                        : ''}
-                                </div>
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <span class="badge bg-warning text-dark">${reportKeys.length} e-Panta</span>
-                                    <span class="badge bg-primary">${u.ureaHist.length} Urea</span>
-                                    <span class="badge bg-success">${u.bags} Bags</span>
-                                </div>
-                            </div>
+        <div id="dapReportView" class="hidden">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="text-info fw-bold"><i class="fas fa-seedling me-2"></i>DAP Report</h5>
+                <button class="btn btn-sm btn-info text-white" onclick="exportFertilizerData('dap')">
+                    <i class="fas fa-file-excel me-1"></i> Export DAP Excel
+                </button>
+            </div>
+            ${renderMandalReport('dap', dapGrouped)}
+        </div>`;
 
-                            <div class="card-body p-3">
-
-                                <!-- e-Panta Reports -->
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="fw-bold text-warning mb-0">
-                                        <i class="fas fa-list-alt me-1"></i> e-Panta Crop Reports
-                                    </h6>
-                                    <button class="btn btn-sm btn-outline-warning"
-                                            onclick="toggleAdminUser('ep_${safeUid}')">
-                                        <i class="fas fa-eye me-1"></i>Show/Hide
-                                    </button>
-                                </div>
-                                <div id="ep_${safeUid}" class="hidden mb-3">
-                                    ${reportKeys.length === 0
-                                        ? '<div class="alert alert-light py-2 mb-0"><i class="fas fa-info-circle me-2 text-muted"></i>No e-Panta reports uploaded yet.</div>'
-                                        : reportKeys.sort().map(key => {
-                                            const rpt       = u.reports[key];
-                                            const [yr, ssn] = key.split('_');
-                                            const safeKey   = key.replace(/[^a-zA-Z0-9]/g, '_');
-                                            const crops     = rpt.summary?.crops || [];
-                                            const farmers   = rpt.summary?.totalFarmers || 0;
-                                            const area      = (rpt.summary?.totalArea || 0).toFixed(2);
-                                            return `
-                                            <div class="card mb-2 border-warning border-opacity-25">
-                                                <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center flex-wrap gap-1"
-                                                     style="cursor:pointer;"
-                                                     onclick="toggleAdminUser('rpt_${safeUid}_${safeKey}')">
-                                                    <strong>
-                                                        <i class="fas fa-file-alt me-1 text-warning"></i>
-                                                        ${escapeHtml(yr || key)} — ${escapeHtml(ssn || '')}
-                                                    </strong>
-                                                    <div>
-                                                        <span class="badge bg-primary me-1">${farmers} Farmers</span>
-                                                        <span class="badge bg-success me-1">${area} Acres</span>
-                                                        <span class="badge bg-secondary">${crops.length} Crops</span>
-                                                    </div>
-                                                </div>
-                                                <div id="rpt_${safeUid}_${safeKey}" class="hidden p-2">
-                                                    <div class="table-responsive">
-                                                        <table class="table table-sm table-bordered mb-0">
-                                                            <thead>
-                                                                <tr class="bg-primary">
-                                                                    <th class="text-white">Crop Name</th>
-                                                                    <th class="text-white text-center">Unique Farmers</th>
-                                                                    <th class="text-white text-center">Area (Acres)</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                ${crops.length === 0
-                                                                    ? '<tr><td colspan="3" class="text-center text-muted">No crop data</td></tr>'
-                                                                    : crops.map(c => `
-                                                                        <tr>
-                                                                            <td>${escapeHtml(c.cropName)}</td>
-                                                                            <td class="text-center">${c.uniqueFarmers}</td>
-                                                                            <td class="text-center">${(c.areaSown || 0).toFixed(2)}</td>
-                                                                        </tr>`).join('')
-                                                                }
-                                                            </tbody>
-                                                            <tfoot>
-                                                                <tr class="table-light fw-bold">
-                                                                    <td>Total</td>
-                                                                    <td class="text-center">${farmers}</td>
-                                                                    <td class="text-center">${area}</td>
-                                                                </tr>
-                                                            </tfoot>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            </div>`;
-                                        }).join('')
-                                    }
-                                </div>
-
-                                <!-- Urea Distribution -->
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="fw-bold text-primary mb-0">
-                                        <i class="fas fa-seedling me-1"></i> Urea Distribution History
-                                    </h6>
-                                    <button class="btn btn-sm btn-outline-primary"
-                                            onclick="toggleAdminUser('ur_${safeUid}')">
-                                        <i class="fas fa-eye me-1"></i>Show/Hide
-                                    </button>
-                                </div>
-                                <div id="ur_${safeUid}" class="hidden">
-                                    ${u.ureaHist.length === 0
-                                        ? '<div class="alert alert-light py-2"><i class="fas fa-info-circle me-2 text-muted"></i>No urea distributions yet.</div>'
-                                        : `<div class="table-responsive">
-                                            <table class="table table-hover table-sm mb-0" style="font-size:0.88rem;">
-                                                <thead>
-                                                    <tr class="bg-primary">
-                                                        <th class="text-white">S.No</th>
-                                                        <th class="text-white">Date</th>
-                                                        <th class="text-white">Farmer Name</th>
-                                                        <th class="text-white">Father Name</th>
-                                                        <th class="text-white">Aadhaar</th>
-                                                        <th class="text-white">Mobile</th>
-                                                        <th class="text-white">Khatha</th>
-                                                        <th class="text-white">Extent</th>
-                                                        <th class="text-white">Bags</th>
-                                                        <th class="text-white">Season</th>
-                                                        <th class="text-white">Year</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    ${u.ureaHist.map((r, i) => `
-                                                    <tr>
-                                                        <td>${i + 1}</td>
-                                                        <td>${escapeHtml(r.date || '')}</td>
-                                                        <td class="fw-medium">${escapeHtml(r.farmerName || '')}</td>
-                                                        <td>${escapeHtml(r.fatherName || '')}</td>
-                                                        <td><code style="font-size:0.8rem;">${escapeHtml(r.aadhaar || '')}</code></td>
-                                                        <td>${escapeHtml(r.mobile || '')}</td>
-                                                        <td><span class="badge bg-secondary">${escapeHtml(String(r.khatha || ''))}</span></td>
-                                                        <td>${escapeHtml(String(r.extent || ''))}</td>
-                                                        <td><strong class="text-success">${r.bags || 0}</strong></td>
-                                                        <td>${escapeHtml(r.season || '')}</td>
-                                                        <td>${escapeHtml(r.year || '')}</td>
-                                                    </tr>`).join('')}
-                                                </tbody>
-                                                <tfoot>
-                                                    <tr class="table-light fw-bold">
-                                                        <td colspan="8" class="text-end">Total Bags:</td>
-                                                        <td class="text-success">${u.bags}</td>
-                                                        <td colspan="2"></td>
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
-                                           </div>`
-                                    }
-                                </div>
-
-                                <!-- Future report blocks go here — follow same pattern -->
-
-                            </div>
-                        </div>`;
-                    }); // end users
-
-                    html += `</div></div>`; // close village
-                }); // end villages
-
-                html += `</div></div>`; // close mandal
-            }); // end mandals
-
-            document.getElementById('adminTotalUsers').textContent         = totalUsers;
-            document.getElementById('adminTotalDistributions').textContent = totalDist;
-            document.getElementById('adminTotalBags').textContent          = totalBags;
-            document.getElementById('adminUsersContainer').innerHTML       =
-                html || '<div class="alert alert-info">No data found.</div>';
-        })
+    switchAdminTab('all');
+})
         .catch(err => {
-            document.getElementById('adminUsersContainer').innerHTML = `
+            container.innerHTML = `
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>Permission Error:</strong> ${escapeHtml(err.message)}<br>
@@ -2762,6 +3568,66 @@ function loadAdminData() {
                 </div>`;
         });
 }
-     </script>
-   </body>
+function exportAdminData() {
+    if ((!allAdminData || !allAdminData.length) && (!allAdminDapData || !allAdminDapData.length)) {
+        return alert('No data to export.');
+    }
+    const wb = XLSX.utils.book_new();
+
+    if (allAdminData && allAdminData.length) {
+        const uRows = [['Date', 'Mandal', 'Village', 'Farmer', 'Aadhaar', 'Khatha', 'Bags', 'Entered By']];
+        allAdminData.forEach(r => uRows.push([r.date || '', r.mandal || '', r.village || '', r.farmerName || '', r.aadhaar || '', r.khatha || '', r.bags || '', r.email || '']));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(uRows), "Urea_Data");
+    }
+    if (allAdminDapData && allAdminDapData.length) {
+        const dRows = [['Date', 'Mandal', 'Village', 'Farmer', 'Aadhaar', 'Khatha', 'Bags', 'Entered By']];
+        allAdminDapData.forEach(r => dRows.push([r.date || '', r.mandal || '', r.village || '', r.farmerName || '', r.aadhaar || '', r.khatha || '', r.bags || '', r.email || '']));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dRows), "DAP_Data");
+    }
+
+    XLSX.writeFile(wb, `Admin_All_Fertilizers_${formatToday()}.xlsx`);
+}
+
+function exportFertilizerData(type) {
+    const dataToExport = type === 'urea' ? allAdminData : allAdminDapData;
+    if (!dataToExport || !dataToExport.length) return alert(`No ${type.toUpperCase()} data to export.`);
+
+    const rows = [['Date', 'Mandal', 'Village', 'Farmer', 'Aadhaar', 'Khatha', 'Bags', 'Entered By']];
+    dataToExport.forEach(r => rows.push([
+        r.date || '', r.mandal || '', r.village || '', r.farmerName || '',
+        r.aadhaar || '', r.khatha || '', r.bags || '', r.email || ''
+    ]));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), `${type.toUpperCase()}_Data`);
+    XLSX.writeFile(wb, `Admin_${type.toUpperCase()}_Report_${formatToday()}.xlsx`);
+}
+
+function filterAdminTable() {
+    const val = document.getElementById('adminSearchInput').value.toLowerCase().trim();
+    const container = document.getElementById('adminUsersContainer');
+    if (!container) return;
+
+    // Uncollapse mandal/village layers automatically if user is searching
+    if (val.length > 0) {
+        container.querySelectorAll('tr.hidden').forEach(tr => {
+            if(tr.id && (tr.id.includes('_mandal_') || tr.id.includes('_village_'))) {
+                tr.classList.remove('hidden');
+            }
+        });
+    }
+
+    // Filter the actual farmer rows
+    const farmerRows = container.querySelectorAll('tbody tr');
+    farmerRows.forEach(tr => {
+        // Only target rows that hold farmer data (no IDs, lots of columns)
+        if(!tr.id && tr.cells.length > 5) {
+            const text = tr.textContent.toLowerCase();
+            tr.style.display = text.includes(val) ? '' : 'none';
+        }
+    });
+}
+
+    </script>
+    </body>
 </html>
