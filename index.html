@@ -1190,7 +1190,15 @@
       <p style="margin:5px 0; font-size:14px;"><strong>Village:</strong> ________ &nbsp; <strong>Mandal:</strong> ________</p>
    </div>
    <table style="width:100%; border-collapse:collapse; margin-bottom:30px; font-size:14px;">
-      <tr><td style="padding:12px; border:1px solid #333; width:50%;"><strong>Form S.No:</strong></td><td style="padding:12px; border:1px solid #333;"><strong>Fertilizer:</strong></td></tr>
+
+      <tr>
+    <td style="padding:12px; border:1px solid #333; width:50%">
+        <strong>Form S.No</strong> &nbsp; <span id="printSerialNo" style="font-weight:600; color:#1976d2"></span>
+    </td>
+    <td style="padding:12px; border:1px solid #333">
+        <strong>Fertilizer</strong> &nbsp; <span id="printFertilizer" style="font-weight:600; color:#d32f2f"></span>
+    </td>
+</tr>
       <tr><td style="padding:12px; border:1px solid #333;"><strong>Name:</strong> <span id="printFarmerName" style="font-weight:600;"></span></td><td style="padding:12px; border:1px solid #333;"><strong>Father:</strong> <span id="printFatherName"></span></td></tr>
       <tr><td style="padding:12px; border:1px solid #333;"><strong>Mobile:</strong> <span id="printMobile"></span></td><td style="padding:12px; border:1px solid #333;"><strong>Aadhaar:</strong> <span id="printAadhaar"></span></td></tr>
       <tr><td style="padding:12px; border:1px solid #333;"><strong>Khatha:</strong> <span id="printKhatha" style="font-weight:600;"></span></td><td style="padding:12px; border:1px solid #333;"><strong>Extent:</strong> <span id="printExtent"></span> Ac</td></tr>
@@ -3069,23 +3077,20 @@ function recordDistribution() {
     saveToCloud();
 
     // SAFELY inject data into the print receipt
-    const printData = {
-        printSerialNo: sno,
-        printFarmerName: n,
-        printFatherName: fn,
-        printMobile: m,
-        printAadhaar: a,
-        printKhatha: k,
-        printExtent: e,
-        printBags: b,
-        printDate: d,
-        printFertilizer: fert
-    };
+    document.getElementById("printSerialNo").textContent    = sno;
+document.getElementById("printFertilizer").textContent  = fert;
+document.getElementById("printFarmerName").textContent  = n;
+document.getElementById("printFatherName").textContent  = fn;
+document.getElementById("printMobile").textContent      = m;
+document.getElementById("printAadhaar").textContent     = a;
+document.getElementById("printKhatha").textContent      = k;
+document.getElementById("printExtent").textContent      = e;
+document.getElementById("printBags").textContent        = b;
+document.getElementById("printDate").textContent        = d;
 
-    Object.keys(printData).forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = printData[id];
-    });
+// Also update the title heading (already exists in your HTML)
+const titleEl = document.getElementById("printFormTitle");
+if (titleEl) titleEl.textContent = `${fert} Distribution`;
 
     document.getElementById("ureaSection").style.display = "none";
     document.getElementById("printArea").style.display = "block";
