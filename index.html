@@ -670,13 +670,16 @@
             </div>
 
             <div class="row">
-                <div class="col-md-4 mb-2">
-                    <label>Crop Year:</label>
-                    <select id="ureaYear" class="form-select">
-                        <option>2026-27</option>
-                        <option>2027-28</option>
-                    </select>
-                </div>
+    <div class="col-md-4 mb-2">
+        <label>Crop Year:</label>
+        <select id="ureaYear" class="form-select">
+            <option value="">-- Select Year --</option>
+<option value="">2025-26</option>
+<option value="">2026-27</option>
+<option value="">2027-28</option>
+
+        </select>
+    </div>
 
                 <div class="col-md-4 mb-2">
                     <label>Season:</label>
@@ -707,9 +710,11 @@
                     <input type="number" id="ureaRemainingBags" class="form-control" readonly>
                 </div>
                 <div class="col-md-4 mb-2">
-                    <label>Bags Distributing Now:</label>
-                    <input type="number" id="ureaBagsDist" class="form-control" placeholder="Enter bags">
-                </div>
+    <label>Bags Distributing Now:</label>
+    <input type="number" id="ureaBagsDist" class="form-control" 
+           placeholder="Enter bags" min="1" step="1"
+           oninput="this.value = Math.abs(Math.floor(this.value) || '')">
+</div>
                 <div class="col-md-4 mb-2">
                     <label>Date:</label>
                     <input type="date" id="ureaDate" class="form-control">
@@ -2435,10 +2440,11 @@ function getRecommendation() {
              document.getElementById('dataSection').style.display = 'none'; document.getElementById('damagedSurveysCard').style.display = 'none';
          }
          
-       // --- FERTILIZER / UREA DISTRIBUTION LOGIC ---
+      // --- FERTILIZER / UREA DISTRIBUTION LOGIC ---
 
-let uploadedFertilizers = {};
+let uploadedFertilizers   = {};
 let selectedFertilizerKey = 'Urea';
+let _isManualEntry        = false;
 
 function formatToday() {
     const d = new Date();
@@ -2476,11 +2482,11 @@ function setSelectedFertilizerKey() {
 }
 
 function toggleFertilizerBagBlocks() {
-    const fert = getSelectedFertilizer();
+    const fert      = getSelectedFertilizer();
     const ureaBlock = document.getElementById('ureaBagBlock');
-    const dapBlock = document.getElementById('dapBagBlock');
+    const dapBlock  = document.getElementById('dapBagBlock');
     if (ureaBlock) ureaBlock.classList.toggle('d-none', fert !== 'Urea');
-    if (dapBlock) dapBlock.classList.toggle('d-none', fert !== 'DAP');
+    if (dapBlock)  dapBlock.classList.toggle('d-none',  fert !== 'DAP');
 }
 
 function getCurrentFertData() {
@@ -2494,63 +2500,70 @@ function getEligibleBagsForKhatha(k) {
     return Number(getCurrentFertData()[k]?.bagsEligible || 0);
 }
 
-function getTotalBagsTakenByKhatha(k, fertType) {
+function getTotalBagsTakenByKhatha(k, fertType, season, year) {
     return ureaHistory
-        .filter(h => String(h.khatha) === String(k) && (h.fertilizerType || 'Urea') === fertType)
+        .filter(h =>
+            String(h.khatha) === String(k) &&
+            (h.fertilizerType || 'Urea') === fertType &&
+            (!season || (h.season || '') === season) &&
+            (!year   || (h.year   || '') === year)
+        )
         .reduce((s, h) => s + (Number(h.bags) || 0), 0);
 }
 
-function getRemainingBagsForKhathaByFert(k, fertType, eligible) {
-    const already = getTotalBagsTakenByKhatha(k, fertType);
+function getRemainingBagsForKhathaByFert(k, fertType, eligible, season, year) {
+    const already = getTotalBagsTakenByKhatha(k, fertType, season, year);
     return Math.max(0, Number(eligible || 0) - already);
 }
 
 function getCurrentKhatha() {
     return (document.getElementById("ureaKhathaInput")?.value.trim() ||
-           document.getElementById("ureaKhathaSelect")?.value.trim() || '');
+            document.getElementById("ureaKhathaSelect")?.value.trim() || '');
+}
+
+function getCurrentSeason() {
+    return document.getElementById("ureaSeason")?.value.trim() || '';
+}
+
+function getCurrentYear() {
+    return document.getElementById("ureaYear")?.value.trim() || '';
 }
 
 function onFertilizerChange() {
-    const selected = document.querySelector('input[name="fertilizerType"]:checked')?.value || 'Urea';
-    const otherBox = document.getElementById('fertOtherBox');
-    
-    // Grab BOTH badges
-    const badge = document.getElementById('selectedFertBadge');
+    const selected   = document.querySelector('input[name="fertilizerType"]:checked')?.value || 'Urea';
+    const otherBox   = document.getElementById('fertOtherBox');
+    const badge      = document.getElementById('selectedFertBadge');
     const modalBadge = document.getElementById('modalSelectedFertBadge');
-
-    const displayValue = selected === 'Other' ? (document.getElementById('fertOtherInput')?.value.trim() || 'Other') : selected;
+    const displayValue = selected === 'Other'
+        ? (document.getElementById('fertOtherInput')?.value.trim() || 'Other')
+        : selected;
 
     if (selected === 'Other') {
         if (otherBox) otherBox.classList.remove('hidden');
     } else {
         if (otherBox) otherBox.classList.add('hidden');
     }
-    
-    // Update both badges
-    if (badge) badge.textContent = displayValue;
+
+    if (badge)      badge.textContent      = displayValue;
     if (modalBadge) modalBadge.textContent = displayValue;
 
     toggleFertilizerBagBlocks();
     refreshKhathaDropdown();
     updateBagRecommendation();
-
-    setTimeout(() => {
-        refreshUploadInfo();
-    }, 0);
+    setTimeout(() => refreshUploadInfo(), 0);
 }
 
 const ureaClearPassword = "urea2026";
 let pendingClearType = null, pendingClearSerialNo = null;
 
 function showClearUreaPasswordModal(type, sNo = null) {
-    pendingClearType = type;
+    pendingClearType     = type;
     pendingClearSerialNo = sNo;
     const pwd = document.getElementById('clearUreaPasswordInput');
     const err = document.getElementById('clearUreaPasswordError');
     if (pwd) pwd.value = '';
     if (err) err.classList.add('d-none');
 
-    // Check if any modals are open and close them safely
     let delayNeeded = false;
     ['aadhaarHistoryModal', 'ureaHistoryModal'].forEach(id => {
         const el = document.getElementById(id);
@@ -2561,7 +2574,6 @@ function showClearUreaPasswordModal(type, sNo = null) {
         }
     });
 
-    // Wait for the closing animation to finish before opening the password box
     setTimeout(() => {
         const pwdEl = document.getElementById('clearUreaPasswordModal');
         if (pwdEl) new bootstrap.Modal(pwdEl, { backdrop: true, keyboard: true }).show();
@@ -2570,14 +2582,14 @@ function showClearUreaPasswordModal(type, sNo = null) {
 
 function submitClearUreaHistory() {
     const input = document.getElementById('clearUreaPasswordInput');
-    const err = document.getElementById('clearUreaPasswordError');
+    const err   = document.getElementById('clearUreaPasswordError');
     if ((input?.value || '').trim() !== ureaClearPassword) {
         if (err) err.classList.remove('d-none');
         return;
     }
 
     if (input) input.value = '';
-    if (err) err.classList.add('d-none');
+    if (err)   err.classList.add('d-none');
 
     const pwdEl = document.getElementById('clearUreaPasswordModal');
     if (pwdEl && pwdEl.classList.contains('show')) {
@@ -2585,7 +2597,6 @@ function submitClearUreaHistory() {
         if (pwdInst) pwdInst.hide();
     }
 
-    // Wait for password modal to disappear before triggering alerts
     setTimeout(() => {
         if (pendingClearType === 'all') {
             ureaHistory = [];
@@ -2600,7 +2611,7 @@ function submitClearUreaHistory() {
                 alert(`✅ Record #${pendingClearSerialNo} deleted.`);
             }
         }
-        pendingClearType = null;
+        pendingClearType     = null;
         pendingClearSerialNo = null;
         refreshUploadInfo();
         showSection('ureaSection');
@@ -2610,595 +2621,18 @@ function submitClearUreaHistory() {
 function clearUreaHistory() {
     ureaHistory = [];
     saveToCloud();
-    
+
     const modalEl = document.getElementById('ureaHistoryModal');
     if (modalEl && modalEl.classList.contains('show')) {
         const modalInstance = bootstrap.Modal.getInstance(modalEl);
         if (modalInstance) modalInstance.hide();
     }
-    
+
     setTimeout(() => {
         openHistoryModal([]);
         alert("Cleared!");
         refreshUploadInfo();
     }, 300);
-}
-
-function clearOneUreaRecord(sno) {
-    const idx = ureaHistory.findIndex(r => r.serialNo === sno);
-    if (idx === -1) return alert("Not found.");
-    ureaHistory.splice(idx, 1);
-    saveToCloud();
-
-    let delayNeeded = false;
-    ['aadhaarHistoryModal', 'ureaHistoryModal', 'clearUreaPasswordModal'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el && el.classList.contains('show')) {
-            const instance = bootstrap.Modal.getInstance(el);
-            if (instance) instance.hide();
-            delayNeeded = true;
-        }
-    });
-
-    setTimeout(() => {
-        showSection('ureaSection');
-        clearUreaForm();
-        alert(`✅ Record #${sno} deleted.`);
-        refreshUploadInfo();
-    }, delayNeeded ? 300 : 0);
-}
-
-function clearUreaForm() {
-    ['ureaSearch', 'ureaFarmerName', 'ureaFatherName', 'ureaMobile',
-     'ureaExtent', 'ureaBagsDist', 'ureaBagsEligible', 'ureaRemainingBags',
-     'dapBagsEligible', 'dapAlreadyGiven', 'dapRemainingBags', 'ureaAlreadyGiven'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-
-    const cropEl = document.getElementById('ureaCrop');
-    if (cropEl) cropEl.value = '';
-
-    // FIX: Always keep the input visible as a placeholder so the layout doesn't collapse
-    const khathaInput = document.getElementById('ureaKhathaInput');
-    const khathaSelect = document.getElementById('ureaKhathaSelect');
-    if (khathaInput) { 
-        khathaInput.value = ''; 
-        khathaInput.style.display = 'block'; 
-    }
-    if (khathaSelect) { 
-        khathaSelect.innerHTML = '<option value="">--Select Khatha--</option>'; 
-        khathaSelect.style.display = 'none'; 
-    }
-
-    const ureaNote = document.getElementById('ureaBagsEligibleToShow');
-    const dapNote = document.getElementById('dapBagsEligibleToShow');
-    if (ureaNote) ureaNote.textContent = '';
-    if (dapNote) dapNote.textContent = '';
-
-    const dateEl = document.getElementById('ureaDate');
-    if (dateEl) dateEl.value = formatToday();
-
-    const ureaFields = document.getElementById('ureaFields');
-    if (ureaFields) ureaFields.classList.add('hidden');
-
-    setTimeout(() => {
-        const searchEl = document.getElementById('ureaSearch');
-        if (searchEl) searchEl.focus();
-    }, 200);
-}
-
-function refreshKhathaDropdown() {
-    const sel = document.getElementById("ureaKhathaSelect");
-    if (!sel) return;
-    const data = getCurrentFertData();
-    sel.innerHTML = '<option value="">--Select Khatha--</option>' +
-        Object.keys(data).map(k => `<option value="${k}">${k}</option>`).join('');
-}
-
-function updateRemainingBagsDisplay(k) {
-    const fert = getSelectedFertilizer();
-    const eligible = getEligibleBagsForKhatha(k);
-    const already = getTotalBagsTakenByKhatha(k, fert);
-    const rem = Math.max(0, eligible - already);
-
-    const remEl = document.getElementById("ureaRemainingBags");
-    const noteEl = document.getElementById("ureaBagsEligibleToShow");
-    const bagsEl = document.getElementById("ureaBagsDist");
-
-    if (remEl) remEl.value = rem;
-    if (noteEl) noteEl.textContent = `(Total: ${eligible} | Already given [${fert}]: ${already})`;
-    if (bagsEl) {
-        bagsEl.max = rem;
-        bagsEl.placeholder = `Max: ${rem} bags`;
-    }
-}
-
-function updateUploadStatus(type, msg) {
-    const el = document.getElementById('fileStatus');
-    if (!el) return;
-    el.innerHTML = `<div class="alert alert-${type} py-2 mb-0">${msg}</div>`;
-}
-
-function refreshUploadInfo() {
-    const fert = getSelectedFertilizer(); // Uses your helper function to get the correct name
-    selectedFertilizerKey = fert;
-
-    const info = document.getElementById('uploadInfo');
-    if (!info) return;
-
-    const hasData = !!(ureaData[fert] && Object.keys(ureaData[fert]).length > 0);
-    const alreadyUploaded = !!uploadedFertilizers[fert];
-
-    if (hasData) {
-        info.textContent = `Status: ${fert} file available in cloud.`;
-        updateUploadStatus('success', `✅ ${fert} file available in cloud.`);
-    } else if (alreadyUploaded) {
-        info.textContent = `Status: ${fert} file already uploaded.`;
-        updateUploadStatus('warning', `⚠️ ${fert} file already uploaded.`);
-    } else {
-        info.textContent = `Status: ${fert} file not available. Please upload 1B Excel file.`;
-        updateUploadStatus('danger', `❌ ${fert} file not available. Please upload 1B Excel file.`);
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    selectedFertilizerKey = document.querySelector('input[name="fertilizerType"]:checked')?.value || 'Urea';
-    refreshKhathaDropdown();
-    setMinDate();
-    toggleFertilizerBagBlocks();
-    refreshUploadInfo();
-});
-
-const dateInput = document.getElementById("ureaDate");
-if (dateInput) {
-    dateInput.addEventListener("change", e => {
-        if (e.target.value && e.target.value < formatToday()) {
-            alert("Past dates not allowed.");
-            e.target.value = "";
-        }
-    });
-}
-
-const fileInput = document.getElementById("ureaFileInput");
-if (fileInput) {
-    fileInput.addEventListener("change", e => {
-        const file = e.target.files[0];
-        if (!file) {
-            refreshUploadInfo();
-            return;
-        }
-
-        setSelectedFertilizerKey();
-        const fert = selectedFertilizerKey;
-        const reader = new FileReader();
-
-        reader.onload = evt => {
-            try {
-                const wb = XLSX.read(evt.target.result, { type: "array" });
-                const ws = wb.Sheets[wb.SheetNames[0]];
-                const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
-
-                if (!rows.length) {
-                    updateUploadStatus('danger', `❌ ${fert} file is empty.`);
-                    return alert("File is empty or unreadable.");
-                }
-
-                const parsed = rows.reduce((acc, r) => {
-                    const k = String(r["Khatha"] || "").trim();
-                    if (!k) return acc;
-
-                    if (!acc[k]) acc[k] = {
-                        khatha: k,
-                        extent: 0,
-                        bagsEligible: Number(r["Bags Eligible"] || 0),
-                        farmers: []
-                    };
-
-                    acc[k].extent += Number(r["Extent"] || 0) || 0;
-                    acc[k].farmers.push(r);
-                    return acc;
-                }, {});
-
-                if (!Object.keys(parsed).length) {
-                    updateUploadStatus('danger', `❌ No valid khatha found in ${fert} file.`);
-                    return alert("No valid Khatha data found.");
-                }
-
-                ureaData[fert] = parsed;
-                uploadedFertilizers[fert] = true;
-                saveToCloud();
-
-                updateUploadStatus('success', `✅ ${fert} file uploaded successfully. Khathas: ${Object.keys(parsed).length}`);
-                refreshUploadInfo();
-                refreshKhathaDropdown();
-                updateBagRecommendation();
-            } catch (err) {
-                updateUploadStatus('danger', `❌ Upload error: ${err.message}`);
-            }
-        };
-
-        reader.readAsArrayBuffer(file);
-    });
-}
-
-const cropNPKRecommendations = {
-    paddy:      { N: 48,  P: 28, K: 20 },
-    maize:      { N: 60,  P: 30, K: 30 },
-    jowar:      { N: 24,  P: 16, K: 16 },
-    sugarcane:  { N: 60,  P: 20, K: 20 },
-    blackgram:  { N: 8,   P: 16, K: 16 },
-    greengram:  { N: 8,   P: 16, K: 16 },
-    cotton:     { N: 60,  P: 24, K: 24 },
-    bengalgram: { N: 12,  P: 24, K: 16 },
-    turmeric:   { N: 44,  P: 24, K: 60 },
-    yam:        { N: 32,  P: 16, K: 48 },
-    banana:     { N: 200, P: 40, K: 120 },
-    oilpalm:    { N: 48,  P: 24, K: 40 },
-    vegetables: { N: 48,  P: 32, K: 32 },
-    tomato:     { N: 60,  P: 40, K: 40 },
-    potato:     { N: 88,  P: 40, K: 80 },
-    onion:      { N: 48,  P: 24, K: 48 },
-    brinjal:    { N: 48,  P: 32, K: 48 }
-};
-
-function getUreaBagsFromN(nKg) {
-    return Math.ceil(Number(nKg || 0) / (45 * 0.46));
-}
-
-function getDapBagsFromP(pKg) {
-    return Math.ceil(Number(pKg || 0) / (50 * 0.46));
-}
-
-function updateBagRecommendation() {
-    const crop = document.getElementById('ureaCrop')?.value || '';
-    const season = document.getElementById('ureaSeason')?.value || '';
-    const extent = Number(document.getElementById('ureaExtent')?.value || 0);
-
-    const card = document.getElementById('cropRecommendationCard');
-    const ureaEligible = document.getElementById('ureaBagsEligible');
-    const dapEligible = document.getElementById('dapBagsEligible');
-    const ureaRemaining = document.getElementById('ureaRemainingBags');
-    const dapRemaining = document.getElementById('dapRemainingBags');
-
-    if (!crop || !season || !extent) {
-        if (card) card.innerHTML = 'Select crop and season to auto-calculate eligible Urea/DAP bags.';
-        if (ureaEligible) ureaEligible.value = '';
-        if (dapEligible) dapEligible.value = '';
-        if (ureaRemaining) ureaRemaining.value = '';
-        if (dapRemaining) dapRemaining.value = '';
-        const uNote = document.getElementById('ureaBagsEligibleToShow');
-        const dNote = document.getElementById('dapBagsEligibleToShow');
-        if (uNote) uNote.textContent = '';
-        if (dNote) dNote.textContent = '';
-        return;
-    }
-
-    const rec = cropNPKRecommendations[crop];
-    if (!rec) {
-        if (card) card.innerHTML = `<span class="text-danger">No recommendation found for this crop.</span>`;
-        if (ureaEligible) ureaEligible.value = '';
-        if (dapEligible) dapEligible.value = '';
-        if (ureaRemaining) ureaRemaining.value = '';
-        if (dapRemaining) dapRemaining.value = '';
-        return;
-    }
-
-    const ureaBags = getUreaBagsFromN(rec.N * extent);
-    const dapBags = getDapBagsFromP(rec.P * extent);
-
-    if (card) {
-        card.innerHTML = `
-            <strong>Crop:</strong> ${crop.toUpperCase()}<br>
-            <strong>Season:</strong> ${season}<br>
-            <strong>Extent:</strong> ${extent.toFixed(2)} Acres<br>
-            <strong>Recommended N:</strong> ${rec.N} kg/acre → Urea Bags: ${ureaBags}<br>
-            <strong>Recommended P:</strong> ${rec.P} kg/acre → DAP Bags: ${dapBags}
-        `;
-    }
-
-    const khatha = getCurrentKhatha();
-    const fert = getSelectedFertilizer();
-    const ureaGiven = khatha ? getTotalBagsTakenByKhatha(khatha, 'Urea') : 0;
-    const dapGiven = khatha ? getTotalBagsTakenByKhatha(khatha, 'DAP') : 0;
-    const ureaRem = Math.max(0, ureaBags - ureaGiven);
-    const dapRem = Math.max(0, dapBags - dapGiven);
-
-    if (fert === 'Urea') {
-        if (ureaEligible) ureaEligible.value = ureaBags;
-        if (ureaRemaining) ureaRemaining.value = ureaRem;
-        const noteEl = document.getElementById('ureaBagsEligibleToShow');
-        if (noteEl) noteEl.textContent = `Eligible ${ureaBags}, Remaining ${ureaRem}`;
-    } else if (fert === 'DAP') {
-        if (dapEligible) dapEligible.value = dapBags;
-        if (dapRemaining) dapRemaining.value = dapRem;
-        const noteEl = document.getElementById('dapBagsEligibleToShow');
-        if (noteEl) noteEl.textContent = `Eligible ${dapBags}, Remaining ${dapRem}`;
-    }
-}
-
-function searchUreaFarmer() {
-    setSelectedFertilizerKey();
-    const fert = selectedFertilizerKey;
-    const data = getCurrentFertData();
-
-    if (Object.keys(data).length === 0) {
-        updateUploadStatus('danger', `❌ No [${fert}] data found. Upload 1B file first.`);
-        refreshUploadInfo();
-        return;
-    }
-
-    const a = cleanAadhaar(document.getElementById("ureaSearch")?.value);
-    if (a.length !== 12) return alert("Enter 12 digits Aadhaar.");
-
-    showAadhaarHistory(a);
-
-    const matches = Object.values(data).filter(g => {
-        const farmers = toArray(g.farmers);
-        return farmers.some(f => cleanAadhaar(f["Aadhaar"]) === a);
-    });
-
-    document.getElementById("ureaFields")?.classList.remove("hidden");
-
-    if (matches.length > 1) {
-        const farmers0 = toArray(matches[0].farmers);
-        const f = farmers0.find(x => cleanAadhaar(x["Aadhaar"]) === a);
-
-        document.getElementById("ureaFarmerName").value = f?.["Farmer Name"] || "";
-        document.getElementById("ureaFatherName").value = f?.["Father Name"] || "";
-        document.getElementById("ureaFarmerName").readOnly = true;
-        document.getElementById("ureaFatherName").readOnly = true;
-
-        const sel = document.getElementById("ureaKhathaSelect");
-        sel.innerHTML = '<option value="">--Select Khatha--</option>';
-        matches.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m.khatha;
-            opt.textContent = `Khatha ${m.khatha} (Extent: ${Number(m.extent || 0).toFixed(2)})`;
-            sel.appendChild(opt);
-        });
-
-        document.getElementById("ureaKhathaInput").style.display = "none";
-        sel.style.display = "block";
-        document.getElementById("ureaExtent").value = "";
-        document.getElementById("ureaBagsEligible").value = "";
-        document.getElementById("ureaRemainingBags").value = "";
-        document.getElementById("ureaCrop").value = "";
-        document.getElementById("cropRecommendationCard").innerHTML = 'Select crop and season to auto-calculate eligible Urea/DAP bags.';
-    } else if (matches.length === 1) {
-        const match = matches[0];
-        const farmers = toArray(match.farmers);
-        const f = farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
-
-        document.getElementById("ureaFarmerName").value = f?.["Farmer Name"] || "";
-        document.getElementById("ureaFatherName").value = f?.["Father Name"] || "";
-        document.getElementById("ureaFarmerName").readOnly = true;
-        document.getElementById("ureaFatherName").readOnly = true;
-        document.getElementById("ureaKhathaInput").value = match.khatha;
-        document.getElementById("ureaKhathaInput").style.display = "block";
-        document.getElementById("ureaKhathaSelect").style.display = "none";
-        document.getElementById("ureaExtent").value = Number(match.extent || 0).toFixed(2);
-        document.getElementById("ureaBagsEligible").value = match.bagsEligible || 0;
-        document.getElementById("ureaCrop").value = "";
-        updateRemainingBagsDisplay(match.khatha);
-    } else {
-        alert(`Farmer not found in [${fert}] master list. Please enter details manually.`);
-        document.getElementById("ureaFarmerName").value = "";
-        document.getElementById("ureaFatherName").value = "";
-        document.getElementById("ureaFarmerName").readOnly = false;
-        document.getElementById("ureaFatherName").readOnly = false;
-        document.getElementById("ureaExtent").value = "";
-        document.getElementById("ureaBagsEligible").value = "";
-        document.getElementById("ureaKhathaInput").style.display = "none";
-        document.getElementById("ureaKhathaSelect").style.display = "block";
-        refreshKhathaDropdown();
-        document.getElementById("ureaCrop").value = "";
-        document.getElementById("cropRecommendationCard").innerHTML = 'Select crop and season to auto-calculate eligible Urea/DAP bags.';
-    }
-
-    updateBagRecommendation();
-}
-
-const khathaSelect = document.getElementById("ureaKhathaSelect");
-if (khathaSelect) {
-    khathaSelect.addEventListener("change", e => {
-        const k = e.target.value;
-        const data = getCurrentFertData();
-        if (k && data[k]) {
-            document.getElementById("ureaExtent").value = Number(data[k].extent || 0).toFixed(2);
-            document.getElementById("ureaBagsEligible").value = data[k].bagsEligible || 0;
-            updateRemainingBagsDisplay(k);
-        } else {
-            document.getElementById("ureaBagsEligible").value = "";
-            document.getElementById("ureaBagsEligibleToShow").textContent = "";
-        }
-        updateBagRecommendation();
-    });
-}
-
-function recordDistribution() {
-    setSelectedFertilizerKey();
-    const k = getCurrentKhatha();
-    const a = cleanAadhaar(document.getElementById("ureaSearch")?.value);
-    const n = document.getElementById("ureaFarmerName")?.value.trim();
-    const fn = document.getElementById("ureaFatherName")?.value.trim();
-    const m = document.getElementById("ureaMobile")?.value.trim();
-    const e = document.getElementById("ureaExtent")?.value.trim();
-    const b = document.getElementById("ureaBagsDist")?.value.trim();
-    const d = document.getElementById("ureaDate")?.value.trim();
-    const s = document.getElementById("ureaSeason")?.value.trim();
-    const y = document.getElementById("ureaYear")?.value.trim();
-    const crop = document.getElementById("ureaCrop")?.value || '';
-    const fert = selectedFertilizerKey;
-
-    if (!crop) return alert("Select crop.");
-    if (!s) return alert("Select season.");
-    if (!n || !fn || !m || !/^[0-9]{10}$/.test(m)) return alert("Check farmer details/mobile (10 digits).");
-    if (!k) return alert("Select/enter Khatha.");
-    if (!b || Number(b) <= 0) return alert("Enter bags.");
-
-    // FIX: Safely calculate eligible bags across ALL fertilizer types
-    let eligible = 0;
-    if (fert === 'Urea') {
-        eligible = Number(document.getElementById('ureaBagsEligible')?.value || 0);
-    } else if (fert === 'DAP') {
-        eligible = Number(document.getElementById('dapBagsEligible')?.value || 0);
-    }
-    
-    // Fallback to Excel upload data for MOP/NPK/Other, or if crop calc was empty
-    if (eligible === 0) {
-        eligible = getEligibleBagsForKhatha(k);
-    }
-
-    const given = getTotalBagsTakenByKhatha(k, fert);
-    const remain = Math.max(0, eligible - given);
-
-    // Only strictly block if we know they have a limit and they exceeded it
-    if (Number(b) > remain && eligible > 0) {
-        return alert(`Khatha ${k} has only ${remain} bags remaining for [${fert}].`);
-    }
-
-    const sno = getNextSerialNo();
-    ureaHistory.push({
-        serialNo: sno,
-        date: d,
-        farmerName: n,
-        fatherName: fn,
-        aadhaar: a,
-        mobile: m,
-        khatha: k,
-        extent: e,
-        crop: crop,
-        bags: b,
-        season: s,
-        year: y,
-        fertilizerType: fert
-    });
-    saveToCloud();
-
-    // SAFELY inject data into the print receipt
-    document.getElementById("printSerialNo").textContent    = sno;
-document.getElementById("printFertilizer").textContent  = fert;
-document.getElementById("printFarmerName").textContent  = n;
-document.getElementById("printFatherName").textContent  = fn;
-document.getElementById("printMobile").textContent      = m;
-document.getElementById("printAadhaar").textContent     = a;
-document.getElementById("printKhatha").textContent      = k;
-document.getElementById("printExtent").textContent      = e;
-document.getElementById("printBags").textContent        = b;
-document.getElementById("printDate").textContent        = d;
-
-// Also update the title heading (already exists in your HTML)
-const titleEl = document.getElementById("printFormTitle");
-if (titleEl) titleEl.textContent = `${fert} Distribution`;
-
-    document.getElementById("ureaSection").style.display = "none";
-    document.getElementById("printArea").style.display = "block";
-
-    setTimeout(() => {
-        window.print();
-        document.getElementById("printArea").style.display = "none";
-        document.getElementById("ureaSection").style.display = "block";
-        clearUreaForm();
-        alert("✅ Recorded & Printed!");
-    }, 400);
-}
-
-function exportUreaData() {
-    if (!ureaHistory.length) return alert("No history.");
-
-    const rows = [['S.No', 'Date', 'Fertilizer', 'Crop', 'Name', 'Father', 'Aadhaar', 'Mobile', 'Khatha', 'Extent', 'Bags', 'Season', 'Year']];
-    ureaHistory.forEach(r => {
-        rows.push([
-            r.serialNo || '',
-            r.date || '',
-            r.fertilizerType || 'Urea',
-            r.crop || '',
-            r.farmerName || '',
-            r.fatherName || '',
-            r.aadhaar || '',
-            r.mobile || '',
-            r.khatha || '',
-            r.extent || '',
-            r.bags || '',
-            r.season || '',
-            r.year || ''
-        ]);
-    });
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [
-        { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 14 },
-        { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 13 },
-        { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 10 }
-    ];
-    XLSX.utils.book_append_sheet(wb, ws, "FertilizerHistory");
-    XLSX.writeFile(wb, `FertilizerDistributionHistory_${formatToday()}.xlsx`);
-}
-
-function renderHistoryRows(rec) {
-    return rec.map(r => `
-        <tr>
-            <td>${r.serialNo || ""}</td>
-            <td>${r.date || ""}</td>
-            <td><span class="badge bg-success">${r.fertilizerType || 'Urea'}</span></td>
-            <td>${r.crop || ""}</td>
-            <td>${r.farmerName || ""}</td>
-            <td>${r.fatherName || ""}</td>
-            <td>${r.aadhaar || ""}</td>
-            <td>${r.mobile || ""}</td>
-            <td>${r.khatha || ""}</td>
-            <td>${r.extent || ""}</td>
-            <td><span class="badge bg-primary">${r.bags || ""}</span></td>
-            <td>${r.season || ""}</td>
-            <td>${r.year || ""}</td>
-            <td class="text-center">
-                <button class="btn btn-sm btn-outline-danger"
-                        onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button>
-            </td>
-        </tr>`).join("");
-}
-
-function openHistoryModal(recs) {
-    document.getElementById("recordCount").textContent = `${recs.length} records`;
-    if (!recs.length) {
-        document.querySelector("#modalHistoryTable tbody").innerHTML = "";
-        document.getElementById("noHistoryMsg").classList.remove("hidden");
-    } else {
-        document.getElementById("noHistoryMsg").classList.add("hidden");
-        document.querySelector("#modalHistoryTable tbody").innerHTML = renderHistoryRows(recs);
-    }
-    new bootstrap.Modal(document.getElementById("ureaHistoryModal")).show();
-}
-
-function showUreaHistory() {
-    openHistoryModal(ureaHistory);
-}
-
-function filterModalHistory() {
-    const s = document.getElementById("modalSearch").value.toLowerCase();
-    document.querySelectorAll("#modalHistoryTable tbody tr").forEach(r => {
-        r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none";
-    });
-}
-
-function clearUreaHistory() {
-    ureaHistory = [];
-    saveToCloud();
-    const modalEl = document.getElementById('ureaHistoryModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) {
-        modalEl.addEventListener('hidden.bs.modal', function handler() {
-            modalEl.removeEventListener('hidden.bs.modal', handler);
-            openHistoryModal([]);
-        });
-        modalInstance.hide();
-    } else {
-        openHistoryModal([]);
-    }
-    alert("Cleared!");
-    refreshUploadInfo();
 }
 
 function clearOneUreaRecord(sno) {
@@ -3225,6 +2659,531 @@ function clearOneUreaRecord(sno) {
     refreshUploadInfo();
 }
 
+function clearUreaForm() {
+    ['ureaSearch', 'ureaFarmerName', 'ureaFatherName', 'ureaMobile',
+     'ureaExtent', 'ureaBagsDist', 'ureaBagsEligible', 'ureaRemainingBags',
+     'dapBagsEligible', 'dapAlreadyGiven', 'dapRemainingBags', 'ureaAlreadyGiven'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    const cropEl = document.getElementById('ureaCrop');
+    if (cropEl) cropEl.value = '';
+
+    const khathaInput  = document.getElementById('ureaKhathaInput');
+    const khathaSelect = document.getElementById('ureaKhathaSelect');
+    if (khathaInput)  { khathaInput.value = '';  khathaInput.style.display = 'block'; }
+    if (khathaSelect) { khathaSelect.innerHTML = '<option value="">--Select Khatha--</option>'; khathaSelect.style.display = 'none'; }
+
+    const ureaNote = document.getElementById('ureaBagsEligibleToShow');
+    const dapNote  = document.getElementById('dapBagsEligibleToShow');
+    if (ureaNote) ureaNote.textContent = '';
+    if (dapNote)  dapNote.textContent  = '';
+
+    const dateEl = document.getElementById('ureaDate');
+    if (dateEl) dateEl.value = formatToday();
+
+    const ureaFields = document.getElementById('ureaFields');
+    if (ureaFields) ureaFields.classList.add('hidden');
+
+    _isManualEntry = false;
+
+    setTimeout(() => {
+        const searchEl = document.getElementById('ureaSearch');
+        if (searchEl) searchEl.focus();
+    }, 200);
+}
+
+function refreshKhathaDropdown() {
+    const sel = document.getElementById("ureaKhathaSelect");
+    if (!sel) return;
+    const data = getCurrentFertData();
+    sel.innerHTML = '<option value="">--Select Khatha--</option>' +
+        Object.keys(data).map(k => `<option value="${k}">${k}</option>`).join('');
+}
+
+function updateRemainingBagsDisplay(k) {
+    const fert     = getSelectedFertilizer();
+    const season   = getCurrentSeason();
+    const year     = getCurrentYear();
+    const eligible = getEligibleBagsForKhatha(k);
+    const already  = getTotalBagsTakenByKhatha(k, fert, season, year);
+    const rem      = Math.max(0, eligible - already);  // eligible is already smartRound'd from 1B
+
+    const remEl  = document.getElementById("ureaRemainingBags");
+    const noteEl = document.getElementById("ureaBagsEligibleToShow");
+    const bagsEl = document.getElementById("ureaBagsDist");
+
+    if (remEl)  remEl.value        = rem;
+    if (noteEl) noteEl.textContent = `(Total: ${eligible} | Given [${fert}/${season}/${year}]: ${already})`;
+    if (bagsEl) {
+        bagsEl.max         = rem;
+        bagsEl.placeholder = `Max: ${rem} bags`;  // ✅ now shows whole number e.g. "Max: 9 bags"
+    }
+}
+
+function updateUploadStatus(type, msg) {
+    const el = document.getElementById('fileStatus');
+    if (!el) return;
+    el.innerHTML = `<div class="alert alert-${type} py-2 mb-0">${msg}</div>`;
+}
+
+function refreshUploadInfo() {
+    const fert = getSelectedFertilizer();
+    selectedFertilizerKey = fert;
+
+    const info = document.getElementById('uploadInfo');
+    if (!info) return;
+
+    const hasData         = !!(ureaData[fert] && Object.keys(ureaData[fert]).length > 0);
+    const alreadyUploaded = !!uploadedFertilizers[fert];
+
+    if (hasData) {
+        info.textContent = `Status: ${fert} file available in cloud.`;
+        updateUploadStatus('success', `✅ ${fert} file available in cloud.`);
+    } else if (alreadyUploaded) {
+        info.textContent = `Status: ${fert} file already uploaded.`;
+        updateUploadStatus('warning', `⚠️ ${fert} file already uploaded.`);
+    } else {
+        info.textContent = `Status: ${fert} file not available. Please upload 1B Excel file.`;
+        updateUploadStatus('danger', `❌ ${fert} file not available. Please upload 1B Excel file.`);
+    }
+}
+
+function populateAllYearDropdowns() {
+    const currentYear     = new Date().getFullYear();
+    const yearDropdownIds = ["ureaYear", "cropYear", "filterYear", "searchCropYear"];
+
+    yearDropdownIds.forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-- Select Year --</option>';
+        for (let y = currentYear - 1; y <= currentYear + 2; y++) {
+            const label = `${y}-${String(y + 1).slice(-2)}`;
+            const opt   = document.createElement("option");
+            opt.value       = label;
+            opt.textContent = label;
+            if (y === currentYear) opt.selected = true;
+            sel.appendChild(opt);
+        }
+    });
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+    selectedFertilizerKey = document.querySelector('input[name="fertilizerType"]:checked')?.value || 'Urea';
+    refreshKhathaDropdown();
+    setMinDate();
+    toggleFertilizerBagBlocks();
+    refreshUploadInfo();
+    populateAllYearDropdowns();
+});
+
+const dateInput = document.getElementById("ureaDate");
+if (dateInput) {
+    dateInput.addEventListener("change", e => {
+        if (e.target.value && e.target.value < formatToday()) {
+            alert("Past dates not allowed.");
+            e.target.value = "";
+        }
+    });
+}
+
+const fileInput = document.getElementById("ureaFileInput");
+if (fileInput) {
+    fileInput.addEventListener("change", e => {
+        const file = e.target.files[0];
+        if (!file) { refreshUploadInfo(); return; }
+
+        setSelectedFertilizerKey();
+        const fert   = selectedFertilizerKey;
+        const reader = new FileReader();
+
+        reader.onload = evt => {
+            try {
+                const wb   = XLSX.read(evt.target.result, { type: "array" });
+                const ws   = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+                if (!rows.length) {
+                    updateUploadStatus('danger', `❌ ${fert} file is empty.`);
+                    return alert("File is empty or unreadable.");
+                }
+
+                const parsed = rows.reduce((acc, r) => {
+                    const k = String(r["Khatha"] || "").trim();
+                    if (!k) return acc;
+                    if (!acc[k]) acc[k] = { khatha: k, extent: 0, bagsEligible: Number(r["Bags Eligible"] || 0), farmers: [] };
+                    acc[k].extent += Number(r["Extent"] || 0) || 0;
+                    acc[k].farmers.push(r);
+                    return acc;
+                }, {});
+
+                if (!Object.keys(parsed).length) {
+                    updateUploadStatus('danger', `❌ No valid khatha found in ${fert} file.`);
+                    return alert("No valid Khatha data found.");
+                }
+
+                ureaData[fert]            = parsed;
+                uploadedFertilizers[fert] = true;
+                saveToCloud();
+
+                updateUploadStatus('success', `✅ ${fert} file uploaded. Khathas: ${Object.keys(parsed).length}`);
+                refreshUploadInfo();
+                refreshKhathaDropdown();
+                updateBagRecommendation();
+            } catch (err) {
+                updateUploadStatus('danger', `❌ Upload error: ${err.message}`);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+const cropNPKRecommendations = {
+    paddy:      { N: 48,  P: 28, K: 20  },
+    maize:      { N: 60,  P: 30, K: 30  },
+    jowar:      { N: 24,  P: 16, K: 16  },
+    sugarcane:  { N: 60,  P: 20, K: 20  },
+    blackgram:  { N: 8,   P: 16, K: 16  },
+    greengram:  { N: 8,   P: 16, K: 16  },
+    cotton:     { N: 60,  P: 24, K: 24  },
+    bengalgram: { N: 12,  P: 24, K: 16  },
+    turmeric:   { N: 44,  P: 24, K: 60  },
+    yam:        { N: 32,  P: 16, K: 48  },
+    banana:     { N: 200, P: 40, K: 120 },
+    oilpalm:    { N: 48,  P: 24, K: 40  },
+    vegetables: { N: 48,  P: 32, K: 32  },
+    tomato:     { N: 60,  P: 40, K: 40  },
+    potato:     { N: 88,  P: 40, K: 80  },
+    onion:      { N: 48,  P: 24, K: 48  },
+    brinjal:    { N: 48,  P: 32, K: 48  }
+};
+
+function getUreaBagsFromN(nKg) { return Math.ceil(Number(nKg || 0) / (45 * 0.46)); }
+function getDapBagsFromP(pKg)  { return Math.ceil(Number(pKg || 0) / (50 * 0.46)); }
+
+function updateBagRecommendation() {
+    const crop   = document.getElementById('ureaCrop')?.value   || '';
+    const season = document.getElementById('ureaSeason')?.value || '';
+    const year   = document.getElementById('ureaYear')?.value   || '';
+    const extent = Number(document.getElementById('ureaExtent')?.value || 0);
+
+    const card          = document.getElementById('cropRecommendationCard');
+    const ureaEligible  = document.getElementById('ureaBagsEligible');
+    const dapEligible   = document.getElementById('dapBagsEligible');
+    const ureaRemaining = document.getElementById('ureaRemainingBags');
+    const dapRemaining  = document.getElementById('dapRemainingBags');
+
+    if (!crop || !season || !extent) {
+        if (card)          card.innerHTML      = 'Select crop and season to auto-calculate eligible Urea/DAP bags.';
+        if (ureaEligible)  ureaEligible.value  = '';
+        if (dapEligible)   dapEligible.value   = '';
+        if (ureaRemaining) ureaRemaining.value = '';
+        if (dapRemaining)  dapRemaining.value  = '';
+        const uNote = document.getElementById('ureaBagsEligibleToShow');
+        const dNote = document.getElementById('dapBagsEligibleToShow');
+        if (uNote) uNote.textContent = '';
+        if (dNote) dNote.textContent = '';
+        return;
+    }
+
+    const rec = cropNPKRecommendations[crop];
+    if (!rec) {
+        if (card) card.innerHTML = `<span class="text-danger">No recommendation found for this crop.</span>`;
+        if (ureaEligible)  ureaEligible.value  = '';
+        if (dapEligible)   dapEligible.value   = '';
+        if (ureaRemaining) ureaRemaining.value = '';
+        if (dapRemaining)  dapRemaining.value  = '';
+        return;
+    }
+
+    const ureaBags = getUreaBagsFromN(rec.N * extent);
+    const dapBags  = getDapBagsFromP(rec.P  * extent);
+
+    if (card) {
+        card.innerHTML = `
+            <strong>Crop:</strong> ${crop.toUpperCase()} &nbsp;|&nbsp;
+            <strong>Season:</strong> ${season} &nbsp;|&nbsp;
+            <strong>Year:</strong> ${year || '—'}<br>
+            <strong>Extent:</strong> ${extent.toFixed(2)} Acres<br>
+            <strong>N:</strong> ${rec.N} kg/ac → <strong>Urea: ${ureaBags} bags</strong> &nbsp;|&nbsp;
+            <strong>P:</strong> ${rec.P} kg/ac → <strong>DAP: ${dapBags} bags</strong>
+        `;
+    }
+
+    const khatha    = getCurrentKhatha();
+    const fert      = getSelectedFertilizer();
+    const ureaGiven = khatha ? getTotalBagsTakenByKhatha(khatha, 'Urea', season, year) : 0;
+    const dapGiven  = khatha ? getTotalBagsTakenByKhatha(khatha, 'DAP',  season, year) : 0;
+    const ureaRem   = Math.max(0, ureaBags - ureaGiven);
+    const dapRem    = Math.max(0, dapBags  - dapGiven);
+
+    if (fert === 'Urea') {
+        if (ureaEligible)  ureaEligible.value  = ureaBags;
+        if (ureaRemaining) ureaRemaining.value = ureaRem;
+        const noteEl = document.getElementById('ureaBagsEligibleToShow');
+        if (noteEl) noteEl.textContent = `Eligible ${ureaBags} | Given this season: ${ureaGiven} | Remaining: ${ureaRem}`;
+    } else if (fert === 'DAP') {
+        if (dapEligible)  dapEligible.value  = dapBags;
+        if (dapRemaining) dapRemaining.value = dapRem;
+        const noteEl = document.getElementById('dapBagsEligibleToShow');
+        if (noteEl) noteEl.textContent = `Eligible ${dapBags} | Given this season: ${dapGiven} | Remaining: ${dapRem}`;
+    }
+}
+
+// ✅ Fires when user changes Season or Crop Year — updates bags live
+function onYearOrSeasonChange() {
+    const k = getCurrentKhatha();
+    if (k) updateRemainingBagsDisplay(k);
+    updateBagRecommendation();
+}
+
+function searchUreaFarmer() {
+    setSelectedFertilizerKey();
+    const fert = selectedFertilizerKey;
+    const data = getCurrentFertData();
+
+    if (Object.keys(data).length === 0) {
+        updateUploadStatus('danger', `❌ No [${fert}] data found. Upload 1B file first.`);
+        refreshUploadInfo();
+        return;
+    }
+
+    const a = cleanAadhaar(document.getElementById("ureaSearch")?.value);
+    if (a.length !== 12) return alert("Enter 12 digits Aadhaar.");
+
+    const matches = Object.values(data).filter(g => {
+        const farmers = toArray(g.farmers);
+        return farmers.some(f => cleanAadhaar(f["Aadhaar"]) === a);
+    });
+
+    // Show history only when farmer is found in 1B
+    showAadhaarHistory(a);
+
+    // Always reveal the form fields
+    document.getElementById("ureaFields")?.classList.remove("hidden");
+
+    if (matches.length > 1) {
+        _isManualEntry = false;
+        const farmers0 = toArray(matches[0].farmers);
+        const f        = farmers0.find(x => cleanAadhaar(x["Aadhaar"]) === a);
+
+        document.getElementById("ureaFarmerName").value    = f?.["Farmer Name"] || "";
+        document.getElementById("ureaFatherName").value    = f?.["Father Name"] || "";
+        document.getElementById("ureaFarmerName").readOnly = true;
+        document.getElementById("ureaFatherName").readOnly = true;
+
+        const sel = document.getElementById("ureaKhathaSelect");
+        sel.innerHTML = '<option value="">--Select Khatha--</option>';
+        matches.forEach(m => {
+            const opt       = document.createElement('option');
+            opt.value       = m.khatha;
+            opt.textContent = `Khatha ${m.khatha} (Extent: ${Number(m.extent || 0).toFixed(2)})`;
+            sel.appendChild(opt);
+        });
+
+        document.getElementById("ureaKhathaInput").style.display  = "none";
+        sel.style.display = "block";
+        document.getElementById("ureaExtent").value        = "";
+        document.getElementById("ureaBagsEligible").value  = "";
+        document.getElementById("ureaRemainingBags").value = "";
+        document.getElementById("ureaCrop").value          = "";
+        document.getElementById("cropRecommendationCard").innerHTML =
+            'Select crop and season to auto-calculate eligible Urea/DAP bags.';
+
+    } else if (matches.length === 1) {
+        _isManualEntry = false;
+        const match   = matches[0];
+        const farmers = toArray(match.farmers);
+        const f       = farmers.find(x => cleanAadhaar(x["Aadhaar"]) === a);
+
+        document.getElementById("ureaFarmerName").value          = f?.["Farmer Name"] || "";
+        document.getElementById("ureaFatherName").value          = f?.["Father Name"] || "";
+        document.getElementById("ureaFarmerName").readOnly       = true;
+        document.getElementById("ureaFatherName").readOnly       = true;
+        document.getElementById("ureaKhathaInput").value         = match.khatha;
+        document.getElementById("ureaKhathaInput").style.display = "block";
+        document.getElementById("ureaKhathaSelect").style.display = "none";
+        document.getElementById("ureaExtent").value       = Number(match.extent || 0).toFixed(2);
+        document.getElementById("ureaBagsEligible").value = match.bagsEligible || 0;
+        document.getElementById("ureaCrop").value         = "";
+        updateRemainingBagsDisplay(match.khatha);
+
+    } else {
+        // ✅ MANUAL ENTRY — farmer not in 1B file
+        _isManualEntry = true;
+
+        document.getElementById("ureaFarmerName").value          = "";
+        document.getElementById("ureaFatherName").value          = "";
+        document.getElementById("ureaMobile").value              = "";
+        document.getElementById("ureaFarmerName").readOnly       = false;
+        document.getElementById("ureaFatherName").readOnly       = false;
+        document.getElementById("ureaKhathaInput").style.display  = "none";
+        document.getElementById("ureaKhathaSelect").style.display = "block";
+        document.getElementById("ureaExtent").value        = "";
+        document.getElementById("ureaBagsEligible").value  = "";
+        document.getElementById("ureaRemainingBags").value = "";
+        document.getElementById("ureaCrop").value          = "";
+        document.getElementById("cropRecommendationCard").innerHTML =
+            'Select crop and season to auto-calculate eligible Urea/DAP bags.';
+        refreshKhathaDropdown();
+
+        setTimeout(() => alert(`⚠️ Farmer not found in [${fert}] list. Enter details manually.`), 100);
+    }
+
+    updateBagRecommendation();
+}
+
+const khathaSelect = document.getElementById("ureaKhathaSelect");
+if (khathaSelect) {
+    khathaSelect.addEventListener("change", e => {
+        const k    = e.target.value;
+        const data = getCurrentFertData();
+        if (k && data[k]) {
+            document.getElementById("ureaExtent").value       = Number(data[k].extent || 0).toFixed(2);
+            document.getElementById("ureaBagsEligible").value = data[k].bagsEligible || 0;
+            updateRemainingBagsDisplay(k);
+        } else {
+            document.getElementById("ureaBagsEligible").value            = "";
+            document.getElementById("ureaBagsEligibleToShow").textContent = "";
+        }
+        updateBagRecommendation();
+    });
+}
+
+function recordDistribution() {
+    setSelectedFertilizerKey();
+    const k    = getCurrentKhatha();
+    const a    = cleanAadhaar(document.getElementById("ureaSearch")?.value);
+    const n    = document.getElementById("ureaFarmerName")?.value.trim();
+    const fn   = document.getElementById("ureaFatherName")?.value.trim();
+    const m    = document.getElementById("ureaMobile")?.value.trim();
+    const e    = document.getElementById("ureaExtent")?.value.trim();
+    const b    = document.getElementById("ureaBagsDist")?.value.trim();
+    const d    = document.getElementById("ureaDate")?.value.trim();
+    const s    = document.getElementById("ureaSeason")?.value.trim();
+    const y    = document.getElementById("ureaYear")?.value.trim();
+    const crop = document.getElementById("ureaCrop")?.value || '';
+    const fert = selectedFertilizerKey;
+
+    if (!crop) return alert("Select crop.");
+    if (!s)    return alert("Select season.");
+    if (!y)    return alert("Select crop year.");
+    if (!n || !fn || !m || !/^[0-9]{10}$/.test(m)) return alert("Check farmer details / mobile (10 digits).");
+    if (!k)    return alert("Select/enter Khatha.");
+    if (!b || Number(b) <= 0) return alert("Enter bags to distribute.");
+
+    let eligible = 0;
+    if (fert === 'Urea')     eligible = Number(document.getElementById('ureaBagsEligible')?.value || 0);
+    else if (fert === 'DAP') eligible = Number(document.getElementById('dapBagsEligible')?.value  || 0);
+    if (eligible === 0)      eligible = getEligibleBagsForKhatha(k);
+
+    const given  = getTotalBagsTakenByKhatha(k, fert, s, y);
+    const remain = Math.max(0, eligible - given);
+
+    if (Number(b) > remain && eligible > 0) {
+        return alert(`Khatha ${k} has only ${remain} bags remaining for [${fert}] in ${s} ${y}.`);
+    }
+
+    const sno = getNextSerialNo();
+    ureaHistory.push({
+        serialNo: sno, date: d, farmerName: n, fatherName: fn,
+        aadhaar: a, mobile: m, khatha: k, extent: e,
+        crop: crop, bags: b, season: s, year: y, fertilizerType: fert
+    });
+    saveToCloud();
+
+    document.getElementById("printSerialNo").textContent   = sno;
+    document.getElementById("printFertilizer").textContent = fert;
+    document.getElementById("printFarmerName").textContent = n;
+    document.getElementById("printFatherName").textContent = fn;
+    document.getElementById("printMobile").textContent     = m;
+    document.getElementById("printAadhaar").textContent    = a;
+    document.getElementById("printKhatha").textContent     = k;
+    document.getElementById("printExtent").textContent     = e;
+    document.getElementById("printBags").textContent       = b;
+    document.getElementById("printDate").textContent       = d;
+    const titleEl = document.getElementById("printFormTitle");
+    if (titleEl) titleEl.textContent = `${fert} Distribution`;
+
+    document.getElementById("ureaSection").style.display = "none";
+    document.getElementById("printArea").style.display   = "block";
+
+    setTimeout(() => {
+        window.print();
+        document.getElementById("printArea").style.display   = "none";
+        document.getElementById("ureaSection").style.display = "block";
+        clearUreaForm();
+        alert("✅ Recorded & Printed!");
+    }, 400);
+}
+
+function exportUreaData() {
+    if (!ureaHistory.length) return alert("No history.");
+
+    const rows = [['S.No','Date','Fertilizer','Crop','Name','Father','Aadhaar','Mobile','Khatha','Extent','Bags','Season','Year']];
+    ureaHistory.forEach(r => {
+        rows.push([
+            r.serialNo||'', r.date||'', r.fertilizerType||'Urea', r.crop||'',
+            r.farmerName||'', r.fatherName||'', r.aadhaar||'', r.mobile||'',
+            r.khatha||'', r.extent||'', r.bags||'', r.season||'', r.year||''
+        ]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+        {wch:6},{wch:12},{wch:12},{wch:14},{wch:20},{wch:20},
+        {wch:14},{wch:13},{wch:10},{wch:10},{wch:8},{wch:10},{wch:10}
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "FertilizerHistory");
+    XLSX.writeFile(wb, `FertilizerHistory_${formatToday()}.xlsx`);
+}
+
+function renderHistoryRows(rec) {
+    return rec.map(r => `
+        <tr>
+            <td>${r.serialNo||""}</td>
+            <td>${r.date||""}</td>
+            <td><span class="badge bg-success">${r.fertilizerType||'Urea'}</span></td>
+            <td>${r.crop||""}</td>
+            <td>${r.farmerName||""}</td>
+            <td>${r.fatherName||""}</td>
+            <td>${r.aadhaar||""}</td>
+            <td>${r.mobile||""}</td>
+            <td>${r.khatha||""}</td>
+            <td>${r.extent||""}</td>
+            <td><span class="badge bg-primary">${r.bags||""}</span></td>
+            <td>${r.season||""}</td>
+            <td>${r.year||""}</td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-danger"
+                    onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button>
+            </td>
+        </tr>`).join("");
+}
+
+function openHistoryModal(recs) {
+    document.getElementById("recordCount").textContent = `${recs.length} records`;
+    if (!recs.length) {
+        document.querySelector("#modalHistoryTable tbody").innerHTML = "";
+        document.getElementById("noHistoryMsg").classList.remove("hidden");
+    } else {
+        document.getElementById("noHistoryMsg").classList.add("hidden");
+        document.querySelector("#modalHistoryTable tbody").innerHTML = renderHistoryRows(recs);
+    }
+    new bootstrap.Modal(document.getElementById("ureaHistoryModal")).show();
+}
+
+function showUreaHistory() { openHistoryModal(ureaHistory); }
+
+function filterModalHistory() {
+    const s = document.getElementById("modalSearch").value.toLowerCase();
+    document.querySelectorAll("#modalHistoryTable tbody tr").forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none";
+    });
+}
+
 function showAadhaarHistory(a) {
     const c = cleanAadhaar(a);
     const h = ureaHistory.filter(r => cleanAadhaar(r.aadhaar) === c);
@@ -3234,27 +3193,27 @@ function showAadhaarHistory(a) {
     document.getElementById("aadhaarRecordCount").classList.remove("hidden");
     document.getElementById("noAadhaarHistoryMsg").classList.add("hidden");
 
-   document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => `
-    <tr>
-        <td>${r.serialNo || ""}</td>
-        <td>${r.date || ""}</td>
-        <td><span class="badge bg-success">${r.fertilizerType || 'Urea'}</span></td>
-        <td>${r.crop || ""}</td>
-        <td>${r.farmerName || ""}</td>
-        <td>${r.fatherName || ""}</td>
-        <td>${r.mobile || ""}</td>
-        <td>${r.khatha || ""}</td>
-        <td>${r.extent || ""}</td>
-        <td><span class="badge bg-primary">${r.bags || ""}</span></td>
-        <td>${r.season || ""}</td>
-        <td>${r.year || ""}</td>
-        <td class="text-center">
-            <button class="btn btn-sm btn-outline-danger"
+    document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => `
+        <tr>
+            <td>${r.serialNo||""}</td>
+            <td>${r.date||""}</td>
+            <td><span class="badge bg-success">${r.fertilizerType||'Urea'}</span></td>
+            <td>${r.crop||""}</td>
+            <td>${r.farmerName||""}</td>
+            <td>${r.fatherName||""}</td>
+            <td>${r.mobile||""}</td>
+            <td>${r.khatha||""}</td>
+            <td>${r.extent||""}</td>
+            <td><span class="badge bg-primary">${r.bags||""}</span></td>
+            <td>${r.season||""}</td>
+            <td>${r.year||""}</td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-danger"
                     onclick="showClearUreaPasswordModal('one', ${r.serialNo})">
-                <i class="bi bi-trash"></i> Delete
-            </button>
-        </td>
-    </tr>`).join("");
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </td>
+        </tr>`).join("");
 
     new bootstrap.Modal(document.getElementById("aadhaarHistoryModal")).show();
 }
