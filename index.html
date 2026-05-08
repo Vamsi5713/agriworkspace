@@ -1131,23 +1131,26 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
          </div>
          <div class="modal-body">
-            <input type="text" class="form-control mb-3" id="aadhaarModalSearch" placeholder="🔍 Filter records..." onkeyup="filterAadhaarModalHistory()">
+            <input type="text" class="form-control mb-3" id="aadhaarModalSearch"
+                   placeholder="🔍 Filter records..." onkeyup="filterAadhaarModalHistory()">
             <div id="aadhaarRecordCount" class="alert alert-info mb-3 hidden"></div>
             <div class="table-responsive">
                <table class="table table-striped table-sm" id="aadhaarHistoryTable">
                   <thead>
                      <tr>
-                        <th style="width:60px">S.No</th>
+                        <th style="width:55px">S.No</th>
                         <th style="width:90px">Date</th>
-                        <th style="width:80px">Fertilizer</th>
-                        <th style="width:120px">Name</th>
-                        <th style="width:110px">Father</th>
-                        <th style="width:90px">Khatha</th>
-                        <th style="width:70px">Extent</th>
-                        <th style="width:60px">Bags</th>
-                        <th style="width:80px">Season</th>
-                        <th style="width:60px">Year</th>
-                        <th style="width:140px" class="text-center">Action</th>
+                        <th style="width:75px">Fertilizer</th>
+                        <th style="width:100px">Crop</th>
+                        <th style="width:130px">Name</th>
+                        <th style="width:120px">Father</th>
+                        <th style="width:105px">Mobile</th>
+                        <th style="width:85px">Khatha</th>
+                        <th style="width:65px">Extent</th>
+                        <th style="width:55px">Bags</th>
+                        <th style="width:75px">Season</th>
+                        <th style="width:55px">Year</th>
+                        <th style="width:130px" class="text-center">Action</th>
                      </tr>
                   </thead>
                   <tbody></tbody>
@@ -3226,24 +3229,27 @@ function showAadhaarHistory(a) {
     document.getElementById("aadhaarRecordCount").classList.remove("hidden");
     document.getElementById("noAadhaarHistoryMsg").classList.add("hidden");
 
-    document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => `
-        <tr>
-            <td>${r.serialNo || ""}</td>
-            <td>${r.date || ""}</td>
-            <td><span class="badge bg-success">${r.fertilizerType || 'Urea'}</span></td>
-            <td>${r.crop || ""}</td>
-            <td>${r.farmerName || ""}</td>
-            <td>${r.fatherName || ""}</td>
-            <td>${r.khatha || ""}</td>
-            <td>${r.extent || ""}</td>
-            <td><span class="badge bg-primary">${r.bags || ""}</span></td>
-            <td>${r.season || ""}</td>
-            <td>${r.year || ""}</td>
-            <td class="text-center">
-                <button class="btn btn-sm btn-outline-danger"
-                        onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button>
-            </td>
-        </tr>`).join("");
+   document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => `
+    <tr>
+        <td>${r.serialNo || ""}</td>
+        <td>${r.date || ""}</td>
+        <td><span class="badge bg-success">${r.fertilizerType || 'Urea'}</span></td>
+        <td>${r.crop || ""}</td>
+        <td>${r.farmerName || ""}</td>
+        <td>${r.fatherName || ""}</td>
+        <td>${r.mobile || ""}</td>
+        <td>${r.khatha || ""}</td>
+        <td>${r.extent || ""}</td>
+        <td><span class="badge bg-primary">${r.bags || ""}</span></td>
+        <td>${r.season || ""}</td>
+        <td>${r.year || ""}</td>
+        <td class="text-center">
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="showClearUreaPasswordModal('one', ${r.serialNo})">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+        </td>
+    </tr>`).join("");
 
     new bootstrap.Modal(document.getElementById("aadhaarHistoryModal")).show();
 }
