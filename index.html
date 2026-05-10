@@ -959,7 +959,10 @@
     <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()">
         <i class="fas fa-arrow-left me-2"></i> Back
     </button>
+
     <div class="card p-4 mx-auto" style="max-width: 1100px;">
+
+        <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="text-danger mb-0">
                 <i class="fas fa-user-shield me-2"></i>Admin Panel
@@ -967,135 +970,63 @@
             <span class="badge bg-danger fs-6">Admin Access</span>
         </div>
 
-       <!-- Stats Row -->
-<div class="row g-3 mb-4" id="adminStatsRow">
-  <div class="col-md-3">
-    <div class="card p-3 border-0 shadow-sm text-center">
-      <h3 class="text-primary fw-bold" id="adminTotalUsers">0</h3>
-      <p class="text-muted mb-0">Total Users</p>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card p-3 border-0 shadow-sm text-center">
-      <h3 class="text-success fw-bold" id="adminTotalDistributions">0</h3>
-      <p class="text-muted mb-0">Total Distributions</p>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card p-3 border-0 shadow-sm text-center bg-warning-subtle">
-      <h3 class="text-warning fw-bold" id="adminTotalUreaBags">0</h3>
-      <p class="text-muted mb-0">🌾 Total Urea Bags</p>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card p-3 border-0 shadow-sm text-center bg-info-subtle">
-      <h3 class="text-info fw-bold" id="adminTotalDapBags">0</h3>
-      <p class="text-muted mb-0">🌿 Total DAP Bags</p>
-    </div>
-  </div>
-</div>
+        <!-- Stats Row -->
+        <div class="row g-3 mb-4" id="adminStatsRow">
+            <div class="col-6 col-md-3">
+                <div class="card p-3 border-0 shadow-sm text-center">
+                    <h3 class="text-primary fw-bold" id="adminTotalUsers">0</h3>
+                    <p class="text-muted mb-0"><i class="fas fa-users me-1"></i>Total Users</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card p-3 border-0 shadow-sm text-center">
+                    <h3 class="text-success fw-bold" id="adminTotalDistributions">0</h3>
+                    <p class="text-muted mb-0"><i class="fas fa-boxes me-1"></i>Total Distributions</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card p-3 border-0 shadow-sm text-center bg-warning-subtle">
+                    <h3 class="text-warning fw-bold" id="adminTotalUreaBags">0</h3>
+                    <p class="text-muted mb-0">🌾 Total Urea Bags</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card p-3 border-0 shadow-sm text-center bg-info-subtle">
+                    <h3 class="text-info fw-bold" id="adminTotalDapBags">0</h3>
+                    <p class="text-muted mb-0">🌿 Total DAP Bags</p>
+                </div>
+            </div>
+        </div>
 
-        <!-- Search & Export -->
-        <div class="d-flex gap-2 mb-3 flex-wrap">
-            <input type="text" id="adminSearchInput" class="form-control" 
-                   style="max-width:300px" placeholder="Search by name, aadhaar, user..."
+        <!-- Search & Export Toolbar -->
+        <div class="d-flex gap-2 mb-4 flex-wrap align-items-center">
+            <input type="text" id="adminSearchInput" class="form-control shadow-sm"
+                   style="max-width:300px"
+                   placeholder="🔍 Search farmer, aadhaar, village..."
                    oninput="filterAdminTable()">
+            <button class="btn btn-outline-warning" onclick="exportFertilizerData('urea')">
+                <i class="fas fa-file-excel me-1"></i> Export Urea
+            </button>
+            <button class="btn btn-outline-info" onclick="exportFertilizerData('dap')">
+                <i class="fas fa-file-excel me-1"></i> Export DAP
+            </button>
             <button class="btn btn-success" onclick="exportAdminData()">
-                <i class="fas fa-file-excel me-1"></i> Export All Excel
+                <i class="fas fa-file-excel me-1"></i> Export All
             </button>
             <button class="btn btn-primary" onclick="loadAdminData()">
                 <i class="fas fa-sync me-1"></i> Refresh
             </button>
         </div>
 
-<!-- Tab Navigation -->
-<ul class="nav nav-tabs mb-3" id="adminReportTabs">
-  <li class="nav-item">
-    <button class="nav-link active" id="tab-all" onclick="switchAdminTab('all')">
-      <i class="fas fa-list me-1"></i> All Users
-    </button>
-  </li>
-  <li class="nav-item">
-    <button class="nav-link" id="tab-urea" onclick="switchAdminTab('urea')">
-      <i class="fas fa-flask me-1 text-warning"></i> Urea Report
-    </button>
-  </li>
-  <li class="nav-item">
-    <button class="nav-link" id="tab-dap" onclick="switchAdminTab('dap')">
-      <i class="fas fa-seedling me-1 text-info"></i> DAP Report
-    </button>
-  </li>
-</ul>
-<!-- Sidebar nav item -->
-<li class="nav-item">
-    <a class="nav-link" href="#" onclick="showSection('farmerProfileSection')">
-        <i class="bi bi-person-vcard"></i> Farmer Profile
-    </a>
-</li>
-
-<!-- Urea Report Table -->
-<div id="ureaReportSection" class="d-none">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="text-warning fw-bold"><i class="fas fa-flask me-2"></i>Urea Distribution Report</h5>
-    <button class="btn btn-sm btn-warning" onclick="exportFertilizerData('urea')">
-      <i class="fas fa-file-excel me-1"></i> Export Urea Excel
-    </button>
-  </div>
-  <div class="table-responsive">
-    <table class="table table-bordered table-hover table-sm" id="ureaTable">
-      <thead class="table-warning">
-        <tr>
-          <th>#</th>
-          <th>Farmer Name</th>
-          <th>Aadhaar</th>
-          <th>Village</th>
-          <th>Bags</th>
-          <th>Date</th>
-          <th>Entered By</th>
-        </tr>
-      </thead>
-      <tbody id="ureaTableBody">
-        <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- DAP Report Table -->
-<div id="dapReportSection" class="d-none">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="text-info fw-bold"><i class="fas fa-seedling me-2"></i>DAP Distribution Report</h5>
-    <button class="btn btn-sm btn-info text-white" onclick="exportFertilizerData('dap')">
-      <i class="fas fa-file-excel me-1"></i> Export DAP Excel
-    </button>
-  </div>
-  <div class="table-responsive">
-    <table class="table table-bordered table-hover table-sm" id="dapTable">
-      <thead class="table-info">
-        <tr>
-          <th>#</th>
-          <th>Farmer Name</th>
-          <th>Aadhaar</th>
-          <th>Village</th>
-          <th>Bags</th>
-          <th>Date</th>
-          <th>Entered By</th>
-        </tr>
-      </thead>
-      <tbody id="dapTableBody">
-        <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-        <!-- Users + their data -->
+        <!-- Admin Users Container -->
+        <!-- Mandal > Village > User > e-Panta / Urea / DAP rendered here by JS -->
         <div id="adminUsersContainer">
             <div class="text-center text-muted p-5">
                 <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
                 <p>Loading all user data...</p>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -4049,10 +3980,11 @@ function viewFarmerProfiles() {
         </div>`).join('');
 }
 
-    // ---- ADMIN PANEL FUNCTIONS ----
+   // ---- ADMIN PANEL FUNCTIONS ----
 
-let allAdminData = [];     // cache for Urea
-let allAdminDapData = [];  // cache for DAP
+let allAdminData = [];    // cache for Urea export
+let allAdminDapData = []; // cache for DAP export
+
 
 function toggleAdminUser(id) {
     const el = document.getElementById(id);
@@ -4060,190 +3992,21 @@ function toggleAdminUser(id) {
     el.classList.toggle('hidden');
 }
 
+
 function toTitleCase(str) {
     return (str || '').trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
+
 
 function normalizeHistory(raw) {
     if (!raw) return [];
     return Array.isArray(raw) ? raw : Object.values(raw);
 }
 
-function sumBags(hist) {
-    return hist.reduce((s, r) => s + (Number(r.bags) || 0), 0);
-}
-
-function escapeId(str) {
-    return String(str || '').replace(/[^a-zA-Z0-9]/g, '_');
-}
-
-function buildGroupedReport(hist, userMeta, type) {
-    const mandalMap = {};
-
-    hist.forEach(r => {
-        const mandal = toTitleCase(r.mandal || userMeta.mandal || 'Unknown Mandal');
-        const village = toTitleCase(r.village || userMeta.village || 'Unknown Village');
-
-        if (!mandalMap[mandal]) mandalMap[mandal] = {};
-        if (!mandalMap[mandal][village]) mandalMap[mandal][village] = { rows: [], bags: 0 };
-
-        mandalMap[mandal][village].rows.push({
-            ...r,
-            mandal,
-            village,
-            userUID: userMeta.uid,
-            email: userMeta.email,
-            name: userMeta.name,
-            type
-        });
-
-        mandalMap[mandal][village].bags += Number(r.bags) || 0;
-    });
-
-    return mandalMap;
-}
-
-function renderFarmerList(rows) {
-    if (!rows.length) {
-        return `<div class="alert alert-light py-2 mb-0">No farmer records found.</div>`;
-    }
-
-    return `
-    <div class="table-responsive mt-2">
-        <table class="table table-sm table-bordered mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th style="width:60px;">S.No</th>
-                    <th>Farmer Name</th>
-                    <th>Father Name</th>
-                    <th>Aadhaar</th>
-                    <th>Mobile</th>
-                    <th>Khatha</th>
-                    <th>Extent</th>
-                    <th>Bags</th>
-                    <th>Season</th>
-                    <th>Year</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${rows.map((r, i) => `
-                    <tr>
-                        <td>${i + 1}</td>
-                        <td>${escapeHtml(r.farmerName || '')}</td>
-                        <td>${escapeHtml(r.fatherName || '')}</td>
-                        <td>${escapeHtml(r.aadhaar || '')}</td>
-                        <td>${escapeHtml(r.mobile || '')}</td>
-                        <td>${escapeHtml(String(r.khatha || ''))}</td>
-                        <td>${escapeHtml(String(r.extent || ''))}</td>
-                        <td><strong>${Number(r.bags) || 0}</strong></td>
-                        <td>${escapeHtml(r.season || '')}</td>
-                        <td>${escapeHtml(r.year || '')}</td>
-                    </tr>`).join('')}
-            </tbody>
-        </table>
-    </div>`;
-}
-
-function renderVillageRows(type, mandal, villages) {
-    const villageNames = Object.keys(villages).sort();
-    const mandalKey = escapeId(mandal);
-
-    return `
-    <div class="ms-3 mt-2">
-        <table class="table table-sm table-bordered mb-0">
-            <thead class="${type === 'urea' ? 'table-warning' : 'table-info'}">
-                <tr>
-                    <th style="width:70px;">S.No</th>
-                    <th>Village Name</th>
-                    <th style="width:180px;">Bags Distributed</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${villageNames.map((village, i) => {
-                    const vId = `${type}_village_${mandalKey}_${escapeId(village)}`;
-                    return `
-                    <tr>
-                        <td>${i + 1}</td>
-                        <td>
-                            <a href="javascript:void(0)" class="fw-semibold text-decoration-none text-success"
-                               onclick="toggleAdminUser('${vId}')">
-                                ${escapeHtml(village)}
-                            </a>
-                        </td>
-                        <td>${villages[village].bags}</td>
-                    </tr>
-                    <tr id="${vId}" class="hidden">
-                        <td colspan="3" class="bg-white">
-                            ${renderFarmerList(villages[village].rows)}
-                        </td>
-                    </tr>`;
-                }).join('')}
-            </tbody>
-        </table>
-    </div>`;
-}
-
-function renderMandalReport(type, grouped) {
-    const mandals = Object.keys(grouped).sort();
-
-    if (!mandals.length) {
-        return `<div class="alert alert-light">No ${type.toUpperCase()} records found.</div>`;
-    }
-
-    return `
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover align-middle">
-            <thead class="${type === 'urea' ? 'table-warning' : 'table-info'}">
-                <tr>
-                    <th style="width:70px;">S.No</th>
-                    <th>Mandal Name</th>
-                    <th style="width:200px;">Number of Bags Distributed</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${mandals.map((mandal, i) => {
-                    const villages = grouped[mandal];
-                    const totalBags = Object.values(villages).reduce((s, v) => s + v.bags, 0);
-                    const mId = `${type}_mandal_${escapeId(mandal)}`;
-
-                    return `
-                    <tr>
-                        <td>${i + 1}</td>
-                        <td>
-                            <a href="javascript:void(0)" class="fw-bold text-decoration-none ${type === 'urea' ? 'text-warning' : 'text-primary'}"
-                               onclick="toggleAdminUser('${mId}')">
-                                ${escapeHtml(mandal)}
-                            </a>
-                        </td>
-                        <td>${totalBags}</td>
-                    </tr>
-                    <tr id="${mId}" class="hidden">
-                        <td colspan="3" class="bg-light">
-                            ${renderVillageRows(type, mandal, villages)}
-                        </td>
-                    </tr>`;
-                }).join('')}
-            </tbody>
-        </table>
-    </div>`;
-}
-
-function switchAdminTab(tab) {
-    const all = document.getElementById('allUsersView');
-    const urea = document.getElementById('ureaReportView');
-    const dap = document.getElementById('dapReportView');
-
-    if (all) all.classList.add('hidden');
-    if (urea) urea.classList.add('hidden');
-    if (dap) dap.classList.add('hidden');
-
-    if (tab === 'all' && all) all.classList.remove('hidden');
-    if (tab === 'urea' && urea) urea.classList.remove('hidden');
-    if (tab === 'dap' && dap) dap.classList.remove('hidden');
-}
 
 function loadAdminData() {
-    if (!isAdmin()) return alert('Access denied.');
+    const user = firebase.auth().currentUser;
+    if (!user || !isAdmin()) return alert('Access denied.');
 
     const container = document.getElementById('adminUsersContainer');
     container.innerHTML = `
@@ -4254,105 +4017,348 @@ function loadAdminData() {
 
     database.ref('users').once('value')
         .then(snapshot => {
+            console.log('[Admin] Snapshot exists:', snapshot.exists());
+
             if (!snapshot.exists()) {
                 container.innerHTML = '<div class="alert alert-warning">No user data found.</div>';
                 return;
             }
 
             const usersData = snapshot.val();
-let totalUsers = 0, totalDist = 0, totalUreaBags = 0, totalDapBags = 0;
+            console.log('[Admin] Users found:', Object.keys(usersData).length);
 
-allAdminData = [];     // Urea Cache
-allAdminDapData = [];  // DAP Cache
+            let totalUsers = 0, totalDist = 0, totalUreaBags = 0, totalDapBags = 0;
 
-const ureaGrouped = {};
-const dapGrouped = {};
+            allAdminData = [];
+            allAdminDapData = [];
 
-Object.entries(usersData).forEach(([uid, data]) => {
-    if (!data || typeof data !== 'object') return;
-    totalUsers++;
+            const mandalMap = {};
 
-    const profile = data.profile || {};
-    const mandal = toTitleCase(profile.mandal || 'Unknown Mandal');
-    const village = toTitleCase(profile.village || 'Unknown Village');
-    const email = data.userEmail || profile.email || uid;
-    const name = profile.name || data.displayName || email;
+            Object.entries(usersData).forEach(([uid, data]) => {
+                if (!data || typeof data !== 'object') return;
+                totalUsers++;
 
-    // Everything is saved in ureaHistory, so we fetch it and filter dynamically
-    const allFertHistory = normalizeHistory(data.ureaHistory);
-    
-    // Split the data by fertilizer type
-    const ureaHist = allFertHistory.filter(r => r.fertilizerType === 'Urea' || !r.fertilizerType);
-    const dapHist = allFertHistory.filter(r => r.fertilizerType === 'DAP');
+                const profile = data.profile || {};
+                const mandal = toTitleCase(profile.mandal || 'Unknown Mandal');
+                const village = toTitleCase(profile.village || 'Unknown Village');
+                const email = data.userEmail || profile.email || uid;
+                const name = profile.name || data.displayName || email;
 
-    const ureaBags = sumBags(ureaHist);
-    const dapBags = sumBags(dapHist);
+                const allFertHistory = normalizeHistory(data.ureaHistory);
 
-    totalDist += ureaHist.length + dapHist.length;
-    totalUreaBags += ureaBags;
-    totalDapBags += dapBags;
+                const ureaHist = allFertHistory.filter(r =>
+                    !r.fertilizerType || r.fertilizerType === '' || r.fertilizerType === 'Urea'
+                );
+                const dapHist = allFertHistory.filter(r => r.fertilizerType === 'DAP');
 
-    ureaHist.forEach(r => {
-        allAdminData.push({ ...r, userUID: uid, email, mandal, village });
-    });
+                const reports = data.allReports || {};
+                const ureaBags = ureaHist.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+                const dapBags = dapHist.reduce((s, r) => s + (Number(r.bags) || 0), 0);
 
-    dapHist.forEach(r => {
-        allAdminDapData.push({ ...r, userUID: uid, email, mandal, village });
-    });
+                console.log(`[Admin] UID: ${uid} | Urea: ${ureaHist.length} | DAP: ${dapHist.length}`);
 
-    if (ureaHist.length) {
-        if (!ureaGrouped[mandal]) ureaGrouped[mandal] = {};
-        if (!ureaGrouped[mandal][village]) ureaGrouped[mandal][village] = { rows: [], bags: 0 };
-        ureaHist.forEach(r => {
-            ureaGrouped[mandal][village].rows.push({ ...r, mandal, village, userUID: uid, email, name, type: 'urea' });
-            ureaGrouped[mandal][village].bags += Number(r.bags) || 0;
-        });
-    }
+                totalDist += ureaHist.length + dapHist.length;
+                totalUreaBags += ureaBags;
+                totalDapBags += dapBags;
 
-    if (dapHist.length) {
-        if (!dapGrouped[mandal]) dapGrouped[mandal] = {};
-        if (!dapGrouped[mandal][village]) dapGrouped[mandal][village] = { rows: [], bags: 0 };
-        dapHist.forEach(r => {
-            dapGrouped[mandal][village].rows.push({ ...r, mandal, village, userUID: uid, email, name, type: 'dap' });
-            dapGrouped[mandal][village].bags += Number(r.bags) || 0;
-        });
-    }
-});
+                ureaHist.forEach(r => allAdminData.push({ ...r, userUID: uid, email, name, mandal, village }));
+                dapHist.forEach(r => allAdminDapData.push({ ...r, userUID: uid, email, name, mandal, village }));
 
-            document.getElementById('adminTotalUsers').textContent = totalUsers;
-    document.getElementById('adminTotalDistributions').textContent = totalDist;
-    document.getElementById('adminTotalUreaBags').textContent = totalUreaBags;
-    document.getElementById('adminTotalDapBags').textContent = totalDapBags;
+                if (!mandalMap[mandal]) mandalMap[mandal] = {};
+                if (!mandalMap[mandal][village]) mandalMap[mandal][village] = [];
 
-    // Inject the export buttons directly into the dynamically built views
-    container.innerHTML = `
-        <div id="allUsersView" class="hidden">
-            <div class="alert alert-info">Use the tabs to view Urea or DAP mandal-wise reports.</div>
-        </div>
+                mandalMap[mandal][village].push({
+                    uid, email, name, ureaHist, dapHist, reports, ureaBags, dapBags
+                });
+            });
 
-        <div id="ureaReportView" class="hidden">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="text-warning fw-bold"><i class="fas fa-flask me-2"></i>Urea Report</h5>
-                <button class="btn btn-sm btn-warning" onclick="exportFertilizerData('urea')">
-                    <i class="fas fa-file-excel me-1"></i> Export Urea Excel
-                </button>
-            </div>
-            ${renderMandalReport('urea', ureaGrouped)}
-        </div>
+            const setEl = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = val;
+            };
 
-        <div id="dapReportView" class="hidden">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="text-info fw-bold"><i class="fas fa-seedling me-2"></i>DAP Report</h5>
-                <button class="btn btn-sm btn-info text-white" onclick="exportFertilizerData('dap')">
-                    <i class="fas fa-file-excel me-1"></i> Export DAP Excel
-                </button>
-            </div>
-            ${renderMandalReport('dap', dapGrouped)}
-        </div>`;
+            setEl('adminTotalUsers', totalUsers);
+            setEl('adminTotalDistributions', totalDist);
+            setEl('adminTotalUreaBags', totalUreaBags);
+            setEl('adminTotalDapBags', totalDapBags);
 
-    switchAdminTab('all');
-})
+            let html = '';
+
+            Object.keys(mandalMap).sort().forEach(mandal => {
+                const villages = mandalMap[mandal];
+                const allUsers = Object.values(villages).flat();
+                const mandalUrea = allUsers.reduce((s, u) => s + u.ureaBags, 0);
+                const mandalDap = allUsers.reduce((s, u) => s + u.dapBags, 0);
+                const mandalDist = allUsers.reduce((s, u) => s + u.ureaHist.length + u.dapHist.length, 0);
+                const mandalRpts = allUsers.reduce((s, u) => s + Object.keys(u.reports).length, 0);
+                const mandalId = 'mandal_' + mandal.replace(/[^a-zA-Z0-9]/g, '_');
+
+                html += `
+                <div class="card mb-4 border-0 shadow">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+                         style="background:linear-gradient(135deg,#1862ab,#2980b9);color:white;cursor:pointer;border-radius:12px 12px 0 0;"
+                         onclick="toggleAdminUser('${mandalId}')">
+                        <h5 class="mb-0">
+                            <i class="fas fa-map-marker-alt me-2"></i>
+                            ${escapeHtml(mandal)} Mandal
+                            <small class="ms-2 opacity-75" style="font-size:0.75rem;">
+                                (${Object.keys(villages).length} village${Object.keys(villages).length > 1 ? 's' : ''})
+                            </small>
+                        </h5>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <span class="badge bg-warning text-dark">${mandalRpts} Reports</span>
+                            <span class="badge bg-info text-dark">${mandalDist} Distributions</span>
+                            <span class="badge bg-light text-dark">🌾 ${mandalUrea} Urea</span>
+                            <span class="badge bg-success">🌿 ${mandalDap} DAP</span>
+                        </div>
+                    </div>
+
+                    <div id="${mandalId}" class="hidden p-3" style="background:#f8faff;">`;
+
+                Object.keys(villages).sort().forEach(village => {
+                    const users = villages[village];
+                    const vilUrea = users.reduce((s, u) => s + u.ureaBags, 0);
+                    const vilDap = users.reduce((s, u) => s + u.dapBags, 0);
+                    const vilDist = users.reduce((s, u) => s + u.ureaHist.length + u.dapHist.length, 0);
+                    const vilRpts = users.reduce((s, u) => s + Object.keys(u.reports).length, 0);
+                    const vilId = 'village_' + village.replace(/[^a-zA-Z0-9]/g, '_') + '_' + mandal.replace(/[^a-zA-Z0-9]/g, '_');
+
+                    html += `
+                    <div class="card mb-3 border-0 shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+                             style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9);cursor:pointer;border-radius:10px 10px 0 0;"
+                             onclick="toggleAdminUser('${vilId}')">
+                            <h6 class="mb-0 text-success fw-bold">
+                                <i class="fas fa-home me-2"></i>${escapeHtml(village)} Village
+                                <small class="ms-2 text-muted fw-normal" style="font-size:0.75rem;">
+                                    (${users.length} user${users.length > 1 ? 's' : ''})
+                                </small>
+                            </h6>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <span class="badge bg-warning text-dark">${vilRpts} Reports</span>
+                                <span class="badge bg-primary">${vilDist} Distributions</span>
+                                <span class="badge bg-light text-dark">🌾 ${vilUrea} Urea</span>
+                                <span class="badge bg-success">🌿 ${vilDap} DAP</span>
+                            </div>
+                        </div>
+
+                        <div id="${vilId}" class="hidden p-3">`;
+
+                    users.sort((a, b) => a.email.localeCompare(b.email)).forEach(u => {
+                        const safeUid = u.uid.replace(/[^a-zA-Z0-9]/g, '_');
+                        const reportKeys = Object.keys(u.reports);
+
+                        html += `
+                        <div class="card mb-3 border border-primary border-opacity-25 shadow-sm">
+                            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+                                 style="background:linear-gradient(135deg,#e3f2fd,#f5f8ff);border-radius:8px 8px 0 0;">
+                                <div>
+                                    <i class="fas fa-user-circle text-primary me-2"></i>
+                                    <strong>${escapeHtml(u.name || u.email)}</strong>
+                                    ${u.name && u.name !== u.email
+                                        ? `<span class="text-muted ms-2" style="font-size:0.85rem;">(${escapeHtml(u.email)})</span>`
+                                        : ''}
+                                </div>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <span class="badge bg-warning text-dark">${reportKeys.length} e-Panta</span>
+                                    <span class="badge bg-primary">${u.ureaHist.length + u.dapHist.length} Dist.</span>
+                                    <span class="badge bg-light text-dark">🌾 ${u.ureaBags} Urea</span>
+                                    <span class="badge bg-success">🌿 ${u.dapBags} DAP</span>
+                                </div>
+                            </div>
+
+                            <div class="card-body p-3">
+
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold text-warning mb-0">
+                                        <i class="fas fa-list-alt me-1"></i> e-Panta Crop Reports
+                                    </h6>
+                                    <button class="btn btn-sm btn-outline-warning"
+                                            onclick="toggleAdminUser('ep_${safeUid}')">
+                                        <i class="fas fa-eye me-1"></i> Show/Hide
+                                    </button>
+                                </div>
+
+                                <div id="ep_${safeUid}" class="hidden mb-3">
+                                    ${reportKeys.length === 0
+                                        ? '<div class="alert alert-light py-2 mb-0"><i class="fas fa-info-circle me-2 text-muted"></i>No e-Panta reports uploaded yet.</div>'
+                                        : reportKeys.sort().map(key => {
+                                            const rpt = u.reports[key];
+                                            const [yr, ssn] = key.split('_');
+                                            const safeKey = key.replace(/[^a-zA-Z0-9]/g, '_');
+                                            const crops = rpt.summary?.crops || [];
+                                            const farmers = rpt.summary?.totalFarmers || 0;
+                                            const area = (rpt.summary?.totalArea || 0).toFixed(2);
+
+                                            return `
+                                            <div class="card mb-2 border-warning border-opacity-25">
+                                                <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center flex-wrap gap-1"
+                                                     style="cursor:pointer;"
+                                                     onclick="toggleAdminUser('rpt_${safeUid}_${safeKey}')">
+                                                    <strong>
+                                                        <i class="fas fa-file-alt me-1 text-warning"></i>
+                                                        ${escapeHtml(yr || key)} — ${escapeHtml(ssn || '')}
+                                                    </strong>
+                                                    <div>
+                                                        <span class="badge bg-primary me-1">${farmers} Farmers</span>
+                                                        <span class="badge bg-success me-1">${area} Acres</span>
+                                                        <span class="badge bg-secondary">${crops.length} Crops</span>
+                                                    </div>
+                                                </div>
+                                                <div id="rpt_${safeUid}_${safeKey}" class="hidden p-2">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm table-bordered mb-0">
+                                                            <thead>
+                                                                <tr class="table-primary">
+                                                                    <th>Crop Name</th>
+                                                                    <th class="text-center">Unique Farmers</th>
+                                                                    <th class="text-center">Area (Acres)</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                ${crops.length === 0
+                                                                    ? '<tr><td colspan="3" class="text-center text-muted">No crop data</td></tr>'
+                                                                    : crops.map(c => `
+                                                                        <tr>
+                                                                            <td>${escapeHtml(c.cropName)}</td>
+                                                                            <td class="text-center">${c.uniqueFarmers}</td>
+                                                                            <td class="text-center">${(c.areaSown || 0).toFixed(2)}</td>
+                                                                        </tr>`).join('')
+                                                                }
+                                                            </tbody>
+                                                            <tfoot>
+                                                                <tr class="table-light fw-bold">
+                                                                    <td>Total</td>
+                                                                    <td class="text-center">${farmers}</td>
+                                                                    <td class="text-center">${area}</td>
+                                                                </tr>
+                                                            </tfoot>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>`;
+                                        }).join('')
+                                    }
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold text-warning mb-0">
+                                        <i class="fas fa-flask me-1"></i> Urea Distribution
+                                        <span class="badge bg-warning text-dark ms-1">${u.ureaBags} Bags</span>
+                                    </h6>
+                                    <button class="btn btn-sm btn-outline-warning"
+                                            onclick="toggleAdminUser('ur_${safeUid}')">
+                                        <i class="fas fa-eye me-1"></i> Show/Hide
+                                    </button>
+                                </div>
+
+                                <div id="ur_${safeUid}" class="hidden mb-3">
+                                    ${u.ureaHist.length === 0
+                                        ? '<div class="alert alert-light py-2"><i class="fas fa-info-circle me-2 text-muted"></i>No urea distributions yet.</div>'
+                                        : `<div class="table-responsive">
+                                            <table class="table table-hover table-sm mb-0" style="font-size:0.88rem;">
+                                                <thead class="table-warning">
+                                                    <tr>
+                                                        <th>S.No</th><th>Date</th><th>Farmer Name</th>
+                                                        <th>Father Name</th><th>Aadhaar</th><th>Mobile</th>
+                                                        <th>Khatha</th><th>Extent</th><th>Bags</th>
+                                                        <th>Season</th><th>Year</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${u.ureaHist.map((r, i) => `
+                                                    <tr>
+                                                        <td>${i + 1}</td>
+                                                        <td>${escapeHtml(r.date || '')}</td>
+                                                        <td class="fw-medium">${escapeHtml(r.farmerName || '')}</td>
+                                                        <td>${escapeHtml(r.fatherName || '')}</td>
+                                                        <td><code style="font-size:0.8rem;">${escapeHtml(r.aadhaar || '')}</code></td>
+                                                        <td>${escapeHtml(r.mobile || '')}</td>
+                                                        <td><span class="badge bg-secondary">${escapeHtml(String(r.khatha || ''))}</span></td>
+                                                        <td>${escapeHtml(String(r.extent || ''))}</td>
+                                                        <td><strong class="text-warning">${r.bags || 0}</strong></td>
+                                                        <td>${escapeHtml(r.season || '')}</td>
+                                                        <td>${escapeHtml(r.year || '')}</td>
+                                                    </tr>`).join('')}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-light fw-bold">
+                                                        <td colspan="8" class="text-end">Total Bags:</td>
+                                                        <td class="text-warning">${u.ureaBags}</td>
+                                                        <td colspan="2"></td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                           </div>`
+                                    }
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold text-info mb-0">
+                                        <i class="fas fa-seedling me-1"></i> DAP Distribution
+                                        <span class="badge bg-info text-dark ms-1">${u.dapBags} Bags</span>
+                                    </h6>
+                                    <button class="btn btn-sm btn-outline-info"
+                                            onclick="toggleAdminUser('dap_${safeUid}')">
+                                        <i class="fas fa-eye me-1"></i> Show/Hide
+                                    </button>
+                                </div>
+
+                                <div id="dap_${safeUid}" class="hidden">
+                                    ${u.dapHist.length === 0
+                                        ? '<div class="alert alert-light py-2"><i class="fas fa-info-circle me-2 text-muted"></i>No DAP distributions yet.</div>'
+                                        : `<div class="table-responsive">
+                                            <table class="table table-hover table-sm mb-0" style="font-size:0.88rem;">
+                                                <thead class="table-info">
+                                                    <tr>
+                                                        <th>S.No</th><th>Date</th><th>Farmer Name</th>
+                                                        <th>Father Name</th><th>Aadhaar</th><th>Mobile</th>
+                                                        <th>Khatha</th><th>Extent</th><th>Bags</th>
+                                                        <th>Season</th><th>Year</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${u.dapHist.map((r, i) => `
+                                                    <tr>
+                                                        <td>${i + 1}</td>
+                                                        <td>${escapeHtml(r.date || '')}</td>
+                                                        <td class="fw-medium">${escapeHtml(r.farmerName || '')}</td>
+                                                        <td>${escapeHtml(r.fatherName || '')}</td>
+                                                        <td><code style="font-size:0.8rem;">${escapeHtml(r.aadhaar || '')}</code></td>
+                                                        <td>${escapeHtml(r.mobile || '')}</td>
+                                                        <td><span class="badge bg-secondary">${escapeHtml(String(r.khatha || ''))}</span></td>
+                                                        <td>${escapeHtml(String(r.extent || ''))}</td>
+                                                        <td><strong class="text-info">${r.bags || 0}</strong></td>
+                                                        <td>${escapeHtml(r.season || '')}</td>
+                                                        <td>${escapeHtml(r.year || '')}</td>
+                                                    </tr>`).join('')}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-light fw-bold">
+                                                        <td colspan="8" class="text-end">Total Bags:</td>
+                                                        <td class="text-info">${u.dapBags}</td>
+                                                        <td colspan="2"></td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                           </div>`
+                                    }
+                                </div>
+
+                            </div>
+                        </div>`;
+                    });
+
+                    html += `</div></div>`;
+                });
+
+                html += `</div></div>`;
+            });
+
+            container.innerHTML = html || '<div class="alert alert-info">No data found.</div>';
+        })
         .catch(err => {
+            console.error('[Admin] Firebase read error:', err);
             container.innerHTML = `
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-triangle me-2"></i>
@@ -4361,34 +4367,51 @@ Object.entries(usersData).forEach(([uid, data]) => {
                 </div>`;
         });
 }
+
+
 function exportAdminData() {
     if ((!allAdminData || !allAdminData.length) && (!allAdminDapData || !allAdminDapData.length)) {
-        return alert('No data to export.');
+        return alert('No data to export. Please load admin data first.');
     }
+
     const wb = XLSX.utils.book_new();
+    const headers = ['Date','Mandal','Village','Farmer','Father Name','Aadhaar','Mobile','Khatha','Extent','Bags','Season','Year','Entered By'];
 
     if (allAdminData && allAdminData.length) {
-        const uRows = [['Date', 'Mandal', 'Village', 'Farmer', 'Aadhaar', 'Khatha', 'Bags', 'Entered By']];
-        allAdminData.forEach(r => uRows.push([r.date || '', r.mandal || '', r.village || '', r.farmerName || '', r.aadhaar || '', r.khatha || '', r.bags || '', r.email || '']));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(uRows), "Urea_Data");
+        const uRows = [headers];
+        allAdminData.forEach(r => uRows.push([
+            r.date||'', r.mandal||'', r.village||'', r.farmerName||'',
+            r.fatherName||'', r.aadhaar||'', r.mobile||'', r.khatha||'',
+            r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
+        ]));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(uRows), 'Urea_Data');
     }
+
     if (allAdminDapData && allAdminDapData.length) {
-        const dRows = [['Date', 'Mandal', 'Village', 'Farmer', 'Aadhaar', 'Khatha', 'Bags', 'Entered By']];
-        allAdminDapData.forEach(r => dRows.push([r.date || '', r.mandal || '', r.village || '', r.farmerName || '', r.aadhaar || '', r.khatha || '', r.bags || '', r.email || '']));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dRows), "DAP_Data");
+        const dRows = [headers];
+        allAdminDapData.forEach(r => dRows.push([
+            r.date||'', r.mandal||'', r.village||'', r.farmerName||'',
+            r.fatherName||'', r.aadhaar||'', r.mobile||'', r.khatha||'',
+            r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
+        ]));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dRows), 'DAP_Data');
     }
 
     XLSX.writeFile(wb, `Admin_All_Fertilizers_${formatToday()}.xlsx`);
 }
 
+
 function exportFertilizerData(type) {
     const dataToExport = type === 'urea' ? allAdminData : allAdminDapData;
     if (!dataToExport || !dataToExport.length) return alert(`No ${type.toUpperCase()} data to export.`);
 
-    const rows = [['Date', 'Mandal', 'Village', 'Farmer', 'Aadhaar', 'Khatha', 'Bags', 'Entered By']];
+    const headers = ['Date','Mandal','Village','Farmer','Father Name','Aadhaar','Mobile','Khatha','Extent','Bags','Season','Year','Entered By'];
+    const rows = [headers];
+
     dataToExport.forEach(r => rows.push([
-        r.date || '', r.mandal || '', r.village || '', r.farmerName || '',
-        r.aadhaar || '', r.khatha || '', r.bags || '', r.email || ''
+        r.date||'', r.mandal||'', r.village||'', r.farmerName||'',
+        r.fatherName||'', r.aadhaar||'', r.mobile||'', r.khatha||'',
+        r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
     ]));
 
     const wb = XLSX.utils.book_new();
@@ -4396,28 +4419,21 @@ function exportFertilizerData(type) {
     XLSX.writeFile(wb, `Admin_${type.toUpperCase()}_Report_${formatToday()}.xlsx`);
 }
 
+
 function filterAdminTable() {
-    const val = document.getElementById('adminSearchInput').value.toLowerCase().trim();
+    const val = (document.getElementById('adminSearchInput').value || '').toLowerCase().trim();
     const container = document.getElementById('adminUsersContainer');
     if (!container) return;
 
-    // Uncollapse mandal/village layers automatically if user is searching
     if (val.length > 0) {
-        container.querySelectorAll('tr.hidden').forEach(tr => {
-            if(tr.id && (tr.id.includes('_mandal_') || tr.id.includes('_village_'))) {
-                tr.classList.remove('hidden');
-            }
+        container.querySelectorAll('[id^="mandal_"], [id^="village_"]').forEach(el => {
+            el.classList.remove('hidden');
         });
     }
 
-    // Filter the actual farmer rows
-    const farmerRows = container.querySelectorAll('tbody tr');
-    farmerRows.forEach(tr => {
-        // Only target rows that hold farmer data (no IDs, lots of columns)
-        if(!tr.id && tr.cells.length > 5) {
-            const text = tr.textContent.toLowerCase();
-            tr.style.display = text.includes(val) ? '' : 'none';
-        }
+    container.querySelectorAll('.card.mb-3.border.border-primary').forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = val === '' || text.includes(val) ? '' : 'none';
     });
 }
 
