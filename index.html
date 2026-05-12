@@ -4128,11 +4128,18 @@ function getSeasonCode(year, season) {
     return `${yr}${seasonLetter}`; // e.g. "2026K"
 }
 
+function withTimeout(promise, ms = 5000, fallback = null) {
+    return Promise.race([
+        promise,
+        new Promise(resolve => setTimeout(() => resolve(fallback), ms))
+    ]);
+}
+
 function generateRegistrationId(year, season, aadhaar) {
     const user = firebase.auth().currentUser;
     if (!user) return Promise.resolve(null);
 
-    return database.ref(`users/${user.uid}/profile`).once('value').then(snap => {
+    return database.ref('users/' + user.uid + '/profile').once('value').then(snap => {
         const profile     = snap.val();
         const village     = profile?.village || 'Unknown';
         const villageCode = getVillageCode(village);
@@ -4140,7 +4147,6 @@ function generateRegistrationId(year, season, aadhaar) {
         const cleanA      = cleanAadhaar(aadhaar || '');
         const prefix      = `${villageCode}/${seasonCode}/`;
 
-        // ── Check if this farmer already has a base ID ──
         let farmerBaseId = null;
         if (cleanA && cleanA.length === 12 && farmerProfiles[cleanA]) {
             farmerProfiles[cleanA].forEach(p => {
@@ -4154,7 +4160,6 @@ function generateRegistrationId(year, season, aadhaar) {
         }
 
         if (farmerBaseId) {
-            // ── Additional khatha — add sub-number ──
             let maxSub = 0;
             farmerProfiles[cleanA].forEach(p => {
                 (p.crops || []).forEach(c => {
@@ -4165,44 +4170,44 @@ function generateRegistrationId(year, season, aadhaar) {
                 });
             });
             const nextSub = String(maxSub + 1).padStart(2, '0');
-            return `${farmerBaseId}-${nextSub}`; // e.g. KVPL/2026K/0001-01
+            return `${farmerBaseId}-${nextSub}`;
         }
 
-        // ── New farmer: check recycle pool first ──
-        const recycleRef = database.ref('registrationRecycled');
-        return recycleRef.once('value').then(recycleSnap => {
-            const pool = recycleSnap.val() || {};
+        // ✅ Wrap recycled pool read in timeout — if Firebase rules block it, skip gracefully
+        const recycleRead = withTimeout(
+            database.ref('registrationRecycled').once('value').then(recycleSnap => {
+                const pool = recycleSnap.val() || {};
+                const available = Object.values(pool)
+                    .filter(entry => entry.id.startsWith(prefix) && !entry.id.includes('-'))
+                    .sort((a, b) => new Date(a.deletedAt) - new Date(b.deletedAt));
 
-            // Only base IDs (no sub-IDs) go back to new farmers
-            const available = Object.values(pool)
-                .filter(entry =>
-                    entry.id.startsWith(prefix) &&
-                    !entry.id.includes('-')
-                )
-                .sort((a, b) =>
-                    new Date(a.deletedAt) - new Date(b.deletedAt) // oldest first
-                );
+                if (available.length > 0) {
+                    const reuse  = available[0];
+                    const useKey = reuse.id.replace(/\//g, '_');
+                    return database.ref('registrationRecycled').child(useKey).remove()
+                        .then(() => reuse.id);
+                }
+                return null; // no recycled ID found
+            }),
+            4000, // 4 second timeout
+            null  // fallback: skip recycled pool, generate fresh
+        );
 
-            if (available.length > 0) {
-                // ── Reuse recycled ID ──
-                const reuse  = available[0];
-                const useKey = reuse.id.replace(/\//g, '_');
-                return recycleRef.child(useKey).remove().then(() => {
-                    return reuse.id; // e.g. KVPL/2026K/0002 (recycled)
-                });
-            }
+        return recycleRead.then(recycledId => {
+            if (recycledId) return recycledId;
 
-            // ── No recycled ID — generate next serial from Firebase counter ──
+            // Generate fresh serial from Firebase counter
             const counterKey = `registrationCounters/${villageCode}_${seasonCode}`;
             return database.ref(counterKey).transaction(current => {
                 return (current || 0) + 1;
             }).then(result => {
                 const serial = String(result.snapshot.val()).padStart(4, '0');
-                return `${prefix}${serial}`; // e.g. KVPL/2026K/0051
+                return `${prefix}${serial}`;
             });
         });
     });
 }
+
 function refreshUreaRegId() {
     const regIdEl = document.getElementById('ureaRegId');
     if (!regIdEl) return;
@@ -4248,7 +4253,7 @@ function getFarmerProfiles(aadhaar) {
 async function saveFarmerProfile() {
     const a  = document.getElementById('fpAadhaar')?.value.trim();
     const aadhaarCheck = validateAadhaar(a);
-if (!aadhaarCheck.valid) return alert(aadhaarCheck.msg);
+    if (!aadhaarCheck.valid) return alert(aadhaarCheck.msg);
 
     const n          = document.getElementById('fpName')?.value.trim();
     const fn         = document.getElementById('fpFather')?.value.trim();
@@ -4257,91 +4262,91 @@ if (!aadhaarCheck.valid) return alert(aadhaarCheck.msg);
     const totalExt   = parseFloat(document.getElementById('fpExtent')?.value || 0);
     const farmerType = document.getElementById('fpFarmerType')?.value || 'tenant';
 
-    if (!/^[0-9]{10}$/.test(m)) return alert("⚠️ Mobile number must be exactly 10 digits.");
-    if (!n)                      return alert("Enter farmer name.");
-    if (!fn)                     return alert("Enter father name.");
-    if (!k)                      return alert("Select Khatha.");
-    if (!totalExt || totalExt <= 0) return alert("Extent must be greater than 0.");
+    if (!/^[0-9]{10}$/.test(m)) return alert('⚠️ Mobile number must be exactly 10 digits.');
+    if (!n)                      return alert('Enter farmer name.');
+    if (!fn)                     return alert('Enter father name.');
+    if (!k)                      return alert('Select Khatha.');
+    if (!totalExt || totalExt <= 0) return alert('Extent must be greater than 0.');
 
-    // Collect crop rows
-    const cropRows = document.querySelectorAll('.fp-crop-row');
-    const crops    = [];
+    // ── Read global year + season FIRST ──
+    const selectedYear   = document.getElementById('fpCropYear')?.value?.trim();
+    const selectedSeason = document.getElementById('fpCropSeason')?.value?.trim();
+
+    if (!selectedYear)   return alert('⚠️ Please select Crop Year.');
+    if (!selectedSeason) return alert('⚠️ Please select Season.');
+
+    // ── Collect crop rows ──
+    const cropRows    = document.querySelectorAll('.fp-crop-row');
+    const crops       = [];
     let cropExtentSum = 0;
 
-    if (!globalYear)   return alert('⚠️ Please select Crop Year.');
-if (!globalSeason) return alert('⚠️ Please select Season.');
+    for (const row of cropRows) {
+        const crop = row.querySelector('.fp-crop-select')?.value?.trim();
+        const ext  = parseFloat(row.querySelector('.fp-crop-extent')?.value) || 0;
 
-for (const row of cropRows) {
-    const crop   = row.querySelector('.fp-crop-select')?.value;
-    const ext    = parseFloat(row.querySelector('.fp-crop-extent')?.value) || 0;
-    const year   = globalYear;    // ← from global
-    const season = globalSeason;  // ← from global
-    if (!crop || !ext) continue;
-        if (!crop)            return alert('Select crop name for all added crop rows.');
-        if (!ext || ext <= 0) return alert(`Enter valid extent for crop: ${crop}`);
-        crops.push({ crop, extent: ext, year, season });
+        if (!crop && !ext) continue; // skip completely empty rows
+        if (!crop)         return alert('Select crop name for all added crop rows.');
+        if (ext <= 0)      return alert(`Enter valid extent for crop: ${crop}`);
+
+        crops.push({ crop, extent: ext, year: selectedYear, season: selectedSeason });
         cropExtentSum += ext;
     }
 
-    if (!crops.length) return alert("Add at least one crop.");
+if (!crops.length) return alert('Add at least one crop.');
 
-    if (parseFloat(cropExtentSum.toFixed(2)) > parseFloat(totalExt.toFixed(2))) {
-        return alert(`Total crop extents (${cropExtentSum.toFixed(2)} ac) exceed Khatha extent (${totalExt.toFixed(2)} ac).`);
-    }
+if (parseFloat(cropExtentSum.toFixed(2)) > parseFloat(totalExt.toFixed(2))) {
+    return alert(`Total crop extents (${cropExtentSum.toFixed(2)} ac) exceed Khatha extent (${totalExt.toFixed(2)} ac).`);
+}
 
-    const cropNames = crops.map(c => c.crop);
-    if (new Set(cropNames).size !== cropNames.length)
-        return alert("Duplicate crops in same profile. Each crop should appear once per khatha.");
+const cropNames = crops.map(c => c.crop);
+if (new Set(cropNames).size !== cropNames.length)
+    return alert('Duplicate crops in same profile. Each crop should appear once per khatha.');
 
-    if (!farmerProfiles[a]) farmerProfiles[a] = [];
+if (!farmerProfiles[a]) farmerProfiles[a] = [];
 
-    const existingIdx = farmerProfiles[a].findIndex(p => String(p.khatha) === String(k));
+const existingIdx = farmerProfiles[a].findIndex(p => String(p.khatha) === String(k));
 
-    // ── Assign Registration IDs ──
+// ── Assign Registration IDs ──
 if (existingIdx !== -1) {
-    // Update: preserve existing reg IDs, only generate for brand new crops
     const existingCrops = farmerProfiles[a][existingIdx].crops || [];
     for (const cropEntry of crops) {
         const old = existingCrops.find(ec =>
             ec.crop === cropEntry.crop && ec.season === cropEntry.season
         );
-        if (old?.registrationId) {
-            cropEntry.registrationId = old.registrationId; // preserve
-        } else {
-            cropEntry.registrationId = await generateRegistrationId(
-                cropEntry.year, cropEntry.season, a  // ← aadhaar passed
-            );
-        }
+        cropEntry.registrationId = old?.registrationId
+            ? old.registrationId
+            : await generateRegistrationId(cropEntry.year, cropEntry.season, a);
     }
 } else {
-    // New profile entry: generate fresh IDs for all crops
     for (const cropEntry of crops) {
         cropEntry.registrationId = await generateRegistrationId(
-            cropEntry.year, cropEntry.season, a  // ← aadhaar passed
+            cropEntry.year, cropEntry.season, a
         );
     }
 }
 
-    const profileEntry = {
-        aadhaar: a, farmerName: n, fatherName: fn, mobile: m,
-        khatha: k, extent: totalExt, farmerType, crops,
-        savedAt: new Date().toISOString()
-    };
+const profileEntry = {
+    aadhaar: a, farmerName: n, fatherName: fn, mobile: m,
+    khatha: k, extent: totalExt, farmerType, crops,
+    savedAt: new Date().toISOString()
+};
 
-    if (existingIdx !== -1) {
-        profileEntry.savedAt   = farmerProfiles[a][existingIdx].savedAt || new Date().toISOString();
-        profileEntry.updatedAt = new Date().toISOString();
-        farmerProfiles[a][existingIdx] = profileEntry;
-        alert(`✅ Profile updated for Aadhaar ${a} — Khatha ${k}.`);
-    } else {
-        farmerProfiles[a].push(profileEntry);
-        const regIds = crops.map(c => c.registrationId).join(', ');
-        alert(`✅ Profile saved!\nReg ID(s): ${regIds}`);
-    }
-
-    saveToCloud();
-    clearFarmerProfileForm();
+if (existingIdx !== -1) {
+    profileEntry.savedAt   = farmerProfiles[a][existingIdx].savedAt || new Date().toISOString();
+    profileEntry.updatedAt = new Date().toISOString();
+    farmerProfiles[a][existingIdx] = profileEntry;
+    alert(`✅ Profile updated for Aadhaar ${a} — Khatha ${k}.`);
+} else {
+    farmerProfiles[a].push(profileEntry);
+    const regIds = crops.map(c => c.registrationId).join(', ');
+    alert(`✅ Profile saved!\nReg ID(s): ${regIds}`);
 }
+
+saveToCloud();
+clearFarmerProfileForm();
+
+} // ← end of saveFarmerProfile
+
 
 function clearFarmerProfileForm() {
     ['fpAadhaar','fpName','fpFather','fpMobile','fpExtent'].forEach(id => {
@@ -4368,6 +4373,7 @@ function clearFarmerProfileForm() {
     document.getElementById('fpKhatha').innerHTML        = '<option value="">--Select Khatha--</option>';
     addFpCropRow();
 }
+
 
 function addFpCropRow() {
     const container = document.getElementById('fpCropRows');
@@ -4401,10 +4407,12 @@ function addFpCropRow() {
     container.appendChild(row);
 }
 
+
 function removeFpCropRow(btn) {
     btn.closest('.fp-crop-row').remove();
     onFpCropOrExtentChange();
 }
+
 
 function onFpCropOrExtentChange() {
     const totalExt = parseFloat(document.getElementById('fpExtent')?.value || 0);
