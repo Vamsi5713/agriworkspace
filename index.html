@@ -965,70 +965,183 @@
         <i class="fas fa-arrow-left me-2"></i> Back
     </button>
 
-    <div class="card p-4 mx-auto" style="max-width: 1100px;">
+    <div class="card p-4 mx-auto" style="max-width: 1200px;">
 
         <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="text-danger mb-0">
-                <i class="fas fa-user-shield me-2"></i>Admin Panel
-            </h2>
-            <span class="badge bg-danger fs-6">Admin Access</span>
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-user-shield fa-2x text-danger"></i>
+                <div>
+                    <h2 class="text-danger mb-0 fw-bold">Admin Panel</h2>
+                    <small class="text-muted">Full data visibility across all users</small>
+                </div>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <span class="badge bg-danger fs-6 px-3 py-2">
+                    <i class="fas fa-shield-alt me-1"></i> Admin Access
+                </span>
+                <button class="btn btn-primary btn-sm shadow-sm" onclick="loadAdminData()">
+                    <i class="fas fa-sync me-1"></i> Refresh
+                </button>
+            </div>
         </div>
 
         <!-- Stats Row -->
         <div class="row g-3 mb-4" id="adminStatsRow">
             <div class="col-6 col-md-3">
-                <div class="card p-3 border-0 shadow-sm text-center">
-                    <h3 class="text-primary fw-bold" id="adminTotalUsers">0</h3>
-                    <p class="text-muted mb-0"><i class="fas fa-users me-1"></i>Total Users</p>
+                <div class="card border-0 shadow-sm text-center p-3 h-100"
+                     style="border-left:4px solid #0d6efd !important; border-radius:12px;">
+                    <div class="display-6 fw-bold text-primary" id="adminTotalUsers">0</div>
+                    <div class="text-muted small mt-1">
+                        <i class="fas fa-users me-1"></i> Total Users
+                    </div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
-                <div class="card p-3 border-0 shadow-sm text-center">
-                    <h3 class="text-success fw-bold" id="adminTotalDistributions">0</h3>
-                    <p class="text-muted mb-0"><i class="fas fa-boxes me-1"></i>Total Distributions</p>
+                <div class="card border-0 shadow-sm text-center p-3 h-100"
+                     style="border-left:4px solid #198754 !important; border-radius:12px;">
+                    <div class="display-6 fw-bold text-success" id="adminTotalDistributions">0</div>
+                    <div class="text-muted small mt-1">
+                        <i class="fas fa-boxes me-1"></i> Distributions
+                    </div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
-                <div class="card p-3 border-0 shadow-sm text-center bg-warning-subtle">
-                    <h3 class="text-warning fw-bold" id="adminTotalUreaBags">0</h3>
-                    <p class="text-muted mb-0">🌾 Total Urea Bags</p>
+                <div class="card border-0 shadow-sm text-center p-3 h-100 bg-warning-subtle"
+                     style="border-left:4px solid #ffc107 !important; border-radius:12px;">
+                    <div class="display-6 fw-bold text-warning" id="adminTotalUreaBags">0</div>
+                    <div class="text-muted small mt-1">🌾 Urea Bags</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
-                <div class="card p-3 border-0 shadow-sm text-center bg-info-subtle">
-                    <h3 class="text-info fw-bold" id="adminTotalDapBags">0</h3>
-                    <p class="text-muted mb-0">🌿 Total DAP Bags</p>
+                <div class="card border-0 shadow-sm text-center p-3 h-100 bg-info-subtle"
+                     style="border-left:4px solid #0dcaf0 !important; border-radius:12px;">
+                    <div class="display-6 fw-bold text-info" id="adminTotalDapBags">0</div>
+                    <div class="text-muted small mt-1">🌿 DAP Bags</div>
                 </div>
             </div>
         </div>
 
         <!-- Search & Export Toolbar -->
-        <div class="d-flex gap-2 mb-4 flex-wrap align-items-center">
-            <input type="text" id="adminSearchInput" class="form-control shadow-sm"
-                   style="max-width:300px"
-                   placeholder="🔍 Search farmer, aadhaar, village..."
-                   oninput="filterAdminTable()">
-            <button class="btn btn-outline-warning" onclick="exportFertilizerData('urea')">
-                <i class="fas fa-file-excel me-1"></i> Export Urea
-            </button>
-            <button class="btn btn-outline-info" onclick="exportFertilizerData('dap')">
-                <i class="fas fa-file-excel me-1"></i> Export DAP
-            </button>
-            <button class="btn btn-success" onclick="exportAdminData()">
-                <i class="fas fa-file-excel me-1"></i> Export All
-            </button>
-            <button class="btn btn-primary" onclick="loadAdminData()">
-                <i class="fas fa-sync me-1"></i> Refresh
-            </button>
+        <div class="card bg-light border-0 shadow-sm p-3 mb-4">
+            <div class="d-flex gap-2 flex-wrap align-items-center justify-content-between">
+
+                <!-- Search -->
+                <div class="input-group shadow-sm" style="max-width:320px;">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="fas fa-search text-muted"></i>
+                    </span>
+                    <input type="text" id="adminSearchInput" class="form-control border-start-0"
+                           placeholder="Search farmer, aadhaar, village..."
+                           oninput="filterAdminTable()">
+                </div>
+
+                <!-- Export + Danger Buttons -->
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                    <button class="btn btn-outline-warning btn-sm fw-semibold shadow-sm"
+                            onclick="exportFertilizerData('urea')">
+                        <i class="fas fa-file-excel me-1"></i> Export Urea
+                    </button>
+                    <button class="btn btn-outline-info btn-sm fw-semibold shadow-sm"
+                            onclick="exportFertilizerData('dap')">
+                        <i class="fas fa-file-excel me-1"></i> Export DAP
+                    </button>
+                    <button class="btn btn-success btn-sm fw-semibold shadow-sm"
+                            onclick="exportAdminData()">
+                        <i class="fas fa-file-excel me-1"></i> Export All
+                    </button>
+
+                    <!-- Divider -->
+                    <div class="vr mx-1"></div>
+
+                    <!-- Clear User Data Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-danger btn-sm fw-semibold shadow-sm dropdown-toggle"
+                                type="button" id="clearDataDropdown"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-trash-alt me-1"></i> Clear User Data
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0"
+                            aria-labelledby="clearDataDropdown"
+                            style="min-width:230px; border-radius:10px;">
+
+                            <li>
+                                <h6 class="dropdown-header text-danger fw-bold">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Select User First ↓
+                                </h6>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2"
+                                   href="#" onclick="adminClearPrompt('all'); return false;">
+                                    <span class="badge bg-danger" style="width:22px;">1</span>
+                                    <span>🗑️ <strong>ALL</strong> Data</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2"
+                                   href="#" onclick="adminClearPrompt('farmerProfiles'); return false;">
+                                    <span class="badge bg-secondary" style="width:22px;">2</span>
+                                    <span>👤 Farmer Profiles</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2"
+                                   href="#" onclick="adminClearPrompt('ureaHistory'); return false;">
+                                    <span class="badge bg-warning text-dark" style="width:22px;">3</span>
+                                    <span>🌾 Fertilizer History</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2"
+                                   href="#" onclick="adminClearPrompt('allReports'); return false;">
+                                    <span class="badge bg-info text-dark" style="width:22px;">4</span>
+                                    <span>📋 e-Panta Reports</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2"
+                                   href="#" onclick="adminClearPrompt('ureaData'); return false;">
+                                    <span class="badge bg-primary" style="width:22px;">5</span>
+                                    <span>📦 1B Uploaded Data</span>
+                                </a>
+                            </li>
+
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-warning"
+                                   href="#" onclick="adminClearPrompt('registrationCounters'); return false;">
+                                    <span class="badge bg-warning text-dark" style="width:22px;">↺</span>
+                                    <span>🔢 Reset Reg. ID Counters</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active filter indicator -->
+            <div id="adminFilterInfo" class="mt-2 d-none">
+                <small class="text-muted">
+                    <i class="fas fa-filter me-1 text-warning"></i>
+                    Showing filtered results —
+                    <a href="#" class="text-danger text-decoration-none fw-semibold"
+                       onclick="document.getElementById('adminSearchInput').value='';
+                                filterAdminTable(); return false;">
+                        Clear Filter
+                    </a>
+                </small>
+            </div>
         </div>
 
         <!-- Admin Users Container -->
-        <!-- Mandal > Village > User > e-Panta / Urea / DAP rendered here by JS -->
         <div id="adminUsersContainer">
-            <div class="text-center text-muted p-5">
-                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
-                <p>Loading all user data...</p>
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-spinner fa-spin fa-2x mb-3 text-primary d-block"></i>
+                <p class="fw-semibold">Loading all user data...</p>
+                <small>Please wait while admin data is being fetched.</small>
             </div>
         </div>
 
@@ -4990,9 +5103,8 @@ function exportAllFarmerProfiles() {
 }
    // ---- ADMIN PANEL FUNCTIONS ----
 
-let allAdminData = [];    // cache for Urea export
-let allAdminDapData = []; // cache for DAP export
-
+let allAdminData    = [];
+let allAdminDapData = [];
 
 function toggleAdminUser(id) {
     const el = document.getElementById(id);
@@ -5000,44 +5112,156 @@ function toggleAdminUser(id) {
     el.classList.toggle('hidden');
 }
 
-
 function toTitleCase(str) {
     return (str || '').trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
-
 
 function normalizeHistory(raw) {
     if (!raw) return [];
     return Array.isArray(raw) ? raw : Object.values(raw);
 }
 
+// ── Clear specific user data (called from admin panel) ──
+function clearUserData(uid, userName) {
+    const menu = `Select what to clear for:\n👤 ${userName}\n
+1. 🗑️ ALL Data (Profiles + History + Reports + 1B Data)
+2. 👤 Farmer Profiles only
+3. 🌾 Fertilizer History only
+4. 📋 e-Panta Reports only
+5. 📦 1B Uploaded Data (ureaData) only`;
 
+    const choice = prompt(menu + '\n\nEnter number (1–5):');
+    if (!choice) return;
+
+    const pathMap = {
+        '1': null,              // entire users/uid node
+        '2': 'farmerProfiles',
+        '3': 'ureaHistory',
+        '4': 'allReports',
+        '5': 'ureaData'
+    };
+
+    if (!(choice.trim() in pathMap)) return alert('⚠️ Invalid selection. Enter 1 to 5.');
+
+    const path  = pathMap[choice.trim()];
+    const label = path || 'ALL DATA';
+
+    const confirmed = confirm(
+        `⚠️ You are about to delete:\n\n"${label}"\n\nFor user: ${userName}\n\n` +
+        `This CANNOT be undone!\n\nAre you absolutely sure?`
+    );
+    if (!confirmed) return;
+
+    const ref = path
+        ? database.ref(`users/${uid}/${path}`)
+        : database.ref(`users/${uid}`);
+
+    ref.remove()
+        .then(() => {
+            // If profiles cleared, offer to reset reg counters
+            if (choice === '1' || choice === '2') {
+                if (confirm('🔄 Also reset Registration ID counters?\n(Next farmer will get ID starting from 0001)')) {
+                    return database.ref('registrationCounters').remove();
+                }
+            }
+        })
+        .then(() => {
+            alert(`✅ "${label}" cleared successfully for:\n${userName}`);
+            loadAdminData(); // refresh admin panel
+        })
+        .catch(err => alert('❌ Error: ' + err.message));
+}
+function adminClearPrompt(dataType) {
+    // Special case: reset counters (no user needed)
+    if (dataType === 'registrationCounters') {
+        if (!confirm('⚠️ Reset ALL Registration ID counters?\n\nNext farmer saved will get ID starting from 0001.\n\nConfirm?')) return;
+        database.ref('registrationCounters').remove()
+            .then(() => alert('✅ Registration counters reset successfully.'))
+            .catch(err => alert('❌ Error: ' + err.message));
+        return;
+    }
+
+    // Ask target user email
+    const targetEmail = prompt('Enter the EMAIL of the user whose data you want to clear:');
+    if (!targetEmail?.trim()) return;
+
+    // Find matching user from cached admin data
+    const allUsers = [...allAdminData, ...allAdminDapData];
+    const match = allUsers.find(u =>
+        (u.email || '').toLowerCase() === targetEmail.trim().toLowerCase()
+    );
+
+    if (!match) {
+        return alert(`⚠️ No user found with email:\n${targetEmail}\n\nLoad admin data first, then try again.`);
+    }
+
+    clearUserData(match.userUID, match.name || match.email, dataType);
+}
+function clearUserData(uid, userName, dataType) {
+    // If called from user card button (no dataType), show prompt
+    if (!dataType) {
+        const menu =
+`Select what to clear for:
+👤 ${userName}
+
+1. 🗑️ ALL Data
+2. 👤 Farmer Profiles only
+3. 🌾 Fertilizer History only
+4. 📋 e-Panta Reports only
+5. 📦 1B Uploaded Data only`;
+
+        const choice = prompt(menu + '\n\nEnter number (1–5):');
+        if (!choice) return;
+        const pathMap = { '1':null, '2':'farmerProfiles', '3':'ureaHistory', '4':'allReports', '5':'ureaData' };
+        if (!(choice.trim() in pathMap)) return alert('⚠️ Invalid selection.');
+        dataType = pathMap[choice.trim()];
+        if (dataType === undefined) dataType = null; // choice was '1'
+    }
+
+    const label = dataType || 'ALL DATA';
+    if (!confirm(`⚠️ Delete "${label}" for:\n${userName}\n\nThis CANNOT be undone. Confirm?`)) return;
+
+    const ref = dataType
+        ? database.ref(`users/${uid}/${dataType}`)
+        : database.ref(`users/${uid}`);
+
+    ref.remove()
+        .then(() => {
+            if (!dataType || dataType === 'farmerProfiles') {
+                if (confirm('🔄 Also reset Registration ID counters?\n(Next ID will start from 0001)')) {
+                    return database.ref('registrationCounters').remove();
+                }
+            }
+        })
+        .then(() => {
+            alert(`✅ "${label}" cleared for:\n${userName}`);
+            loadAdminData();
+        })
+        .catch(err => alert('❌ Error: ' + err.message));
+}
 function loadAdminData() {
     const user = firebase.auth().currentUser;
     if (!user || !isAdmin()) return alert('Access denied.');
 
     const container = document.getElementById('adminUsersContainer');
     container.innerHTML = `
-        <div class="text-center text-muted p-5">
-            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
-            <p>Loading all users data...</p>
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3 text-primary d-block"></i>
+            <p class="fw-semibold">Loading all user data...</p>
+            <small>Please wait while admin data is being fetched.</small>
         </div>`;
 
     database.ref('users').once('value')
         .then(snapshot => {
-            console.log('[Admin] Snapshot exists:', snapshot.exists());
-
             if (!snapshot.exists()) {
                 container.innerHTML = '<div class="alert alert-warning">No user data found.</div>';
                 return;
             }
 
             const usersData = snapshot.val();
-            console.log('[Admin] Users found:', Object.keys(usersData).length);
-
             let totalUsers = 0, totalDist = 0, totalUreaBags = 0, totalDapBags = 0;
 
-            allAdminData = [];
+            allAdminData    = [];
             allAdminDapData = [];
 
             const mandalMap = {};
@@ -5046,33 +5270,30 @@ function loadAdminData() {
                 if (!data || typeof data !== 'object') return;
                 totalUsers++;
 
-                const profile = data.profile || {};
-                const mandal = toTitleCase(profile.mandal || 'Unknown Mandal');
-                const village = toTitleCase(profile.village || 'Unknown Village');
-                const email = data.userEmail || profile.email || uid;
-                const name = profile.name || data.displayName || email;
+                const profile  = data.profile || {};
+                const mandal   = toTitleCase(profile.mandal  || 'Unknown Mandal');
+                const village  = toTitleCase(profile.village || 'Unknown Village');
+                const email    = data.userEmail || profile.email || uid;
+                const name     = profile.name || data.displayName || email;
 
                 const allFertHistory = normalizeHistory(data.ureaHistory);
-
                 const ureaHist = allFertHistory.filter(r =>
                     !r.fertilizerType || r.fertilizerType === '' || r.fertilizerType === 'Urea'
                 );
-                const dapHist = allFertHistory.filter(r => r.fertilizerType === 'DAP');
+                const dapHist  = allFertHistory.filter(r => r.fertilizerType === 'DAP');
 
-                const reports = data.allReports || {};
+                const reports  = data.allReports || {};
                 const ureaBags = ureaHist.reduce((s, r) => s + (Number(r.bags) || 0), 0);
-                const dapBags = dapHist.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+                const dapBags  = dapHist.reduce((s,  r) => s + (Number(r.bags) || 0), 0);
 
-                console.log(`[Admin] UID: ${uid} | Urea: ${ureaHist.length} | DAP: ${dapHist.length}`);
-
-                totalDist += ureaHist.length + dapHist.length;
+                totalDist     += ureaHist.length + dapHist.length;
                 totalUreaBags += ureaBags;
-                totalDapBags += dapBags;
+                totalDapBags  += dapBags;
 
-                ureaHist.forEach(r => allAdminData.push({ ...r, userUID: uid, email, name, mandal, village }));
-                dapHist.forEach(r => allAdminDapData.push({ ...r, userUID: uid, email, name, mandal, village }));
+                ureaHist.forEach(r => allAdminData.push({    ...r, userUID: uid, email, name, mandal, village }));
+                dapHist.forEach(r  => allAdminDapData.push({ ...r, userUID: uid, email, name, mandal, village }));
 
-                if (!mandalMap[mandal]) mandalMap[mandal] = {};
+                if (!mandalMap[mandal])         mandalMap[mandal] = {};
                 if (!mandalMap[mandal][village]) mandalMap[mandal][village] = [];
 
                 mandalMap[mandal][village].push({
@@ -5084,27 +5305,26 @@ function loadAdminData() {
                 const el = document.getElementById(id);
                 if (el) el.textContent = val;
             };
-
-            setEl('adminTotalUsers', totalUsers);
+            setEl('adminTotalUsers',         totalUsers);
             setEl('adminTotalDistributions', totalDist);
-            setEl('adminTotalUreaBags', totalUreaBags);
-            setEl('adminTotalDapBags', totalDapBags);
+            setEl('adminTotalUreaBags',      totalUreaBags);
+            setEl('adminTotalDapBags',       totalDapBags);
 
             let html = '';
 
             Object.keys(mandalMap).sort().forEach(mandal => {
-                const villages = mandalMap[mandal];
-                const allUsers = Object.values(villages).flat();
+                const villages  = mandalMap[mandal];
+                const allUsers  = Object.values(villages).flat();
                 const mandalUrea = allUsers.reduce((s, u) => s + u.ureaBags, 0);
-                const mandalDap = allUsers.reduce((s, u) => s + u.dapBags, 0);
+                const mandalDap  = allUsers.reduce((s, u) => s + u.dapBags, 0);
                 const mandalDist = allUsers.reduce((s, u) => s + u.ureaHist.length + u.dapHist.length, 0);
                 const mandalRpts = allUsers.reduce((s, u) => s + Object.keys(u.reports).length, 0);
-                const mandalId = 'mandal_' + mandal.replace(/[^a-zA-Z0-9]/g, '_');
+                const mandalId   = 'mandal_' + mandal.replace(/[^a-zA-Z0-9]/g, '_');
 
                 html += `
-                <div class="card mb-4 border-0 shadow">
+                <div class="card mb-4 border-0 shadow" style="border-radius:12px;overflow:hidden;">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
-                         style="background:linear-gradient(135deg,#1862ab,#2980b9);color:white;cursor:pointer;border-radius:12px 12px 0 0;"
+                         style="background:linear-gradient(135deg,#1862ab,#2980b9);color:white;cursor:pointer;"
                          onclick="toggleAdminUser('${mandalId}')">
                         <h5 class="mb-0">
                             <i class="fas fa-map-marker-alt me-2"></i>
@@ -5114,9 +5334,9 @@ function loadAdminData() {
                             </small>
                         </h5>
                         <div class="d-flex gap-2 flex-wrap">
-                            <span class="badge bg-warning text-dark">${mandalRpts} Reports</span>
-                            <span class="badge bg-info text-dark">${mandalDist} Distributions</span>
-                            <span class="badge bg-light text-dark">🌾 ${mandalUrea} Urea</span>
+                            <span class="badge bg-light  text-dark">📋 ${mandalRpts} Reports</span>
+                            <span class="badge bg-info   text-dark">🔄 ${mandalDist} Dist.</span>
+                            <span class="badge bg-warning text-dark">🌾 ${mandalUrea} Urea</span>
                             <span class="badge bg-success">🌿 ${mandalDap} DAP</span>
                         </div>
                     </div>
@@ -5124,17 +5344,17 @@ function loadAdminData() {
                     <div id="${mandalId}" class="hidden p-3" style="background:#f8faff;">`;
 
                 Object.keys(villages).sort().forEach(village => {
-                    const users = villages[village];
+                    const users   = villages[village];
                     const vilUrea = users.reduce((s, u) => s + u.ureaBags, 0);
-                    const vilDap = users.reduce((s, u) => s + u.dapBags, 0);
+                    const vilDap  = users.reduce((s, u) => s + u.dapBags, 0);
                     const vilDist = users.reduce((s, u) => s + u.ureaHist.length + u.dapHist.length, 0);
                     const vilRpts = users.reduce((s, u) => s + Object.keys(u.reports).length, 0);
-                    const vilId = 'village_' + village.replace(/[^a-zA-Z0-9]/g, '_') + '_' + mandal.replace(/[^a-zA-Z0-9]/g, '_');
+                    const vilId   = 'village_' + village.replace(/[^a-zA-Z0-9]/g, '_') + '_' + mandal.replace(/[^a-zA-Z0-9]/g, '_');
 
                     html += `
-                    <div class="card mb-3 border-0 shadow-sm">
+                    <div class="card mb-3 border-0 shadow-sm" style="border-radius:10px;overflow:hidden;">
                         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
-                             style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9);cursor:pointer;border-radius:10px 10px 0 0;"
+                             style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9);cursor:pointer;"
                              onclick="toggleAdminUser('${vilId}')">
                             <h6 class="mb-0 text-success fw-bold">
                                 <i class="fas fa-home me-2"></i>${escapeHtml(village)} Village
@@ -5143,9 +5363,9 @@ function loadAdminData() {
                                 </small>
                             </h6>
                             <div class="d-flex gap-2 flex-wrap">
-                                <span class="badge bg-warning text-dark">${vilRpts} Reports</span>
-                                <span class="badge bg-primary">${vilDist} Distributions</span>
-                                <span class="badge bg-light text-dark">🌾 ${vilUrea} Urea</span>
+                                <span class="badge bg-light   text-dark">📋 ${vilRpts} Reports</span>
+                                <span class="badge bg-primary">🔄 ${vilDist} Dist.</span>
+                                <span class="badge bg-warning text-dark">🌾 ${vilUrea} Urea</span>
                                 <span class="badge bg-success">🌿 ${vilDap} DAP</span>
                             </div>
                         </div>
@@ -5153,13 +5373,17 @@ function loadAdminData() {
                         <div id="${vilId}" class="hidden p-3">`;
 
                     users.sort((a, b) => a.email.localeCompare(b.email)).forEach(u => {
-                        const safeUid = u.uid.replace(/[^a-zA-Z0-9]/g, '_');
+                        const safeUid    = u.uid.replace(/[^a-zA-Z0-9]/g, '_');
                         const reportKeys = Object.keys(u.reports);
+                        const safeNameForJs = (u.name || u.email).replace(/'/g, "\\'");
 
                         html += `
-                        <div class="card mb-3 border border-primary border-opacity-25 shadow-sm">
+                        <div class="card mb-3 border border-primary border-opacity-25 shadow-sm"
+                             style="border-radius:8px;overflow:hidden;">
+
+                            <!-- User Header -->
                             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
-                                 style="background:linear-gradient(135deg,#e3f2fd,#f5f8ff);border-radius:8px 8px 0 0;">
+                                 style="background:linear-gradient(135deg,#e3f2fd,#f5f8ff);">
                                 <div>
                                     <i class="fas fa-user-circle text-primary me-2"></i>
                                     <strong>${escapeHtml(u.name || u.email)}</strong>
@@ -5167,16 +5391,24 @@ function loadAdminData() {
                                         ? `<span class="text-muted ms-2" style="font-size:0.85rem;">(${escapeHtml(u.email)})</span>`
                                         : ''}
                                 </div>
-                                <div class="d-flex gap-2 flex-wrap">
+                                <div class="d-flex gap-2 flex-wrap align-items-center">
                                     <span class="badge bg-warning text-dark">${reportKeys.length} e-Panta</span>
                                     <span class="badge bg-primary">${u.ureaHist.length + u.dapHist.length} Dist.</span>
                                     <span class="badge bg-light text-dark">🌾 ${u.ureaBags} Urea</span>
                                     <span class="badge bg-success">🌿 ${u.dapBags} DAP</span>
+
+                                    <!-- ── Clear User Data Button ── -->
+                                    <button class="btn btn-sm btn-outline-danger fw-semibold"
+                                            onclick="clearUserData('${u.uid}', '${safeNameForJs}')"
+                                            title="Clear data for this user">
+                                        <i class="fas fa-trash-alt me-1"></i> Clear Data
+                                    </button>
                                 </div>
                             </div>
 
                             <div class="card-body p-3">
 
+                                <!-- e-Panta Reports -->
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h6 class="fw-bold text-warning mb-0">
                                         <i class="fas fa-list-alt me-1"></i> e-Panta Crop Reports
@@ -5186,18 +5418,16 @@ function loadAdminData() {
                                         <i class="fas fa-eye me-1"></i> Show/Hide
                                     </button>
                                 </div>
-
                                 <div id="ep_${safeUid}" class="hidden mb-3">
                                     ${reportKeys.length === 0
-                                        ? '<div class="alert alert-light py-2 mb-0"><i class="fas fa-info-circle me-2 text-muted"></i>No e-Panta reports uploaded yet.</div>'
+                                        ? '<div class="alert alert-light py-2 mb-0 text-muted"><i class="fas fa-info-circle me-2"></i>No e-Panta reports uploaded yet.</div>'
                                         : reportKeys.sort().map(key => {
-                                            const rpt = u.reports[key];
+                                            const rpt     = u.reports[key];
                                             const [yr, ssn] = key.split('_');
                                             const safeKey = key.replace(/[^a-zA-Z0-9]/g, '_');
-                                            const crops = rpt.summary?.crops || [];
+                                            const crops   = rpt.summary?.crops || [];
                                             const farmers = rpt.summary?.totalFarmers || 0;
-                                            const area = (rpt.summary?.totalArea || 0).toFixed(2);
-
+                                            const area    = (rpt.summary?.totalArea || 0).toFixed(2);
                                             return `
                                             <div class="card mb-2 border-warning border-opacity-25">
                                                 <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center flex-wrap gap-1"
@@ -5216,15 +5446,13 @@ function loadAdminData() {
                                                 <div id="rpt_${safeUid}_${safeKey}" class="hidden p-2">
                                                     <div class="table-responsive">
                                                         <table class="table table-sm table-bordered mb-0">
-                                                            <thead>
-                                                                <tr class="table-primary">
-                                                                    <th>Crop Name</th>
-                                                                    <th class="text-center">Unique Farmers</th>
-                                                                    <th class="text-center">Area (Acres)</th>
-                                                                </tr>
-                                                            </thead>
+                                                            <thead><tr class="table-primary">
+                                                                <th>Crop Name</th>
+                                                                <th class="text-center">Unique Farmers</th>
+                                                                <th class="text-center">Area (Acres)</th>
+                                                            </tr></thead>
                                                             <tbody>
-                                                                ${crops.length === 0
+                                                                ${!crops.length
                                                                     ? '<tr><td colspan="3" class="text-center text-muted">No crop data</td></tr>'
                                                                     : crops.map(c => `
                                                                         <tr>
@@ -5249,6 +5477,7 @@ function loadAdminData() {
                                     }
                                 </div>
 
+                                <!-- Urea Distribution -->
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h6 class="fw-bold text-warning mb-0">
                                         <i class="fas fa-flask me-1"></i> Urea Distribution
@@ -5259,10 +5488,9 @@ function loadAdminData() {
                                         <i class="fas fa-eye me-1"></i> Show/Hide
                                     </button>
                                 </div>
-
                                 <div id="ur_${safeUid}" class="hidden mb-3">
                                     ${u.ureaHist.length === 0
-                                        ? '<div class="alert alert-light py-2"><i class="fas fa-info-circle me-2 text-muted"></i>No urea distributions yet.</div>'
+                                        ? '<div class="alert alert-light py-2 text-muted"><i class="fas fa-info-circle me-2"></i>No urea distributions yet.</div>'
                                         : `<div class="table-responsive">
                                             <table class="table table-hover table-sm mb-0" style="font-size:0.88rem;">
                                                 <thead class="table-warning">
@@ -5301,6 +5529,7 @@ function loadAdminData() {
                                     }
                                 </div>
 
+                                <!-- DAP Distribution -->
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h6 class="fw-bold text-info mb-0">
                                         <i class="fas fa-seedling me-1"></i> DAP Distribution
@@ -5311,10 +5540,9 @@ function loadAdminData() {
                                         <i class="fas fa-eye me-1"></i> Show/Hide
                                     </button>
                                 </div>
-
                                 <div id="dap_${safeUid}" class="hidden">
                                     ${u.dapHist.length === 0
-                                        ? '<div class="alert alert-light py-2"><i class="fas fa-info-circle me-2 text-muted"></i>No DAP distributions yet.</div>'
+                                        ? '<div class="alert alert-light py-2 text-muted"><i class="fas fa-info-circle me-2"></i>No DAP distributions yet.</div>'
                                         : `<div class="table-responsive">
                                             <table class="table table-hover table-sm mb-0" style="font-size:0.88rem;">
                                                 <thead class="table-info">
@@ -5367,7 +5595,7 @@ function loadAdminData() {
         })
         .catch(err => {
             console.error('[Admin] Firebase read error:', err);
-            container.innerHTML = `
+            document.getElementById('adminUsersContainer').innerHTML = `
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>Permission Error:</strong> ${escapeHtml(err.message)}<br>
@@ -5376,64 +5604,58 @@ function loadAdminData() {
         });
 }
 
-
 function exportAdminData() {
-    if ((!allAdminData || !allAdminData.length) && (!allAdminDapData || !allAdminDapData.length)) {
+    if (!allAdminData.length && !allAdminDapData.length)
         return alert('No data to export. Please load admin data first.');
-    }
 
-    const wb = XLSX.utils.book_new();
-    const headers = ['Date','Mandal','Village','Farmer','Father Name','Aadhaar','Mobile','Khatha','Extent','Bags','Season','Year','Entered By'];
+    const wb      = XLSX.utils.book_new();
+    const headers = ['Date','Mandal','Village','Farmer','Father Name','Aadhaar',
+                     'Mobile','Khatha','Extent','Bags','Season','Year','Entered By'];
+    const toRow   = r => [
+        r.date||'', r.mandal||'', r.village||'', r.farmerName||'',
+        r.fatherName||'', r.aadhaar||'', r.mobile||'', r.khatha||'',
+        r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
+    ];
 
-    if (allAdminData && allAdminData.length) {
-        const uRows = [headers];
-        allAdminData.forEach(r => uRows.push([
-            r.date||'', r.mandal||'', r.village||'', r.farmerName||'',
-            r.fatherName||'', r.aadhaar||'', r.mobile||'', r.khatha||'',
-            r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
-        ]));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(uRows), 'Urea_Data');
-    }
+    if (allAdminData.length)
+        XLSX.utils.book_append_sheet(wb,
+            XLSX.utils.aoa_to_sheet([headers, ...allAdminData.map(toRow)]), 'Urea_Data');
 
-    if (allAdminDapData && allAdminDapData.length) {
-        const dRows = [headers];
-        allAdminDapData.forEach(r => dRows.push([
-            r.date||'', r.mandal||'', r.village||'', r.farmerName||'',
-            r.fatherName||'', r.aadhaar||'', r.mobile||'', r.khatha||'',
-            r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
-        ]));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dRows), 'DAP_Data');
-    }
+    if (allAdminDapData.length)
+        XLSX.utils.book_append_sheet(wb,
+            XLSX.utils.aoa_to_sheet([headers, ...allAdminDapData.map(toRow)]), 'DAP_Data');
 
     XLSX.writeFile(wb, `Admin_All_Fertilizers_${formatToday()}.xlsx`);
 }
 
-
 function exportFertilizerData(type) {
     const dataToExport = type === 'urea' ? allAdminData : allAdminDapData;
-    if (!dataToExport || !dataToExport.length) return alert(`No ${type.toUpperCase()} data to export.`);
+    if (!dataToExport?.length)
+        return alert(`No ${type.toUpperCase()} data to export. Load admin data first.`);
 
-    const headers = ['Date','Mandal','Village','Farmer','Father Name','Aadhaar','Mobile','Khatha','Extent','Bags','Season','Year','Entered By'];
-    const rows = [headers];
-
-    dataToExport.forEach(r => rows.push([
+    const headers = ['Date','Mandal','Village','Farmer','Father Name','Aadhaar',
+                     'Mobile','Khatha','Extent','Bags','Season','Year','Entered By'];
+    const rows = dataToExport.map(r => [
         r.date||'', r.mandal||'', r.village||'', r.farmerName||'',
         r.fatherName||'', r.aadhaar||'', r.mobile||'', r.khatha||'',
         r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
-    ]));
+    ]);
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), `${type.toUpperCase()}_Data`);
+    XLSX.utils.book_append_sheet(wb,
+        XLSX.utils.aoa_to_sheet([headers, ...rows]), `${type.toUpperCase()}_Data`);
     XLSX.writeFile(wb, `Admin_${type.toUpperCase()}_Report_${formatToday()}.xlsx`);
 }
 
-
 function filterAdminTable() {
-    const val = (document.getElementById('adminSearchInput').value || '').toLowerCase().trim();
+    const val       = (document.getElementById('adminSearchInput')?.value || '').toLowerCase().trim();
+    const info      = document.getElementById('adminFilterInfo');
     const container = document.getElementById('adminUsersContainer');
     if (!container) return;
 
-    if (val.length > 0) {
+    if (info) info.classList.toggle('d-none', !val);
+
+    if (val) {
         container.querySelectorAll('[id^="mandal_"], [id^="village_"]').forEach(el => {
             el.classList.remove('hidden');
         });
@@ -5441,7 +5663,7 @@ function filterAdminTable() {
 
     container.querySelectorAll('.card.mb-3.border.border-primary').forEach(card => {
         const text = card.textContent.toLowerCase();
-        card.style.display = val === '' || text.includes(val) ? '' : 'none';
+        card.style.display = (!val || text.includes(val)) ? '' : 'none';
     });
 }
 
