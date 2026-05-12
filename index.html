@@ -1432,65 +1432,76 @@
   </div>
 
   <!-- All Profiles Panel (hidden by default, shown on button click) -->
-  <div id="fpAllProfilesPanel" class="card shadow-sm mb-4" style="display:none;">
-    <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <span><i class="fas fa-list me-2"></i>All Registered Profiles</span>
-      <div class="d-flex gap-2 align-items-center">
-        <span id="fpAllProfilesCount" class="badge bg-light text-primary fs-6">0 profiles</span>
-        <button class="btn btn-sm btn-success" onclick="exportAllFarmerProfiles()">
-          <i class="fas fa-file-excel me-1"></i> Export Excel
-        </button>
-        <button class="btn btn-sm btn-outline-light" onclick="document.getElementById('fpAllProfilesPanel').style.display='none'">
-          ✖ Close
-        </button>
-      </div>
+<div id="fpAllProfilesPanel" 
+    style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:1055; overflow-y:auto; margin:0; border-radius:0; background:#fff;">
+    
+    <!-- Sticky Header -->
+    <div style="position:sticky; top:0; z-index:10; background:#1862ab; color:white; 
+                padding:0.9rem 1.2rem; display:flex; justify-content:space-between; 
+                align-items:center; flex-wrap:wrap; gap:0.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+        <span style="font-size:1.1rem; font-weight:700;">
+            <i class="fas fa-list me-2"></i>All Registered Profiles
+        </span>
+        <div class="d-flex gap-2 align-items-center">
+            <span id="fpAllProfilesCount" class="badge bg-light text-primary fs-6">0 profiles</span>
+            <button class="btn btn-sm btn-success" onclick="exportAllFarmerProfiles()">
+                <i class="fas fa-file-excel me-1"></i> Export Excel
+            </button>
+            <button class="btn btn-sm btn-outline-light" 
+                onclick="document.getElementById('fpAllProfilesPanel').style.display='none'; document.body.style.overflow=''">
+                ✕ Close
+            </button>
+        </div>
     </div>
-    <div class="card-body">
-      <!-- Search Filter -->
-      <div class="row g-2 mb-3">
-        <div class="col-md-5">
-          <input type="text" id="fpAllProfilesSearch" class="form-control"
-            placeholder="🔍 Search by name, Aadhaar, khatha, mobile..."
-            oninput="filterAllFarmerProfiles()">
-        </div>
-        <div class="col-md-3">
-          <select id="fpAllProfilesSeasonFilter" class="form-select" onchange="filterAllFarmerProfiles()">
-            <option value="">-- All Seasons --</option>
-            <option value="Kharif">Kharif</option>
-            <option value="Rabi">Rabi</option>
-            <option value="Summer">Summer</option>
-          </select>
-        </div>
-        <div class="col-md-4 text-end d-flex align-items-center justify-content-end">
-          <small class="text-muted">Sorted by registration date (newest first)</small>
-        </div>
-      </div>
 
-      <!-- Profiles Table -->
-      <div class="table-responsive">
-        <table class="table table-bordered table-hover align-middle" id="fpAllProfilesTable">
-          <thead class="table-dark">
-            <tr>
-              <th style="width:45px">S.No</th>
-              <th>Registered On</th>
-              <th>Farmer Name</th>
-              <th>Father Name</th>
-              <th>Aadhaar</th>
-              <th>Mobile</th>
-              <th>Khatha</th>
-              <th>Extent (Ac)</th>
-              <th>Crops</th>
-              <th style="width:90px" class="text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody id="fpAllProfilesTbody">
-            <tr><td colspan="10" class="text-center text-muted p-4">No profiles found.</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <!-- Body -->
+    <div class="p-3">
+
+        <!-- Search Filter -->
+        <div class="row g-2 mb-3">
+            <div class="col-md-5">
+                <input type="text" id="fpAllProfilesSearch" class="form-control"
+                    placeholder="🔍 Search by name, Aadhaar, khatha, mobile..."
+                    oninput="filterAllFarmerProfiles()">
+            </div>
+            <div class="col-md-3">
+                <select id="fpAllProfilesSeasonFilter" class="form-select" onchange="filterAllFarmerProfiles()">
+                    <option value="">-- All Seasons --</option>
+                    <option value="Kharif">Kharif</option>
+                    <option value="Rabi">Rabi</option>
+                    <option value="Summer">Summer</option>
+                </select>
+            </div>
+            <div class="col-md-4 text-end d-flex align-items-center justify-content-end">
+                <small class="text-muted">Sorted by registration date (newest first)</small>
+            </div>
+        </div>
+
+        <!-- Profiles Table -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle" id="fpAllProfilesTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width:45px">S.No</th>
+                        <th>Reg ID</th>
+                        <th>Farmer Name</th>
+                        <th>Father Name</th>
+                        <th>Aadhaar</th>
+                        <th>Mobile</th>
+                        <th>Khatha</th>
+                        <th>Extent (Ac)</th>
+                        <th>Crops</th>
+                        <th style="width:90px" class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="fpAllProfilesTbody">
+                    <tr><td colspan="10" class="text-center text-muted p-4">No profiles found.</td></tr>
+                </tbody>
+            </table>
+        </div>
 
     </div>
-  </div>
+</div>
 
 </div> <!-- ✅ closes farmerProfileSection -->
 
@@ -3997,21 +4008,83 @@ function filterAadhaarModalHistory() {
     });
 }
 
+// --- REGISTRATION ID SYSTEM ---
+
+function getVillageCode(villageName) {
+    if (!villageName) return 'VIL';
+    const words = villageName.trim().toUpperCase().split(/\s+/);
+    if (words.length === 1) {
+        const w = words[0];
+        const vowels = new Set(['A','E','I','O','U']);
+        let code = w[0];
+        for (let i = 1; i < w.length && code.length < 4; i++) {
+            if (!vowels.has(w[i])) code += w[i];
+        }
+        for (let i = 1; i < w.length && code.length < 4; i++) {
+            if (!code.includes(w[i])) code += w[i];
+        }
+        return code.slice(0, 4);
+    }
+    return words.map(w => w[0]).join('').slice(0, 4);
+}
+
+function getSeasonCode(year, season) {
+    const seasonMap = { 'Kharif': 'K', 'Rabi': 'R', 'Summer': 'S', 'Other': 'O' };
+    const seasonLetter = seasonMap[season] || 'X';
+    let yr = '';
+    if (year && year.includes('-')) {
+        yr = year.split('-')[0]; // "2026-27" → "2026"
+    } else {
+        yr = year || new Date().getFullYear().toString();
+    }
+    return `${yr}${seasonLetter}`; // e.g. "2026K"
+}
+
+function generateRegistrationId(year, season) {
+    const user = firebase.auth().currentUser;
+    if (!user) return Promise.resolve(null);
+
+    return database.ref(`users/${user.uid}/profile`).once('value').then(snap => {
+        const profile     = snap.val();
+        const village     = profile?.village || 'Unknown';
+        const villageCode = getVillageCode(village);
+        const seasonCode  = getSeasonCode(year, season);
+        const prefix      = `${villageCode}/${seasonCode}/`;
+
+        let maxSerial = 0;
+        Object.values(farmerProfiles).forEach(profileList => {
+            (Array.isArray(profileList) ? profileList : Object.values(profileList))
+                .forEach(p => {
+                    (p.crops || []).forEach(c => {
+                        if (c.registrationId && c.registrationId.startsWith(prefix)) {
+                            const serial = parseInt(c.registrationId.split('/')[2]) || 0;
+                            if (serial > maxSerial) maxSerial = serial;
+                        }
+                    });
+                });
+        });
+
+        const nextSerial = String(maxSerial + 1).padStart(4, '0');
+        return `${prefix}${nextSerial}`; // e.g. KVPL/2026K/0001
+    });
+}
+
+
 // --- FARMER PROFILE LOGIC ---
 
 function getFarmerProfiles(aadhaar) {
     return farmerProfiles[cleanAadhaar(aadhaar)] || [];
 }
 
-function saveFarmerProfile() {
+async function saveFarmerProfile() {
     const a  = document.getElementById('fpAadhaar')?.value.trim();
     if (!/^[0-9]{12}$/.test(a)) return alert("⚠️ Aadhaar number must be exactly 12 digits.");
 
-    const n  = document.getElementById('fpName')?.value.trim();
-    const fn = document.getElementById('fpFather')?.value.trim();
-    const m  = document.getElementById('fpMobile')?.value.trim();
-    const k  = document.getElementById('fpKhatha')?.value.trim();
-    const totalExt = parseFloat(document.getElementById('fpExtent')?.value || 0);
+    const n          = document.getElementById('fpName')?.value.trim();
+    const fn         = document.getElementById('fpFather')?.value.trim();
+    const m          = document.getElementById('fpMobile')?.value.trim();
+    const k          = document.getElementById('fpKhatha')?.value.trim();
+    const totalExt   = parseFloat(document.getElementById('fpExtent')?.value || 0);
     const farmerType = document.getElementById('fpFarmerType')?.value || 'tenant';
 
     if (!/^[0-9]{10}$/.test(m)) return alert("⚠️ Mobile number must be exactly 10 digits.");
@@ -4022,7 +4095,7 @@ function saveFarmerProfile() {
 
     // Collect crop rows
     const cropRows = document.querySelectorAll('.fp-crop-row');
-    const crops = [];
+    const crops    = [];
     let cropExtentSum = 0;
 
     for (const row of cropRows) {
@@ -4031,7 +4104,7 @@ function saveFarmerProfile() {
         const year   = row.querySelector('.fp-crop-year')?.value   || '';
         const season = row.querySelector('.fp-crop-season')?.value || '';
         if (!crop && !ext) continue;
-        if (!crop)       return alert('Select crop name for all added crop rows.');
+        if (!crop)            return alert('Select crop name for all added crop rows.');
         if (!ext || ext <= 0) return alert(`Enter valid extent for crop: ${crop}`);
         crops.push({ crop, extent: ext, year, season });
         cropExtentSum += ext;
@@ -4050,16 +4123,47 @@ function saveFarmerProfile() {
     if (!farmerProfiles[a]) farmerProfiles[a] = [];
 
     const existingIdx = farmerProfiles[a].findIndex(p => String(p.khatha) === String(k));
-    const profileEntry = { aadhaar: a, farmerName: n, fatherName: fn, mobile: m, khatha: k, extent: totalExt, crops, savedAt: new Date().toISOString() };
+
+    // ── Assign Registration IDs ──
+    if (existingIdx !== -1) {
+        // Update: preserve existing reg IDs, only generate for brand new crops
+        const existingCrops = farmerProfiles[a][existingIdx].crops || [];
+        for (const cropEntry of crops) {
+            const old = existingCrops.find(ec =>
+                ec.crop === cropEntry.crop && ec.season === cropEntry.season
+            );
+            if (old?.registrationId) {
+                cropEntry.registrationId = old.registrationId; // preserve
+            } else {
+                cropEntry.registrationId = await generateRegistrationId(
+                    cropEntry.year, cropEntry.season
+                );
+            }
+        }
+    } else {
+        // New profile entry: generate fresh IDs for all crops
+        for (const cropEntry of crops) {
+            cropEntry.registrationId = await generateRegistrationId(
+                cropEntry.year, cropEntry.season
+            );
+        }
+    }
+
+    const profileEntry = {
+        aadhaar: a, farmerName: n, fatherName: fn, mobile: m,
+        khatha: k, extent: totalExt, farmerType, crops,
+        savedAt: new Date().toISOString()
+    };
 
     if (existingIdx !== -1) {
-        profileEntry.savedAt = farmerProfiles[a][existingIdx].savedAt || new Date().toISOString(); // preserve original
-        profileEntry.updatedAt = new Date().toISOString(); // track last update
+        profileEntry.savedAt   = farmerProfiles[a][existingIdx].savedAt || new Date().toISOString();
+        profileEntry.updatedAt = new Date().toISOString();
         farmerProfiles[a][existingIdx] = profileEntry;
         alert(`✅ Profile updated for Aadhaar ${a} — Khatha ${k}.`);
     } else {
         farmerProfiles[a].push(profileEntry);
-        alert(`✅ Profile saved for Aadhaar ${a} — Khatha ${k}.`);
+        const regIds = crops.map(c => c.registrationId).join(', ');
+        alert(`✅ Profile saved!\nReg ID(s): ${regIds}`);
     }
 
     saveToCloud();
@@ -4072,11 +4176,9 @@ function clearFarmerProfileForm() {
         if (el) el.value = '';
     });
 
-    // Reset Farmer Type
     const ftEl = document.getElementById('fpFarmerType');
     if (ftEl) ftEl.value = '';
 
-    // Unlock name/father in case they were readonly (owner mode)
     const nameEl   = document.getElementById('fpName');
     const fatherEl = document.getElementById('fpFather');
     if (nameEl)   { nameEl.readOnly   = false; nameEl.placeholder   = 'Full Name'; }
@@ -4085,7 +4187,7 @@ function clearFarmerProfileForm() {
     document.getElementById('fpCropRows').innerHTML      = '';
     document.getElementById('fpProfileStatus').innerHTML = '';
     document.getElementById('fpKhatha').innerHTML        = '<option value="">--Select Khatha--</option>';
-    addFpCropRow(); // always start with 1 empty row
+    addFpCropRow();
 }
 
 function addFpCropRow() {
@@ -4201,6 +4303,7 @@ function onFpKhathaChange() {
         if (existing) loadProfileIntoForm(existing, false);
     }
 }
+
 function onFpFarmerTypeChange() {
     const type     = document.getElementById('fpFarmerType')?.value;
     const nameEl   = document.getElementById('fpName');
@@ -4209,7 +4312,6 @@ function onFpFarmerTypeChange() {
     const extentEl = document.getElementById('fpExtent');
     const statusEl = document.getElementById('fpProfileStatus');
 
-    // Reset all fields on type change
     if (nameEl)   { nameEl.value = '';   nameEl.readOnly = false; }
     if (fatherEl) { fatherEl.value = ''; fatherEl.readOnly = false; }
     if (khathaEl) { khathaEl.value = ''; khathaEl.disabled = false; }
@@ -4221,7 +4323,6 @@ function onFpFarmerTypeChange() {
     addFpCropRow();
 
     if (type === 'owner') {
-        // Block all auto-populate fields — unlock only after Search
         if (nameEl)   { nameEl.readOnly   = true; nameEl.placeholder   = 'Auto-filled after Aadhaar search'; }
         if (fatherEl) { fatherEl.readOnly = true; fatherEl.placeholder = 'Auto-filled after Aadhaar search'; }
         if (khathaEl) khathaEl.disabled = true;
@@ -4262,20 +4363,31 @@ function searchFpByAadhaar() {
     let autoFilled  = false;
     let foundKhatha = null;
 
+    // ── STEP 0: Check existing farmerProfiles for this Aadhaar ──
+    if (!autoFilled && farmerProfiles[a] && farmerProfiles[a].length > 0) {
+        const existing = farmerProfiles[a][0];
+        if (nameEl)   nameEl.value   = existing.farmerName || '';
+        if (fatherEl) fatherEl.value = existing.fatherName || '';
+        document.getElementById('fpMobile').value = existing.mobile || '';
+        autoFilled = true;
+    }
+
     // ── STEP 1: Search 1B ureaData ──
-    for (const fertData of Object.values(ureaData)) {
-        for (const [khatha, kData] of Object.entries(fertData)) {
-            const f = toArray(kData.farmers).find(x => cleanAadhaar(x["Aadhaar"]) === a);
-            if (f) {
-                if (nameEl)   nameEl.value   = f["Farmer Name"] || '';
-                if (fatherEl) fatherEl.value = f["Father Name"]  || '';
-                document.getElementById('fpMobile').value = f["Mobile"] || '';
-                if (type === 'owner') foundKhatha = String(khatha);
-                autoFilled = true;
-                break;
+    if (!autoFilled) {
+        for (const fertData of Object.values(ureaData)) {
+            for (const [khatha, kData] of Object.entries(fertData)) {
+                const f = toArray(kData.farmers).find(x => cleanAadhaar(x["Aadhaar"]) === a);
+                if (f) {
+                    if (nameEl)   nameEl.value   = f["Farmer Name"] || '';
+                    if (fatherEl) fatherEl.value = f["Father Name"]  || '';
+                    document.getElementById('fpMobile').value = f["Mobile"] || '';
+                    if (type === 'owner') foundKhatha = String(khatha);
+                    autoFilled = true;
+                    break;
+                }
             }
+            if (autoFilled) break;
         }
-        if (autoFilled) break;
     }
 
     // ── STEP 2: Fallback to allReportsCache for owners ──
@@ -4312,14 +4424,11 @@ function searchFpByAadhaar() {
 
     // ── STEP 4: Apply field lock rules based on type ──
     if (type === 'owner') {
-        // Name & Father: UNLOCKED for corrections, but show edit hint
         if (nameEl)   { nameEl.readOnly   = false; nameEl.classList.add('border-warning'); }
         if (fatherEl) { fatherEl.readOnly = false; fatherEl.classList.add('border-warning'); }
-        // Khatha & Extent: stay LOCKED (auto-populated only)
         if (khathaEl) khathaEl.disabled = true;
         extentEl.readOnly = true;
     } else {
-        // Tenant: all fields editable
         if (nameEl)   { nameEl.readOnly   = false; nameEl.classList.remove('border-warning'); }
         if (fatherEl) { fatherEl.readOnly = false; fatherEl.classList.remove('border-warning'); }
         if (khathaEl) khathaEl.disabled   = false;
@@ -4330,7 +4439,6 @@ function searchFpByAadhaar() {
 
     if (type === 'owner' && foundKhatha) {
         if (khathaEl) {
-            // Re-enable temporarily to set value, then disable again
             khathaEl.disabled = false;
             khathaEl.value    = foundKhatha;
             khathaEl.disabled = true;
@@ -4344,7 +4452,8 @@ function searchFpByAadhaar() {
         ? `ℹ️ ${profiles.length} existing khatha profile(s) found. Select a Khatha to edit or add new.
            <ul class="mb-0 mt-1">${profiles.map(p =>
                `<li><strong>Khatha ${p.khatha}</strong> — ${(p.crops || []).map(c =>
-                   `${c.crop} (${c.extent} ac)`).join(', ')}</li>`
+                   `${c.crop} (${c.extent} ac)${c.registrationId ? ` <code style="font-size:0.75rem">${c.registrationId}</code>` : ''}`
+               ).join(', ')}</li>`
            ).join('')}</ul>`
         : 'No existing profile — fill crops and save.';
 
@@ -4361,7 +4470,7 @@ function searchFpByAadhaar() {
         } else {
             statusEl.innerHTML = autoFilled
                 ? `<div class="alert alert-info py-1 mb-0">
-                       ✅ Farmer found in 1B — fields auto-filled. All fields editable.<br>${profileInfo}
+                       ✅ Farmer found — fields auto-filled. All fields editable.<br>${profileInfo}
                    </div>`
                 : `<div class="alert alert-warning py-1 mb-0">
                        ⚠️ Farmer not found in 1B. Fill in all details manually.<br>${profileInfo}
@@ -4376,11 +4485,9 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
         populateFpKhathaDropdown();
     }
 
-    // Restore farmer type first
     const ftEl = document.getElementById('fpFarmerType');
     if (ftEl) ftEl.value = profile.farmerType || 'tenant';
 
-    // Fill name/father — lock if owner
     const nameEl   = document.getElementById('fpName');
     const fatherEl = document.getElementById('fpFather');
     if (nameEl)   { nameEl.value   = profile.farmerName || ''; nameEl.readOnly   = profile.farmerType === 'owner'; }
@@ -4390,7 +4497,6 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
     document.getElementById('fpKhatha').value = profile.khatha  || '';
     document.getElementById('fpExtent').value = profile.extent  || '';
 
-    // Rebuild crop rows with year + season restored
     document.getElementById('fpCropRows').innerHTML = '';
     (profile.crops || []).forEach(c => {
         addFpCropRow();
@@ -4404,7 +4510,6 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
     onFpCropOrExtentChange();
 }
 
-// Called from distribution section
 function getProfileForDistribution(aadhaar, khatha) {
     const a = cleanAadhaar(aadhaar);
     if (!farmerProfiles[a]) return null;
@@ -4422,13 +4527,14 @@ function getCropExtentFromProfile(aadhaar, khatha, crop) {
     return cropEntry ? Number(cropEntry.extent) : null;
 }
 
+
 // ---- VIEW ALL PROFILES ----
 
 function showAllFarmerProfiles() {
     const panel = document.getElementById('fpAllProfilesPanel');
     if (!panel) return;
     panel.style.display = 'block';
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.body.style.overflow = 'hidden'; // prevent background scroll
     renderAllFarmerProfilesTable();
 }
 
@@ -4444,7 +4550,6 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '') {
         return;
     }
 
-    // Flatten all profiles into a single array
     let allProfiles = [];
     Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
         (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
@@ -4452,14 +4557,12 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '') {
         });
     });
 
-    // Sort: newest savedAt first
     allProfiles.sort((a, b) => {
         const ta = a.savedAt ? new Date(a.savedAt).getTime() : 0;
         const tb = b.savedAt ? new Date(b.savedAt).getTime() : 0;
         return tb - ta;
     });
 
-    // Apply search + season filter
     const f = filter.toLowerCase();
     if (f || seasonFilter) {
         allProfiles = allProfiles.filter(p => {
@@ -4480,35 +4583,45 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '') {
 
     tbody.innerHTML = allProfiles.map((p, idx) => {
         const cropBadges = (p.crops || []).map(c =>
-            `<span class="badge bg-success me-1 mb-1" style="font-size:0.74rem">
-                ${escapeHtml(c.crop)} <small>${c.extent}ac</small>
-                ${c.season ? `<small class="opacity-75"> · ${c.season}</small>` : ''}
-            </span>`
-        ).join('');
+    `<span class="badge bg-success me-1 mb-1" style="font-size:0.74rem; display:inline-block">
+        ${escapeHtml(c.crop)} <small>${c.extent}ac</small>
+        ${c.season ? `<small class="opacity-75"> · ${c.season}</small>` : ''}
+    </span>`
+).join('');
 
         const savedDate = p.savedAt
             ? new Date(p.savedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
             : '<span class="text-muted">—</span>';
 
         const updatedBadge = p.updatedAt
-            ? `<br><small class="text-muted">Updated: ${new Date(p.updatedAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}</small>`
+            ? `<br><small class="text-muted">Updated: ${new Date(p.updatedAt)
+                .toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}</small>`
             : '';
-
-        const maskedAadhaar = escapeHtml(p.aadhaar || '—');
 
         const typeBadge = p.farmerType === 'owner'
             ? `<span class="badge bg-primary" style="font-size:0.7rem">Owner</span>`
             : `<span class="badge bg-secondary" style="font-size:0.7rem">Tenant</span>`;
 
         return `<tr>
-            <td class="text-center text-muted">${idx + 1}</td>
-            <td style="white-space:nowrap;font-size:0.83rem">${savedDate}${updatedBadge}</td>
-            <td>
-                <div class="fw-semibold">${escapeHtml(p.farmerName || '—')}</div>
-                ${typeBadge}
-            </td>
+    <td class="text-center text-muted">${idx + 1}</td>
+    <td style="font-size:0.78rem; min-width:130px">
+    ${(p.crops || []).map(c => c.registrationId
+        ? `<code class="d-block bg-light border rounded px-2 py-1 mb-1"
+            style="letter-spacing:0.4px; font-size:0.75rem; white-space:nowrap">
+            ${escapeHtml(c.registrationId)}
+           </code>`
+        : `<span class="text-muted small d-block">—</span>`
+    ).join('')}
+    <td style="min-width:140px">
+    <div class="fw-semibold" style="word-break:break-word">
+        ${escapeHtml(p.farmerName || '—')}
+    </div>
+    ${typeBadge}
+</td>
+
             <td class="text-muted">${escapeHtml(p.fatherName || '—')}</td>
-            <td><code class="bg-light px-2 py-1 rounded border" style="font-size:0.8rem">${maskedAadhaar}</code></td>
+            <td><code class="bg-light px-2 py-1 rounded border" style="font-size:0.8rem">
+                ${escapeHtml(p.aadhaar || '—')}</code></td>
             <td>${escapeHtml(p.mobile || '—')}</td>
             <td><strong>${escapeHtml(p.khatha || '—')}</strong></td>
             <td class="text-center">${p.extent || '—'}</td>
@@ -4525,6 +4638,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '') {
 
 function editProfileFromPanel(profile) {
     document.getElementById('fpAllProfilesPanel').style.display = 'none';
+    document.body.style.overflow = ''; // restore scroll
     loadProfileIntoForm(profile, true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -4540,9 +4654,10 @@ function exportAllFarmerProfiles() {
         return alert('No profiles to export.');
 
     const rows = [[
-        'S.No','Registered On','Updated On','Farmer Type',
-        'Farmer Name','Father Name','Aadhaar','Mobile',
-        'Khatha','Extent (Ac)','Crop','Crop Extent (Ac)','Season','Year'
+        'S.No', 'Registered On', 'Updated On', 'Farmer Type',
+        'Farmer Name', 'Father Name', 'Aadhaar', 'Mobile',
+        'Khatha', 'Extent (Ac)', 'Crop', 'Crop Extent (Ac)',
+        'Season', 'Year', 'Registration ID'
     ]];
 
     let allProfiles = [];
@@ -4562,13 +4677,15 @@ function exportAllFarmerProfiles() {
     allProfiles.forEach(p => {
         const savedDate   = p.savedAt   ? new Date(p.savedAt).toLocaleDateString('en-IN')   : '';
         const updatedDate = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('en-IN') : '';
-        const cropList    = p.crops && p.crops.length ? p.crops : [{ crop: '', extent: '', season: '', year: '' }];
+        const cropList    = p.crops && p.crops.length
+            ? p.crops
+            : [{ crop: '', extent: '', season: '', year: '', registrationId: '' }];
 
         cropList.forEach((c, i) => {
             rows.push([
-                i === 0 ? sno          : '',
-                i === 0 ? savedDate    : '',
-                i === 0 ? updatedDate  : '',
+                i === 0 ? sno         : '',
+                i === 0 ? savedDate   : '',
+                i === 0 ? updatedDate : '',
                 i === 0 ? (p.farmerType || 'tenant') : '',
                 i === 0 ? p.farmerName : '',
                 i === 0 ? p.fatherName : '',
@@ -4576,7 +4693,11 @@ function exportAllFarmerProfiles() {
                 i === 0 ? p.mobile    : '',
                 i === 0 ? p.khatha    : '',
                 i === 0 ? p.extent    : '',
-                c.crop, c.extent, c.season || '', c.year || ''
+                c.crop           || '',
+                c.extent         || '',
+                c.season         || '',
+                c.year           || '',
+                c.registrationId || ''
             ]);
         });
         sno++;
@@ -4586,7 +4707,6 @@ function exportAllFarmerProfiles() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'FarmerProfiles');
     XLSX.writeFile(wb, `FarmerProfiles_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
-
    // ---- ADMIN PANEL FUNCTIONS ----
 
 let allAdminData = [];    // cache for Urea export
