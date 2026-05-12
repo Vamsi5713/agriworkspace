@@ -4147,19 +4147,25 @@ function generateRegistrationId(year, season, aadhaar) {
         const cleanA      = cleanAadhaar(aadhaar || '');
         const prefix      = `${villageCode}/${seasonCode}/`;
 
+        // ── Only reuse base ID if farmer already has a SAVED profile
+        //    with a different khatha (not new crops in current save) ──
         let farmerBaseId = null;
         if (cleanA && cleanA.length === 12 && farmerProfiles[cleanA]) {
             farmerProfiles[cleanA].forEach(p => {
                 (p.crops || []).forEach(c => {
-                    if (c.registrationId && c.registrationId.startsWith(prefix)) {
-                        const base = c.registrationId.split('-')[0];
-                        if (!farmerBaseId) farmerBaseId = base;
+                    if (
+                        c.registrationId &&
+                        c.registrationId.startsWith(prefix) &&
+                        !c.registrationId.includes('-')  // only base IDs, not sub-IDs
+                    ) {
+                        if (!farmerBaseId) farmerBaseId = c.registrationId;
                     }
                 });
             });
         }
 
         if (farmerBaseId) {
+            // Find highest existing sub-number for this farmer
             let maxSub = 0;
             farmerProfiles[cleanA].forEach(p => {
                 (p.crops || []).forEach(c => {
@@ -4169,41 +4175,18 @@ function generateRegistrationId(year, season, aadhaar) {
                     }
                 });
             });
+            // If base ID is already used as a standalone, start sub from -01
             const nextSub = String(maxSub + 1).padStart(2, '0');
             return `${farmerBaseId}-${nextSub}`;
         }
 
-        // ✅ Wrap recycled pool read in timeout — if Firebase rules block it, skip gracefully
-        const recycleRead = withTimeout(
-            database.ref('registrationRecycled').once('value').then(recycleSnap => {
-                const pool = recycleSnap.val() || {};
-                const available = Object.values(pool)
-                    .filter(entry => entry.id.startsWith(prefix) && !entry.id.includes('-'))
-                    .sort((a, b) => new Date(a.deletedAt) - new Date(b.deletedAt));
-
-                if (available.length > 0) {
-                    const reuse  = available[0];
-                    const useKey = reuse.id.replace(/\//g, '_');
-                    return database.ref('registrationRecycled').child(useKey).remove()
-                        .then(() => reuse.id);
-                }
-                return null; // no recycled ID found
-            }),
-            4000, // 4 second timeout
-            null  // fallback: skip recycled pool, generate fresh
-        );
-
-        return recycleRead.then(recycledId => {
-            if (recycledId) return recycledId;
-
-            // Generate fresh serial from Firebase counter
-            const counterKey = `registrationCounters/${villageCode}_${seasonCode}`;
-            return database.ref(counterKey).transaction(current => {
-                return (current || 0) + 1;
-            }).then(result => {
-                const serial = String(result.snapshot.val()).padStart(4, '0');
-                return `${prefix}${serial}`;
-            });
+        // ── Generate fresh serial from Firebase counter ──
+        const counterKey = `registrationCounters/${villageCode}_${seasonCode}`;
+        return database.ref(counterKey).transaction(current => {
+            return (current || 0) + 1;
+        }).then(result => {
+            const serial = String(result.snapshot.val()).padStart(4, '0');
+            return `${prefix}${serial}`;
         });
     });
 }
