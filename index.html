@@ -1328,6 +1328,14 @@
             </td>
         </tr>
 
+        <!-- Row 1b: Registration ID -->
+        <tr>
+            <td colspan="2" style="padding:12px; border:1px solid #333; background:#fffde7;">
+                <strong>Registration ID:</strong>
+                <span id="printRegId" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:15px;">—</span>
+            </td>
+        </tr>
+
         <!-- Row 2: Farmer Name + Father Name -->
         <tr>
             <td style="padding:12px; border:1px solid #333;">
@@ -3411,7 +3419,20 @@ function onFertilizerChange() {
     if (modalBadge) modalBadge.textContent = displayValue;
 
     toggleFertilizerBagBlocks();
-    refreshKhathaDropdown();
+
+    // Only refresh khatha dropdown from 1B data if no farmer is currently loaded.
+    // When a farmer is found via searchUreaFarmer the dropdown has per-farmer
+    // profile khathas — overwriting them was Bug 1.
+    const ureaFieldsVisible = !document.getElementById('ureaFields')?.classList.contains('hidden');
+    const farmerLoaded      = document.getElementById('ureaFarmerName')?.value?.trim();
+    if (!ureaFieldsVisible || !farmerLoaded) {
+        refreshKhathaDropdown();
+    } else {
+        // Farmer already loaded: just update bag blocks & remaining display
+        const k = getCurrentKhatha();
+        if (k) updateRemainingBagsDisplay(k);
+    }
+
     updateBagRecommendation();
     setTimeout(() => refreshUploadInfo(), 0);
 }
@@ -3792,8 +3813,10 @@ function updateBagRecommendation() {
                 : `⚠️ Total khatha extent: ${extent.toFixed(2)} ac | N: ${rec.N} kg/ac | Eligible: ${ureaBags} | Given: ${ureaGiven} | Remaining: ${ureaRem}`;
     } else if (fert === 'DAP') {
         if (dapEligible)  dapEligible.value  = dapBags;
-        if (dapRemaining) dapRemaining.value = dapRem;
-        const bagsEl = document.getElementById('dapBagsDist');
+        // dapRemainingBags element doesn't exist in HTML — reuse the shared ureaRemainingBags field
+        const sharedRemEl = document.getElementById('ureaRemainingBags');
+        if (sharedRemEl) sharedRemEl.value = dapRem;
+        const bagsEl = document.getElementById('ureaBagsDist');  // shared bags input
         if (bagsEl) { bagsEl.max = dapRem; bagsEl.placeholder = `Max: ${dapRem} bags`; }
         const noteEl = document.getElementById('dapBagsEligibleToShow');
         if (noteEl) noteEl.textContent = blocked
@@ -4086,12 +4109,21 @@ if (user) {
 }
 
 // ✅ Show printArea, then trigger print after DOM + Firebase settle
-// ✅ Remove hidden class + set display for printArea
 const printEl  = document.getElementById("printArea");
 const ureaEl   = document.getElementById("ureaSection");
 
+// Fill Registration ID in print receipt
+const printRegIdEl = document.getElementById("printRegId");
+if (printRegIdEl) {
+    const regIdVal = document.getElementById('ureaRegId')?.value?.trim() || '—';
+    printRegIdEl.textContent = regIdVal;
+}
+
+// Show print area, hide main section so nothing bleeds through
 printEl.style.display  = "block";
 printEl.classList.remove("hidden");
+ureaEl.style.display   = "none";
+ureaEl.classList.add("hidden");
 
 // ✅ Use afterprint event — restores page AFTER print dialog closes
 const restoreAfterPrint = () => {
