@@ -1237,7 +1237,7 @@
                         <th style="width:120px">Aadhaar</th>
                         <th style="width:100px">Mobile</th>
                         <th style="width:80px">Khatha</th>
-                        <th style="width:65px">Extent</th>
+                        <th style="width:65px">Extent(ac)</th>
                         <th style="width:55px">Bags</th>
                         <th style="width:75px">Season</th>
                         <th style="width:55px">Year</th>
@@ -1286,7 +1286,7 @@
                         <th style="width:115px">Father</th>
                         <th style="width:100px">Mobile</th>
                         <th style="width:80px">Khatha</th>
-                        <th style="width:65px">Extent</th>
+                        <th style="width:65px">Extent(ac)</th>
                         <th style="width:55px">Bags</th>
                         <th style="width:75px">Season</th>
                         <th style="width:55px">Year</th>
@@ -1396,7 +1396,7 @@
                 <span id="printKhatha" style="font-weight:600;"></span>
             </td>
             <td style="padding:12px; border:1px solid #333;">
-                <strong>Extent:</strong>
+                <strong>Extent(ac):</strong>
                 <span id="printExtent"></span> Ac
             </td>
         </tr>
@@ -3664,6 +3664,28 @@ function clearUreaForm() {
 function refreshKhathaDropdown() {
     const sel = document.getElementById("ureaKhathaSelect");
     if (!sel) return;
+
+    // ── If a farmer is currently loaded, only show their profile khathas ──
+    const aadhaar = cleanAadhaar(document.getElementById("ureaSearch")?.value || "");
+    const farmerLoaded = document.getElementById("ureaFarmerName")?.value?.trim();
+    const ureaFieldsVisible = !document.getElementById("ureaFields")?.classList.contains("hidden");
+
+    if (ureaFieldsVisible && farmerLoaded && aadhaar.length === 12 && farmerProfiles[aadhaar]?.length) {
+        // Farmer is loaded — rebuild dropdown only from their profile khathas
+        const profiles = farmerProfiles[aadhaar];
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="">--Select Khatha--</option>';
+        profiles.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.khatha;
+            opt.textContent = `Khatha ${p.khatha} (${(p.crops || []).map(c => `${c.crop} ${c.extent}ac`).join(', ')})`;
+            if (String(p.khatha) === String(currentVal)) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        return;
+    }
+
+    // No farmer loaded — show all khathas from 1B data
     const data = getCurrentFertData();
     sel.innerHTML = '<option value="">--Select Khatha--</option>' +
         Object.keys(data).map(k => `<option value="${k}">${k}</option>`).join('');
@@ -4343,10 +4365,17 @@ function showAadhaarHistory(a) {
             <td>${r.season||""}</td>
             <td>${r.year||""}</td>
             <td class="text-center">
-                <button class="btn btn-sm btn-outline-danger"
-                    onclick="showClearUreaPasswordModal('one', ${r.serialNo})">
-                    <i class="bi bi-trash"></i> Delete
-                </button>
+                <div class="d-flex gap-1 justify-content-center">
+                    <button class="btn btn-sm btn-outline-primary"
+                        title="Reprint this distribution receipt"
+                        onclick="reprintDistribution(${r.serialNo})">
+                        <i class="bi bi-printer"></i> Reprint
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger"
+                        onclick="showClearUreaPasswordModal('one', ${r.serialNo})">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
             </td>
         </tr>`).join("");
 
@@ -4358,6 +4387,107 @@ function filterAadhaarModalHistory() {
     document.querySelectorAll("#aadhaarHistoryTable tbody tr").forEach(r => {
         r.style.display = r.textContent.toLowerCase().includes(s) ? "" : "none";
     });
+}
+
+// --- REPRINT DISTRIBUTION ---
+function reprintDistribution(serialNo) {
+    const rec = ureaHistory.find(r => r.serialNo === serialNo);
+    if (!rec) return alert("Record not found. It may have been deleted.");
+
+    // Close any open modals before printing
+    ['aadhaarHistoryModal', 'ureaHistoryModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.classList.contains('show')) {
+            const inst = bootstrap.Modal.getInstance(el);
+            if (inst) inst.hide();
+        }
+    });
+
+    // Populate printArea with historical record data
+    const setText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val || '—';
+    };
+
+    setText('printSerialNo',  rec.serialNo || '—');
+    setText('printFertilizer', rec.fertilizerType || 'Urea');
+    setText('printRegId',     rec.registrationId || '—');
+
+    setText('printFarmerName',  rec.farmerName  || '');
+    setText('printFatherName',  rec.fatherName  || '');
+    setText('printAadhaar',     rec.aadhaar     || '');
+    setText('printMobile',      rec.mobile      || '');
+    setText('printKhatha',      rec.khatha      || '');
+    setText('printExtent',      rec.extent      || '');
+    setText('printBags',        rec.bags        || '');
+    setText('printCrop',        rec.crop        ? rec.crop.charAt(0).toUpperCase() + rec.crop.slice(1) : '');
+    setText('printSeason',      rec.season      || '');
+    setText('printYear',        rec.year        || '');
+    setText('printDate',        rec.date        || '');
+
+    // Title
+    const titleEl = document.getElementById('printFormTitle');
+    if (titleEl) titleEl.textContent = `${rec.fertilizerType || 'Fertilizer'} Distribution — REPRINT`;
+
+    // Village & Mandal: try to fetch from Firebase profile or leave blank
+    const _doReprint = () => {
+        const printEl = document.getElementById('printArea');
+        const ureaEl  = document.getElementById('ureaSection');
+
+        printEl.style.display = 'block';
+        printEl.classList.remove('hidden');
+        if (ureaEl) { ureaEl.style.display = 'none'; ureaEl.classList.add('hidden'); }
+
+        // Signature: try to load from profile
+        const sigArea = document.getElementById('printSignatureArea');
+        if (sigArea) sigArea.innerHTML = '';
+
+        const _triggerPrint = () => {
+            setTimeout(() => window.print(), 150);
+        };
+
+        const firebaseUser = firebase.auth().currentUser;
+        if (typeof database !== 'undefined' && firebaseUser) {
+            database.ref(`users/${firebaseUser.uid}/profile`).once('value').then(snap => {
+                const prof = snap.val();
+                if (prof) {
+                    setText('printVillage',      prof.village  || '—');
+                    setText('printMandal',       prof.mandal   || '—');
+                    setText('printOfficerName',  prof.name     || '');
+                    if (sigArea && prof.signature) {
+                        const img = document.createElement('img');
+                        img.src   = prof.signature;
+                        img.style.maxHeight = '55px';
+                        img.style.maxWidth  = '160px';
+                        sigArea.appendChild(img);
+                        img.onload  = _triggerPrint;
+                        img.onerror = _triggerPrint;
+                    } else {
+                        _triggerPrint();
+                    }
+                } else {
+                    _triggerPrint();
+                }
+            }).catch(() => _triggerPrint());
+        } else {
+            _triggerPrint();
+        }
+
+        const restoreAfterPrint = () => {
+            printEl.style.display = 'none';
+            printEl.classList.add('hidden');
+            if (ureaEl) { ureaEl.style.display = 'block'; ureaEl.classList.remove('hidden'); }
+            window.removeEventListener('afterprint', restoreAfterPrint);
+            // Re-open Aadhaar history for the same farmer after reprint
+            if (rec.aadhaar) {
+                setTimeout(() => showAadhaarHistory(rec.aadhaar), 200);
+            }
+        };
+        window.addEventListener('afterprint', restoreAfterPrint);
+    };
+
+    // Small delay to let modals finish closing before showing printArea
+    setTimeout(_doReprint, 350);
 }
 
 // --- REGISTRATION ID SYSTEM ---
