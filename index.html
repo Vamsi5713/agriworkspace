@@ -166,6 +166,8 @@
     #printArea h2, #printArea h3 { display: block !important; }
     #printArea div   { display: block !important; }
     #printArea strong { display: inline !important; font-weight: bold !important; }
+    #printArea img { display: inline-block !important; visibility: visible !important; max-height: 60px !important; }
+    #printArea #printSignatureArea { display: block !important; min-height: 60px !important; }
 }
         @media (max-width: 768px) {
             .dashboard-title { font-size: 2rem; }
@@ -930,6 +932,33 @@
             <label class="form-label">Village Name <span class="text-danger">*</span></label>
             <input type="text" id="profileVillage" class="form-control" placeholder="Enter Village name" />
         </div>
+        <!-- Digital Signature Upload -->
+        <div class="mb-3">
+            <label class="form-label fw-semibold">
+                <i class="fas fa-signature me-1 text-primary"></i> Digital Signature
+                <small class="text-muted fw-normal">(printed on distribution receipts)</small>
+            </label>
+            <input type="file" id="profileSignatureInput" class="form-control" accept="image/*"
+                   onchange="previewSignature(this)" />
+            <div id="signaturePreviewBox" class="mt-2 text-center hidden">
+                <img id="signaturePreviewImg"
+                     src="" alt="Signature Preview"
+                     style="max-height:80px; max-width:220px; border:1px dashed #aaa;
+                            border-radius:6px; padding:4px; background:#fafafa;" />
+                <br>
+                <small class="text-success"><i class="fas fa-check-circle me-1"></i>Signature loaded</small>
+                <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2"
+                        onclick="clearSignature()">Remove</button>
+            </div>
+            <div id="signatureCurrentBox" class="mt-2 text-center hidden">
+                <p class="small text-muted mb-1">Current saved signature:</p>
+                <img id="signatureCurrentImg"
+                     src="" alt="Current Signature"
+                     style="max-height:80px; max-width:220px; border:1px dashed #aaa;
+                            border-radius:6px; padding:4px; background:#fafafa;" />
+            </div>
+        </div>
+
         <button type="submit" class="btn btn-primary w-100">Update Profile</button>
     </form>
 
@@ -1405,12 +1434,16 @@
     <div class="print-signatures" style="display:flex; justify-content:space-between; margin-top:50px;">
         <div class="print-sig-box" style="text-align:center;">
             <strong>Officer Signature</strong><br>
-            <div style="border-bottom:1px solid #333; width:180px; margin:30px auto 4px auto;"></div>
-            <small>Name &amp; Date</small>
+            <div id="printSignatureArea" style="height:60px; width:180px; margin:6px auto 4px auto;
+                 display:flex; align-items:flex-end; justify-content:center;">
+                <!-- digital signature injected here -->
+            </div>
+            <div style="border-top:1px solid #333; width:180px; margin:0 auto 4px auto;"></div>
+            <small id="printOfficerName"></small>
         </div>
         <div class="print-sig-box" style="text-align:center;">
             <strong>Farmer Signature</strong><br>
-            <div style="border-bottom:1px solid #333; width:180px; margin:30px auto 4px auto;"></div>
+            <div style="border-bottom:1px solid #333; width:180px; margin:60px auto 4px auto;"></div>
             <small>Name &amp; Date</small>
         </div>
     </div>
@@ -2576,6 +2609,16 @@ if(searchInput) {
         document.getElementById('profileMandal').value  = profile.mandal  || '';
         document.getElementById('profileVillage').value = profile.village || '';
 
+        // ── Load saved signature preview ──
+        const curBox = document.getElementById('signatureCurrentBox');
+        const curImg = document.getElementById('signatureCurrentImg');
+        if (profile.signatureBase64 && curBox && curImg) {
+            curImg.src = profile.signatureBase64;
+            curBox.classList.remove('hidden');
+        } else if (curBox) {
+            curBox.classList.add('hidden');
+        }
+
         // Show alert if mandal/village not set
         const alertEl = document.getElementById('profileLocationAlert');
         if (alertEl) {
@@ -2593,18 +2636,58 @@ if(searchInput) {
 
     if (!mandal || !village) return alert('Please enter Mandal and Village name.');
 
+    // ── Read pending signature base64 (if user chose a new file) ──
+    const pendingSig = window._pendingSignatureBase64 || null;
+
     user.updateProfile({ displayName: name }).then(() => {
-        return database.ref('users/' + user.uid + '/profile').update({
+        const updateObj = {
             name, mandal, village,
             updatedAt: new Date().toISOString()
-        });
+        };
+        if (pendingSig !== null) updateObj.signatureBase64 = pendingSig;
+        return database.ref('users/' + user.uid + '/profile').update(updateObj);
     }).then(() => {
         database.ref('users/' + user.uid + '/userEmail').set(user.email);
+        window._pendingSignatureBase64 = null;
+        // Refresh the "current signature" preview
+        loadUserProfile();
         alert('Profile updated successfully!');
         document.getElementById('profileLocationAlert').classList.add('hidden');
     }).catch(e => alert(e.message));
 });
          
+         // --- DIGITAL SIGNATURE HELPERS ---
+
+function previewSignature(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+        alert('⚠️ Signature image is too large (max 500 KB). Please use a smaller image.');
+        input.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        window._pendingSignatureBase64 = e.target.result;
+        const previewBox = document.getElementById('signaturePreviewBox');
+        const previewImg = document.getElementById('signaturePreviewImg');
+        if (previewImg) previewImg.src = e.target.result;
+        if (previewBox) previewBox.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearSignature() {
+    window._pendingSignatureBase64 = '';   // empty string = remove signature on save
+    const previewBox = document.getElementById('signaturePreviewBox');
+    const previewImg = document.getElementById('signaturePreviewImg');
+    const sigInput   = document.getElementById('profileSignatureInput');
+    if (previewBox) previewBox.classList.add('hidden');
+    if (previewImg) previewImg.src = '';
+    if (sigInput)   sigInput.value = '';
+    alert('Signature will be removed when you click "Update Profile".');
+}
+
          // --- CC EXPERIMENTS ---
          document.getElementById('calcTypeSelect').addEventListener('change', e => {
              const content = document.getElementById('calculatorContent'); content.innerHTML = '';
@@ -4096,16 +4179,46 @@ if (printYearEl)   printYearEl.textContent   = y || '—';
 const titleEl = document.getElementById("printFormTitle");
 if (titleEl) titleEl.textContent = `${fert} Distribution`;
 
-// ✅ Fill Village + Mandal from Firebase profile
+// ✅ Fill Village + Mandal + Digital Signature from Firebase profile, then print
 const user = firebase.auth().currentUser;
+
+function _triggerPrint() {
+    setTimeout(() => window.print(), 300);
+}
+
 if (user) {
     database.ref(`users/${user.uid}/profile`).once('value').then(snap => {
         const profile = snap.val() || {};
         const villageEl = document.getElementById('printVillage');
         const mandalEl  = document.getElementById('printMandal');
+        const officerNameEl = document.getElementById('printOfficerName');
         if (villageEl) villageEl.textContent = profile.village || '—';
         if (mandalEl)  mandalEl.textContent  = profile.mandal  || '—';
-    });
+        if (officerNameEl) officerNameEl.textContent = (profile.name || '') + (profile.mandal ? ' | ' + profile.mandal : '');
+
+        // ── Inject digital signature image ──
+        const sigArea = document.getElementById('printSignatureArea');
+        if (sigArea) {
+            if (profile.signatureBase64) {
+                const img = document.createElement('img');
+                img.src   = profile.signatureBase64;
+                img.alt   = 'Officer Signature';
+                img.style.cssText = 'max-height:55px;max-width:175px;object-fit:contain;display:block;margin:0 auto;';
+                sigArea.innerHTML = '';
+                sigArea.appendChild(img);
+                // Wait for image to load before printing
+                img.onload  = _triggerPrint;
+                img.onerror = _triggerPrint;
+            } else {
+                sigArea.innerHTML = '';
+                _triggerPrint();
+            }
+        } else {
+            _triggerPrint();
+        }
+    }).catch(() => _triggerPrint());
+} else {
+    _triggerPrint();
 }
 
 // ✅ Show printArea, then trigger print after DOM + Firebase settle
@@ -4137,8 +4250,7 @@ const restoreAfterPrint = () => {
 };
 window.addEventListener("afterprint", restoreAfterPrint);
 
-// ✅ Give Firebase time to fill Village/Mandal, then print
-setTimeout(() => window.print(), 800); 
+// ✅ Give Firebase time to fill Village/Mandal/Signature, then print is triggered above
 }
 
 function exportUreaData() {
