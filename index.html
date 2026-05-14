@@ -761,8 +761,9 @@
                    oninput="this.value = Math.abs(Math.floor(this.value) || '')">
         </div>
         <div class="col-md-4 mb-2">
-            <label>Date:</label>
+            <label>Date: <span class="text-muted" style="font-size:0.8rem;">(today auto-filled)</span></label>
             <input type="date" id="ureaDate" class="form-control">
+            <small class="text-muted">Future&Past dates are not allowed.</small>
         </div>
     </div>
 
@@ -885,11 +886,10 @@
             </select>
             <label>Select Season:</label>
             <select id="recSeason" class="form-select mb-3">
-  <option value="">-- Select Season --</option>
-  <option value="Kharif">Kharif</option>
-  <option value="Rabi">Rabi</option>
-  <option value="Summer">Summer</option>
-</select>
+               <option value="">-- Select Season --</option>
+               <option value="kharif">Kharif</option>
+               <option value="rabi">Rabi</option>
+            </select>
             <label>Select Recommendation Type:</label>
             <select id="recType" class="form-select mb-3" onchange="togglePestDisease()">
                <option value="">-- Select Recommendation Type --</option>
@@ -2714,41 +2714,202 @@ const agriculturalCrops = ["Paddy","Maize","Jowar","Sugarcane","Blackgram","Gree
 const horticulturalCrops = ["Yam","Banana","Oilpalm","Vegetables","Tomato","Potato","Onion","Brinjal","Cabbage","Cauliflower","Bhendi","Carrot","Cucumber","Peas","Chili","Garlic","Apple","Mango","Grapes","Orange"];
 
 const fertilizerDosage = {
-    paddy:       { seasons: { Kharif: {N:48,P:24,K:16}, Rabi:{N:64,P:24,K:16}, Summer:{N:48,P:24,K:16} }, Ca:4,  Mg:3,  S:12, splits:"Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation." },
-    maize:       { seasons: { Kharif: {N:80,P:32,K:32}, Rabi:{N:80,P:32,K:32}, Summer:{N:80,P:32,K:32} }, Ca:6,  Mg:5,  S:14, splits:"Apply half nitrogen and full P and K at planting, rest N at knee height." },
-    jowar:       { seasons: { Kharif: {N:32,P:16,K:16}, Rabi:{N:32,P:16,K:16}, Summer:{N:32,P:16,K:16} }, Ca:4,  Mg:3,  S:10, splits:"Apply full P and K basally, N in two splits." },
-    sugarcane:   { seasons: { Kharif: {N:100,P:40,K:48},Rabi:{N:100,P:40,K:48},Summer:{N:100,P:40,K:48}}, Ca:5,  Mg:4,  S:16, splits:"Full P & K basal, N split in 3 doses at 0, 30-40, 60-70 days." },
-    blackgram:   { seasons: { Kharif: {N:8,P:20,K:8},  Rabi:{N:8,P:20,K:8},   Summer:{N:8,P:20,K:8}  }, Ca:3,  Mg:2,  S:8,  splits:"Entire dose as basal before sowing." },
-    greengram:   { seasons: { Kharif: {N:8,P:20,K:8},  Rabi:{N:8,P:20,K:8},   Summer:{N:8,P:20,K:8}  }, Ca:3,  Mg:2,  S:8,  splits:"Entire dose as basal." },
-    cotton:      { seasons: { Kharif: {N:60,P:24,K:24}, Rabi:{N:60,P:24,K:24}, Summer:{N:60,P:24,K:24}}, Ca:5,  Mg:4,  S:14, splits:"1/3 N basal, 1/3 at 30 days, 1/3 at flowering." },
-    bengalgram:  { seasons: { Kharif: {N:8,P:20,K:8},  Rabi:{N:8,P:20,K:8},   Summer:{N:8,P:20,K:8}  }, Ca:4,  Mg:3,  S:10, splits:"Apply full dose basal." },
-    turmeric:    { seasons: { Kharif: {N:60,P:24,K:40}, Rabi:{N:60,P:24,K:40}, Summer:{N:60,P:24,K:40}}, Ca:6,  Mg:5,  S:16, splits:"50% basal, 50% split at 30 and 60 days." },
-    yam:         { seasons: { Kharif: {N:48,P:24,K:48}, Rabi:{N:48,P:24,K:48}, Summer:{N:48,P:24,K:48}}, Ca:5,  Mg:4,  S:12, splits:"Full P and K basal; N in 2 splits." },
-    banana:      { seasons: { Kharif: {N:80,P:40,K:120},Rabi:{N:80,P:40,K:120},Summer:{N:80,P:40,K:120}},Ca:14, Mg:12, S:28, splits:"6 split doses over the year." },
-    oilpalm:     { seasons: { Kharif: {N:48,P:24,K:96}, Rabi:{N:48,P:24,K:96}, Summer:{N:48,P:24,K:96}}, Ca:10, Mg:8,  S:20, splits:"2-3 splits annually." },
-    vegetables:  { seasons: { Kharif: {N:40,P:20,K:20}, Rabi:{N:48,P:24,K:24}, Summer:{N:40,P:20,K:20}}, Ca:6,  Mg:5,  S:12, splits:"1/3 basal, 2/3 split during growth." },
-    tomato:      { seasons: { Kharif: {N:60,P:24,K:24}, Rabi:{N:60,P:24,K:24}, Summer:{N:60,P:24,K:24}}, Ca:7,  Mg:6,  S:16, splits:"1/3 N, full P & K at planting, 2/3 N flowering/fruiting." },
-    potato:      { seasons: { Kharif: {N:48,P:24,K:40}, Rabi:{N:60,P:24,K:48}, Summer:{N:48,P:24,K:40}}, Ca:8,  Mg:7,  S:20, splits:"50% N, full P & K basal, 50% N at tuber initiation." },
-    onion:       { seasons: { Kharif: {N:40,P:20,K:30}, Rabi:{N:48,P:24,K:40}, Summer:{N:40,P:20,K:30}}, Ca:6,  Mg:5,  S:16, splits:"Full P and K basal; N in 3 splits." },
-    brinjal:     { seasons: { Kharif: {N:40,P:20,K:20}, Rabi:{N:48,P:24,K:24}, Summer:{N:40,P:20,K:20}}, Ca:7,  Mg:6,  S:16, splits:"1/3 N, full P & K basal, 2/3 N flowering/fruiting." },
-    cabbage:     { seasons: { Kharif: {N:60,P:32,K:32}, Rabi:{N:60,P:32,K:32}, Summer:{N:60,P:32,K:32}}, Ca:8,  Mg:4,  S:14, splits:"50% N, full P & K basal, 50% N at 30-45 days." },
-    cauliflower: { seasons: { Kharif: {N:60,P:32,K:32}, Rabi:{N:60,P:32,K:32}, Summer:{N:60,P:32,K:32}}, Ca:8,  Mg:4,  S:14, splits:"50% N, full P & K basal, 50% N at 30-45 days." },
-    bhendi:      { seasons: { Kharif: {N:40,P:20,K:20}, Rabi:{N:40,P:20,K:20}, Summer:{N:40,P:20,K:20}}, Ca:6,  Mg:4,  S:12, splits:"50% N, full P & K basal, 50% N at 30 days." }
+    paddy: {
+        seasons: {
+            Kharif: { N: 48, P: 24, K: 16 },
+            Rabi:   { N: 64, P: 24, K: 16 },
+            Summer: { N: 48, P: 24, K: 16 }
+        },
+        Ca: 4, Mg: 3, S: 12, 
+        splits: "Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation."
+    },
+    maize: {
+        seasons: {
+            Kharif: { N: 80, P: 32, K: 32 },
+            Rabi:   { N: 80, P: 32, K: 32 },
+            Summer: { N: 80, P: 32, K: 32 }
+        },
+        Ca: 6, Mg: 5, S: 14, 
+        splits: "Apply half nitrogen and full P and K at planting, rest N at knee height."
+    },
+    jowar: {
+        seasons: {
+            Kharif: { N: 32, P: 16, K: 16 },
+            Rabi:   { N: 32, P: 16, K: 16 },
+            Summer: { N: 32, P: 16, K: 16 }
+        },
+        Ca: 4, Mg: 3, S: 10, 
+        splits: "Apply full P and K basally, N in two splits."
+    },
+    sugarcane: {
+        seasons: {
+            Kharif: { N: 100, P: 40, K: 48 },
+            Rabi:   { N: 100, P: 40, K: 48 },
+            Summer: { N: 100, P: 40, K: 48 }
+        },
+        Ca: 5, Mg: 4, S: 16, 
+        splits: "Full P & K basal, N split in 3 doses at 0, 30-40, 60-70 days."
+    },
+    blackgram: {
+        seasons: {
+            Kharif: { N: 8, P: 20, K: 8 },
+            Rabi:   { N: 8, P: 20, K: 8 },
+            Summer: { N: 8, P: 20, K: 8 }
+        },
+        Ca: 3, Mg: 2, S: 8,  
+        splits: "Entire dose as basal before sowing."
+    },
+    greengram: {
+        seasons: {
+            Kharif: { N: 8, P: 20, K: 8 },
+            Rabi:   { N: 8, P: 20, K: 8 },
+            Summer: { N: 8, P: 20, K: 8 }
+        },
+        Ca: 3, Mg: 2, S: 8,  
+        splits: "Entire dose as basal."
+    },
+    cotton: {
+        seasons: {
+            Kharif: { N: 60, P: 24, K: 24 },
+            Rabi:   { N: 60, P: 24, K: 24 },
+            Summer: { N: 60, P: 24, K: 24 }
+        },
+        Ca: 5, Mg: 4, S: 14, 
+        splits: "1/3 N basal, 1/3 at 30 days, 1/3 at flowering."
+    },
+    bengalgram: {
+        seasons: {
+            Kharif: { N: 8, P: 20, K: 8 },
+            Rabi:   { N: 8, P: 20, K: 8 },
+            Summer: { N: 8, P: 20, K: 8 }
+        },
+        Ca: 4, Mg: 3, S: 10, 
+        splits: "Apply full dose basal."
+    },
+    turmeric: {
+        seasons: {
+            Kharif: { N: 60, P: 24, K: 40 },
+            Rabi:   { N: 60, P: 24, K: 40 },
+            Summer: { N: 60, P: 24, K: 40 }
+        },
+        Ca: 6, Mg: 5, S: 16, 
+        splits: "50% basal, 50% split at 30 and 60 days."
+    },
+    yam: {
+        seasons: {
+            Kharif: { N: 48, P: 24, K: 48 },
+            Rabi:   { N: 48, P: 24, K: 48 },
+            Summer: { N: 48, P: 24, K: 48 }
+        },
+        Ca: 5, Mg: 4, S: 12, 
+        splits: "Full P and K basal; N in 2 splits."
+    },
+    banana: {
+        seasons: {
+            Kharif: { N: 80, P: 40, K: 120 },
+            Rabi:   { N: 80, P: 40, K: 120 },
+            Summer: { N: 80, P: 40, K: 120 }
+        },
+        Ca: 14, Mg: 12, S: 28, 
+        splits: "6 split doses over the year."
+    },
+    oilpalm: {
+        seasons: {
+            Kharif: { N: 48, P: 24, K: 96 },
+            Rabi:   { N: 48, P: 24, K: 96 },
+            Summer: { N: 48, P: 24, K: 96 }
+        },
+        Ca: 10, Mg: 8, S: 20, 
+        splits: "2-3 splits annually."
+    },
+    vegetables: {
+        seasons: {
+            Kharif: { N: 40, P: 20, K: 20 },
+            Rabi:   { N: 48, P: 24, K: 24 },
+            Summer: { N: 40, P: 20, K: 20 }
+        },
+        Ca: 6, Mg: 5, S: 12, 
+        splits: "1/3 basal, 2/3 split during growth."
+    },
+    tomato: {
+        seasons: {
+            Kharif: { N: 60, P: 24, K: 24 },
+            Rabi:   { N: 60, P: 24, K: 24 },
+            Summer: { N: 60, P: 24, K: 24 }
+        },
+        Ca: 7, Mg: 6, S: 16, 
+        splits: "1/3 N, full P & K at planting, 2/3 N flowering/fruiting."
+    },
+    potato: {
+        seasons: {
+            Kharif: { N: 48, P: 24, K: 40 },
+            Rabi:   { N: 60, P: 24, K: 48 },
+            Summer: { N: 48, P: 24, K: 40 }
+        },
+        Ca: 8, Mg: 7, S: 20, 
+        splits: "50% N, full P & K basal, 50% N at tuber initiation."
+    },
+    onion: {
+        seasons: {
+            Kharif: { N: 40, P: 20, K: 30 },
+            Rabi:   { N: 48, P: 24, K: 40 },
+            Summer: { N: 40, P: 20, K: 30 }
+        },
+        Ca: 6, Mg: 5, S: 16, 
+        splits: "Full P and K basal; N in 3 splits."
+    },
+    brinjal: {
+        seasons: {
+            Kharif: { N: 40, P: 20, K: 20 },
+            Rabi:   { N: 48, P: 24, K: 24 },
+            Summer: { N: 40, P: 20, K: 20 }
+        },
+        Ca: 7, Mg: 6, S: 16, 
+        splits: "1/3 N, full P & K basal, 2/3 N flowering/fruiting."
+    },
+    cabbage: {
+        seasons: {
+            Kharif: { N: 60, P: 32, K: 32 },
+            Rabi:   { N: 60, P: 32, K: 32 },
+            Summer: { N: 60, P: 32, K: 32 }
+        },
+        Ca: 8, Mg: 4, S: 14, 
+        splits: "50% N, full P & K basal, 50% N at 30-45 days."
+    },
+    cauliflower: {
+        seasons: {
+            Kharif: { N: 60, P: 32, K: 32 },
+            Rabi:   { N: 60, P: 32, K: 32 },
+            Summer: { N: 60, P: 32, K: 32 }
+        },
+        Ca: 8, Mg: 4, S: 14, 
+        splits: "50% N, full P & K basal, 50% N at 30-45 days."
+    },
+    bhendi: {
+        seasons: {
+            Kharif: { N: 40, P: 20, K: 20 },
+            Rabi:   { N: 40, P: 20, K: 20 },
+            Summer: { N: 40, P: 20, K: 20 }
+        },
+        Ca: 6, Mg: 4, S: 12, 
+        splits: "50% N, full P & K basal, 50% N at 30 days."
+    }
 };
 
 const fertilizerSchedule = {
-    paddy:       [{stage:"Basal",       N:"1/3",          P:"Full",K:"Full"},{stage:"Tillering",   N:"1/3",P:"-",K:"-"},{stage:"Panicle",N:"1/3",P:"-",K:"-"}],
-    maize:       [{stage:"Planting",    N:"1/2",          P:"Full",K:"Full"},{stage:"Knee height", N:"1/2",P:"-",K:"-"}],
-    sugarcane:   [{stage:"Basal",       N:"-",            P:"Full",K:"Full"},{stage:"30-40 days",  N:"1/3",P:"-",K:"-"},{stage:"60-70 days",N:"1/3",P:"-",K:"-"}],
-    cotton:      [{stage:"Basal",       N:"1/3",          P:"Full",K:"Full"},{stage:"30 days",     N:"1/3",P:"-",K:"-"},{stage:"Flowering", N:"1/3",P:"-",K:"-"}],
-    turmeric:    [{stage:"Basal",       N:"50%",          P:"Full",K:"Full"},{stage:"30 & 60 days",N:"50% (split)",P:"-",K:"-"}],
-    tomato:      [{stage:"Planting",    N:"1/3",          P:"Full",K:"Full"},{stage:"Flowering",   N:"2/3 (split)",P:"-",K:"-"}],
-    cabbage:     [{stage:"Planting",    N:"50%",          P:"Full",K:"Full"},{stage:"30-45 days",  N:"50%",P:"-",K:"-"}],
-    cauliflower: [{stage:"Planting",    N:"50%",          P:"Full",K:"Full"},{stage:"30-45 days",  N:"50%",P:"-",K:"-"}],
-    bhendi:      [{stage:"Planting",    N:"50%",          P:"Full",K:"Full"},{stage:"30 days",     N:"50%",P:"-",K:"-"}],
-    banana:      [{stage:"Year-round",  N:"6 doses",      P:"6 doses",K:"6 doses"}]
+    paddy:       [{stage: "Basal",        N: "1/3",             P: "Full", K: "Full"}, {stage: "Tillering",    N: "1/3", P: "-", K: "-"}, {stage: "Panicle", N: "1/3", P: "-", K: "-"}],
+    maize:       [{stage: "Planting",     N: "1/2",             P: "Full", K: "Full"}, {stage: "Knee height",  N: "1/2", P: "-", K: "-"}],
+    sugarcane:   [{stage: "Basal",        N: "-",               P: "Full", K: "Full"}, {stage: "30-40 days",   N: "1/3", P: "-", K: "-"}, {stage: "60-70 days", N: "1/3", P: "-", K: "-"}],
+    cotton:      [{stage: "Basal",        N: "1/3",             P: "Full", K: "Full"}, {stage: "30 days",      N: "1/3", P: "-", K: "-"}, {stage: "Flowering", N: "1/3", P: "-", K: "-"}],
+    turmeric:    [{stage: "Basal",        N: "50%",             P: "Full", K: "Full"}, {stage: "30 & 60 days", N: "50% (split)", P: "-", K: "-"}],
+    tomato:      [{stage: "Planting",     N: "1/3",             P: "Full", K: "Full"}, {stage: "Flowering",    N: "2/3 (split)", P: "-", K: "-"}],
+    cabbage:     [{stage: "Planting",     N: "50%",             P: "Full", K: "Full"}, {stage: "30-45 days",   N: "50%", P: "-", K: "-"}],
+    cauliflower: [{stage: "Planting",     N: "50%",             P: "Full", K: "Full"}, {stage: "30-45 days",   N: "50%", P: "-", K: "-"}],
+    bhendi:      [{stage: "Planting",     N: "50%",             P: "Full", K: "Full"}, {stage: "30 days",      N: "50%", P: "-", K: "-"}],
+    banana:      [{stage: "Year-round",   N: "6 doses",         P: "6 doses", K: "6 doses"}]
 };
 
+// KEY RULE: all keys = display name → lowercase → spaces & special chars → underscore → trim underscores
 const pestList = {
     paddy:      ["Stem Borer","Leaf Folder","Brown Plant Hopper","Gall Midge","Rice Hispa","Rice Weevil","Caseworm"],
     maize:      ["Fall Armyworm","Maize Weevil","Stem Borer","Aphids","Cutworm"],
@@ -2789,101 +2950,103 @@ const diseaseList = {
     brinjal:    ["Phomopsis Blight","Verticillium Wilt","Bacterial Wilt"]
 };
 
-// ✅ FIX 3: toKey removes ALL non-alphanumeric chars (no underscores) to match your actual chemicalRecommendations keys
-function toKey(name) {
-    return name.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
 const chemicalRecommendations = {
     pest: {
-        stemborer:                  ["Chlorantraniliprole 0.4% G @ 4 kg/acre","Cartap Hydrochloride 4G @ 8 kg/acre"],
-        leaffolder:                 ["Flubendiamide 39.35 SC @ 20 ml/acre","Spinosad 45 SC @ 20 ml/acre"],
-        brownplanthopper:           ["Pymetrozine 50 WG @ 120 g/acre","Dinotefuran 20 SG @ 80 g/acre"],
-        gallmidge:                  ["Carbofuran 3G @ 10 kg/acre","Phorate 10G @ 4 kg/acre"],
-        ricehispa:                  ["Quinalphos 25 EC 2 ml/L","Profenofos 50 EC 2 ml/L"],
-        riceweevil:                 ["Malathion 50 EC 2 ml/L"],
-        caseworm:                   ["Chlorpyrifos 20 EC 2.5 ml/L"],
-        fallarmyworm:               ["Spinetoram 11.7 SC @ 100 ml/acre","Emamectin benzoate 5 SG @ 80 g/acre"],
-        maizeweevil:                ["Malathion 50 EC 2 ml/L"],
-        aphids:                     ["Imidacloprid 17.8 SL @ 40 ml/acre","Dimethoate 30 EC 2 ml/L"],
-        cutworm:                    ["Chlorpyrifos 20 EC 2.5 ml/L"],
-        shootfly:                   ["Cypermethrin 10 EC 1 ml/L"],
-        sorghummidge:               ["Chlorpyrifos 20 EC 2 ml/L"],
-        topshootborer:              ["Chlorantraniliprole 18.5 SC @ 150 ml/acre"],
-        sugarcaneaphid:             ["Imidacloprid 17.8 SL @ 40 ml/acre"],
-        whitegrub:                  ["Fipronil 0.3 G @ 10 kg/acre"],
-        rootborer:                  ["Chlorpyrifos 20 EC 2.5 ml/L"],
-        termites:                   ["Fipronil 5 SC @ 250 ml/acre"],
-        podborer:                   ["Indoxacarb 14.5 SC @ 100 ml/acre"],
-        thrips:                     ["Fipronil 5 SC @ 400 ml/acre","Neem oil 10000 ppm @ 2 ml/L"],
-        leafminer:                  ["Neem oil 10000 ppm @ 2 ml/L","Spinosad 45 SC @ 60 ml/acre"],
-        bollworm:                   ["Emamectin benzoate 5 SG @ 100 g/acre","Indoxacarb 14.5 SC @ 200 ml/acre"],
-        whitefly:                   ["Diafenthiuron 50 WP @ 250 g/acre","Afidopyropen 50g/L @ 400 ml/acre"],
-        jassids:                    ["Flonicamid 50 WG @ 60 g/acre"],
-        mealybugs:                  ["Profenofos 50 EC 2 ml/L","Neem oil 2 ml/L"],
-        grampodborer:               ["Spinosad 45 SC @ 60 ml/acre"],
-        rhizomescale:               ["Dimethoate 30 EC 2 ml/L"],
-        shootborer:                 ["Chlorantraniliprole 18.5 SC @ 80 ml/acre"],
-        leafspot:                   ["Mancozeb 2.5 g/L","Carbendazim 1 g/L"],
-        yambeetle:                  ["Chlorpyrifos 20 EC 2.5 ml/L"],
-        scaleinsect:                ["Dimethoate 30 EC 2 ml/L","Neem oil 2 ml/L"],
-        nematodes:                  ["Carbofuran 3G @ 10 kg/acre"],
-        bananaweevil:               ["Carbofuran 3G @ 10 kg/acre"],
-        bananaaphids:               ["Imidacloprid 17.8 SL @ 40 ml/acre"],
-        rhinocerosbeetle:           ["Phorate 10G @ 10 g/palm"],
-        eriophyidmite:              ["Propargite 57 EC 2 ml/L"],
-        redpalmweevil:              ["Chlorpyrifos 20 EC 2.5 ml/L drenching"],
-        diamondbackmoth:            ["Spinosad 45 SC @ 60 ml/acre","Emamectin benzoate 5 SG @ 80 g/acre"],
-        tomatofruitborer:           ["Chlorantraniliprole 18.5 SC @ 80 ml/acre","Emamectin benzoate 5 SG @ 80 g/acre"],
-        coloradopotatobeetle:       ["Chlorpyrifos 20 EC 2.5 ml/L","Spinosad 45 SC @ 60 ml/acre"],
-        potatotubermoth:            ["Quinalphos 25 EC 2 ml/L"],
-        onionthrips:                ["Fipronil 5 SC @ 400 ml/acre","Neem oil 10000 ppm @ 2 ml/L"],
-        stemphylium:                ["Mancozeb 2.5 g/L","Iprodione 2 g/L"],
-        onionfly:                   ["Carbofuran 3G @ 10 kg/acre"],
-        brinjalshootandfruitborer:  ["Chlorantraniliprole 18.5 SC @ 80 ml/acre","Emamectin benzoate 5 SG @ 80 g/acre"]
+        stem_borer:                   ["Chlorantraniliprole 0.4% G @ 4 kg/acre", "Cartap Hydrochloride 4G @ 8 kg/acre"],
+        leaf_folder:                  ["Flubendiamide 39.35 SC @ 20 ml/acre", "Spinosad 45 SC @ 20 ml/acre"],
+        brown_plant_hopper:           ["Pymetrozine 50 WG @ 120 g/acre", "Dinotefuran 20 SG @ 80 g/acre"],
+        gall_midge:                   ["Carbofuran 3G @ 10 kg/acre", "Phorate 10G @ 4 kg/acre"],
+        rice_hispa:                   ["Quinalphos 25 EC 2 ml/L", "Profenofos 50 EC 2 ml/L"],
+        rice_weevil:                  ["Malathion 50 EC 2 ml/L"],
+        caseworm:                     ["Chlorpyrifos 20 EC 2.5 ml/L"],
+        fall_armyworm:                ["Spinetoram 11.7 SC @ 100 ml/acre", "Emamectin benzoate 5 SG @ 80 g/acre"],
+        maize_weevil:                 ["Malathion 50 EC 2 ml/L"],
+        aphids:                       ["Imidacloprid 17.8 SL @ 40 ml/acre", "Dimethoate 30 EC 2 ml/L"],
+        cutworm:                      ["Chlorpyrifos 20 EC 2.5 ml/L"],
+        shoot_fly:                    ["Cypermethrin 10 EC 1 ml/L"],
+        sorghum_midge:                ["Chlorpyrifos 20 EC 2 ml/L"],
+        top_shoot_borer:              ["Chlorantraniliprole 18.5 SC @ 150 ml/acre"],
+        sugarcane_aphid:              ["Imidacloprid 17.8 SL @ 40 ml/acre"],
+        white_grub:                   ["Fipronil 0.3 G @ 10 kg/acre"],
+        root_borer:                   ["Chlorpyrifos 20 EC 2.5 ml/L"],
+        termites:                     ["Fipronil 5 SC @ 250 ml/acre"],
+        pod_borer:                    ["Indoxacarb 14.5 SC @ 100 ml/acre"],
+        thrips:                       ["Fipronil 5 SC @ 400 ml/acre", "Neem oil 10000 ppm @ 2 ml/L"],
+        leaf_miner:                   ["Neem oil 10000 ppm @ 2 ml/L", "Spinosad 45 SC @ 60 ml/acre"],
+        bollworm:                     ["Emamectin benzoate 5 SG @ 100 g/acre", "Indoxacarb 14.5 SC @ 200 ml/acre"],
+        whitefly:                     ["Diafenthiuron 50 WP @ 250 g/acre", "Afidopyropen 50g/L @ 400 ml/acre"],
+        jassids:                      ["Flonicamid 50 WG @ 60 g/acre"],
+        mealy_bugs:                   ["Profenofos 50 EC 2 ml/L", "Neem oil 2 ml/L"],
+        gram_pod_borer:               ["Spinosad 45 SC @ 60 ml/acre"],
+        rhizome_scale:                ["Dimethoate 30 EC 2 ml/L"],
+        shoot_borer:                  ["Chlorantraniliprole 18.5 SC @ 80 ml/acre"],
+        leaf_spot:                    ["Mancozeb 2.5 g/L", "Carbendazim 1 g/L"],
+        yam_beetle:                   ["Chlorpyrifos 20 EC 2.5 ml/L"],
+        scale_insect:                 ["Dimethoate 30 EC 2 ml/L", "Neem oil 2 ml/L"],
+        nematodes:                    ["Carbofuran 3G @ 10 kg/acre"],
+        banana_weevil:                ["Carbofuran 3G @ 10 kg/acre"],
+        banana_aphids:                ["Imidacloprid 17.8 SL @ 40 ml/acre"],
+        rhinoceros_beetle:            ["Phorate 10G @ 10 g/palm"],
+        eriophyid_mite:               ["Propargite 57 EC 2 ml/L"],
+        red_palm_weevil:              ["Chlorpyrifos 20 EC 2.5 ml/L drenching"],
+        diamondback_moth:             ["Spinosad 45 SC @ 60 ml/acre", "Emamectin benzoate 5 SG @ 80 g/acre"],
+        tomato_fruit_borer:           ["Chlorantraniliprole 18.5 SC @ 80 ml/acre", "Emamectin benzoate 5 SG @ 80 g/acre"],
+        colorado_potato_beetle:       ["Chlorpyrifos 20 EC 2.5 ml/L", "Spinosad 45 SC @ 60 ml/acre"],
+        potato_tuber_moth:            ["Quinalphos 25 EC 2 ml/L"],
+        onion_thrips:                 ["Fipronil 5 SC @ 400 ml/acre", "Neem oil 10000 ppm @ 2 ml/L"],
+        stemphylium:                  ["Mancozeb 2.5 g/L", "Iprodione 2 g/L"],
+        onion_fly:                    ["Carbofuran 3G @ 10 kg/acre"],
+        brinjal_shoot_and_fruit_borer:["Chlorantraniliprole 18.5 SC @ 80 ml/acre", "Emamectin benzoate 5 SG @ 80 g/acre"]
     },
     disease: {
-        blast:                  ["Tricyclazole 75 WP 0.6 g/L","Isoprothiolane 40 EC 1.5 ml/L"],
-        bacterialleafblight:    ["Streptocycline 1 g/10 L + Copper oxychloride 3 g/L"],
-        sheathblight:           ["Hexaconazole 5 SC 2 ml/L","Propiconazole 25 EC 1 ml/L"],
-        brownspot:              ["Mancozeb 2.5 g/L","Propiconazole 1 ml/L"],
-        falsesmut:              ["Propiconazole 1 ml/L","Trifloxystrobin + Tebuconazole 0.4 g/L"],
-        leafspot:               ["Mancozeb 2.5 g/L","Carbendazim 1 g/L"],
-        rust:                   ["Mancozeb 2.5 g/L","Hexaconazole 2 ml/L"],
-        downymildew:            ["Metalaxyl + Mancozeb 2.5 g/L"],
-        grayleafspot:           ["Chlorothalonil 2 g/L"],
+        blast:                  ["Tricyclazole 75 WP 0.6 g/L", "Isoprothiolane 40 EC 1.5 ml/L"],
+        bacterial_leaf_blight:  ["Streptocycline 1 g/10 L + Copper oxychloride 3 g/L"],
+        sheath_blight:          ["Hexaconazole 5 SC 2 ml/L", "Propiconazole 25 EC 1 ml/L"],
+        brown_spot:             ["Mancozeb 2.5 g/L", "Propiconazole 1 ml/L"],
+        false_smut:             ["Propiconazole 1 ml/L", "Trifloxystrobin + Tebuconazole 0.4 g/L"],
+        leaf_spot:              ["Mancozeb 2.5 g/L", "Carbendazim 1 g/L"],
+        rust:                   ["Mancozeb 2.5 g/L", "Hexaconazole 2 ml/L"],
+        downy_mildew:           ["Metalaxyl + Mancozeb 2.5 g/L"],
+        gray_leaf_spot:         ["Chlorothalonil 2 g/L"],
         smut:                   ["Carbendazim 2 g/kg seed treatment"],
         ergot:                  ["Propiconazole 1 ml/L at flowering"],
-        redrot:                 ["Carbendazim 1 g/L spray/sett treatment"],
-        ratoonstunting:         ["Disease-free sets and hot water treatment"],
-        anthracnose:            ["Carbendazim 1 g/L","Thiophanate methyl 1 g/L"],
-        yellowmosaicvirus:      ["Control vector (whitefly) with Diafenthiuron"],
-        powderymildew:          ["Wettable Sulphur 3 g/L","Hexaconazole 2 ml/L"],
-        fusariumwilt:           ["Trichoderma viride 2 kg/acre in FYM","Carbendazim drenching 1 g/L"],
-        rootrot:                ["Trichoderma soil application","Carbendazim 1 g/L drench"],
-        alternarialeafspot:     ["Mancozeb 2.5 g/L","Chlorothalonil 2 g/L"],
-        ascochytablight:        ["Chlorothalonil 2 g/L"],
-        dryrootrot:             ["Carbendazim 1 g/L drench"],
-        leafblight:             ["Chlorothalonil 2 g/L","Mancozeb 2.5 g/L"],
-        rhizomerot:             ["Metalaxyl + Mancozeb 2.5 g/L drenching"],
-        softrot:                ["Copper oxychloride 3 g/L","Streptocycline 1 g/10 L"],
-        yammosaicvirus:         ["Virus-free material and vector control"],
-        panamawilt:             ["Carbendazim injection 2% or drenching"],
-        sigatokaleafspot:       ["Propiconazole 1 ml/L","Mancozeb 2.5 g/L"],
-        blacksigatoka:          ["Chlorothalonil 2 g/L"],
-        budrot:                 ["Copper oxychloride 3 g/L crown application"],
-        leafcurlvirus:          ["Control vector (thrips/whitefly)"],
-        lateblight:             ["Mancozeb 2.5 g/L","Cymoxanil + Mancozeb 2.5 g/L"],
-        bacterialspot:          ["Streptocycline 1 g/10 L + Copper oxychloride 3 g/L"],
-        blackscurf:             ["Carbendazim seed treatment"],
-        earlyblight:            ["Mancozeb 2.5 g/L"],
-        purpleblotch:           ["Mancozeb 2.5 g/L","Tebuconazole 1 ml/L"],
-        neckrot:                ["Proper curing and storage"],
-        phomopsisblight:        ["Carbendazim 1 g/L"],
-        verticilliumwilt:       ["Crop rotation and solarization"],
-        bacterialwilt:          ["Bleaching powder 6 kg/acre application"]
+        red_rot:                ["Carbendazim 1 g/L spray/sett treatment"],
+        ratoon_stunting:        ["Disease-free sets and hot water treatment"],
+        anthracnose:            ["Carbendazim 1 g/L", "Thiophanate methyl 1 g/L"],
+        yellow_mosaic_virus:    ["Control vector (whitefly) with Diafenthiuron"],
+        powdery_mildew:         ["Wettable Sulphur 3 g/L", "Hexaconazole 2 ml/L"],
+        fusarium_wilt:          ["Trichoderma viride 2 kg/acre in FYM", "Carbendazim drenching 1 g/L"],
+        root_rot:               ["Trichoderma soil application", "Carbendazim 1 g/L drench"],
+        alternaria_leaf_spot:   ["Mancozeb 2.5 g/L", "Chlorothalonil 2 g/L"],
+        ascochyta_blight:       ["Chlorothalonil 2 g/L"],
+        dry_root_rot:           ["Carbendazim 1 g/L drench"],
+        leaf_blight:            ["Chlorothalonil 2 g/L", "Mancozeb 2.5 g/L"],
+        rhizome_rot:            ["Metalaxyl + Mancozeb 2.5 g/L drenching"],
+        soft_rot:               ["Copper oxychloride 3 g/L", "Streptocycline 1 g/10 L"],
+        yam_mosaic_virus:       ["Virus-free material and vector control"],
+        panama_wilt:            ["Carbendazim injection 2% or drenching"],
+        sigatoka_leaf_spot:     ["Propiconazole 1 ml/L", "Mancozeb 2.5 g/L"],
+        black_sigatoka:         ["Chlorothalonil 2 g/L"],
+        bud_rot:                ["Copper oxychloride 3 g/L crown application"],
+        leaf_curl_virus:        ["Control vector (thrips/whitefly)"],
+        late_blight:            ["Mancozeb 2.5 g/L", "Cymoxanil + Mancozeb 2.5 g/L"],
+        bacterial_spot:         ["Streptocycline 1 g/10 L + Copper oxychloride 3 g/L"],
+        black_scurf:            ["Carbendazim seed treatment"],
+        early_blight:           ["Mancozeb 2.5 g/L"],
+        purple_blotch:          ["Mancozeb 2.5 g/L", "Tebuconazole 1 ml/L"],
+        neck_rot:               ["Proper curing and storage"],
+        phomopsis_blight:       ["Carbendazim 1 g/L"],
+        verticillium_wilt:      ["Crop rotation and solarization"],
+        bacterial_wilt:         ["Bleaching powder 6 kg/acre application"]
     }
 };
+
+// ─── Helper: convert display name → underscore key ───────────────────────────
+// "Brown Plant Hopper" → "brown_plant_hopper"
+// "Brinjal Shoot and Fruit Borer" → "brinjal_shoot_and_fruit_borer"
+function toKey(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
 
 // ─── Populate crop list ───────────────────────────────────────────────────────
 function populateCrops() {
@@ -2898,15 +3061,16 @@ function populateCrops() {
     hideFertilizerSchedule();
 }
 
-// ─── Show/hide pest-disease dropdown ─────────────────────────────────────────
+// ─── Show/hide pest-disease dropdown based on recType ────────────────────────
 function togglePestDisease() {
     const t   = document.getElementById('recType').value;
     const sec = document.getElementById('pestSection');
+
     if (t === 'pest' || t === 'disease') {
-        sec.classList.remove('d-none');
+        sec.classList.remove('d-none');   // ← show the dropdown
         populatePestDiseaseOptions(t);
     } else {
-        sec.classList.add('d-none');
+        sec.classList.add('d-none');      // ← hide it
         clearPestDisease();
     }
     hideRecommendation();
@@ -2915,26 +3079,29 @@ function togglePestDisease() {
 
 // ─── Populate pest/disease dropdown ──────────────────────────────────────────
 function populatePestDiseaseOptions(type) {
-    const crop = document.getElementById('cropName').value;
+    const crop = document.getElementById('cropName').value;   // lowercase e.g. "paddy"
     const sel  = document.getElementById('pestName');
     sel.innerHTML = '<option value="">-- Select Pest/Disease --</option>';
     if (!crop) return;
+
     const list = type === 'pest' ? pestList[crop] : diseaseList[crop];
     if (!list || !list.length) {
         sel.innerHTML = '<option value="">-- No data available for this crop --</option>';
         return;
     }
+
     list.forEach(name => {
         const opt = document.createElement('option');
-        opt.value       = toKey(name);  // e.g. "brownplanthopper"
-        opt.textContent = name;
+        opt.value       = toKey(name);   // e.g. "brown_plant_hopper"
+        opt.textContent = name;          // e.g. "Brown Plant Hopper"
         sel.appendChild(opt);
     });
+
     hideRecommendation();
     hideFertilizerSchedule();
 }
 
-// ─── Re-populate when crop changes ───────────────────────────────────────────
+// ─── Re-populate when crop changes (recType already set) ─────────────────────
 document.getElementById('cropName').addEventListener('change', () => {
     const t = document.getElementById('recType').value;
     if (t === 'pest' || t === 'disease') populatePestDiseaseOptions(t);
@@ -2947,8 +3114,8 @@ function clearPestDisease() {
     document.getElementById('pestName').innerHTML = '<option value="">-- Select Pest/Disease --</option>';
     document.getElementById('pestSection').classList.add('d-none');
 }
-function hideRecommendation()     { document.getElementById('recommendationBox').style.display = 'none'; }
-function hideFertilizerSchedule() { document.getElementById('fertilizerScheduleSection').style.display = 'none'; }
+function hideRecommendation()    { document.getElementById('recommendationBox').style.display = 'none'; }
+function hideFertilizerSchedule(){ document.getElementById('fertilizerScheduleSection').style.display = 'none'; }
 
 // ─── Fertilizer schedule table ────────────────────────────────────────────────
 function showFertilizerSchedule(cropKey) {
@@ -2972,11 +3139,12 @@ function showFertilizerSchedule(cropKey) {
 // ─── Main recommendation engine ───────────────────────────────────────────────
 function getRecommendation() {
     const cType = document.getElementById('cropType').value;
-    const cName = document.getElementById('cropName').value;
+    const cName = document.getElementById('cropName').value;   // lowercase
     const szn   = document.getElementById('recSeason').value;
     const rType = document.getElementById('recType').value;
-    const pName = document.getElementById('pestName').value;
+    const pName = document.getElementById('pestName').value;   // underscore key
 
+    // Validate — empty string or placeholder
     if (!cType) return alert('Please select Crop Type.');
     if (!cName) return alert('Please select Crop Name.');
     if (!szn)   return alert('Please select Season.');
@@ -2993,18 +3161,16 @@ function getRecommendation() {
     // ── Fertilizer ──────────────────────────────────────────────────────────
     if (rType === 'fertilizer') {
         const f = fertilizerDosage[cName];
-        if (!f) { box.textContent = `Fertilizer data not available for ${displayName}.`; return; }
-
-        // ✅ FIX 1: Read N, P, K from f.seasons[szn] not from f directly
-        const sznData = f.seasons ? f.seasons[szn] : null;
-        if (!sznData) { box.textContent = `No fertilizer data for ${displayName} in ${szn} season.`; return; }
-
+        if (!f) {
+            box.textContent = `Fertilizer data not available for ${displayName}.`;
+            return;
+        }
         let res = `🌾 Crop: ${displayName}  |  Season: ${szn}\n`;
         res += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
         res += `Fertilizer Dosage (kg/acre):\n`;
-        res += `  Nitrogen   (N)  : ${sznData.N} kg/acre\n`;
-        res += `  Phosphorus (P)  : ${sznData.P} kg/acre\n`;
-        res += `  Potassium  (K)  : ${sznData.K} kg/acre\n`;
+        res += `  Nitrogen   (N)  : ${f.N} kg/acre\n`;
+        res += `  Phosphorus (P)  : ${f.P} kg/acre\n`;
+        res += `  Potassium  (K)  : ${f.K} kg/acre\n`;
         if (f.Ca) res += `  Calcium    (Ca) : ${f.Ca} kg/acre\n`;
         if (f.Mg) res += `  Magnesium  (Mg) : ${f.Mg} kg/acre\n`;
         if (f.S)  res += `  Sulfur     (S)  : ${f.S} kg/acre\n`;
@@ -3022,7 +3188,7 @@ function getRecommendation() {
             ? chemicalRecommendations.pest
             : chemicalRecommendations.disease;
 
-        const rec = lookup[pName];
+        const rec = lookup[pName];   // pName is underscore key e.g. "stem_borer"
 
         let res = `🌾 Crop: ${displayName}  |  Season: ${szn}\n`;
         res += `${rType === 'pest' ? '🐛 Pest' : '🦠 Disease'}: ${pestDisplayName}\n`;
@@ -3032,8 +3198,11 @@ function getRecommendation() {
         if (!rec || !rec.length) {
             res += '  Data not available for this selection.';
         } else {
-            rec.forEach((chemical, i) => { res += `  ${i + 1}. ${chemical}\n`; });
+            rec.forEach((chemical, i) => {
+                res += `  ${i + 1}. ${chemical}\n`;
+            });
         }
+
         box.textContent = res;
         hideFertilizerSchedule();
     }
@@ -3139,7 +3308,11 @@ function formatToday() {
 
 function setMinDate() {
     const i = document.getElementById("ureaDate");
-    if (i) i.min = formatToday();
+    if (i) {
+        const today = formatToday();
+        i.max   = today;          // block future dates
+        i.value = today;          // auto-populate today
+    }
 }
 
 function cleanAadhaar(v) {
@@ -3611,10 +3784,18 @@ addFpCropRow();
 
 const dateInput = document.getElementById("ureaDate");
 if (dateInput) {
+    const _todayForDate = formatToday(); // e.g., "2026-05-14"
+
+    // Restrict browser UI to today only
+    dateInput.min   = _todayForDate;
+    dateInput.max   = _todayForDate;
+    dateInput.value = _todayForDate;
+
     dateInput.addEventListener("change", e => {
-        if (e.target.value && e.target.value < formatToday()) {
-            alert("Past dates not allowed.");
-            e.target.value = "";
+        const today = formatToday();
+        if (e.target.value !== today) {
+            alert("Only today's date is allowed.");
+            e.target.value = today;
         }
     });
 }
@@ -4235,33 +4416,48 @@ function reprintDistribution(serialNo) {
         }
     });
 
-    // Populate printArea with historical record data
+    // Helper: safely set textContent
     const setText = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.textContent = val || '—';
     };
 
-    setText('printSerialNo',  rec.serialNo || '—');
+    // --- Look up Registration ID from farmerProfiles (not stored in ureaHistory) ---
+    let regIdForPrint = '—';
+    const aadhaarClean = cleanAadhaar(rec.aadhaar);
+    if (aadhaarClean && farmerProfiles[aadhaarClean]) {
+        const profiles = farmerProfiles[aadhaarClean];
+        const matchProfile = profiles.find(p => String(p.khatha) === String(rec.khatha));
+        if (matchProfile && matchProfile.crops) {
+            const exactCrop = matchProfile.crops.find(c =>
+                c.crop === rec.crop && c.season === rec.season && c.registrationId
+            );
+            const anyCrop = matchProfile.crops.find(c => c.registrationId);
+            regIdForPrint = (exactCrop || anyCrop)?.registrationId || '—';
+        }
+    }
+
+    // --- Fill all print fields from saved history record ---
+    setText('printSerialNo',   String(rec.serialNo || '—'));
     setText('printFertilizer', rec.fertilizerType || 'Urea');
-    setText('printRegId',     rec.registrationId || '—');
+    setText('printRegId',      regIdForPrint);
+    setText('printFarmerName', rec.farmerName  || '');
+    setText('printFatherName', rec.fatherName  || '');
+    setText('printAadhaar',    rec.aadhaar     || '');
+    setText('printMobile',     rec.mobile      || '');
+    setText('printKhatha',     rec.khatha      || '');
+    setText('printExtent',     rec.extent      || '');
+    setText('printBags',       rec.bags        || '');
+    setText('printCrop',       rec.crop ? rec.crop.charAt(0).toUpperCase() + rec.crop.slice(1) : '');
+    setText('printSeason',     rec.season      || '');
+    setText('printYear',       rec.year        || '');
+    setText('printDate',       rec.date        || '');
 
-    setText('printFarmerName',  rec.farmerName  || '');
-    setText('printFatherName',  rec.fatherName  || '');
-    setText('printAadhaar',     rec.aadhaar     || '');
-    setText('printMobile',      rec.mobile      || '');
-    setText('printKhatha',      rec.khatha      || '');
-    setText('printExtent',      rec.extent      || '');
-    setText('printBags',        rec.bags        || '');
-    setText('printCrop',        rec.crop        ? rec.crop.charAt(0).toUpperCase() + rec.crop.slice(1) : '');
-    setText('printSeason',      rec.season      || '');
-    setText('printYear',        rec.year        || '');
-    setText('printDate',        rec.date        || '');
-
-    // Title
+    // Mark as reprint in title
     const titleEl = document.getElementById('printFormTitle');
-    if (titleEl) titleEl.textContent = `${rec.fertilizerType || 'Fertilizer'} Distribution — REPRINT`;
+    if (titleEl) titleEl.textContent = (rec.fertilizerType || 'Fertilizer') + ' Distribution — REPRINT';
 
-    // Village & Mandal: try to fetch from Firebase profile or leave blank
+    // --- Fetch Firebase profile for Village, Mandal, Officer Name & Signature ---
     const _doReprint = () => {
         const printEl = document.getElementById('printArea');
         const ureaEl  = document.getElementById('ureaSection');
@@ -4270,34 +4466,34 @@ function reprintDistribution(serialNo) {
         printEl.classList.remove('hidden');
         if (ureaEl) { ureaEl.style.display = 'none'; ureaEl.classList.add('hidden'); }
 
-        // Signature: try to load from profile
         const sigArea = document.getElementById('printSignatureArea');
         if (sigArea) sigArea.innerHTML = '';
 
-        const _triggerPrint = () => {
-            setTimeout(() => window.print(), 150);
-        };
+        const _triggerPrint = () => setTimeout(() => window.print(), 200);
 
         const firebaseUser = firebase.auth().currentUser;
         if (typeof database !== 'undefined' && firebaseUser) {
-            database.ref(`users/${firebaseUser.uid}/profile`).once('value').then(snap => {
-                const prof = snap.val();
-                if (prof) {
-                    setText('printVillage',      prof.village  || '—');
-                    setText('printMandal',       prof.mandal   || '—');
-                    setText('printOfficerName',  prof.name     || '');
-                    if (sigArea && prof.signature) {
-                        const img = document.createElement('img');
-                        img.src   = prof.signature;
-                        img.style.maxHeight = '55px';
-                        img.style.maxWidth  = '160px';
-                        sigArea.appendChild(img);
-                        img.onload  = _triggerPrint;
-                        img.onerror = _triggerPrint;
-                    } else {
-                        _triggerPrint();
-                    }
+            database.ref('users/' + firebaseUser.uid + '/profile').once('value').then(snap => {
+                const prof = snap.val() || {};
+                setText('printVillage', prof.village || '—');
+                setText('printMandal',  prof.mandal  || '—');
+                // Exact same format as original recordDistribution officer name
+                const officerNameEl = document.getElementById('printOfficerName');
+                if (officerNameEl) {
+                    officerNameEl.textContent = (prof.name || '') + (prof.mandal ? ' | ' + prof.mandal : '');
+                }
+                // Use signatureBase64 — same field as original print
+                if (sigArea && prof.signatureBase64) {
+                    const img = document.createElement('img');
+                    img.src = prof.signatureBase64;
+                    img.alt = 'Officer Signature';
+                    img.style.cssText = 'max-height:55px;max-width:175px;object-fit:contain;display:block;margin:0 auto;';
+                    sigArea.innerHTML = '';
+                    sigArea.appendChild(img);
+                    img.onload  = _triggerPrint;
+                    img.onerror = _triggerPrint;
                 } else {
+                    if (sigArea) sigArea.innerHTML = '';
                     _triggerPrint();
                 }
             }).catch(() => _triggerPrint());
@@ -4310,15 +4506,12 @@ function reprintDistribution(serialNo) {
             printEl.classList.add('hidden');
             if (ureaEl) { ureaEl.style.display = 'block'; ureaEl.classList.remove('hidden'); }
             window.removeEventListener('afterprint', restoreAfterPrint);
-            // Re-open Aadhaar history for the same farmer after reprint
-            if (rec.aadhaar) {
-                setTimeout(() => showAadhaarHistory(rec.aadhaar), 200);
-            }
+            if (rec.aadhaar) setTimeout(() => showAadhaarHistory(rec.aadhaar), 200);
         };
         window.addEventListener('afterprint', restoreAfterPrint);
     };
 
-    // Small delay to let modals finish closing before showing printArea
+    // Delay to let modals finish closing before printArea shows
     setTimeout(_doReprint, 350);
 }
 
