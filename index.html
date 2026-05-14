@@ -143,34 +143,41 @@
         #clearUreaPasswordModal .modal-backdrop { z-index: 1055 !important; }
 
         @media print {
+    @page { size: A4 portrait; margin: 0; }
+
+    html, body { margin: 0 !important; padding: 0 !important; }
     body * { visibility: hidden !important; }
     #printArea, #printArea * { visibility: visible !important; }
+
+    /* JS will set transform:scale before print — this just places it top-left */
     #printArea {
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
-        width: 100% !important;
         margin: 0 !important;
-        padding: 20px !important;
+        padding: 0 !important;
         border: none !important;
         box-shadow: none !important;
-        z-index: 99999 !important;
         background: #fff !important;
         display: block !important;
+        transform-origin: top left !important;
+        /* width is set by JS to match A4 at current DPI */
     }
-    #printArea table { display: table !important; width: 100% !important; border-collapse: collapse !important; }
-    #printArea tr    { display: table-row !important; }
-    #printArea td, #printArea th { display: table-cell !important; border: 1px solid #333 !important; padding: 10px !important; }
-    #printArea .print-signatures { display: flex !important; justify-content: space-between !important; margin-top: 50px !important; }
-    #printArea .print-sig-box   { display: block !important; text-align: center !important; }
-    #printArea span  { display: inline !important; }
-    #printArea small { display: inline !important; }
-    #printArea p     { display: block !important; }
+
+    #printArea table  { display: table !important; width: 100% !important; border-collapse: collapse !important; }
+    #printArea tr     { display: table-row !important; }
+    #printArea td, #printArea th { display: table-cell !important; border: 1px solid #333 !important; }
+    #printArea .print-signatures { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; }
+    #printArea .print-sig-box    { display: block !important; text-align: center !important; }
+    #printArea span   { display: inline !important; }
+    #printArea small  { display: inline !important; }
+    #printArea p      { display: block !important; }
     #printArea h2, #printArea h3 { display: block !important; }
-    #printArea div   { display: block !important; }
+    #printArea div    { display: block !important; }
     #printArea strong { display: inline !important; font-weight: bold !important; }
-    #printArea img { display: inline-block !important; visibility: visible !important; max-height: 60px !important; }
-    #printArea #printSignatureArea { display: block !important; min-height: 60px !important; }
+    #printArea img    { display: inline-block !important; visibility: visible !important; }
+    #printArea #printSignatureArea,
+    #printArea #printSignatureAreaOfficer { display: block !important; }
 }
         @media (max-width: 768px) {
             .dashboard-title { font-size: 2rem; }
@@ -960,6 +967,12 @@
                      src="" alt="Current Signature"
                      style="max-height:80px; max-width:220px; border:1px dashed #aaa;
                             border-radius:6px; padding:4px; background:#fafafa;" />
+                <br>
+                <button type="button" class="btn btn-outline-danger btn-sm mt-2"
+                        onclick="removeCloudSignature()">
+                    <i class="fas fa-cloud-download-alt me-1"></i>
+                    Remove Saved Signature from Cloud
+                </button>
             </div>
         </div>
 
@@ -1335,149 +1348,192 @@
 </div>
 
 <!-- Enhanced Print Area -->
-<div id="printArea" style="display:none; padding:40px; font-family:'Noto Sans Telugu',Poppins,sans-serif; border:2px solid #000; max-width:800px; margin:40px auto; background:#fff;">
+<div id="printArea" style="display:none; font-family:'Noto Sans Telugu',Poppins,sans-serif; background:#fff; width:100%; box-sizing:border-box;">
 
-    <!-- Print Copy Status Banner -->
-    <div id="printCopyBanner" style="text-align:center; margin-bottom:12px; padding:8px 16px; border-radius:8px; font-size:15px; font-weight:700; letter-spacing:0.5px;">
-        <!-- Filled dynamically: green for ORIGINAL, red for REPRINT -->
-    </div>
+    <!-- ══════════════════════════════════════════
+         FARMER COPY
+         ══════════════════════════════════════════ -->
+    <div class="print-copy-block" style="padding:10px 14px 8px 14px; border:2px solid #000; box-sizing:border-box;">
 
-    <!-- Header -->
-    <div style="text-align:center; margin-bottom:20px;">
-        <h2 style="margin:0; color:#d32f2f;">🌾 AGRI WORK SPACE</h2>
-        <h3 id="printFormTitle" style="margin:10px 0 0 0; color:#1976d2;">Fertilizer Distribution</h3>
-        <p style="margin:8px 0 2px 0; font-size:14px;">
-            <strong>Village:</strong>
-            <span id="printVillage" style="font-weight:600; color:#1976d2;">—</span>
-            &nbsp;&nbsp;&nbsp;
-            <strong>Mandal:</strong>
-            <span id="printMandal" style="font-weight:600; color:#1976d2;">—</span>
-        </p>
-    </div>
+        <!-- Copy label -->
+        <div style="text-align:right; margin-bottom:3px;">
+            <span style="background:#e3f2fd; color:#1565c0; font-weight:700; font-size:11px;
+                         padding:2px 8px; border-radius:4px; border:1px solid #90caf9;">
+                🧑‍🌾 FARMER COPY
+            </span>
+        </div>
 
-    <!-- Details Table -->
-    <table style="width:100%; border-collapse:collapse; margin-bottom:30px; font-size:14px;">
+        <!-- Status Banner -->
+        <div id="printCopyBanner" style="text-align:center; margin-bottom:5px; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;"></div>
 
-        <!-- Row 1: Serial No + Fertilizer -->
-        <tr>
-            <td style="padding:12px; border:1px solid #333; width:50%;">
-                <strong>Form S.No:</strong>
-                <span id="printSerialNo" style="font-weight:600; color:#1976d2;"></span>
-            </td>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Fertilizer:</strong>
-                <span id="printFertilizer" style="font-weight:600; color:#d32f2f;"></span>
-            </td>
-        </tr>
-
-        <!-- Row 1b: Registration ID -->
-        <tr>
-            <td colspan="2" style="padding:12px; border:1px solid #333; background:#fffde7;">
-                <strong>Registration ID:</strong>
-                <span id="printRegId" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:15px;">—</span>
-            </td>
-        </tr>
-
-        <!-- Row 2: Farmer Name + Father Name -->
-        <tr>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Name:</strong>
-                <span id="printFarmerName" style="font-weight:600;"></span>
-            </td>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Father:</strong>
-                <span id="printFatherName"></span>
-            </td>
-        </tr>
-
-        <!-- Row 3: Mobile + Aadhaar -->
-        <tr>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Mobile:</strong>
-                <span id="printMobile"></span>
-            </td>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Aadhaar:</strong>
-                <span id="printAadhaar"></span>
-            </td>
-        </tr>
-
-        <!-- Row 4: Khatha + Extent -->
-        <tr>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Khatha:</strong>
-                <span id="printKhatha" style="font-weight:600;"></span>
-            </td>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Extent(ac):</strong>
-                <span id="printExtent"></span> Ac
-            </td>
-        </tr>
-
-        <!-- Row 5: Crop + Season & Year -->
-        <tr>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Crop:</strong>
-                <span id="printCrop" style="font-weight:600; color:#2e7d32;"></span>
-            </td>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Season:</strong>
-                <span id="printSeason" style="font-weight:600;"></span>
+        <!-- Header -->
+        <div style="text-align:center; margin-bottom:6px;">
+            <h2 style="margin:0; color:#d32f2f; font-size:13px; font-weight:700;">🌾 AGRI WORK SPACE</h2>
+            <h3 id="printFormTitle" style="margin:2px 0 0 0; color:#1976d2; font-size:12px; font-weight:600;">Fertilizer Distribution</h3>
+            <p style="margin:2px 0 0 0; font-size:11px;">
+                <strong>Village:</strong> <span id="printVillage" style="font-weight:600; color:#1976d2;">—</span>
                 &nbsp;&nbsp;
-                <strong>Year:</strong>
-                <span id="printYear" style="font-weight:600;"></span>
-            </td>
-        </tr>
+                <strong>Mandal:</strong> <span id="printMandal" style="font-weight:600; color:#1976d2;">—</span>
+            </p>
+        </div>
 
-        <!-- Row 6: Bags + Date -->
-        <tr style="background:#f0f8ff;">
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Bags Distributed:</strong>
-                <span id="printBags" style="font-size:22px; font-weight:700; color:#1976d2;"></span>
-            </td>
-            <td style="padding:12px; border:1px solid #333;">
-                <strong>Date:</strong>
-                <span id="printDate"></span>
-            </td>
-        </tr>
+        <!-- Details Table -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:6px; font-size:11px;">
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333; width:50%;"><strong>Form S.No:</strong> <span id="printSerialNo" style="font-weight:600; color:#1976d2;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Fertilizer:</strong> <span id="printFertilizer" style="font-weight:600; color:#d32f2f;"></span></td>
+            </tr>
+            <tr>
+                <td colspan="2" style="padding:4px 7px; border:1px solid #333; background:#fffde7;">
+                    <strong>Reg ID:</strong> <span id="printRegId" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:11px;">—</span>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Name:</strong> <span id="printFarmerName" style="font-weight:600;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Father:</strong> <span id="printFatherName"></span></td>
+            </tr>
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Mobile:</strong> <span id="printMobile"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Aadhaar:</strong> <span id="printAadhaar"></span></td>
+            </tr>
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Khatha:</strong> <span id="printKhatha" style="font-weight:600;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Extent:</strong> <span id="printExtent"></span> Ac</td>
+            </tr>
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Crop:</strong> <span id="printCrop" style="font-weight:600; color:#2e7d32;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Season:</strong> <span id="printSeason" style="font-weight:600;"></span> &nbsp; <strong>Year:</strong> <span id="printYear" style="font-weight:600;"></span></td>
+            </tr>
+            <tr style="background:#f0f8ff;">
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Bags:</strong> <span id="printBags" style="font-size:15px; font-weight:700; color:#1976d2;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Date:</strong> <span id="printDate"></span></td>
+            </tr>
+        </table>
 
-    </table>
-
-    <!-- Signatures -->
-    <div class="print-signatures" style="display:flex; justify-content:space-between; margin-top:50px;">
-        <div class="print-sig-box" style="text-align:center;">
-            <strong>Officer Signature</strong><br>
-            <div id="printSignatureArea" style="height:60px; width:180px; margin:6px auto 4px auto;
-                 display:flex; align-items:flex-end; justify-content:center;">
-                <!-- digital signature injected here -->
+        <!-- Signatures -->
+        <div class="print-signatures" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:8px;">
+            <div class="print-sig-box" style="text-align:center;">
+                <strong style="font-size:10px;">Officer Signature</strong><br>
+                <div id="printSignatureArea" style="height:40px; width:130px; margin:3px auto 2px; display:flex; align-items:flex-end; justify-content:center;"></div>
+                <div style="border-top:1px solid #333; width:130px; margin:0 auto 2px;"></div>
+                <small id="printOfficerName" style="font-size:9px;"></small>
             </div>
-            <div style="border-top:1px solid #333; width:180px; margin:0 auto 4px auto;"></div>
-            <small id="printOfficerName"></small>
+            <div style="text-align:center;">
+                <div id="printQrCode" style="width:60px; height:60px; margin:0 auto;"></div>
+                <small style="font-size:8px; color:#555; display:block; margin-top:1px;">Scan to verify</small>
+            </div>
+            <div class="print-sig-box" style="text-align:center;">
+                <strong style="font-size:10px;">Farmer Signature</strong><br>
+                <div style="border-bottom:1px solid #333; width:130px; margin:38px auto 2px;"></div>
+                <small style="font-size:9px;">Name &amp; Date</small>
+            </div>
         </div>
 
-        <!-- QR Code (right side) -->
-        <div style="text-align:center;">
-            <div id="printQrCode" style="width:90px; height:90px; margin:0 auto;"></div>
-            <small style="font-size:10px; color:#555; display:block; margin-top:4px;">Scan to verify</small>
-        </div>
+        <!-- Warning -->
+        <div id="printAntiDupWarning" style="margin-top:6px; padding:4px 8px; border-radius:5px; border:2px dashed #c62828; background:#fff3e0; font-size:10px; text-align:center; color:#b71c1c;"></div>
 
-        <div class="print-sig-box" style="text-align:center;">
-            <strong>Farmer Signature</strong><br>
-            <div style="border-bottom:1px solid #333; width:180px; margin:60px auto 4px auto;"></div>
-            <small>Name &amp; Date</small>
+        <!-- Footer -->
+        <div style="margin-top:5px; text-align:center; font-size:10px; color:#d32f2f; border-top:1px solid #333; padding-top:4px;">
+            <strong>⚠️ ఈ ఫారం 7 రోజులు మాత్రమే చెల్లుతుంది</strong>
+            &nbsp;|&nbsp; <span style="color:#666;">Valid for 7 days only</span>
         </div>
     </div>
+    <!-- END FARMER COPY -->
 
-    <!-- Anti-Duplication Warning -->
-    <div id="printAntiDupWarning" style="margin-top:18px; padding:10px 14px; border-radius:6px; border:2px dashed #c62828; background:#fff3e0; font-size:13px; text-align:center; color:#b71c1c;">
-        <!-- Filled dynamically -->
+    <!-- CUT LINE -->
+    <div class="cut-line" style="text-align:center; padding:3px 0; border-top:2px dashed #888; border-bottom:2px dashed #888; background:#f5f5f5; font-size:10px; color:#888; letter-spacing:2px;">
+        ✂ &nbsp; CUT HERE &nbsp; ✂
     </div>
 
-    <!-- Footer -->
-    <div style="margin-top:18px; text-align:center; font-size:15px; color:#d32f2f; border-top:2px solid #333; padding-top:18px;">
-        <p style="margin:0;"><strong>⚠️ ఈ ఫారం 7 రోజులు మాత్రమే చెల్లుతుంది</strong></p>
-        <small style="color:#666;">Valid for 7 days only</small>
+    <!-- ══════════════════════════════════════════
+         OFFICER COPY
+         ══════════════════════════════════════════ -->
+    <div class="print-copy-block" style="padding:10px 14px 8px 14px; border:2px solid #000; border-top:2px solid #000; box-sizing:border-box;">
+
+        <!-- Copy label -->
+        <div style="text-align:right; margin-bottom:3px;">
+            <span style="background:#fce4ec; color:#880e4f; font-weight:700; font-size:11px;
+                         padding:2px 8px; border-radius:4px; border:1px solid #f48fb1;">
+                👮 OFFICER COPY
+            </span>
+        </div>
+
+        <!-- Status Banner -->
+        <div id="printCopyBannerOfficer" style="text-align:center; margin-bottom:5px; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;"></div>
+
+        <!-- Header -->
+        <div style="text-align:center; margin-bottom:6px;">
+            <h2 style="margin:0; color:#d32f2f; font-size:13px; font-weight:700;">🌾 AGRI WORK SPACE</h2>
+            <h3 id="printFormTitleOfficer" style="margin:2px 0 0 0; color:#1976d2; font-size:12px; font-weight:600;">Fertilizer Distribution</h3>
+            <p style="margin:2px 0 0 0; font-size:11px;">
+                <strong>Village:</strong> <span id="printVillageOfficer" style="font-weight:600; color:#1976d2;">—</span>
+                &nbsp;&nbsp;
+                <strong>Mandal:</strong> <span id="printMandalOfficer" style="font-weight:600; color:#1976d2;">—</span>
+            </p>
+        </div>
+
+        <!-- Details Table -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:6px; font-size:11px;">
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333; width:50%;"><strong>Form S.No:</strong> <span id="printSerialNoOfficer" style="font-weight:600; color:#1976d2;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Fertilizer:</strong> <span id="printFertilizerOfficer" style="font-weight:600; color:#d32f2f;"></span></td>
+            </tr>
+            <tr>
+                <td colspan="2" style="padding:4px 7px; border:1px solid #333; background:#fffde7;">
+                    <strong>Reg ID:</strong> <span id="printRegIdOfficer" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:11px;">—</span>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Name:</strong> <span id="printFarmerNameOfficer" style="font-weight:600;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Father:</strong> <span id="printFatherNameOfficer"></span></td>
+            </tr>
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Mobile:</strong> <span id="printMobileOfficer"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Aadhaar:</strong> <span id="printAadhaarOfficer"></span></td>
+            </tr>
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Khatha:</strong> <span id="printKhathaOfficer" style="font-weight:600;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Extent:</strong> <span id="printExtentOfficer"></span> Ac</td>
+            </tr>
+            <tr>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Crop:</strong> <span id="printCropOfficer" style="font-weight:600; color:#2e7d32;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Season:</strong> <span id="printSeasonOfficer" style="font-weight:600;"></span> &nbsp; <strong>Year:</strong> <span id="printYearOfficer" style="font-weight:600;"></span></td>
+            </tr>
+            <tr style="background:#f0f8ff;">
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Bags:</strong> <span id="printBagsOfficer" style="font-size:15px; font-weight:700; color:#1976d2;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Date:</strong> <span id="printDateOfficer"></span></td>
+            </tr>
+        </table>
+
+        <!-- Signatures -->
+        <div class="print-signatures" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:8px;">
+            <div class="print-sig-box" style="text-align:center;">
+                <strong style="font-size:10px;">Officer Signature</strong><br>
+                <div id="printSignatureAreaOfficer" style="height:40px; width:130px; margin:3px auto 2px; display:flex; align-items:flex-end; justify-content:center;"></div>
+                <div style="border-top:1px solid #333; width:130px; margin:0 auto 2px;"></div>
+                <small id="printOfficerNameOfficer" style="font-size:9px;"></small>
+            </div>
+            <div style="text-align:center;">
+                <div id="printQrCodeOfficer" style="width:60px; height:60px; margin:0 auto;"></div>
+                <small style="font-size:8px; color:#555; display:block; margin-top:1px;">Scan to verify</small>
+            </div>
+            <div class="print-sig-box" style="text-align:center;">
+                <strong style="font-size:10px;">Farmer Signature</strong><br>
+                <div style="border-bottom:1px solid #333; width:130px; margin:38px auto 2px;"></div>
+                <small style="font-size:9px;">Name &amp; Date</small>
+            </div>
+        </div>
+
+        <!-- Warning -->
+        <div id="printAntiDupWarningOfficer" style="margin-top:6px; padding:4px 8px; border-radius:5px; border:2px dashed #c62828; background:#fff3e0; font-size:10px; text-align:center; color:#b71c1c;"></div>
+
+        <!-- Footer -->
+        <div style="margin-top:5px; text-align:center; font-size:10px; color:#d32f2f; border-top:1px solid #333; padding-top:4px;">
+            <strong>⚠️ ఈ ఫారం 7 రోజులు మాత్రమే చెల్లుతుంది</strong>
+            &nbsp;|&nbsp; <span style="color:#666;">Valid for 7 days only</span>
+        </div>
     </div>
+    <!-- END OFFICER COPY -->
 
 </div>
 
@@ -2746,6 +2802,32 @@ function clearSignature() {
     if (previewImg) previewImg.src = '';
     if (sigInput)   sigInput.value = '';
     alert('Signature will be removed when you click "Update Profile".');
+}
+
+// ── Remove digital signature saved in cloud ──
+function removeCloudSignature() {
+    const user = firebase.auth().currentUser;
+    if (!user) return alert('⚠️ You must be logged in.');
+
+    if (!confirm('⚠️ This will permanently remove your digital signature from the cloud.\n\nIt will no longer appear on printed distribution receipts.\n\nAre you sure?')) return;
+
+    database.ref('users/' + user.uid + '/profile/signatureBase64').remove()
+        .then(() => {
+            // Clear the local preview state
+            window._pendingSignatureBase64 = '';
+            const curBox = document.getElementById('signatureCurrentBox');
+            const curImg = document.getElementById('signatureCurrentImg');
+            const previewBox = document.getElementById('signaturePreviewBox');
+            const previewImg = document.getElementById('signaturePreviewImg');
+            const sigInput   = document.getElementById('profileSignatureInput');
+            if (curBox) curBox.classList.add('hidden');
+            if (curImg) curImg.src = '';
+            if (previewBox) previewBox.classList.add('hidden');
+            if (previewImg) previewImg.src = '';
+            if (sigInput)   sigInput.value = '';
+            alert('✅ Digital signature removed from cloud successfully.\n\nYour receipts will no longer show a signature image until you upload a new one.');
+        })
+        .catch(err => alert('❌ Failed to remove signature: ' + err.message));
 }
 
 // ── Sync all user data (profiles, fertilizer history, reports) to cloud ──
@@ -4291,49 +4373,71 @@ function stampPrintReceipt(rec, isReprint) {
         }
     }
 
-    // --- Anti-duplication warning ---
+    // --- Anti-duplication warning (farmer copy) ---
     const warn = document.getElementById('printAntiDupWarning');
-    if (warn) {
+    const warnOfficer = document.getElementById('printAntiDupWarningOfficer');
+    const warnHtmlOrig =
+        '<strong>🔒 Original Receipt</strong> — This is the <strong>only authorised copy</strong> of this distribution.<br>' +
+        'ఈ రసీదు ఒకే షాపులో మాత్రమే చెల్లుతుంది. జిరాక్స్ కాపీలు చెల్లవు.<br>' +
+        '<small>Photocopies / duplicate prints are invalid. Scan QR code to verify authenticity.</small>';
+    const warnHtmlReprint =
+        '<strong>⚠️ REPRINT #' + copyNum + '</strong> — This receipt has been printed <strong>' + copyNum + ' time(s)</strong>.<br>' +
+        'ఈ రసీదు ముందే ' + copyNum + ' సార్లు ప్రింట్ అయింది. జాగ్రత్తగా ఉండండి.<br>' +
+        '<small>Stores: Verify the QR code and check with officer if in doubt. Do not accept if already redeemed.</small>';
+    [warn, warnOfficer].forEach(w => {
+        if (!w) return;
         if (!isReprint) {
-            warn.style.borderColor = '#388e3c';
-            warn.style.background  = '#f1f8e9';
-            warn.style.color       = '#1b5e20';
-            warn.innerHTML =
-                '<strong>🔒 Original Receipt</strong> — This is the <strong>only authorised copy</strong> of this distribution.<br>' +
-                'ఈ రసీదు ఒకే షాపులో మాత్రమే చెల్లుతుంది. జిరాక్స్ కాపీలు చెల్లవు.<br>' +
-                '<small>Photocopies / duplicate prints are invalid. Scan QR code to verify authenticity.</small>';
+            w.style.borderColor = '#388e3c';
+            w.style.background  = '#f1f8e9';
+            w.style.color       = '#1b5e20';
+            w.innerHTML = warnHtmlOrig;
         } else {
-            warn.style.borderColor = '#c62828';
-            warn.style.background  = '#fff3e0';
-            warn.style.color       = '#b71c1c';
-            warn.innerHTML =
-                '<strong>⚠️ REPRINT #' + copyNum + '</strong> — This receipt has been printed <strong>' + copyNum + ' time(s)</strong>.<br>' +
-                'ఈ రసీదు ముందే ' + copyNum + ' సార్లు ప్రింట్ అయింది. జాగ్రత్తగా ఉండండి.<br>' +
-                '<small>Stores: Verify the QR code and check with officer if in doubt. Do not accept if already redeemed.</small>';
+            w.style.borderColor = '#c62828';
+            w.style.background  = '#fff3e0';
+            w.style.color       = '#b71c1c';
+            w.innerHTML = warnHtmlReprint;
+        }
+    });
+
+    // --- Officer copy banner ---
+    const bannerOfficer = document.getElementById('printCopyBannerOfficer');
+    if (bannerOfficer) {
+        if (!isReprint) {
+            bannerOfficer.style.background = '#e8f5e9';
+            bannerOfficer.style.border     = '2px solid #388e3c';
+            bannerOfficer.style.color      = '#1b5e20';
+            bannerOfficer.innerHTML = '✅ ORIGINAL COPY — Copy #1 of 1 &nbsp;|&nbsp; Token: <code style="letter-spacing:1px;">' + token + '</code>';
+        } else {
+            bannerOfficer.style.background = '#ffebee';
+            bannerOfficer.style.border     = '2px solid #c62828';
+            bannerOfficer.style.color      = '#b71c1c';
+            bannerOfficer.innerHTML = '⚠️ REPRINT — Copy #' + copyNum + ' &nbsp;|&nbsp; Token: <code style="letter-spacing:1px;">' + token + '</code>';
         }
     }
 
-    // --- QR Code ---
-    const qrDiv = document.getElementById('printQrCode');
-    if (qrDiv) {
-        qrDiv.innerHTML = '';
-        const qrText = 'SNo:' + rec.serialNo + '|Date:' + rec.date +
-                       '|Aadhaar:' + String(rec.aadhaar || '').slice(-4) +
-                       '|Bags:' + rec.bags + '|Fert:' + (rec.fertilizerType || 'Urea') +
-                       '|Copy:' + copyNum + '|Token:' + token;
-        try {
-            new QRCode(qrDiv, {
-                text:          qrText,
-                width:         88,
-                height:        88,
-                colorDark:     '#000000',
-                colorLight:    '#ffffff',
-                correctLevel:  QRCode.CorrectLevel.M
-            });
-        } catch(e) {
-            qrDiv.innerHTML = '<small style="font-size:9px; word-break:break-all;">' + token + '</small>';
+    // --- QR Code (both copies) ---
+    const qrText = 'SNo:' + rec.serialNo + '|Date:' + rec.date +
+                   '|Aadhaar:' + String(rec.aadhaar || '').slice(-4) +
+                   '|Bags:' + rec.bags + '|Fert:' + (rec.fertilizerType || 'Urea') +
+                   '|Copy:' + copyNum + '|Token:' + token;
+    ['printQrCode', 'printQrCodeOfficer'].forEach(qrId => {
+        const qrDiv = document.getElementById(qrId);
+        if (qrDiv) {
+            qrDiv.innerHTML = '';
+            try {
+                new QRCode(qrDiv, {
+                    text:         qrText,
+                    width:        68,
+                    height:       68,
+                    colorDark:    '#000000',
+                    colorLight:   '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } catch(e) {
+                qrDiv.innerHTML = '<small style="font-size:9px; word-break:break-all;">' + token + '</small>';
+            }
         }
-    }
+    });
 }
 
 function recordDistribution() {
@@ -4410,6 +4514,21 @@ document.getElementById("printExtent").textContent     = e;
 document.getElementById("printBags").textContent       = b;
 document.getElementById("printDate").textContent       = d;
 
+// ✅ Mirror to Officer copy fields
+['Officer'].forEach(suffix => {
+    const s2 = suffix;
+    document.getElementById("printSerialNo"+s2).textContent   = sno;
+    document.getElementById("printFertilizer"+s2).textContent = fert;
+    document.getElementById("printFarmerName"+s2).textContent = n;
+    document.getElementById("printFatherName"+s2).textContent = fn;
+    document.getElementById("printMobile"+s2).textContent     = m;
+    document.getElementById("printAadhaar"+s2).textContent    = a;
+    document.getElementById("printKhatha"+s2).textContent     = k;
+    document.getElementById("printExtent"+s2).textContent     = e;
+    document.getElementById("printBags"+s2).textContent       = b;
+    document.getElementById("printDate"+s2).textContent       = d;
+});
+
 // ✅ Fill crop, season, year in print
 const printCropEl = document.getElementById("printCrop");
 const printSeasonEl = document.getElementById("printSeason");
@@ -4418,16 +4537,37 @@ if (printCropEl)   printCropEl.textContent   = crop ? crop.toUpperCase() : '—'
 if (printSeasonEl) printSeasonEl.textContent = s || '—';
 if (printYearEl)   printYearEl.textContent   = y || '—';
 
+// ✅ Mirror crop/season/year to officer copy
+const printCropElO = document.getElementById("printCropOfficer");
+const printSeasonElO = document.getElementById("printSeasonOfficer");
+const printYearElO   = document.getElementById("printYearOfficer");
+if (printCropElO)   printCropElO.textContent   = crop ? crop.toUpperCase() : '—';
+if (printSeasonElO) printSeasonElO.textContent = s || '—';
+if (printYearElO)   printYearElO.textContent   = y || '—';
+
 // ✅ Set print title
 const titleEl = document.getElementById("printFormTitle");
 if (titleEl) titleEl.textContent = `${fert} Distribution`;
+const titleElO = document.getElementById("printFormTitleOfficer");
+if (titleElO) titleElO.textContent = `${fert} Distribution`;
 
 // ✅ Fill Village + Mandal + Digital Signature from Firebase profile, then print
 const user = firebase.auth().currentUser;
 
 function _triggerPrint() {
     stampPrintReceipt(newRec, false);
-    setTimeout(() => window.print(), 300);
+    // Scale printArea to fit exactly one A4 page (210mm wide, 297mm tall at 96dpi ≈ 794×1123px)
+    const el = document.getElementById('printArea');
+    const A4_W = 794, A4_H = 1123;
+    el.style.width = A4_W + 'px';
+    el.style.transform = 'none';
+    const h = el.scrollHeight;
+    const scale = Math.min(A4_W / el.scrollWidth, A4_H / h, 1);
+    el.style.transform = 'scale(' + scale + ')';
+    el.style.transformOrigin = 'top left';
+    setTimeout(() => {
+        window.print();
+    }, 300);
 }
 
 if (user) {
@@ -4440,24 +4580,41 @@ if (user) {
         if (mandalEl)  mandalEl.textContent  = profile.mandal  || '—';
         if (officerNameEl) officerNameEl.textContent = (profile.name || '') + (profile.mandal ? ' | ' + profile.mandal : '');
 
-        // ── Inject digital signature image ──
+        // Mirror to officer copy
+        const villageElO = document.getElementById('printVillageOfficer');
+        const mandalElO  = document.getElementById('printMandalOfficer');
+        const officerNameElO = document.getElementById('printOfficerNameOfficer');
+        if (villageElO) villageElO.textContent = profile.village || '—';
+        if (mandalElO)  mandalElO.textContent  = profile.mandal  || '—';
+        if (officerNameElO) officerNameElO.textContent = (profile.name || '') + (profile.mandal ? ' | ' + profile.mandal : '');
+
+        // ── Inject digital signature image (both copies) ──
         const sigArea = document.getElementById('printSignatureArea');
-        if (sigArea) {
-            if (profile.signatureBase64) {
+        const sigAreaOfficer = document.getElementById('printSignatureAreaOfficer');
+        function _injectSig(area, src) {
+            if (!area) return;
+            area.innerHTML = '';
+            if (src) {
                 const img = document.createElement('img');
-                img.src   = profile.signatureBase64;
-                img.alt   = 'Officer Signature';
-                img.style.cssText = 'max-height:55px;max-width:175px;object-fit:contain;display:block;margin:0 auto;';
-                sigArea.innerHTML = '';
-                sigArea.appendChild(img);
-                // Wait for image to load before printing
-                img.onload  = _triggerPrint;
-                img.onerror = _triggerPrint;
-            } else {
-                sigArea.innerHTML = '';
-                _triggerPrint();
+                img.src = src;
+                img.alt = 'Officer Signature';
+                img.style.cssText = 'max-height:50px;max-width:150px;object-fit:contain;display:block;margin:0 auto;';
+                area.appendChild(img);
             }
+        }
+        if (profile.signatureBase64) {
+            _injectSig(sigAreaOfficer, profile.signatureBase64);
+            const img = document.createElement('img');
+            img.src   = profile.signatureBase64;
+            img.alt   = 'Officer Signature';
+            img.style.cssText = 'max-height:50px;max-width:150px;object-fit:contain;display:block;margin:0 auto;';
+            if (sigArea) { sigArea.innerHTML = ''; sigArea.appendChild(img); }
+            // Wait for image to load before printing
+            img.onload  = _triggerPrint;
+            img.onerror = _triggerPrint;
         } else {
+            if (sigArea) sigArea.innerHTML = '';
+            if (sigAreaOfficer) sigAreaOfficer.innerHTML = '';
             _triggerPrint();
         }
     }).catch(() => _triggerPrint());
@@ -4469,11 +4626,16 @@ if (user) {
 const printEl  = document.getElementById("printArea");
 const ureaEl   = document.getElementById("ureaSection");
 
-// Fill Registration ID in print receipt
+// Fill Registration ID in print receipt (both copies)
 const printRegIdEl = document.getElementById("printRegId");
 if (printRegIdEl) {
     const regIdVal = document.getElementById('ureaRegId')?.value?.trim() || '—';
     printRegIdEl.textContent = regIdVal;
+}
+const printRegIdElO = document.getElementById("printRegIdOfficer");
+if (printRegIdElO) {
+    const regIdVal = document.getElementById('ureaRegId')?.value?.trim() || '—';
+    printRegIdElO.textContent = regIdVal;
 }
 
 // Show print area, hide main section so nothing bleeds through
@@ -4485,6 +4647,8 @@ ureaEl.classList.add("hidden");
 // ✅ Use afterprint event — restores page AFTER print dialog closes
 const restoreAfterPrint = () => {
     printEl.style.display = "none";
+    printEl.style.transform = '';
+    printEl.style.width = '';
     printEl.classList.add("hidden");
     ureaEl.style.display  = "block";
     ureaEl.classList.remove("hidden");
@@ -4670,9 +4834,28 @@ function reprintDistribution(serialNo) {
     setText('printYear',       rec.year        || '');
     setText('printDate',       rec.date        || '');
 
-    // Mark as reprint in title
+    // Mirror to Officer copy
+    const cropDisp = rec.crop ? rec.crop.charAt(0).toUpperCase() + rec.crop.slice(1) : '';
+    setText('printSerialNoOfficer',   String(rec.serialNo || '—'));
+    setText('printFertilizerOfficer', rec.fertilizerType || 'Urea');
+    setText('printRegIdOfficer',      regIdForPrint);
+    setText('printFarmerNameOfficer', rec.farmerName  || '');
+    setText('printFatherNameOfficer', rec.fatherName  || '');
+    setText('printAadhaarOfficer',    rec.aadhaar     || '');
+    setText('printMobileOfficer',     rec.mobile      || '');
+    setText('printKhathaOfficer',     rec.khatha      || '');
+    setText('printExtentOfficer',     rec.extent      || '');
+    setText('printBagsOfficer',       rec.bags        || '');
+    setText('printCropOfficer',       cropDisp);
+    setText('printSeasonOfficer',     rec.season      || '');
+    setText('printYearOfficer',       rec.year        || '');
+    setText('printDateOfficer',       rec.date        || '');
+
+    // Mark as reprint in title (both copies)
     const titleEl = document.getElementById('printFormTitle');
     if (titleEl) titleEl.textContent = (rec.fertilizerType || 'Fertilizer') + ' Distribution — REPRINT';
+    const titleElO = document.getElementById('printFormTitleOfficer');
+    if (titleElO) titleElO.textContent = (rec.fertilizerType || 'Fertilizer') + ' Distribution — REPRINT';
 
     // --- Fetch Firebase profile for Village, Mandal, Officer Name & Signature ---
     const _doReprint = () => {
@@ -4684,7 +4867,9 @@ function reprintDistribution(serialNo) {
         if (ureaEl) { ureaEl.style.display = 'none'; ureaEl.classList.add('hidden'); }
 
         const sigArea = document.getElementById('printSignatureArea');
+        const sigAreaOfficer = document.getElementById('printSignatureAreaOfficer');
         if (sigArea) sigArea.innerHTML = '';
+        if (sigAreaOfficer) sigAreaOfficer.innerHTML = '';
 
         const _triggerPrint = () => {
             // Increment print count in history, then stamp receipt
@@ -4700,6 +4885,15 @@ function reprintDistribution(serialNo) {
                 saveToCloud();
             }
             stampPrintReceipt(rec, true);
+            // Scale printArea to fit exactly one A4 page
+            const _el = document.getElementById('printArea');
+            const A4_W = 794, A4_H = 1123;
+            _el.style.width = A4_W + 'px';
+            _el.style.transform = 'none';
+            const _h = _el.scrollHeight;
+            const _scale = Math.min(A4_W / _el.scrollWidth, A4_H / _h, 1);
+            _el.style.transform = 'scale(' + _scale + ')';
+            _el.style.transformOrigin = 'top left';
             setTimeout(() => window.print(), 200);
         };
 
@@ -4709,23 +4903,44 @@ function reprintDistribution(serialNo) {
                 const prof = snap.val() || {};
                 setText('printVillage', prof.village || '—');
                 setText('printMandal',  prof.mandal  || '—');
+                setText('printVillageOfficer', prof.village || '—');
+                setText('printMandalOfficer',  prof.mandal  || '—');
                 // Exact same format as original recordDistribution officer name
                 const officerNameEl = document.getElementById('printOfficerName');
                 if (officerNameEl) {
                     officerNameEl.textContent = (prof.name || '') + (prof.mandal ? ' | ' + prof.mandal : '');
                 }
+                const officerNameElO = document.getElementById('printOfficerNameOfficer');
+                if (officerNameElO) {
+                    officerNameElO.textContent = (prof.name || '') + (prof.mandal ? ' | ' + prof.mandal : '');
+                }
                 // Use signatureBase64 — same field as original print
-                if (sigArea && prof.signatureBase64) {
-                    const img = document.createElement('img');
-                    img.src = prof.signatureBase64;
-                    img.alt = 'Officer Signature';
-                    img.style.cssText = 'max-height:55px;max-width:175px;object-fit:contain;display:block;margin:0 auto;';
-                    sigArea.innerHTML = '';
-                    sigArea.appendChild(img);
-                    img.onload  = _triggerPrint;
-                    img.onerror = _triggerPrint;
+                if (prof.signatureBase64) {
+                    // Officer copy sig
+                    if (sigAreaOfficer) {
+                        const imgO = document.createElement('img');
+                        imgO.src = prof.signatureBase64;
+                        imgO.alt = 'Officer Signature';
+                        imgO.style.cssText = 'max-height:50px;max-width:150px;object-fit:contain;display:block;margin:0 auto;';
+                        sigAreaOfficer.innerHTML = '';
+                        sigAreaOfficer.appendChild(imgO);
+                    }
+                    // Farmer copy sig
+                    if (sigArea) {
+                        const img = document.createElement('img');
+                        img.src = prof.signatureBase64;
+                        img.alt = 'Officer Signature';
+                        img.style.cssText = 'max-height:50px;max-width:150px;object-fit:contain;display:block;margin:0 auto;';
+                        sigArea.innerHTML = '';
+                        sigArea.appendChild(img);
+                        img.onload  = _triggerPrint;
+                        img.onerror = _triggerPrint;
+                    } else {
+                        _triggerPrint();
+                    }
                 } else {
                     if (sigArea) sigArea.innerHTML = '';
+                    if (sigAreaOfficer) sigAreaOfficer.innerHTML = '';
                     _triggerPrint();
                 }
             }).catch(() => _triggerPrint());
@@ -4735,6 +4950,8 @@ function reprintDistribution(serialNo) {
 
         const restoreAfterPrint = () => {
             printEl.style.display = 'none';
+            printEl.style.transform = '';
+            printEl.style.width = '';
             printEl.classList.add('hidden');
             if (ureaEl) { ureaEl.style.display = 'block'; ureaEl.classList.remove('hidden'); }
             window.removeEventListener('afterprint', restoreAfterPrint);
