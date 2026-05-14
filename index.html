@@ -17,6 +17,9 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
+    <!-- QRCode.js for anti-duplication QR on receipts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <style>
         /* =========================================
            1. GLOBAL VARIABLES & BASE
@@ -1330,6 +1333,11 @@
 <!-- Enhanced Print Area -->
 <div id="printArea" style="display:none; padding:40px; font-family:'Noto Sans Telugu',Poppins,sans-serif; border:2px solid #000; max-width:800px; margin:40px auto; background:#fff;">
 
+    <!-- Print Copy Status Banner -->
+    <div id="printCopyBanner" style="text-align:center; margin-bottom:12px; padding:8px 16px; border-radius:8px; font-size:15px; font-weight:700; letter-spacing:0.5px;">
+        <!-- Filled dynamically: green for ORIGINAL, red for REPRINT -->
+    </div>
+
     <!-- Header -->
     <div style="text-align:center; margin-bottom:20px;">
         <h2 style="margin:0; color:#d32f2f;">🌾 AGRI WORK SPACE</h2>
@@ -1442,6 +1450,13 @@
             <div style="border-top:1px solid #333; width:180px; margin:0 auto 4px auto;"></div>
             <small id="printOfficerName"></small>
         </div>
+
+        <!-- QR Code (right side) -->
+        <div style="text-align:center;">
+            <div id="printQrCode" style="width:90px; height:90px; margin:0 auto;"></div>
+            <small style="font-size:10px; color:#555; display:block; margin-top:4px;">Scan to verify</small>
+        </div>
+
         <div class="print-sig-box" style="text-align:center;">
             <strong>Farmer Signature</strong><br>
             <div style="border-bottom:1px solid #333; width:180px; margin:60px auto 4px auto;"></div>
@@ -1449,8 +1464,13 @@
         </div>
     </div>
 
+    <!-- Anti-Duplication Warning -->
+    <div id="printAntiDupWarning" style="margin-top:18px; padding:10px 14px; border-radius:6px; border:2px dashed #c62828; background:#fff3e0; font-size:13px; text-align:center; color:#b71c1c;">
+        <!-- Filled dynamically -->
+    </div>
+
     <!-- Footer -->
-    <div style="margin-top:40px; text-align:center; font-size:15px; color:#d32f2f; border-top:2px solid #333; padding-top:18px;">
+    <div style="margin-top:18px; text-align:center; font-size:15px; color:#d32f2f; border-top:2px solid #333; padding-top:18px;">
         <p style="margin:0;"><strong>⚠️ ఈ ఫారం 7 రోజులు మాత్రమే చెల్లుతుంది</strong></p>
         <small style="color:#666;">Valid for 7 days only</small>
     </div>
@@ -1704,14 +1724,14 @@ let isDataLoaded    = false;
 // ✅ MOVED TO TOP — must be before addFpCropRow() and updateBagRecommendation()
 const cropNPKRecommendations = {
     paddy: {
-        Kharif: { N: 48, P: 24, K: 16 },
-        Rabi:   { N: 64, P: 24, K: 16 },
-        Summer: { N: 64, P: 24, K: 16 }
+        Kharif: { N: 42, P: 24, K: 24 },
+        Rabi:   { N: 72, P: 36, K: 24 },
+        Summer: { N: 72, P: 36, K: 24 }
     },
     maize: {
-        Kharif: { N: 80, P: 32, K: 32 },
-        Rabi:   { N: 80, P: 32, K: 32 },
-        Summer: { N: 80, P: 32, K: 32 }
+        Kharif: { N: 80, P: 25, K: 20 },
+        Rabi:   { N: 100, P: 35, K: 35 },
+        Summer: { N: 100, P: 35, K: 35 }
     },
     jowar: {
         Kharif: { N: 32, P: 16, K: 16 },
@@ -1719,9 +1739,9 @@ const cropNPKRecommendations = {
         Summer: { N: 32, P: 16, K: 16 }
     },
     sugarcane: {
-        Kharif: { N: 100, P: 40, K: 48 },
-        Rabi:   { N: 100, P: 40, K: 48 },
-        Summer: { N: 100, P: 40, K: 48 }
+        Kharif: { N: 67, P: 40, K: 48 },
+        Rabi:   { N: 67, P: 40, K: 48 },
+        Summer: { N: 67, P: 40, K: 48 }
     },
     blackgram: {
         Kharif: { N: 8,  P: 20, K: 8 },
@@ -2716,9 +2736,9 @@ const horticulturalCrops = ["Yam","Banana","Oilpalm","Vegetables","Tomato","Pota
 const fertilizerDosage = {
     paddy: {
         seasons: {
-            Kharif: { N: 48, P: 24, K: 16 },
-            Rabi:   { N: 64, P: 24, K: 16 },
-            Summer: { N: 48, P: 24, K: 16 }
+            Kharif: { N: 42, P: 24, K: 24 },
+            Rabi:   { N: 72, P: 36, K: 24 },
+            Summer: { N: 72, P: 36, K: 24 }
         },
         Ca: 4, Mg: 3, S: 12, 
         splits: "Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation."
@@ -2743,9 +2763,9 @@ const fertilizerDosage = {
     },
     sugarcane: {
         seasons: {
-            Kharif: { N: 100, P: 40, K: 48 },
-            Rabi:   { N: 100, P: 40, K: 48 },
-            Summer: { N: 100, P: 40, K: 48 }
+            Kharif: { N: 37, P: 40, K: 48 },
+            Rabi:   {  N: 37, P: 40, K: 48 },
+            Summer: { N: 37, P: 40, K: 48 }
         },
         Ca: 5, Mg: 4, S: 16, 
         splits: "Full P & K basal, N split in 3 doses at 0, 30-40, 60-70 days."
@@ -4131,6 +4151,95 @@ if (khathaSelect) {
     });
 }
 
+// ========================================================
+// ANTI-DUPLICATION: Print Copy Tracker
+// ========================================================
+
+/**
+ * Generates a short verification token from record data.
+ * This token appears in the QR code — stores can scan & compare.
+ */
+function generatePrintToken(rec) {
+    const raw = `${rec.serialNo}-${rec.date}-${rec.aadhaar}-${rec.khatha}-${rec.bags}-${rec.fertilizerType}`;
+    // Simple deterministic hash (djb2)
+    let hash = 5381;
+    for (let i = 0; i < raw.length; i++) {
+        hash = ((hash << 5) + hash) ^ raw.charCodeAt(i);
+    }
+    return Math.abs(hash).toString(36).toUpperCase().slice(0, 8);
+}
+
+/**
+ * Stamps the printArea with copy number, QR code, and warning.
+ * Call this right before triggering window.print().
+ * @param {object} rec  - The ureaHistory record
+ * @param {boolean} isReprint - true if this is a reprint
+ */
+function stampPrintReceipt(rec, isReprint) {
+    const copyNum = rec.printCount || 1;
+    const token   = rec.printToken || generatePrintToken(rec);
+
+    // --- Copy banner ---
+    const banner = document.getElementById('printCopyBanner');
+    if (banner) {
+        if (!isReprint) {
+            banner.style.background    = '#e8f5e9';
+            banner.style.border        = '2px solid #388e3c';
+            banner.style.color         = '#1b5e20';
+            banner.innerHTML = '✅ ORIGINAL COPY — Copy #1 of 1 &nbsp;|&nbsp; Token: <code style="letter-spacing:1px;">' + token + '</code>';
+        } else {
+            banner.style.background    = '#ffebee';
+            banner.style.border        = '2px solid #c62828';
+            banner.style.color         = '#b71c1c';
+            banner.innerHTML = '⚠️ REPRINT — Copy #' + copyNum + ' &nbsp;|&nbsp; Token: <code style="letter-spacing:1px;">' + token + '</code>';
+        }
+    }
+
+    // --- Anti-duplication warning ---
+    const warn = document.getElementById('printAntiDupWarning');
+    if (warn) {
+        if (!isReprint) {
+            warn.style.borderColor = '#388e3c';
+            warn.style.background  = '#f1f8e9';
+            warn.style.color       = '#1b5e20';
+            warn.innerHTML =
+                '<strong>🔒 Original Receipt</strong> — This is the <strong>only authorised copy</strong> of this distribution.<br>' +
+                'ఈ రసీదు ఒకే షాపులో మాత్రమే చెల్లుతుంది. జిరాక్స్ కాపీలు చెల్లవు.<br>' +
+                '<small>Photocopies / duplicate prints are invalid. Scan QR code to verify authenticity.</small>';
+        } else {
+            warn.style.borderColor = '#c62828';
+            warn.style.background  = '#fff3e0';
+            warn.style.color       = '#b71c1c';
+            warn.innerHTML =
+                '<strong>⚠️ REPRINT #' + copyNum + '</strong> — This receipt has been printed <strong>' + copyNum + ' time(s)</strong>.<br>' +
+                'ఈ రసీదు ముందే ' + copyNum + ' సార్లు ప్రింట్ అయింది. జాగ్రత్తగా ఉండండి.<br>' +
+                '<small>Stores: Verify the QR code and check with officer if in doubt. Do not accept if already redeemed.</small>';
+        }
+    }
+
+    // --- QR Code ---
+    const qrDiv = document.getElementById('printQrCode');
+    if (qrDiv) {
+        qrDiv.innerHTML = '';
+        const qrText = 'SNo:' + rec.serialNo + '|Date:' + rec.date +
+                       '|Aadhaar:' + String(rec.aadhaar || '').slice(-4) +
+                       '|Bags:' + rec.bags + '|Fert:' + (rec.fertilizerType || 'Urea') +
+                       '|Copy:' + copyNum + '|Token:' + token;
+        try {
+            new QRCode(qrDiv, {
+                text:          qrText,
+                width:         88,
+                height:        88,
+                colorDark:     '#000000',
+                colorLight:    '#ffffff',
+                correctLevel:  QRCode.CorrectLevel.M
+            });
+        } catch(e) {
+            qrDiv.innerHTML = '<small style="font-size:9px; word-break:break-all;">' + token + '</small>';
+        }
+    }
+}
+
 function recordDistribution() {
     setSelectedFertilizerKey();
     const k    = getCurrentKhatha();
@@ -4171,11 +4280,14 @@ if (Number(b) > remain && eligible > 0) {
 }
 
     const sno = getNextSerialNo();
-ureaHistory.push({
+const newRec = {
     serialNo: sno, date: d, farmerName: n, fatherName: fn,
     aadhaar: a, mobile: m, khatha: k, extent: e,
-    crop: crop, bags: b, season: s, year: y, fertilizerType: fert
-});
+    crop: crop, bags: b, season: s, year: y, fertilizerType: fert,
+    printCount: 1,
+    printToken: generatePrintToken({serialNo: sno, date: d, aadhaar: a, khatha: k, bags: b, fertilizerType: fert})
+};
+ureaHistory.push(newRec);
 saveToCloud();
 
 // ✅ Immediately refresh remaining bags display to show updated (possibly 0) value
@@ -4218,6 +4330,7 @@ if (titleEl) titleEl.textContent = `${fert} Distribution`;
 const user = firebase.auth().currentUser;
 
 function _triggerPrint() {
+    stampPrintReceipt(newRec, false);
     setTimeout(() => window.print(), 300);
 }
 
@@ -4327,6 +4440,9 @@ function renderHistoryRows(rec) {
             <td>${r.season||""}</td>
             <td>${r.year||""}</td>
             <td class="text-center">
+                ${(r.printCount && r.printCount > 1)
+                    ? `<span class="badge bg-warning text-dark mb-1" title="Printed ${r.printCount} times">🖨️ ×${r.printCount}</span><br>`
+                    : ''}
                 <button class="btn btn-sm btn-outline-danger"
                     onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button>
             </td>
@@ -4378,16 +4494,21 @@ function showAadhaarHistory(a) {
             <td>${r.season||""}</td>
             <td>${r.year||""}</td>
             <td class="text-center">
-                <div class="d-flex gap-1 justify-content-center">
-                    <button class="btn btn-sm btn-outline-primary"
-                        title="Reprint this distribution receipt"
-                        onclick="reprintDistribution(${r.serialNo})">
-                        <i class="bi bi-printer"></i> Reprint
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger"
-                        onclick="showClearUreaPasswordModal('one', ${r.serialNo})">
-                        <i class="bi bi-trash"></i> Delete
-                    </button>
+                <div class="d-flex gap-1 justify-content-center flex-column align-items-center">
+                    ${(r.printCount && r.printCount > 1)
+                        ? `<span class="badge bg-warning text-dark" title="Printed ${r.printCount} times">⚠️ Printed ×${r.printCount}</span>`
+                        : `<span class="badge bg-success">✅ Original</span>`}
+                    <div class="d-flex gap-1 mt-1">
+                        <button class="btn btn-sm btn-outline-primary"
+                            title="Reprint this distribution receipt"
+                            onclick="reprintDistribution(${r.serialNo})">
+                            <i class="bi bi-printer"></i> Reprint
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger"
+                            onclick="showClearUreaPasswordModal('one', ${r.serialNo})">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
                 </div>
             </td>
         </tr>`).join("");
@@ -4469,7 +4590,22 @@ function reprintDistribution(serialNo) {
         const sigArea = document.getElementById('printSignatureArea');
         if (sigArea) sigArea.innerHTML = '';
 
-        const _triggerPrint = () => setTimeout(() => window.print(), 200);
+        const _triggerPrint = () => {
+            // Increment print count in history, then stamp receipt
+            const histIdx = ureaHistory.findIndex(h => h.serialNo === rec.serialNo);
+            if (histIdx !== -1) {
+                ureaHistory[histIdx].printCount = (ureaHistory[histIdx].printCount || 1) + 1;
+                // Ensure token is stored
+                if (!ureaHistory[histIdx].printToken) {
+                    ureaHistory[histIdx].printToken = generatePrintToken(ureaHistory[histIdx]);
+                }
+                rec.printCount = ureaHistory[histIdx].printCount;
+                rec.printToken = ureaHistory[histIdx].printToken;
+                saveToCloud();
+            }
+            stampPrintReceipt(rec, true);
+            setTimeout(() => window.print(), 200);
+        };
 
         const firebaseUser = firebase.auth().currentUser;
         if (typeof database !== 'undefined' && firebaseUser) {
