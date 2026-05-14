@@ -1505,7 +1505,43 @@
         </div>
       </div>
 
-      <!-- Farmer Type Row -->
+      <!-- ── STEP 1: Crop Year & Season (FIRST) ── -->
+      <div class="p-3 mb-3 rounded border border-success border-opacity-50"
+           style="background: linear-gradient(135deg, #f0fff4, #e8f5e9);">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span style="font-size:1.1rem;">🗓️</span>
+          <strong class="text-success">Step 1: Select Crop Year &amp; Season</strong>
+          <span class="badge bg-danger ms-1">Required First</span>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold text-success mb-1">Crop Year <span class="text-danger">*</span></label>
+            <select id="fpCropYear" class="form-select border-success">
+              <option value="">-- Select Year --</option>
+              <option value="2025-26">2025-26</option>
+              <option value="2026-27">2026-27</option>
+              <option value="2027-28">2027-28</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold text-success mb-1">Season <span class="text-danger">*</span></label>
+            <select id="fpCropSeason" class="form-select border-success">
+              <option value="">-- Select Season --</option>
+              <option value="Kharif">Kharif</option>
+              <option value="Rabi">Rabi</option>
+              <option value="Summer">Summer</option>
+            </select>
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <small class="text-muted pb-1">
+              <i class="fas fa-info-circle me-1 text-success"></i>
+              Profile will be saved under this Year &amp; Season
+            </small>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── STEP 2: Farmer Type ── -->
       <div class="row g-2 mb-3">
         <div class="col-md-4">
           <label class="form-label fw-semibold">Farmer Type <span class="text-danger">*</span></label>
@@ -1580,32 +1616,8 @@
       <!-- Cultivating Crops -->
       <div class="mb-2">
         <label class="form-label fw-semibold">Cultivating Crops</label>
-
-        <!-- Year + Season BEFORE crop rows -->
-        <div class="row g-2 mb-2" id="fpCropYearSeasonRow">
-          <div class="col-md-4">
-            <label class="form-label fw-semibold text-success">🗓️ Crop Year *</label>
-            <select id="fpCropYear" class="form-select">
-              <option value="">-- Select Year --</option>
-              <option value="2026-27">2026-27</option>
-              <option value="2027-28">2027-28</option>
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label fw-semibold text-success">🌾 Season *</label>
-            <select id="fpCropSeason" class="form-select">
-              <option value="">-- Select Season --</option>
-              <option value="Kharif">Kharif</option>
-              <option value="Rabi">Rabi</option>
-              <option value="Summer">Summer</option>
-            </select>
-          </div>
-          <div class="col-md-4 d-flex align-items-end">
-            <small class="text-muted">
-              <i class="fas fa-info-circle me-1"></i>
-              Year &amp; Season apply to all crops below
-            </small>
-          </div>
+        <div class="mb-2">
+          <small class="text-muted"><i class="fas fa-info-circle me-1"></i>All crops below apply to the Year &amp; Season selected above.</small>
         </div>
 
         <!-- Crop rows injected here by addFpCropRow() -->
@@ -1659,12 +1671,20 @@
 
           <!-- Search Filter -->
           <div class="row g-2 mb-3">
-              <div class="col-md-5">
+              <div class="col-md-4">
                   <input type="text" id="fpAllProfilesSearch" class="form-control"
                       placeholder="🔍 Search by name, Aadhaar, khatha, mobile..."
                       oninput="filterAllFarmerProfiles()">
               </div>
-              <div class="col-md-3">
+              <div class="col-md-2">
+                  <select id="fpAllProfilesYearFilter" class="form-select" onchange="filterAllFarmerProfiles()">
+                      <option value="">-- All Years --</option>
+                      <option value="2025-26">2025-26</option>
+                      <option value="2026-27">2026-27</option>
+                      <option value="2027-28">2027-28</option>
+                  </select>
+              </div>
+              <div class="col-md-2">
                   <select id="fpAllProfilesSeasonFilter" class="form-select" onchange="filterAllFarmerProfiles()">
                       <option value="">-- All Seasons --</option>
                       <option value="Kharif">Kharif</option>
@@ -1690,12 +1710,13 @@
                           <th>Mobile</th>
                           <th>Khatha</th>
                           <th>Extent (Ac)</th>
+                          <th>Year · Season</th>
                           <th>Crops</th>
                           <th style="width:90px" class="text-center">Action</th>
                       </tr>
                   </thead>
                   <tbody id="fpAllProfilesTbody">
-                      <tr><td colspan="10" class="text-center text-muted p-4">No profiles found.</td></tr>
+                      <tr><td colspan="11" class="text-center text-muted p-4">No profiles found.</td></tr>
                   </tbody>
               </table>
           </div>
@@ -5180,6 +5201,7 @@ function onFpFarmerTypeChange() {
     // Hide owner info box on type change
     const ownerBox = document.getElementById('fpKhathaOwnerInfo');
     if (ownerBox) ownerBox.classList.add('hidden');
+    // NOTE: do NOT reset fpCropYear / fpCropSeason — user selected them first intentionally
     addFpCropRow();
 
     if (type === 'owner') {
@@ -5406,13 +5428,13 @@ function showAllFarmerProfiles() {
     renderAllFarmerProfilesTable();
 }
 
-function renderAllFarmerProfilesTable(filter = '', seasonFilter = '') {
+function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter = '') {
     const tbody   = document.getElementById('fpAllProfilesTbody');
     const countEl = document.getElementById('fpAllProfilesCount');
     if (!tbody) return;
 
     if (!farmerProfiles || !Object.keys(farmerProfiles).length) {
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted p-4">
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted p-4">
             <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>No profiles registered yet.</td></tr>`;
         if (countEl) countEl.textContent = '0 profiles';
         return;
@@ -5432,20 +5454,22 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '') {
     });
 
     const f = filter.toLowerCase();
-    if (f || seasonFilter) {
+    if (f || seasonFilter || yearFilter) {
         allProfiles = allProfiles.filter(p => {
             const matchText = !f || [p.farmerName, p.fatherName, p.aadhaar, p.mobile, p.khatha]
                 .some(v => (v || '').toLowerCase().includes(f));
             const matchSeason = !seasonFilter ||
                 (p.crops || []).some(c => c.season === seasonFilter);
-            return matchText && matchSeason;
+            const matchYear = !yearFilter ||
+                (p.crops || []).some(c => c.year === yearFilter);
+            return matchText && matchSeason && matchYear;
         });
     }
 
     if (countEl) countEl.textContent = `${allProfiles.length} profile${allProfiles.length !== 1 ? 's' : ''}`;
 
     if (!allProfiles.length) {
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted p-3">No matching profiles found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted p-3">No matching profiles found.</td></tr>`;
         return;
     }
 
@@ -5453,9 +5477,14 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '') {
         const cropBadges = (p.crops || []).map(c =>
             `<span class="badge bg-success me-1 mb-1" style="font-size:0.74rem; display:inline-block">
                 ${escapeHtml(c.crop)} <small>${c.extent}ac</small>
-                ${c.season ? `<small class="opacity-75"> · ${c.season}</small>` : ''}
             </span>`
         ).join('');
+
+        // Derive unique year·season combos from crops
+        const yearSeasonSet = new Set((p.crops || []).map(c => [c.year, c.season].filter(Boolean).join(' · ')));
+        const yearSeasonBadges = Array.from(yearSeasonSet).map(ys =>
+            `<span class="badge bg-primary me-1 mb-1" style="font-size:0.72rem">${escapeHtml(ys)}</span>`
+        ).join('') || '<span class="text-muted small">—</span>';
 
         const typeBadge = p.farmerType === 'owner'
             ? `<span class="badge bg-primary" style="font-size:0.7rem">Owner</span>`
@@ -5482,6 +5511,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '') {
             <td>${escapeHtml(p.mobile || '—')}</td>
             <td><strong>${escapeHtml(p.khatha || '—')}</strong></td>
             <td class="text-center">${p.extent || '—'}</td>
+            <td style="min-width:110px">${yearSeasonBadges}</td>
             <td>${cropBadges || '<span class="text-muted small">No crops</span>'}</td>
             <td class="text-center">
                 <div class="d-flex gap-1 justify-content-center flex-wrap">
@@ -5597,7 +5627,8 @@ function deleteFarmerProfile(aadhaar, khatha) {
         alert(`✅ Profile deleted — Khatha ${khatha}.`);
         renderAllFarmerProfilesTable(
             document.getElementById('fpAllProfilesSearch')?.value || '',
-            document.getElementById('fpAllProfilesSeasonFilter')?.value || ''
+            document.getElementById('fpAllProfilesSeasonFilter')?.value || '',
+            document.getElementById('fpAllProfilesYearFilter')?.value || ''
         );
     });
 }
@@ -5605,7 +5636,8 @@ function deleteFarmerProfile(aadhaar, khatha) {
 function filterAllFarmerProfiles() {
     const search = document.getElementById('fpAllProfilesSearch')?.value || '';
     const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
-    renderAllFarmerProfilesTable(search, season);
+    const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+    renderAllFarmerProfilesTable(search, season, year);
 }
 
 function exportAllFarmerProfiles() {
