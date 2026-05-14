@@ -964,6 +964,10 @@
         </div>
 
         <button type="submit" class="btn btn-primary w-100">Update Profile</button>
+        <button type="button" class="btn btn-outline-success w-100 mt-2" onclick="syncProfileToCloud()">
+            <i class="fas fa-cloud-upload-alt me-2"></i>Sync Profile to Cloud
+        </button>
+        <div id="profileSyncStatus" class="mt-2 hidden"></div>
     </form>
 
     <!-- Alert for missing mandal/village -->
@@ -1553,6 +1557,20 @@
         <div class="col-md-4">
           <label class="form-label fw-semibold">Total Khatha Extent (Acres)</label>
           <input type="number" id="fpExtent" class="form-control" placeholder="Auto-filled" readonly>
+        </div>
+      </div>
+
+      <!-- Khatha Owner Info (shown for tenants) -->
+      <div id="fpKhathaOwnerInfo" class="hidden mb-3">
+        <div class="alert alert-info border-start border-4 border-primary py-2 mb-0 d-flex align-items-start gap-2">
+          <i class="fas fa-id-card text-primary mt-1 flex-shrink-0"></i>
+          <div style="font-size:0.9rem;">
+            <strong class="text-primary">🏠 Khatha Owner (పట్టాదారు వివరాలు):</strong>
+            <span class="ms-1 fw-semibold" id="fpOwnerName" style="color:#1862ab;"></span>
+            <span class="text-muted ms-2">S/o D/o W/o</span>
+            <span class="ms-1 fw-semibold" id="fpOwnerFatherName" style="color:#1862ab;"></span>
+            <br><small class="text-muted"><i class="fas fa-info-circle me-1"></i>This is the registered owner of the selected Khatha. Tenant is cultivating this land.</small>
+          </div>
         </div>
       </div>
 
@@ -2707,6 +2725,63 @@ function clearSignature() {
     if (previewImg) previewImg.src = '';
     if (sigInput)   sigInput.value = '';
     alert('Signature will be removed when you click "Update Profile".');
+}
+
+// ── Sync all user data (profiles, fertilizer history, reports) to cloud ──
+function syncProfileToCloud() {
+    const user = firebase.auth().currentUser;
+    if (!user) return alert('⚠️ You must be logged in to sync.');
+
+    const statusEl = document.getElementById('profileSyncStatus');
+    if (statusEl) {
+        statusEl.classList.remove('hidden');
+        statusEl.innerHTML = `<div class="alert alert-info py-2 mb-0">
+            <i class="fas fa-spinner fa-spin me-2"></i>Syncing to cloud...
+        </div>`;
+    }
+
+    // Read current profile fields
+    const name    = document.getElementById('profileDisplayName')?.value?.trim() || user.displayName || '';
+    const mandal  = document.getElementById('profileMandal')?.value?.trim() || '';
+    const village = document.getElementById('profileVillage')?.value?.trim() || '';
+
+    // Build sync payload: profile metadata + all app data
+    const profilePayload = {
+        name, mandal, village,
+        email: user.email,
+        updatedAt: new Date().toISOString()
+    };
+
+    const appData = {
+        allReports:     allReportsCache  || {},
+        ureaData:       ureaData         || {},
+        ureaHistory:    ureaHistory      || [],
+        farmerProfiles: farmerProfiles   || {},
+        lastSynced:     new Date().toISOString()
+    };
+
+    Promise.all([
+        database.ref('users/' + user.uid + '/profile').update(profilePayload),
+        database.ref('users/' + user.uid).update(appData)
+    ]).then(() => {
+        if (statusEl) {
+            statusEl.innerHTML = `<div class="alert alert-success py-2 mb-0">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Synced successfully!</strong> All data (profiles, fertilizer history, reports) saved to cloud.
+                <br><small class="text-muted">Last synced: ${new Date().toLocaleTimeString()}</small>
+            </div>`;
+        }
+        // Update display name in navbar
+        const emailEl = document.getElementById('userEmail');
+        if (emailEl && name) emailEl.textContent = name;
+    }).catch(err => {
+        if (statusEl) {
+            statusEl.innerHTML = `<div class="alert alert-danger py-2 mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Sync failed:</strong> ${escapeHtml(err.message)}
+            </div>`;
+        }
+    });
 }
 
          // --- CC EXPERIMENTS ---
@@ -5018,7 +5093,12 @@ function populateFpKhathaDropdown() {
 function onFpKhathaChange() {
     const k   = document.getElementById('fpKhatha')?.value;
     const ext = document.getElementById('fpExtent');
-    if (!k || k === '--Select Khatha--' || k === '' || !ext) return;
+    if (!k || k === '--Select Khatha--' || k === '' || !ext) {
+        // Hide owner info if no khatha selected
+        const ownerBox = document.getElementById('fpKhathaOwnerInfo');
+        if (ownerBox) ownerBox.classList.add('hidden');
+        return;
+    }
 
     let foundExt = 0;
     for (const fertData of Object.values(ureaData)) {
@@ -5026,6 +5106,53 @@ function onFpKhathaChange() {
     }
     ext.value = foundExt > 0 ? foundExt.toFixed(2) : '';
     onFpCropOrExtentChange();
+
+    // ── Show Owner info when Tenant selects a Khatha ──
+    const farmerType = document.getElementById('fpFarmerType')?.value;
+    const ownerBox   = document.getElementById('fpKhathaOwnerInfo');
+    const ownerNameEl   = document.getElementById('fpOwnerName');
+    const ownerFatherEl = document.getElementById('fpOwnerFatherName');
+
+    if (farmerType === 'tenant' && ownerBox && ownerNameEl && ownerFatherEl) {
+        // Look up owner: first from farmerProfiles (owner type), then from 1B data
+        let ownerName = '', ownerFather = '';
+
+        // Search farmerProfiles for an 'owner' entry with this khatha
+        for (const [aadhaarKey, profiles] of Object.entries(farmerProfiles)) {
+            const ownerProfile = (Array.isArray(profiles) ? profiles : Object.values(profiles))
+                .find(p => p.farmerType === 'owner' && String(p.khatha) === String(k));
+            if (ownerProfile) {
+                ownerName   = ownerProfile.farmerName || '';
+                ownerFather = ownerProfile.fatherName || '';
+                break;
+            }
+        }
+
+        // Fallback: look up from 1B uploaded data
+        if (!ownerName) {
+            for (const fertData of Object.values(ureaData)) {
+                if (fertData[k] && fertData[k].farmers) {
+                    const farmerList = toArray(fertData[k].farmers);
+                    if (farmerList.length > 0) {
+                        const f = farmerList[0];
+                        ownerName   = f['Farmer Name'] || f['farmerName'] || '';
+                        ownerFather = f['Father Name'] || f['fatherName'] || '';
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (ownerName) {
+            ownerNameEl.textContent   = ownerName;
+            ownerFatherEl.textContent = ownerFather || '—';
+            ownerBox.classList.remove('hidden');
+        } else {
+            ownerBox.classList.add('hidden');
+        }
+    } else {
+        if (ownerBox) ownerBox.classList.add('hidden');
+    }
 
     const a = cleanAadhaar(document.getElementById('fpAadhaar')?.value);
     if (a.length === 12 && farmerProfiles[a]) {
@@ -5050,6 +5177,9 @@ function onFpFarmerTypeChange() {
     document.getElementById('fpAadhaar').value = '';
     document.getElementById('fpMobile').value  = '';
     document.getElementById('fpCropRows').innerHTML = '';
+    // Hide owner info box on type change
+    const ownerBox = document.getElementById('fpKhathaOwnerInfo');
+    if (ownerBox) ownerBox.classList.add('hidden');
     addFpCropRow();
 
     if (type === 'owner') {
