@@ -143,13 +143,21 @@
         #clearUreaPasswordModal .modal-backdrop { z-index: 1055 !important; }
 
         @media print {
-    @page { size: A4 portrait; margin: 0; }
+    @page {
+        size: A4 portrait;
+        margin: 0;
+    }
 
-    html, body { margin: 0 !important; padding: 0 !important; }
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+    }
+
     body * { visibility: hidden !important; }
     #printArea, #printArea * { visibility: visible !important; }
 
-    /* JS will set transform:scale before print — this just places it top-left */
     #printArea {
         position: fixed !important;
         top: 0 !important;
@@ -160,8 +168,27 @@
         box-shadow: none !important;
         background: #fff !important;
         display: block !important;
-        transform-origin: top left !important;
-        /* width is set by JS to match A4 at current DPI */
+        width: 210mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        /* Reset any JS-applied transform; CSS handles scaling */
+        transform: none !important;
+    }
+
+    /* Each copy block (farmer + officer) fills exactly half the A4 page */
+    #printArea .print-copy-block {
+        width: 210mm !important;
+        max-height: 148mm !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        page-break-inside: avoid !important;
+    }
+
+    #printArea .cut-line {
+        page-break-inside: avoid !important;
+        padding: 1mm 0 !important;
     }
 
     #printArea table  { display: table !important; width: 100% !important; border-collapse: collapse !important; }
@@ -785,7 +812,8 @@
             <label>Bags Distributing Now:</label>
             <input type="number" id="ureaBagsDist" class="form-control"
                    placeholder="Enter bags" min="1" step="1"
-                   oninput="this.value = Math.abs(Math.floor(this.value) || '')">
+                   oninput="enforceBagLimit(this)">
+            <small id="bagDistNote" class="text-danger fw-semibold d-none mt-1"></small>
         </div>
         <div class="col-md-4 mb-2">
             <label>Date: <span class="text-muted" style="font-size:0.8rem;">(today auto-filled)</span></label>
@@ -837,8 +865,15 @@
     </div>
     <!-- /CROP-WISE CUMULATIVE SUMMARY -->
 
+    <!-- Fully Distributed Alert -->
+    <div id="fullyDistributedAlert" class="alert alert-danger d-none mt-3 mb-0 py-2 px-3 d-flex align-items-center gap-2"
+         style="border-radius:10px; font-size:0.93rem; border:2px solid #e74c3c;">
+        <i class="fas fa-ban fa-lg"></i>
+        <span id="fullyDistributedMsg">All eligible bags for this crop have already been distributed.</span>
+    </div>
+
     <div class="mt-3 pt-3 border-top d-flex gap-2 justify-content-between">
-        <button class="btn btn-success" onclick="recordDistribution()">
+        <button class="btn btn-success" id="recordDistBtn" onclick="recordDistribution()">
             <i class="fas fa-save"></i> Record Distribution
         </button>
         <button class="btn btn-warning" onclick="clearUreaForm()">
@@ -3621,14 +3656,44 @@ function getEligibleBagsForKhatha(k) {
     return Number(getCurrentFertData()[k]?.bagsEligible || 0);
 }
 
+/**
+ * Checks whether a history record's khatha field "covers" the given khatha.
+ * Handles both single ("101") and multi ("101, 102, 103") stored values.
+ */
+function _khathaMatches(recordKhatha, queryKhatha) {
+    const stored = String(recordKhatha || '');
+    const query  = String(queryKhatha || '').trim();
+    if (!stored || !query) return false;
+    // Exact match OR the stored value is a comma-list containing this khatha
+    if (stored.trim() === query) return true;
+    return stored.split(',').map(k => k.trim()).includes(query);
+}
+
 function getTotalBagsTakenByKhathaAndCrop(khatha, fert, crop, season, year) {
     return ureaHistory
         .filter(h =>
-            String(h.khatha)          === String(khatha) &&
-            String(h.fertilizerType || h.fert || 'Urea') === String(fert) &&
-            String(h.crop)            === String(crop)   &&
-            String(h.season)          === String(season) &&
-            String(h.year)            === String(year)
+            _khathaMatches(h.khatha, khatha) &&
+            String(h.fertilizerType || h.fert || 'Urea').trim() === String(fert).trim() &&
+            String(h.crop   || '').trim().toLowerCase() === String(crop   || '').trim().toLowerCase() &&
+            String(h.season || '').trim() === String(season || '').trim() &&
+            String(h.year   || '').trim() === String(year   || '').trim()
+        )
+        .reduce((sum, h) => sum + Number(h.bags || 0), 0);
+}
+
+/**
+ * Get total bags taken across ALL khathas of a farmer for a given crop/season/year/fert.
+ * Uses aadhaar-based matching so multi-khatha records are counted once, not per-khatha.
+ */
+function getTotalBagsTakenByAadhaarAndCrop(aadhaar, fert, crop, season, year) {
+    const a = String(aadhaar || '').replace(/\s/g, '');
+    return ureaHistory
+        .filter(h =>
+            String(h.aadhaar || '').replace(/\s/g, '') === a &&
+            String(h.fertilizerType || h.fert || 'Urea').trim() === String(fert).trim() &&
+            String(h.crop   || '').trim().toLowerCase() === String(crop   || '').trim().toLowerCase() &&
+            String(h.season || '').trim() === String(season || '').trim() &&
+            String(h.year   || '').trim() === String(year   || '').trim()
         )
         .reduce((sum, h) => sum + Number(h.bags || 0), 0);
 }
@@ -3636,10 +3701,10 @@ function getTotalBagsTakenByKhathaAndCrop(khatha, fert, crop, season, year) {
 function getTotalBagsTakenByKhatha(khatha, fert, season, year) {
     return ureaHistory
         .filter(h =>
-            String(h.khatha) === String(khatha) &&
-            String(h.fertilizerType || h.fert || 'Urea') === String(fert) &&
-            String(h.season) === String(season) &&
-            String(h.year)   === String(year)
+            _khathaMatches(h.khatha, khatha) &&
+            String(h.fertilizerType || h.fert || 'Urea').trim() === String(fert).trim() &&
+            String(h.season || '').trim() === String(season || '').trim() &&
+            String(h.year   || '').trim() === String(year   || '').trim()
         )
         .reduce((sum, h) => sum + Number(h.bags || 0), 0);
 }
@@ -4076,6 +4141,16 @@ function clearUreaForm() {
     const cumPanel = document.getElementById('cropCumulativeSummary');
     if (cumPanel) cumPanel.classList.add('hidden');
 
+    // ✅ Reset distribution button + fully-distributed alert
+    const recBtn  = document.getElementById('recordDistBtn');
+    const alertEl = document.getElementById('fullyDistributedAlert');
+    const noteEl2 = document.getElementById('bagDistNote');
+    const bagsEl2 = document.getElementById('ureaBagsDist');
+    if (recBtn)  { recBtn.disabled = false; recBtn.classList.add('btn-success'); recBtn.classList.remove('btn-secondary'); }
+    if (alertEl) alertEl.classList.add('d-none');
+    if (noteEl2) noteEl2.classList.add('d-none');
+    if (bagsEl2) bagsEl2.disabled = false;
+
     _isManualEntry = false;
 
     setTimeout(() => {
@@ -4248,6 +4323,57 @@ if (fileInput) {
 function getUreaBagsFromN(nKg) { return Math.ceil(Number(nKg || 0) / (45 * 0.46)); }
 function getDapBagsFromP(pKg)  { return Math.ceil(Number(pKg || 0) / (50 * 0.46)); }
 
+// ── Enforce bag input: cannot exceed remaining, must be positive integer ──
+function enforceBagLimit(input) {
+    let v = Math.abs(Math.floor(Number(input.value) || 0));
+    const maxVal = parseInt(input.max, 10);
+    const noteEl = document.getElementById('bagDistNote');
+    const recBtn = document.getElementById('recordDistBtn');
+
+    if (v < 0 || isNaN(v)) v = '';
+    if (!isNaN(maxVal) && maxVal >= 0 && v > maxVal) {
+        v = maxVal;
+        if (noteEl) {
+            noteEl.textContent = `⚠️ Cannot exceed remaining ${maxVal} bag(s). Value capped.`;
+            noteEl.classList.remove('d-none');
+        }
+    } else {
+        if (noteEl) noteEl.classList.add('d-none');
+    }
+    input.value = v || '';
+
+    // Disable record button if max is 0
+    if (!isNaN(maxVal) && maxVal === 0 && recBtn) {
+        recBtn.disabled = true;
+    } else if (recBtn) {
+        recBtn.disabled = false;
+    }
+}
+
+// ── Check whether distribution is allowed for current crop/fert selection ──
+// Called by updateBagRecommendation to sync the button + alert
+function checkDistributionAllowed(remain, eligible, crop, fert) {
+    const recBtn  = document.getElementById('recordDistBtn');
+    const alertEl = document.getElementById('fullyDistributedAlert');
+    const msgEl   = document.getElementById('fullyDistributedMsg');
+    const bagsEl  = document.getElementById('ureaBagsDist');
+    const noteEl  = document.getElementById('bagDistNote');
+
+    if (eligible > 0 && remain === 0) {
+        // Fully distributed
+        if (recBtn)  { recBtn.disabled = true; recBtn.classList.remove('btn-success'); recBtn.classList.add('btn-secondary'); }
+        if (alertEl) alertEl.classList.remove('d-none');
+        if (msgEl)   msgEl.textContent = `🚫 All ${eligible} eligible ${fert} bag(s) for ${(crop||'').toUpperCase()} have already been distributed. No further distribution allowed.`;
+        if (bagsEl)  { bagsEl.value = ''; bagsEl.disabled = true; }
+        if (noteEl)  noteEl.classList.add('d-none');
+    } else {
+        // Distribution allowed
+        if (recBtn)  { recBtn.disabled = false; recBtn.classList.add('btn-success'); recBtn.classList.remove('btn-secondary'); }
+        if (alertEl) alertEl.classList.add('d-none');
+        if (bagsEl)  bagsEl.disabled = false;
+    }
+}
+
 function updateBagRecommendation() {
     // Get crop — check auto-fill input first, then select
     const cropInpEl = document.getElementById('ureaCropInput');
@@ -4328,14 +4454,13 @@ function updateBagRecommendation() {
         }
     }
 
-    // ── Compute already-given across ALL khathas for this crop ──
+    // ── Compute already-given using aadhaar-based lookup (avoids double-counting multi-khatha records) ──
     const fert  = getSelectedFertilizer();
-    const allK  = getAllKhathas();
     let ureaGiven = 0, dapGiven = 0;
-    allK.forEach(k => {
-        ureaGiven += getTotalBagsTakenByKhathaAndCrop(k, 'Urea', crop, season, year);
-        dapGiven  += getTotalBagsTakenByKhathaAndCrop(k, 'DAP',  crop, season, year);
-    });
+    if (aadhaar.length === 12) {
+        ureaGiven = getTotalBagsTakenByAadhaarAndCrop(aadhaar, 'Urea', crop, season, year);
+        dapGiven  = getTotalBagsTakenByAadhaarAndCrop(aadhaar, 'DAP',  crop, season, year);
+    }
 
     const ureaRem = Math.max(0, ureaBags - ureaGiven);
     const dapRem  = Math.max(0, dapBags  - dapGiven);
@@ -4349,6 +4474,7 @@ function updateBagRecommendation() {
         if (noteEl) noteEl.textContent = blocked
             ? `🚫 ${crop.toUpperCase()} not in profile — 0 bags eligible`
             : `📋 Total ${crop.toUpperCase()} extent: ${extent.toFixed(2)} ac | N: ${rec.N} kg/ac | Eligible: ${ureaBags} | Given: ${ureaGiven} | Remaining: ${ureaRem}`;
+        checkDistributionAllowed(ureaRem, ureaBags, crop, 'Urea');
     } else if (fert === 'DAP') {
         if (dapEligible)  dapEligible.value  = dapBags;
         const sharedRemEl = document.getElementById('ureaRemainingBags');
@@ -4359,6 +4485,7 @@ function updateBagRecommendation() {
         if (noteEl) noteEl.textContent = blocked
             ? `🚫 ${crop.toUpperCase()} not in profile — 0 bags eligible`
             : `📋 Total ${crop.toUpperCase()} extent: ${extent.toFixed(2)} ac | P: ${rec.P} kg/ac | Eligible: ${dapBags} | Given: ${dapGiven} | Remaining: ${dapRem}`;
+        checkDistributionAllowed(dapRem, dapBags, crop, 'DAP');
     }
 
     // ── Auto-fill Reg ID: use first khatha + crop match ──
@@ -4408,6 +4535,7 @@ function buildCropCumulativeSummary(aadhaar) {
     const year   = document.getElementById('ureaYear')?.value   || '';
 
     // ── Aggregate crop → { khathas:[], totalExtent, eligibleUrea, eligibleDAP, givenUrea, givenDAP }
+    // givenUrea/givenDAP are fetched ONCE per crop via aadhaar to avoid double-counting multi-khatha records
     const cropMap = {};
 
     profiles.forEach(profile => {
@@ -4429,23 +4557,26 @@ function buildCropCumulativeSummary(aadhaar) {
             const eligUrea = rec ? Math.ceil((rec.N * cropExtent) / 46 * 100 / 50) : 0;
             const eligDAP  = rec ? Math.ceil((rec.P * cropExtent) / 46 * 100 / 50) : 0;
 
-            const givenUrea = getTotalBagsTakenByKhathaAndCrop(khatha, 'Urea', crop, useSeason, useYear);
-            const givenDAP  = getTotalBagsTakenByKhathaAndCrop(khatha, 'DAP',  crop, useSeason, useYear);
-
             if (!cropMap[crop]) {
                 cropMap[crop] = {
                     khathas: [], totalExtent: 0,
                     eligibleUrea: 0, eligibleDAP: 0,
-                    givenUrea: 0,    givenDAP: 0
+                    givenUrea: 0,    givenDAP: 0,
+                    _givenFetched: false, _useSeason: useSeason, _useYear: useYear
                 };
             }
             cropMap[crop].khathas.push(khatha);
             cropMap[crop].totalExtent  += cropExtent;
             cropMap[crop].eligibleUrea += eligUrea;
             cropMap[crop].eligibleDAP  += eligDAP;
-            cropMap[crop].givenUrea    += givenUrea;
-            cropMap[crop].givenDAP     += givenDAP;
         });
+    });
+
+    // Fetch "given" ONCE per crop via aadhaar (not per-khatha) to avoid double-counting
+    Object.keys(cropMap).forEach(crop => {
+        const d = cropMap[crop];
+        d.givenUrea = getTotalBagsTakenByAadhaarAndCrop(a, 'Urea', crop, d._useSeason, d._useYear);
+        d.givenDAP  = getTotalBagsTakenByAadhaarAndCrop(a, 'DAP',  crop, d._useSeason, d._useYear);
     });
 
     const crops = Object.keys(cropMap);
@@ -4518,19 +4649,23 @@ function buildPrintCropSummaryHTML(aadhaar, currentKhatha, currentCrop, currentB
 
             const eligUrea = rec ? Math.ceil((rec.N * cropExtent) / 46 * 100 / 50) : 0;
             const eligDAP  = rec ? Math.ceil((rec.P * cropExtent) / 46 * 100 / 50) : 0;
-            const givenUrea = getTotalBagsTakenByKhathaAndCrop(khatha, 'Urea', crop, useSeason, useYear);
-            const givenDAP  = getTotalBagsTakenByKhathaAndCrop(khatha, 'DAP',  crop, useSeason, useYear);
 
             if (!cropMap[crop]) cropMap[crop] = {
-                khathas: new Set(), extentMap: {}, eligUrea: 0, eligDAP: 0, givenUrea: 0, givenDAP: 0
+                khathas: new Set(), extentMap: {}, eligUrea: 0, eligDAP: 0, givenUrea: 0, givenDAP: 0,
+                _useSeason: useSeason, _useYear: useYear
             };
             cropMap[crop].khathas.add(khatha);
             cropMap[crop].extentMap[khatha] = (cropMap[crop].extentMap[khatha] || 0) + cropExtent;
             cropMap[crop].eligUrea  += eligUrea;
             cropMap[crop].eligDAP   += eligDAP;
-            cropMap[crop].givenUrea += givenUrea;
-            cropMap[crop].givenDAP  += givenDAP;
         });
+    });
+
+    // Fetch "given" once per crop via aadhaar (avoids double-counting multi-khatha records)
+    Object.keys(cropMap).forEach(crop => {
+        const d = cropMap[crop];
+        d.givenUrea = getTotalBagsTakenByAadhaarAndCrop(a, 'Urea', crop, d._useSeason, d._useYear);
+        d.givenDAP  = getTotalBagsTakenByAadhaarAndCrop(a, 'DAP',  crop, d._useSeason, d._useYear);
     });
 
     const crops = Object.keys(cropMap);
@@ -4843,15 +4978,12 @@ function recordDistribution() {
     if (!allKhathas.length) return alert("No khathas found. Please create farmer profile first.");
     if (!b || Number(b) <= 0) return alert("Enter bags to distribute.");
 
-    // ── Compute eligible and given across ALL khathas for this crop ──
+    // ── Compute eligible and given using aadhaar-based lookup (avoids double-counting multi-khatha records) ──
     let eligible = 0;
     if (fert === 'Urea')     eligible = Number(document.getElementById('ureaBagsEligible')?.value || 0);
     else if (fert === 'DAP') eligible = Number(document.getElementById('dapBagsEligible')?.value  || 0);
 
-    let given = 0;
-    allKhathas.forEach(k => {
-        given += getTotalBagsTakenByKhathaAndCrop(k, fert, crop, s, y);
-    });
+    const given  = a.length === 12 ? getTotalBagsTakenByAadhaarAndCrop(a, fert, crop, s, y) : 0;
     const remain = Math.max(0, eligible - given);
 
     if (remain === 0 && eligible > 0) {
@@ -4875,12 +5007,9 @@ function recordDistribution() {
     ureaHistory.push(newRec);
     saveToCloud();
 
-    // ✅ Refresh remaining bags display
+    // ✅ Refresh remaining bags display (use aadhaar-based lookup so new record is immediately counted)
     {
-        let _givenAfterSave = 0;
-        allKhathas.forEach(k => {
-            _givenAfterSave += getTotalBagsTakenByKhathaAndCrop(k, fert, crop, s, y);
-        });
+        const _givenAfterSave = a.length === 12 ? getTotalBagsTakenByAadhaarAndCrop(a, fert, crop, s, y) : 0;
         const _remainAfterSave = Math.max(0, eligible - _givenAfterSave);
         const remElAfter = document.getElementById("ureaRemainingBags");
         if (remElAfter) remElAfter.value = _remainAfterSave;
@@ -4888,6 +5017,8 @@ function recordDistribution() {
         if (noteElAfter) noteElAfter.textContent = `Crop: ${crop.toUpperCase()} | Total: ${eligible} | Given [${fert}/${s}/${y}]: ${_givenAfterSave} | Remaining: ${_remainAfterSave}`;
         const bagsElAfter = document.getElementById("ureaBagsDist");
         if (bagsElAfter) { bagsElAfter.max = _remainAfterSave; bagsElAfter.placeholder = `Max: ${_remainAfterSave} bags`; bagsElAfter.value = ''; }
+        // ✅ Update button & alert based on new remaining
+        checkDistributionAllowed(_remainAfterSave, eligible, crop, fert);
     }
 
     // ✅ Fill all print fields — show ALL khathas and crop-specific extent
@@ -4951,13 +5082,10 @@ function recordDistribution() {
     function _triggerPrint() {
         stampPrintReceipt(newRec, false);
         const el = document.getElementById('printArea');
-        const A4_W = 794, A4_H = 1123;
-        el.style.width = A4_W + 'px';
-        el.style.transform = 'none';
-        const h = el.scrollHeight;
-        const scale = Math.min(A4_W / el.scrollWidth, A4_H / h, 1);
-        el.style.transform = 'scale(' + scale + ')';
-        el.style.transformOrigin = 'top left';
+        // Reset any previously applied JS transforms — CSS @media print handles A4 sizing
+        el.style.transform       = '';
+        el.style.transformOrigin = '';
+        el.style.width           = '';
         setTimeout(() => {
             window.print();
         }, 300);
@@ -5287,15 +5415,11 @@ function reprintDistribution(serialNo) {
                 saveToCloud();
             }
             stampPrintReceipt(rec, true);
-            // Scale printArea to fit exactly one A4 page
+            // CSS @media print handles A4 sizing — reset any JS transforms
             const _el = document.getElementById('printArea');
-            const A4_W = 794, A4_H = 1123;
-            _el.style.width = A4_W + 'px';
-            _el.style.transform = 'none';
-            const _h = _el.scrollHeight;
-            const _scale = Math.min(A4_W / _el.scrollWidth, A4_H / _h, 1);
-            _el.style.transform = 'scale(' + _scale + ')';
-            _el.style.transformOrigin = 'top left';
+            _el.style.transform       = '';
+            _el.style.transformOrigin = '';
+            _el.style.width           = '';
             setTimeout(() => window.print(), 200);
         };
 
