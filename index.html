@@ -143,103 +143,68 @@
         #clearUreaPasswordModal .modal-backdrop { z-index: 1055 !important; }
 
         @media print {
-    @page {
-        size: A4 portrait;
-        margin: 0;
-    }
+            @page {
+                size: A4 portrait;
+                margin: 0 !important; /* 1. Kill browser default margins entirely to stop auto-pagination */
+            }
 
-    html, body {
-        margin: 0 !important;
-        padding: 0 !important;
-        width: 210mm !important;
-        height: 297mm !important;
-    }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: 100vh !important; /* 2. Lock body to exactly 1 viewport height (1 page) */
+                max-height: 100vh !important;
+                overflow: hidden !important; /* 3. Absolutely forbid scrolling or spilling to page 2 */
+                background: #fff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
 
-    body * { visibility: hidden !important; }
-    #printArea, #printArea * { visibility: visible !important; }
+            /* Hide everything on the screen except the print area */
+            body > *:not(#printArea) { display: none !important; }
 
-    #printArea {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
-        box-shadow: none !important;
-        background: #fff !important;
-        display: block !important;
-        width: 210mm !important;
-        min-height: 297mm !important;
-        max-height: 297mm !important;
-        overflow: hidden !important;
-        box-sizing: border-box !important;
-        /* Reset any JS-applied transform; CSS handles scaling */
-        transform: none !important;
-    }
+            /* Make print area exact size of A4 with our own controlled margins */
+            #printArea {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+                height: 100vh !important; 
+                max-height: 100vh !important;
+                box-sizing: border-box !important;
+                padding: 8mm !important; /* 4. Provide our own controlled printer margins inside the box */
+                margin: 0 !important;
+                overflow: hidden !important;
+            }
 
-    /* Each copy block (farmer + officer) fills exactly half the A4 page */
-    #printArea .print-copy-block {
-        width: 210mm !important;
-        max-height: 148mm !important;
-        overflow: hidden !important;
-        box-sizing: border-box !important;
-        page-break-inside: avoid !important;
-    }
+            /* Force the two copies to share space equally and shrink to fit */
+            #printArea .print-copy-block {
+                flex: 1 1 0 !important; /* 5. The '0' is crucial: allows blocks to shrink below their natural height */
+                min-height: 0 !important; /* Fixes a Flexbox bug preventing elements from shrinking */
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                padding: 10px 14px !important; 
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+            }
 
-    #printArea .cut-line {
-        page-break-inside: avoid !important;
-        padding: 1mm 0 !important;
-    }
+            #printArea .cut-line {
+                flex: 0 0 auto !important;
+                margin: 4px 0 !important;
+                padding: 2px 0 !important;
+            }
 
-    #printArea table  { display: table !important; width: 100% !important; border-collapse: collapse !important; }
-    #printArea tr     { display: table-row !important; }
-    #printArea td, #printArea th { display: table-cell !important; border: 1px solid #333 !important; }
-    #printArea .print-signatures { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; }
-    #printArea .print-sig-box    { display: block !important; text-align: center !important; }
-    #printArea span   { display: inline !important; }
-    #printArea small  { display: inline !important; }
-    #printArea p      { display: block !important; }
-    #printArea h2, #printArea h3 { display: block !important; }
-    #printArea div    { display: block !important; }
-    #printArea strong { display: inline !important; font-weight: bold !important; }
-    #printArea img    { display: inline-block !important; visibility: visible !important; }
-    #printArea #printSignatureArea,
-    #printArea #printSignatureAreaOfficer { display: block !important; }
-}
-        @media (max-width: 768px) {
-            .dashboard-title { font-size: 2rem; }
-            .card, .dashboard-card { padding: 1.5rem 1rem; }
+            /* 6. Aggressively tighten element spacings to guarantee everything fits inside the blocks */
+            #printArea table { margin-bottom: 2px !important; }
+            #printArea td, #printArea th { padding: 3px 5px !important; }
+            #printArea h2 { margin-bottom: 2px !important; }
+            #printArea h3 { margin-bottom: 2px !important; }
+            #printArea p { margin-bottom: 2px !important; }
+            
+            #printArea div[id^="printCropSummary"] { margin-top: 4px !important; margin-bottom: 2px !important; }
+            #printArea div[id^="printAntiDupWarning"] { margin-top: 4px !important; padding: 4px 6px !important; }
+            
+            #printArea .print-signatures { margin-top: auto !important; padding-top: 6px !important; }
         }
-
-       .agri-workspace {
-               font-family: 'Montserrat', 'Poppins', sans-serif;
-               background: linear-gradient(90deg, #e3fcef 0%, #cbe1ff 100%);
-               padding: 1.5rem 0.8rem;
-               border-radius: 14px;
-               box-shadow: 0 4px 22px rgba(24, 98, 171, 0.10);
-               margin: 0 auto;
-               max-width: 370px;
-               }
-               .agri-workspace h3 {
-               color: #1862ab;
-               font-weight: 700;
-               font-size: 2.0rem;
-               margin-bottom: 0.5rem;
-               letter-spacing: 0.02em;
-               text-shadow: 0 2px 8px #b3d0fc;
-               }
-               .agri-workspace .designer-credit {
-               font-size: 1rem;
-               color: #3c60be;
-               font-family: 'Poppins', sans-serif;
-               font-weight: 500;
-               background: #daf0ff;
-               padding: 0.28em 0.8em;
-               border-radius: 7px;
-               display: inline-block;
-               box-shadow: 0 1px 8px rgba(24, 98, 171, 0.08);
-               margin-top: 0.12em;
-               }
     </style>
     </head>
 <body>
@@ -1437,7 +1402,7 @@
 </div>
 
 <!-- Enhanced Print Area -->
-<div id="printArea" style="display:none; font-family:'Noto Sans Telugu',Poppins,sans-serif; background:#fff; width:100%; box-sizing:border-box;">
+<div id="printArea" style="display:none; font-family:'Noto Sans Telugu',Poppins,sans-serif; background:#fff; box-sizing:border-box;">
 
     <!-- ══════════════════════════════════════════
          FARMER COPY
@@ -4626,7 +4591,7 @@ function buildCropCumulativeSummary(aadhaar) {
 // ══════════════════════════════════════════════════════════════════
 //  BUILD PRINT CROP SUMMARY TABLE (for both Farmer + Officer copy)
 // ══════════════════════════════════════════════════════════════════
-function buildPrintCropSummaryHTML(aadhaar, currentKhatha, currentCrop, currentBagsNow, season, year) {
+function buildPrintCropSummaryHTML(aadhaar, currentKhatha, currentCrop, currentBagsNow, season, year, isReprint = false) {
     const a        = cleanAadhaar(aadhaar);
     const profiles = farmerProfiles[a];
     if (!profiles || !profiles.length) return '';
@@ -4682,13 +4647,22 @@ function buildPrintCropSummaryHTML(aadhaar, currentKhatha, currentCrop, currentB
         let ext = 0;
         d.khathas.forEach(k => { ext += d.extentMap[k] || 0; });
         totExt += ext;
-        const elig   = isDAP ? d.eligDAP  : d.eligUrea;
-        const given  = isDAP ? d.givenDAP : d.givenUrea;
-        const remain = Math.max(0, elig - given);
+        
+        const elig = isDAP ? d.eligDAP  : d.eligUrea;
+        let given  = isDAP ? d.givenDAP : d.givenUrea; // Changed to 'let' so we can modify it
 
         // Bags distributing NOW only for the current crop being distributed
         const isCurrentCrop  = crop === (currentCrop || '').toLowerCase().trim();
         const nowBags        = isCurrentCrop ? Number(currentBagsNow || 0) : 0;
+        
+        // ⭐️ REPRINT LOGIC FIX: 
+        // If it's a reprint, the total history already includes 'nowBags'. 
+        // We subtract it to step back in time and show the correct "Given So Far".
+        if (isReprint && isCurrentCrop) {
+            given = Math.max(0, given - nowBags);
+        }
+
+        const remain = Math.max(0, elig - given);
         const remainAfterNow = Math.max(0, remain - nowBags);
 
         totElig   += elig;
@@ -5081,15 +5055,41 @@ function recordDistribution() {
 
     function _triggerPrint() {
         stampPrintReceipt(newRec, false);
-        const el = document.getElementById('printArea');
-        // Reset any previously applied JS transforms — CSS @media print handles A4 sizing
-        el.style.transform       = '';
-        el.style.transformOrigin = '';
-        el.style.width           = '';
-        setTimeout(() => {
-            window.print();
-        }, 300);
+        // CSS @media print handles all sizing — no JS transforms needed
+        setTimeout(() => window.print(), 400);
     }
+
+// ✅ Show printArea and hide urea section FIRST, before any async calls
+const printEl  = document.getElementById("printArea");
+const ureaEl   = document.getElementById("ureaSection");
+printEl.style.display = "block";
+printEl.classList.remove("hidden");
+ureaEl.style.display  = "none";
+ureaEl.classList.add("hidden");
+
+// Fill Registration ID in print receipt (both copies)
+const printRegIdEl = document.getElementById("printRegId");
+if (printRegIdEl) {
+    const regIdVal = document.getElementById('ureaRegId')?.value?.trim() || '—';
+    printRegIdEl.textContent = regIdVal;
+}
+const printRegIdElO = document.getElementById("printRegIdOfficer");
+if (printRegIdElO) {
+    const regIdVal = document.getElementById('ureaRegId')?.value?.trim() || '—';
+    printRegIdElO.textContent = regIdVal;
+}
+
+// ✅ Use afterprint event — restores page AFTER print dialog closes
+const restoreAfterPrint = () => {
+    printEl.style.display = "none";
+    printEl.classList.add("hidden");
+    ureaEl.style.display  = "block";
+    ureaEl.classList.remove("hidden");
+    clearUreaForm();
+    alert("✅ Recorded & Printed!");
+    window.removeEventListener("afterprint", restoreAfterPrint);
+};
+window.addEventListener("afterprint", restoreAfterPrint);
 
 if (user) {
     database.ref(`users/${user.uid}/profile`).once('value').then(snap => {
@@ -5130,7 +5130,6 @@ if (user) {
             img.alt   = 'Officer Signature';
             img.style.cssText = 'max-height:50px;max-width:150px;object-fit:contain;display:block;margin:0 auto;';
             if (sigArea) { sigArea.innerHTML = ''; sigArea.appendChild(img); }
-            // Wait for image to load before printing
             img.onload  = _triggerPrint;
             img.onerror = _triggerPrint;
         } else {
@@ -5142,42 +5141,6 @@ if (user) {
 } else {
     _triggerPrint();
 }
-
-// ✅ Show printArea, then trigger print after DOM + Firebase settle
-const printEl  = document.getElementById("printArea");
-const ureaEl   = document.getElementById("ureaSection");
-
-// Fill Registration ID in print receipt (both copies)
-const printRegIdEl = document.getElementById("printRegId");
-if (printRegIdEl) {
-    const regIdVal = document.getElementById('ureaRegId')?.value?.trim() || '—';
-    printRegIdEl.textContent = regIdVal;
-}
-const printRegIdElO = document.getElementById("printRegIdOfficer");
-if (printRegIdElO) {
-    const regIdVal = document.getElementById('ureaRegId')?.value?.trim() || '—';
-    printRegIdElO.textContent = regIdVal;
-}
-
-// Show print area, hide main section so nothing bleeds through
-printEl.style.display  = "block";
-printEl.classList.remove("hidden");
-ureaEl.style.display   = "none";
-ureaEl.classList.add("hidden");
-
-// ✅ Use afterprint event — restores page AFTER print dialog closes
-const restoreAfterPrint = () => {
-    printEl.style.display = "none";
-    printEl.style.transform = '';
-    printEl.style.width = '';
-    printEl.classList.add("hidden");
-    ureaEl.style.display  = "block";
-    ureaEl.classList.remove("hidden");
-    clearUreaForm();
-    alert("✅ Recorded & Printed!");
-    window.removeEventListener("afterprint", restoreAfterPrint);
-};
-window.addEventListener("afterprint", restoreAfterPrint);
 
 // ✅ Give Firebase time to fill Village/Mandal/Signature, then print is triggered above
 }
@@ -5378,9 +5341,9 @@ function reprintDistribution(serialNo) {
     const titleElO = document.getElementById('printFormTitleOfficer');
     if (titleElO) titleElO.textContent = (rec.fertilizerType || 'Fertilizer') + ' Distribution — REPRINT';
 
-    // ✅ Inject crop-wise summary for reprint (bags now = 0 since already recorded)
+    // ✅ Inject crop-wise summary for reprint (Pass rec.bags and set isReprint = true)
     const _reprintSumHTML = buildPrintCropSummaryHTML(
-        cleanAadhaar(rec.aadhaar), rec.khatha, rec.crop, 0, rec.season, rec.year
+        cleanAadhaar(rec.aadhaar), rec.khatha, rec.crop, rec.bags, rec.season, rec.year, true
     );
     const _rpcsF = document.getElementById('printCropSummaryFarmer');
     const _rpcsO = document.getElementById('printCropSummaryOfficer');
@@ -5415,12 +5378,7 @@ function reprintDistribution(serialNo) {
                 saveToCloud();
             }
             stampPrintReceipt(rec, true);
-            // CSS @media print handles A4 sizing — reset any JS transforms
-            const _el = document.getElementById('printArea');
-            _el.style.transform       = '';
-            _el.style.transformOrigin = '';
-            _el.style.width           = '';
-            setTimeout(() => window.print(), 200);
+            setTimeout(() => window.print(), 400);
         };
 
         const firebaseUser = firebase.auth().currentUser;
@@ -5476,8 +5434,6 @@ function reprintDistribution(serialNo) {
 
         const restoreAfterPrint = () => {
             printEl.style.display = 'none';
-            printEl.style.transform = '';
-            printEl.style.width = '';
             printEl.classList.add('hidden');
             if (ureaEl) { ureaEl.style.display = 'block'; ureaEl.classList.remove('hidden'); }
             window.removeEventListener('afterprint', restoreAfterPrint);
