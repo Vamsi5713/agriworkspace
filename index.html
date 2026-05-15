@@ -688,35 +688,61 @@
         </div>
     </div>
 
-    <!-- Row 2: Khatha FIRST, Extent, Year -->
+    <!-- Row 2: All Khathas (auto-populated from profile), Total Extent, Crop Year -->
     <div class="row">
         <div class="col-md-4 mb-2">
-            <label>Khatha Number: *</label>
-            <input type="text" id="ureaKhathaInput" class="form-control" readonly>
-            <select id="ureaKhathaSelect" class="form-select" style="display:none;"
-                    onchange="onUreaKhathaChange()">
-                <option value="">--Select Khatha--</option>
-            </select>
+            <label>Khatha Number(s): *
+                <span class="badge bg-info text-dark ms-1" id="khathaCountBadge" style="font-size:0.7rem;display:none;"></span>
+            </label>
+            <!-- Single khatha: read-only text. Multiple: still read-only display (all shown) -->
+            <input type="text" id="ureaKhathaInput" class="form-control bg-light fw-semibold" readonly
+                   placeholder="Auto-filled from profile" style="color:#1862ab;">
+            <!-- Hidden field to carry the actual khatha value(s) for logic -->
+            <input type="hidden" id="ureaKhathaHidden" value="">
+            <small id="ureaKhathaNote" class="text-muted d-block mt-1" style="font-size:0.78rem;"></small>
         </div>
         <div class="col-md-4 mb-2">
-            <label>Extent:</label>
-            <input type="text" id="ureaExtent" class="form-control" readonly>
+            <label>Extent (for selected crop): <span class="badge bg-success ms-1" id="extentSourceBadge" style="font-size:0.7rem;"></span></label>
+            <input type="text" id="ureaExtent" class="form-control bg-light fw-bold" readonly style="color:#27ae60;">
+            <small id="ureaExtentNote" class="text-muted d-block mt-1" style="font-size:0.78rem;"></small>
         </div>
         <div class="col-md-4 mb-2">
             <label>Crop Year:</label>
-            <select id="ureaYear" class="form-select">
+            <!-- Auto-filled if one year; dropdown if multiple -->
+            <input type="text" id="ureaYearInput" class="form-control bg-light fw-semibold" readonly
+                   style="display:none; color:#1862ab;" placeholder="Auto-filled">
+            <select id="ureaYear" class="form-select" onchange="onYearOrSeasonChange()">
                 <option value="">-- Select Year --</option>
+                <option value="2025-26">2025-26</option>
                 <option value="2026-27">2026-27</option>
                 <option value="2027-28">2027-28</option>
             </select>
         </div>
     </div>
 
-    <!-- Row 3: Crop AFTER khatha, Season, Bags -->
+    <!-- Row 3: Season, Crop (profile-filtered), Bags -->
     <div class="row">
         <div class="col-md-4 mb-2">
-            <label>Crop: *</label>
-            <select id="ureaCrop" class="form-select" onchange="updateBagRecommendation()">
+            <label>Season:</label>
+            <!-- Auto-filled if one season; dropdown if multiple -->
+            <input type="text" id="ureaSeasonInput" class="form-control bg-light fw-semibold" readonly
+                   style="display:none; color:#1862ab;" placeholder="Auto-filled">
+            <select id="ureaSeason" class="form-select" onchange="onYearOrSeasonChange()">
+                <option value="">--Select Season--</option>
+                <option value="Kharif">Kharif</option>
+                <option value="Rabi">Rabi</option>
+                <option value="Summer">Summer</option>
+            </select>
+        </div>
+        <div class="col-md-4 mb-2">
+            <label>Crop: *
+                <span class="badge bg-success ms-1" id="cropAutoLabel" style="font-size:0.7rem;display:none;">Auto</span>
+            </label>
+            <!-- Auto-filled if one crop; dropdown if multiple -->
+            <input type="text" id="ureaCropInput" class="form-control bg-light fw-semibold" readonly
+                   style="display:none; color:#2e7d32;" placeholder="Auto-filled">
+            <select id="ureaCrop" class="form-select"
+                onchange="onUreaCropChange()">
                 <option value="">--Select Crop--</option>
                 <option value="paddy">Paddy</option>
                 <option value="maize">Maize</option>
@@ -737,22 +763,13 @@
                 <option value="brinjal">Brinjal</option>
             </select>
         </div>
-        <div class="col-md-4 mb-2">
-            <label>Season:</label>
-            <select id="ureaSeason" class="form-select" onchange="updateBagRecommendation()">
-                <option value="">--Select Season--</option>
-                <option value="Kharif">Kharif</option>
-                <option value="Rabi">Rabi</option>
-                <option value="Summer">Summer</option>
-            </select>
-        </div>
         <div id="ureaBagBlock" class="col-md-4 mb-2 d-none">
-            <label class="form-label">Urea Bags:</label>
+            <label class="form-label">Urea Bags Eligible:</label>
             <input type="number" id="ureaBagsEligible" class="form-control bg-light" readonly>
             <small id="ureaBagsEligibleToShow" class="text-muted d-block pt-1"></small>
         </div>
         <div id="dapBagBlock" class="col-md-4 mb-2 d-none">
-            <label class="form-label">DAP Bags:</label>
+            <label class="form-label">DAP Bags Eligible:</label>
             <input type="number" id="dapBagsEligible" class="form-control bg-light" readonly>
             <small id="dapBagsEligibleToShow" class="text-muted d-block pt-1"></small>
         </div>
@@ -782,6 +799,43 @@
          style="min-height:40px; font-size:0.93rem;">
         Select Khatha and Crop to auto-calculate eligible bags.
     </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         CROP-WISE CUMULATIVE SUMMARY (all khathas of farmer)
+         Shown only after farmer is searched — during distribution
+         ══════════════════════════════════════════════════════ -->
+    <div id="cropCumulativeSummary" class="hidden mt-3">
+        <div class="card border-0 shadow-sm" style="border-radius:12px; overflow:hidden;">
+            <div class="card-header py-2 px-3 fw-bold" style="background:linear-gradient(90deg,#1862ab,#27ae60); color:#fff; font-size:0.92rem;">
+                <i class="fas fa-layer-group me-2"></i>Cumulative Crop-wise Summary — All Khathas
+                <span class="badge bg-light text-dark ms-2" id="cropSumFarmerBadge" style="font-size:0.75rem;"></span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle" id="cropCumulativeTable" style="font-size:0.84rem;">
+                        <thead style="background:#f0f8ff;">
+                            <tr>
+                                <th class="px-2 py-2">Crop</th>
+                                <th class="px-2 py-2 text-center">Khathas</th>
+                                <th class="px-2 py-2 text-center">Total Extent (Ac)</th>
+                                <th class="px-2 py-2 text-center">Eligible Urea (Bags)</th>
+                                <th class="px-2 py-2 text-center">Eligible DAP (Bags)</th>
+                                <th class="px-2 py-2 text-center">Given Urea</th>
+                                <th class="px-2 py-2 text-center">Given DAP</th>
+                                <th class="px-2 py-2 text-center">Remaining Urea</th>
+                                <th class="px-2 py-2 text-center">Remaining DAP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cropCumulativeTbody">
+                        </tbody>
+                        <tfoot id="cropCumulativeFoot" style="background:#e8f5e9; font-weight:700; font-size:0.85rem;">
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- /CROP-WISE CUMULATIVE SUMMARY -->
 
     <div class="mt-3 pt-3 border-top d-flex gap-2 justify-content-between">
         <button class="btn btn-success" onclick="recordDistribution()">
@@ -1397,8 +1451,8 @@
                 <td style="padding:4px 7px; border:1px solid #333;"><strong>Aadhaar:</strong> <span id="printAadhaar"></span></td>
             </tr>
             <tr>
-                <td style="padding:4px 7px; border:1px solid #333;"><strong>Khatha:</strong> <span id="printKhatha" style="font-weight:600;"></span></td>
-                <td style="padding:4px 7px; border:1px solid #333;"><strong>Extent:</strong> <span id="printExtent"></span> Ac</td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Khatha(s):</strong> <span id="printKhatha" style="font-weight:600;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Crop Extent:</strong> <span id="printExtent"></span> Ac</td>
             </tr>
             <tr>
                 <td style="padding:4px 7px; border:1px solid #333;"><strong>Crop:</strong> <span id="printCrop" style="font-weight:600; color:#2e7d32;"></span></td>
@@ -1409,6 +1463,11 @@
                 <td style="padding:4px 7px; border:1px solid #333;"><strong>Date:</strong> <span id="printDate"></span></td>
             </tr>
         </table>
+
+        <!-- Crop-wise Khatha Summary Table (Farmer Copy) -->
+        <div id="printCropSummaryFarmer" style="margin-top:7px; margin-bottom:4px;">
+            <!-- Populated by JS before print -->
+        </div>
 
         <!-- Signatures -->
         <div class="print-signatures" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:8px;">
@@ -1492,8 +1551,8 @@
                 <td style="padding:4px 7px; border:1px solid #333;"><strong>Aadhaar:</strong> <span id="printAadhaarOfficer"></span></td>
             </tr>
             <tr>
-                <td style="padding:4px 7px; border:1px solid #333;"><strong>Khatha:</strong> <span id="printKhathaOfficer" style="font-weight:600;"></span></td>
-                <td style="padding:4px 7px; border:1px solid #333;"><strong>Extent:</strong> <span id="printExtentOfficer"></span> Ac</td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Khatha(s):</strong> <span id="printKhathaOfficer" style="font-weight:600;"></span></td>
+                <td style="padding:4px 7px; border:1px solid #333;"><strong>Crop Extent:</strong> <span id="printExtentOfficer"></span> Ac</td>
             </tr>
             <tr>
                 <td style="padding:4px 7px; border:1px solid #333;"><strong>Crop:</strong> <span id="printCropOfficer" style="font-weight:600; color:#2e7d32;"></span></td>
@@ -1504,6 +1563,11 @@
                 <td style="padding:4px 7px; border:1px solid #333;"><strong>Date:</strong> <span id="printDateOfficer"></span></td>
             </tr>
         </table>
+
+        <!-- Crop-wise Khatha Summary Table (Officer Copy) -->
+        <div id="printCropSummaryOfficer" style="margin-top:7px; margin-bottom:4px;">
+            <!-- Populated by JS before print -->
+        </div>
 
         <!-- Signatures -->
         <div class="print-signatures" style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:8px;">
@@ -3586,107 +3650,231 @@ function getRemainingBagsForKhathaByFert(k, fertType, eligible, season, year) {
 }
 
 function getCurrentKhatha() {
-    const sel   = document.getElementById('ureaKhathaSelect');
+    // Now we store all khathas in a hidden field; return the FIRST (representative) khatha
+    // For bag calculation purposes, we use crop-based extent across all khathas
+    const hidden = document.getElementById('ureaKhathaHidden');
+    if (hidden && hidden.value) return hidden.value.split(',')[0].trim();
     const input = document.getElementById('ureaKhathaInput');
-    if (sel && sel.style.display !== 'none') return sel.value;
-    return input ? input.value : '';
+    return input ? input.value.split(',')[0].trim() : '';
 }
 
-// ✅ ADD HERE ↓
+function getAllKhathas() {
+    // Returns array of all khathas for this farmer (from profile)
+    const hidden = document.getElementById('ureaKhathaHidden');
+    if (hidden && hidden.value) return hidden.value.split(',').map(k => k.trim()).filter(Boolean);
+    return [];
+}
+
+// ✅ Called when crop changes from dropdown
+function onUreaCropChange() {
+    const crop    = document.getElementById('ureaCrop')?.value || '';
+    const aadhaar = cleanAadhaar(document.getElementById('ureaSearch')?.value || '');
+
+    if (!crop) return;
+
+    // Update extent for this crop (sum of all khathas growing this crop)
+    updateExtentForCrop(aadhaar, crop);
+    updateBagRecommendation();
+    buildCropCumulativeSummary(aadhaar);
+}
+
+// ✅ Kept for compatibility — but now handled by searchUreaFarmer populating everything
 function onUreaKhathaChange() {
-    const khatha  = document.getElementById('ureaKhathaSelect')?.value;
-    const cropSel = document.getElementById('ureaCrop');
-    const infoDiv = document.getElementById('ureaProfileCropsInfo');
-    const regIdEl = document.getElementById('ureaRegId');
-
-    if (infoDiv) infoDiv.classList.add('hidden');
-    if (regIdEl) regIdEl.value = ''; // reset reg ID on khatha change
-
-    // Reset crop dropdown first
-    if (cropSel) {
-        cropSel.innerHTML = '<option value="">--Select Crop--</option>';
-    }
-
-    if (!khatha || !cropSel) return;
-
-    const aadhaar = cleanAadhaar(document.getElementById('ureaSearch')?.value);
-    const profile = aadhaar.length === 12 && farmerProfiles[aadhaar]
-        ? farmerProfiles[aadhaar].find(p => String(p.khatha) === String(khatha))
-        : null;
-
-    if (profile && profile.crops && profile.crops.length) {
-
-        const selectedYear   = document.getElementById('ureaYear')?.value   || '';
-        const selectedSeason = document.getElementById('ureaSeason')?.value || '';
-
-        // Filter crops matching selected year+season (if both chosen)
-        let matchedCrops = profile.crops;
-        if (selectedYear && selectedSeason) {
-            const filtered = profile.crops.filter(c =>
-                c.year === selectedYear && c.season === selectedSeason
-            );
-            matchedCrops = filtered.length ? filtered : profile.crops;
-        }
-
-        matchedCrops.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.crop;
-            const label = c.year && c.season
-                ? `${c.crop.charAt(0).toUpperCase() + c.crop.slice(1)} (${c.extent} ac | ${c.season} ${c.year})`
-                : `${c.crop.charAt(0).toUpperCase() + c.crop.slice(1)} (${c.extent} ac)`;
-            opt.textContent = label;
-            cropSel.appendChild(opt);
-        });
-
-        // ── Auto-fill Reg ID: show first available as hint ──
-        if (regIdEl) {
-            const firstWithId = profile.crops.find(c => c.registrationId);
-            regIdEl.value = firstWithId?.registrationId || '';
-        }
-
-        // ── Show profile crops badge ──
-        if (infoDiv) {
-            const listEl = document.getElementById('ureaProfileCropsList');
-            if (listEl) {
-                listEl.innerHTML = profile.crops.map(c =>
-                    `<span class="badge bg-success me-1">
-                        ${c.crop} ${c.extent}ac
-                        ${c.registrationId
-                            ? `<code style="font-size:0.7rem;background:rgba(0,0,0,0.2);
-                                padding:1px 4px;border-radius:3px">
-                                ${c.registrationId}</code>`
-                            : ''}
-                    </span>`
-                ).join('');
-            }
-            infoDiv.classList.remove('hidden');
-        }
-
-    } else {
-        // No profile — show all crops
-        const allCrops = Object.keys(cropNPKRecommendations);
-        allCrops.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value       = c;
-            opt.textContent = c.charAt(0).toUpperCase() + c.slice(1);
-            cropSel.appendChild(opt);
-        });
-    }
-
     updateBagRecommendation();
 }
-// ✅ ADD UNTIL HERE ↑
+
+/**
+ * Auto-populate Year and Season from the farmer's profile.
+ * - If only one unique year/season combo across all khathas: auto-fill read-only
+ * - If multiple: show dropdown for manual selection
+ */
+function autoPopulateYearSeason(aadhaar) {
+    const profiles = farmerProfiles[cleanAadhaar(aadhaar)];
+    if (!profiles || !profiles.length) return;
+
+    // Collect all unique years and seasons from all crops across all khathas
+    const years   = new Set();
+    const seasons = new Set();
+    profiles.forEach(p => {
+        (p.crops || []).forEach(c => {
+            if (c.year)   years.add(c.year);
+            if (c.season) seasons.add(c.season);
+        });
+    });
+
+    const yearArr   = Array.from(years);
+    const seasonArr = Array.from(seasons);
+
+    const yearInpEl   = document.getElementById('ureaYearInput');
+    const yearSelEl   = document.getElementById('ureaYear');
+    const seasonInpEl = document.getElementById('ureaSeasonInput');
+    const seasonSelEl = document.getElementById('ureaSeason');
+
+    // ── Year ──
+    if (yearArr.length === 1) {
+        // Auto-fill
+        if (yearInpEl) { yearInpEl.value = yearArr[0]; yearInpEl.style.display = 'block'; }
+        if (yearSelEl) { yearSelEl.value = yearArr[0]; yearSelEl.style.display = 'none'; }
+    } else {
+        // Multiple — show dropdown, add options from profile
+        if (yearInpEl) yearInpEl.style.display = 'none';
+        if (yearSelEl) {
+            yearSelEl.style.display = 'block';
+            // Rebuild options from profile years
+            yearSelEl.innerHTML = '<option value="">-- Select Year --</option>';
+            yearArr.forEach(y => {
+                const o = document.createElement('option');
+                o.value = y; o.textContent = y;
+                yearSelEl.appendChild(o);
+            });
+        }
+    }
+
+    // ── Season ──
+    if (seasonArr.length === 1) {
+        // Auto-fill
+        if (seasonInpEl) { seasonInpEl.value = seasonArr[0]; seasonInpEl.style.display = 'block'; }
+        if (seasonSelEl) { seasonSelEl.value = seasonArr[0]; seasonSelEl.style.display = 'none'; }
+    } else {
+        if (seasonInpEl) seasonInpEl.style.display = 'none';
+        if (seasonSelEl) seasonSelEl.style.display = 'block';
+    }
+}
+
+/**
+ * Auto-populate Crop dropdown/field from farmer profile
+ * filtered by currently selected year+season.
+ * If only one crop → auto-fill read-only. Multiple → dropdown.
+ */
+function autoPopulateCrop(aadhaar) {
+    const profiles = farmerProfiles[cleanAadhaar(aadhaar)];
+    if (!profiles || !profiles.length) return;
+
+    const season = getCurrentSeason();
+    const year   = getCurrentYear();
+
+    // Gather unique crops from all khathas for selected year+season
+    // Each entry: { crop, totalExtent (sum across khathas) }
+    const cropExtentMap = {};
+    profiles.forEach(p => {
+        (p.crops || []).forEach(c => {
+            // Filter: if year/season selected, match; else include all
+            const yearMatch   = !year   || c.year   === year;
+            const seasonMatch = !season || c.season === season;
+            if (!yearMatch || !seasonMatch) return;
+
+            const key = (c.crop || '').toLowerCase().trim();
+            if (!key) return;
+            cropExtentMap[key] = (cropExtentMap[key] || 0) + Number(c.extent || 0);
+        });
+    });
+
+    const cropList = Object.keys(cropExtentMap);
+
+    const cropSelEl  = document.getElementById('ureaCrop');
+    const cropInpEl  = document.getElementById('ureaCropInput');
+    const cropLblEl  = document.getElementById('cropAutoLabel');
+
+    if (!cropList.length) {
+        // No matching crops — show full dropdown
+        if (cropSelEl)  { cropSelEl.style.display = 'block'; }
+        if (cropInpEl)  { cropInpEl.style.display = 'none'; }
+        if (cropLblEl)  cropLblEl.style.display = 'none';
+        return;
+    }
+
+    if (cropList.length === 1) {
+        // Auto-fill single crop
+        const singleCrop = cropList[0];
+        if (cropSelEl)  { cropSelEl.value = singleCrop; cropSelEl.style.display = 'none'; }
+        if (cropInpEl)  {
+            cropInpEl.value = singleCrop.charAt(0).toUpperCase() + singleCrop.slice(1)
+                + ` (${cropExtentMap[singleCrop].toFixed(2)} ac)`;
+            cropInpEl.style.display = 'block';
+        }
+        if (cropLblEl)  cropLblEl.style.display = 'inline';
+        // Now update extent for this crop
+        updateExtentForCrop(aadhaar, singleCrop);
+    } else {
+        // Multiple crops — show dropdown filtered to profile crops
+        if (cropSelEl) {
+            cropSelEl.style.display = 'block';
+            cropSelEl.innerHTML = '<option value="">-- Select Crop --</option>';
+            cropList.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = `${c.charAt(0).toUpperCase() + c.slice(1)} (${cropExtentMap[c].toFixed(2)} ac)`;
+                cropSelEl.appendChild(opt);
+            });
+        }
+        if (cropInpEl)  cropInpEl.style.display = 'none';
+        if (cropLblEl)  cropLblEl.style.display = 'none';
+    }
+}
+
+/**
+ * Given aadhaar and crop, compute total extent for that crop
+ * across ALL khathas (filtered by current year+season).
+ * Updates the extent field and note.
+ */
+function updateExtentForCrop(aadhaar, crop) {
+    const profiles = farmerProfiles[cleanAadhaar(aadhaar)];
+    const season   = getCurrentSeason();
+    const year     = getCurrentYear();
+    const extEl    = document.getElementById('ureaExtent');
+    const extBadge = document.getElementById('extentSourceBadge');
+    const extNote  = document.getElementById('ureaExtentNote');
+
+    if (!profiles || !profiles.length || !crop) {
+        if (extEl) extEl.value = '';
+        return;
+    }
+
+    let totalCropExtent = 0;
+    let khathasWithCrop = [];
+
+    profiles.forEach(p => {
+        (p.crops || []).forEach(c => {
+            if ((c.crop || '').toLowerCase().trim() !== crop.toLowerCase().trim()) return;
+            const yearMatch   = !year   || c.year   === year;
+            const seasonMatch = !season || c.season === season;
+            if (!yearMatch || !seasonMatch) return;
+            totalCropExtent += Number(c.extent || 0);
+            khathasWithCrop.push(String(p.khatha));
+        });
+    });
+
+    if (extEl) extEl.value = totalCropExtent > 0 ? totalCropExtent.toFixed(2) : '';
+    if (extBadge) {
+        extBadge.textContent = khathasWithCrop.length > 1
+            ? `${khathasWithCrop.length} khathas`
+            : 'Profile';
+        extBadge.style.background = '#27ae60';
+        extBadge.style.color      = '#fff';
+    }
+    if (extNote && khathasWithCrop.length) {
+        extNote.textContent = `Crop: ${crop.toUpperCase()} | Khathas: ${[...new Set(khathasWithCrop)].join(', ')} | Total: ${totalCropExtent.toFixed(2)} ac`;
+    }
+}
+
+
 
 
 function getCurrentSeason() {
+    // Check read-only input first (auto-fill), then dropdown
+    const inp = document.getElementById('ureaSeasonInput');
+    if (inp && inp.style.display !== 'none' && inp.value) return inp.value.trim();
     return document.getElementById("ureaSeason")?.value.trim() || '';
 }
 
 function getCurrentYear() {
+    // Check read-only input first (auto-fill), then dropdown
+    const inp = document.getElementById('ureaYearInput');
+    if (inp && inp.style.display !== 'none' && inp.value) return inp.value.trim();
     return document.getElementById("ureaYear")?.value.trim() || '';
 }
 
-function onFertilizerChange() {
+
     const selected   = document.querySelector('input[name="fertilizerType"]:checked')?.value || 'Urea';
     const otherBox   = document.getElementById('fertOtherBox');
     const badge      = document.getElementById('selectedFertBadge');
@@ -3721,7 +3909,7 @@ function onFertilizerChange() {
 
     updateBagRecommendation();
     setTimeout(() => refreshUploadInfo(), 0);
-}
+
 
 const ureaClearPassword = "urea2026";
 let pendingClearType = null, pendingClearSerialNo = null;
@@ -3837,13 +4025,41 @@ function clearUreaForm() {
         if (el) el.value = '';
     });
 
-    const cropEl = document.getElementById('ureaCrop');
-    if (cropEl) cropEl.value = '';
+    // Reset crop field (both auto and dropdown)
+    const cropEl      = document.getElementById('ureaCrop');
+    const cropInpEl   = document.getElementById('ureaCropInput');
+    const cropLblEl   = document.getElementById('cropAutoLabel');
+    if (cropEl)     { cropEl.value = ''; cropEl.style.display = 'block'; }
+    if (cropInpEl)  { cropInpEl.value = ''; cropInpEl.style.display = 'none'; }
+    if (cropLblEl)  cropLblEl.style.display = 'none';
 
+    // Reset khatha fields
     const khathaInput  = document.getElementById('ureaKhathaInput');
-    const khathaSelect = document.getElementById('ureaKhathaSelect');
-    if (khathaInput)  { khathaInput.value = '';  khathaInput.style.display = 'block'; }
-    if (khathaSelect) { khathaSelect.innerHTML = '<option value="">--Select Khatha--</option>'; khathaSelect.style.display = 'none'; }
+    const khathaHidden = document.getElementById('ureaKhathaHidden');
+    const khathaNote   = document.getElementById('ureaKhathaNote');
+    const khathaBadge  = document.getElementById('khathaCountBadge');
+    if (khathaInput)  { khathaInput.value = ''; }
+    if (khathaHidden) khathaHidden.value = '';
+    if (khathaNote)   khathaNote.textContent = '';
+    if (khathaBadge)  khathaBadge.style.display = 'none';
+
+    // Reset extent notes
+    const extBadge = document.getElementById('extentSourceBadge');
+    const extNote  = document.getElementById('ureaExtentNote');
+    if (extBadge) extBadge.textContent = '';
+    if (extNote)  extNote.textContent = '';
+
+    // Reset Year fields (both auto and dropdown)
+    const yearInpEl = document.getElementById('ureaYearInput');
+    const yearSelEl = document.getElementById('ureaYear');
+    if (yearInpEl) { yearInpEl.value = ''; yearInpEl.style.display = 'none'; }
+    if (yearSelEl) { yearSelEl.value = ''; yearSelEl.style.display = 'block'; }
+
+    // Reset Season fields (both auto and dropdown)
+    const seasonInpEl = document.getElementById('ureaSeasonInput');
+    const seasonSelEl = document.getElementById('ureaSeason');
+    if (seasonInpEl) { seasonInpEl.value = ''; seasonInpEl.style.display = 'none'; }
+    if (seasonSelEl) { seasonSelEl.value = ''; seasonSelEl.style.display = 'block'; }
 
     const ureaNote = document.getElementById('ureaBagsEligibleToShow');
     const dapNote  = document.getElementById('dapBagsEligibleToShow');
@@ -3856,6 +4072,10 @@ function clearUreaForm() {
     const ureaFields = document.getElementById('ureaFields');
     if (ureaFields) ureaFields.classList.add('hidden');
 
+    // ✅ Hide cumulative crop summary
+    const cumPanel = document.getElementById('cropCumulativeSummary');
+    if (cumPanel) cumPanel.classList.add('hidden');
+
     _isManualEntry = false;
 
     setTimeout(() => {
@@ -3865,33 +4085,8 @@ function clearUreaForm() {
 }
 
 function refreshKhathaDropdown() {
-    const sel = document.getElementById("ureaKhathaSelect");
-    if (!sel) return;
-
-    // ── If a farmer is currently loaded, only show their profile khathas ──
-    const aadhaar = cleanAadhaar(document.getElementById("ureaSearch")?.value || "");
-    const farmerLoaded = document.getElementById("ureaFarmerName")?.value?.trim();
-    const ureaFieldsVisible = !document.getElementById("ureaFields")?.classList.contains("hidden");
-
-    if (ureaFieldsVisible && farmerLoaded && aadhaar.length === 12 && farmerProfiles[aadhaar]?.length) {
-        // Farmer is loaded — rebuild dropdown only from their profile khathas
-        const profiles = farmerProfiles[aadhaar];
-        const currentVal = sel.value;
-        sel.innerHTML = '<option value="">--Select Khatha--</option>';
-        profiles.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.khatha;
-            opt.textContent = `Khatha ${p.khatha} (${(p.crops || []).map(c => `${c.crop} ${c.extent}ac`).join(', ')})`;
-            if (String(p.khatha) === String(currentVal)) opt.selected = true;
-            sel.appendChild(opt);
-        });
-        return;
-    }
-
-    // No farmer loaded — show all khathas from 1B data
-    const data = getCurrentFertData();
-    sel.innerHTML = '<option value="">--Select Khatha--</option>' +
-        Object.keys(data).map(k => `<option value="${k}">${k}</option>`).join('');
+    // No-op in new design: khathas are auto-populated from profile
+    // Keep for backward compatibility if called elsewhere
 }
 
 function updateRemainingBagsDisplay(k) {
@@ -4054,29 +4249,54 @@ function getUreaBagsFromN(nKg) { return Math.ceil(Number(nKg || 0) / (45 * 0.46)
 function getDapBagsFromP(pKg)  { return Math.ceil(Number(pKg || 0) / (50 * 0.46)); }
 
 function updateBagRecommendation() {
-    const crop   = document.getElementById('ureaCrop')?.value;
-    const season = document.getElementById('ureaSeason')?.value;
-    const year   = document.getElementById('ureaYear')?.value;
-    const khatha = getCurrentKhatha();
+    // Get crop — check auto-fill input first, then select
+    const cropInpEl = document.getElementById('ureaCropInput');
+    const cropSelEl = document.getElementById('ureaCrop');
+    let crop = '';
+    if (cropInpEl && cropInpEl.style.display !== 'none' && cropInpEl.value) {
+        // Extract raw crop name from display string like "Paddy (2.50 ac)"
+        crop = cropSelEl?.value || cropInpEl.value.split(' ')[0].toLowerCase();
+    } else {
+        crop = cropSelEl?.value || '';
+    }
+
+    const season = getCurrentSeason();
+    const year   = getCurrentYear();
 
     if (!crop || crop === '--Select Crop--') return;
     if (!season || season === '--Select Season--') return;
 
-    // ── Season-wise NPK lookup ──
     const cropRec = cropNPKRecommendations[crop];
     const rec     = cropRec ? (cropRec[season] || cropRec['Kharif']) : null;
     if (!rec) return;
 
-    const aadhaar    = cleanAadhaar(document.getElementById('ureaSearch')?.value);
-    const profExtent = getCropExtentFromProfile(aadhaar, khatha, crop);
-    const khathaExt  = Number(document.getElementById('ureaExtent')?.value || 0);
+    const aadhaar = cleanAadhaar(document.getElementById('ureaSearch')?.value || '');
 
-    const hasProfile = aadhaar.length === 12 && farmerProfiles[aadhaar] &&
-                       farmerProfiles[aadhaar].some(p => String(p.khatha) === String(khatha));
+    // ── Compute crop extent = sum across ALL khathas for this crop (filtered by season+year) ──
+    let extent = 0;
+    let profUsed = false;
+    let blocked  = false;
 
-    const blocked  = hasProfile && profExtent === null;
-    const extent   = profExtent !== null ? profExtent : (blocked ? 0 : khathaExt);
-    const profUsed = profExtent !== null;
+    if (aadhaar.length === 12 && farmerProfiles[aadhaar]?.length) {
+        const profiles = farmerProfiles[aadhaar];
+        let found = false;
+        profiles.forEach(p => {
+            (p.crops || []).forEach(c => {
+                if ((c.crop || '').toLowerCase().trim() !== crop.toLowerCase().trim()) return;
+                const yearMatch   = !year   || c.year   === year;
+                const seasonMatch = !season || c.season === season;
+                if (!yearMatch || !seasonMatch) return;
+                extent += Number(c.extent || 0);
+                found = true;
+            });
+        });
+        profUsed = found;
+        // If farmer has profiles but this crop doesn't appear in any → blocked
+        blocked = !found;
+    } else {
+        // Fallback to form extent
+        extent = Number(document.getElementById('ureaExtent')?.value || 0);
+    }
 
     const ureaBags = blocked ? 0 : Math.ceil((rec.N * extent) / 46 * 100 / 50);
     const dapBags  = blocked ? 0 : Math.ceil((rec.P * extent) / 46 * 100 / 50);
@@ -4085,36 +4305,40 @@ function updateBagRecommendation() {
     const ureaEligible  = document.getElementById('ureaBagsEligible');
     const dapEligible   = document.getElementById('dapBagsEligible');
     const ureaRemaining = document.getElementById('ureaRemainingBags');
-    const dapRemaining  = document.getElementById('dapRemainingBags');
 
     if (card) {
         if (blocked) {
             card.innerHTML = `
-                <span class="badge bg-danger fs-6">🚫 ${crop.toUpperCase()} not in farmer profile</span><br>
+                <span class="badge bg-danger fs-6">🚫 ${crop.toUpperCase()} not in farmer profile for ${season} ${year}</span><br>
                 <small class="text-danger">0 bags eligible. Update farmer profile to enable this crop.</small>
             `;
         } else {
+            const khathaStr = getAllKhathas().join(', ') || '—';
             card.innerHTML = `
                 <strong>Crop:</strong> ${crop.toUpperCase()} &nbsp;|&nbsp;
                 <strong>Season:</strong> ${season} &nbsp;|&nbsp;
                 <strong>Year:</strong> ${year || '—'}<br>
-                <strong>Extent:</strong> ${extent.toFixed(2)} Acres
-                ${profUsed
-                    ? '<span class="badge bg-info text-dark ms-1">📋 per-crop profile</span>'
-                    : '<span class="badge bg-warning text-dark ms-1">⚠️ total khatha extent</span>'}
-                <br>
-                <strong>N:</strong> ${rec.N} kg/ac (${season}) → <strong>Urea: ${ureaBags} bags</strong>
+                <strong>All Khathas:</strong> ${khathaStr} &nbsp;|&nbsp;
+                <strong>Total ${crop.toUpperCase()} Extent:</strong> ${extent.toFixed(2)} Ac
+                <span class="badge bg-info text-dark ms-1">📋 Profile cumulative</span><br>
+                <strong>N:</strong> ${rec.N} kg/ac → <strong>Urea: ${ureaBags} bags</strong>
                 &nbsp;|&nbsp;
-                <strong>P:</strong> ${rec.P} kg/ac (${season}) → <strong>DAP: ${dapBags} bags</strong>
+                <strong>P:</strong> ${rec.P} kg/ac → <strong>DAP: ${dapBags} bags</strong>
             `;
         }
     }
 
-    const fert      = getSelectedFertilizer();
-    const ureaGiven = khatha && crop ? getTotalBagsTakenByKhathaAndCrop(khatha, 'Urea', crop, season, year) : 0;
-    const dapGiven  = khatha && crop ? getTotalBagsTakenByKhathaAndCrop(khatha, 'DAP',  crop, season, year) : 0;
-    const ureaRem   = Math.max(0, ureaBags - ureaGiven);
-    const dapRem    = Math.max(0, dapBags  - dapGiven);
+    // ── Compute already-given across ALL khathas for this crop ──
+    const fert  = getSelectedFertilizer();
+    const allK  = getAllKhathas();
+    let ureaGiven = 0, dapGiven = 0;
+    allK.forEach(k => {
+        ureaGiven += getTotalBagsTakenByKhathaAndCrop(k, 'Urea', crop, season, year);
+        dapGiven  += getTotalBagsTakenByKhathaAndCrop(k, 'DAP',  crop, season, year);
+    });
+
+    const ureaRem = Math.max(0, ureaBags - ureaGiven);
+    const dapRem  = Math.max(0, dapBags  - dapGiven);
 
     if (fert === 'Urea') {
         if (ureaEligible)  ureaEligible.value  = ureaBags;
@@ -4124,41 +4348,270 @@ function updateBagRecommendation() {
         const noteEl = document.getElementById('ureaBagsEligibleToShow');
         if (noteEl) noteEl.textContent = blocked
             ? `🚫 ${crop.toUpperCase()} not in profile — 0 bags eligible`
-            : profUsed
-                ? `📋 Profile crop extent: ${extent.toFixed(2)} ac | N: ${rec.N} kg/ac | Eligible: ${ureaBags} | Given: ${ureaGiven} | Remaining: ${ureaRem}`
-                : `⚠️ Total khatha extent: ${extent.toFixed(2)} ac | N: ${rec.N} kg/ac | Eligible: ${ureaBags} | Given: ${ureaGiven} | Remaining: ${ureaRem}`;
+            : `📋 Total ${crop.toUpperCase()} extent: ${extent.toFixed(2)} ac | N: ${rec.N} kg/ac | Eligible: ${ureaBags} | Given: ${ureaGiven} | Remaining: ${ureaRem}`;
     } else if (fert === 'DAP') {
         if (dapEligible)  dapEligible.value  = dapBags;
-        // dapRemainingBags element doesn't exist in HTML — reuse the shared ureaRemainingBags field
         const sharedRemEl = document.getElementById('ureaRemainingBags');
         if (sharedRemEl) sharedRemEl.value = dapRem;
-        const bagsEl = document.getElementById('ureaBagsDist');  // shared bags input
+        const bagsEl = document.getElementById('ureaBagsDist');
         if (bagsEl) { bagsEl.max = dapRem; bagsEl.placeholder = `Max: ${dapRem} bags`; }
         const noteEl = document.getElementById('dapBagsEligibleToShow');
         if (noteEl) noteEl.textContent = blocked
             ? `🚫 ${crop.toUpperCase()} not in profile — 0 bags eligible`
-            : profUsed
-                ? `📋 Profile crop extent: ${extent.toFixed(2)} ac | P: ${rec.P} kg/ac | Eligible: ${dapBags} | Given: ${dapGiven} | Remaining: ${dapRem}`
-                : `⚠️ Total khatha extent: ${extent.toFixed(2)} ac | P: ${rec.P} kg/ac | Eligible: ${dapBags} | Given: ${dapGiven} | Remaining: ${dapRem}`;
+            : `📋 Total ${crop.toUpperCase()} extent: ${extent.toFixed(2)} ac | P: ${rec.P} kg/ac | Eligible: ${dapBags} | Given: ${dapGiven} | Remaining: ${dapRem}`;
     }
 
-    // ── Auto-fill Reg ID when crop + season selected ──
+    // ── Auto-fill Reg ID: use first khatha + crop match ──
     const regIdEl = document.getElementById('ureaRegId');
-    if (regIdEl && aadhaar && khatha) {
-        const profile    = getProfileForDistribution(aadhaar, khatha);
-        const cropEntry  = (profile?.crops || []).find(c =>
-            c.crop === crop && c.season === season
-        );
-        regIdEl.value = cropEntry?.registrationId || regIdEl.value || '';
+    if (regIdEl && aadhaar && allK.length && crop && season) {
+        let regId = '';
+        for (const k of allK) {
+            const profile = getProfileForDistribution(aadhaar, k);
+            const entry   = (profile?.crops || []).find(c =>
+                c.crop === crop && c.season === season
+            );
+            if (entry?.registrationId) { regId = entry.registrationId; break; }
+        }
+        if (regId) regIdEl.value = regId;
     }
 }
 
 // ✅ Fires when user changes Season or Crop Year — updates bags live
 function onYearOrSeasonChange() {
-    const k = getCurrentKhatha();
-    if (k) updateRemainingBagsDisplay(k);
+    const aadhaar = cleanAadhaar(document.getElementById("ureaSearch")?.value || '');
+    // Re-auto-populate crops based on new year/season selection
+    if (aadhaar.length === 12 && farmerProfiles[aadhaar]?.length) {
+        autoPopulateCrop(aadhaar);
+    }
+    const crop = document.getElementById('ureaCrop')?.value || document.getElementById('ureaCropInput')?.value || '';
+    if (crop) updateExtentForCrop(aadhaar, crop.toLowerCase().split(' ')[0]);
     updateBagRecommendation();
+    buildCropCumulativeSummary(aadhaar);
 }
+
+// ══════════════════════════════════════════════════════════════════
+//  CROP-WISE CUMULATIVE SUMMARY — shown during distribution
+//  Aggregates ALL khathas of a farmer, crop-by-crop
+// ══════════════════════════════════════════════════════════════════
+function buildCropCumulativeSummary(aadhaar) {
+    const panel  = document.getElementById('cropCumulativeSummary');
+    const tbody  = document.getElementById('cropCumulativeTbody');
+    const tfoot  = document.getElementById('cropCumulativeFoot');
+    const badge  = document.getElementById('cropSumFarmerBadge');
+    if (!panel || !tbody || !tfoot) return;
+
+    const a = cleanAadhaar(aadhaar);
+    const profiles = farmerProfiles[a];
+    if (!profiles || !profiles.length) { panel.classList.add('hidden'); return; }
+
+    const season = document.getElementById('ureaSeason')?.value || '';
+    const year   = document.getElementById('ureaYear')?.value   || '';
+
+    // ── Aggregate crop → { khathas:[], totalExtent, eligibleUrea, eligibleDAP, givenUrea, givenDAP }
+    const cropMap = {};
+
+    profiles.forEach(profile => {
+        const khatha = String(profile.khatha || '');
+        (profile.crops || []).forEach(cropEntry => {
+            const crop      = (cropEntry.crop || '').toLowerCase().trim();
+            const cropExtent = Number(cropEntry.extent || 0);
+            if (!crop) return;
+
+            // Use the season/year from the crop entry when form fields are empty
+            const useSeason = season || cropEntry.season || '';
+            const useYear   = year   || cropEntry.year   || '';
+
+            const cropRec = cropNPKRecommendations[crop];
+            const rec     = cropRec
+                ? (cropRec[useSeason] || cropRec['Kharif'] || Object.values(cropRec)[0])
+                : null;
+
+            const eligUrea = rec ? Math.ceil((rec.N * cropExtent) / 46 * 100 / 50) : 0;
+            const eligDAP  = rec ? Math.ceil((rec.P * cropExtent) / 46 * 100 / 50) : 0;
+
+            const givenUrea = getTotalBagsTakenByKhathaAndCrop(khatha, 'Urea', crop, useSeason, useYear);
+            const givenDAP  = getTotalBagsTakenByKhathaAndCrop(khatha, 'DAP',  crop, useSeason, useYear);
+
+            if (!cropMap[crop]) {
+                cropMap[crop] = {
+                    khathas: [], totalExtent: 0,
+                    eligibleUrea: 0, eligibleDAP: 0,
+                    givenUrea: 0,    givenDAP: 0
+                };
+            }
+            cropMap[crop].khathas.push(khatha);
+            cropMap[crop].totalExtent  += cropExtent;
+            cropMap[crop].eligibleUrea += eligUrea;
+            cropMap[crop].eligibleDAP  += eligDAP;
+            cropMap[crop].givenUrea    += givenUrea;
+            cropMap[crop].givenDAP     += givenDAP;
+        });
+    });
+
+    const crops = Object.keys(cropMap);
+    if (!crops.length) { panel.classList.add('hidden'); return; }
+
+    // ── Totals
+    let totExtent = 0, totEU = 0, totED = 0, totGU = 0, totGD = 0;
+
+    tbody.innerHTML = crops.map(crop => {
+        const d  = cropMap[crop];
+        const remU = Math.max(0, d.eligibleUrea - d.givenUrea);
+        const remD = Math.max(0, d.eligibleDAP  - d.givenDAP);
+        totExtent += d.totalExtent;
+        totEU     += d.eligibleUrea;
+        totED     += d.eligibleDAP;
+        totGU     += d.givenUrea;
+        totGD     += d.givenDAP;
+        const khathaList = [...new Set(d.khathas)].join(', ');
+        return `<tr>
+            <td class="px-2 py-1 fw-semibold">${crop.charAt(0).toUpperCase() + crop.slice(1)}</td>
+            <td class="px-2 py-1 text-center text-muted" style="font-size:0.78rem;">${khathaList}</td>
+            <td class="px-2 py-1 text-center">${d.totalExtent.toFixed(2)}</td>
+            <td class="px-2 py-1 text-center"><span class="badge bg-warning text-dark">${d.eligibleUrea}</span></td>
+            <td class="px-2 py-1 text-center"><span class="badge bg-info text-dark">${d.eligibleDAP}</span></td>
+            <td class="px-2 py-1 text-center text-secondary">${d.givenUrea}</td>
+            <td class="px-2 py-1 text-center text-secondary">${d.givenDAP}</td>
+            <td class="px-2 py-1 text-center"><span class="badge ${remU > 0 ? 'bg-success' : 'bg-danger'}">${remU}</span></td>
+            <td class="px-2 py-1 text-center"><span class="badge ${remD > 0 ? 'bg-success' : 'bg-danger'}">${remD}</span></td>
+        </tr>`;
+    }).join('');
+
+    tfoot.innerHTML = `<tr>
+        <td class="px-2 py-1" colspan="2">TOTAL</td>
+        <td class="px-2 py-1 text-center">${totExtent.toFixed(2)} Ac</td>
+        <td class="px-2 py-1 text-center">${totEU}</td>
+        <td class="px-2 py-1 text-center">${totED}</td>
+        <td class="px-2 py-1 text-center">${totGU}</td>
+        <td class="px-2 py-1 text-center">${totGD}</td>
+        <td class="px-2 py-1 text-center">${Math.max(0, totEU - totGU)}</td>
+        <td class="px-2 py-1 text-center">${Math.max(0, totED - totGD)}</td>
+    </tr>`;
+
+    if (badge) badge.textContent = `${profiles.length} Khatha(s) · ${crops.length} Crop(s)`;
+    panel.classList.remove('hidden');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  BUILD PRINT CROP SUMMARY TABLE (for both Farmer + Officer copy)
+// ══════════════════════════════════════════════════════════════════
+function buildPrintCropSummaryHTML(aadhaar, currentKhatha, currentCrop, currentBagsNow, season, year) {
+    const a        = cleanAadhaar(aadhaar);
+    const profiles = farmerProfiles[a];
+    if (!profiles || !profiles.length) return '';
+
+    // Aggregate crop-wise across all khathas
+    const cropMap = {};
+    profiles.forEach(profile => {
+        const khatha = String(profile.khatha || '');
+        (profile.crops || []).forEach(cropEntry => {
+            const crop       = (cropEntry.crop || '').toLowerCase().trim();
+            const cropExtent = Number(cropEntry.extent || 0);
+            if (!crop) return;
+
+            const useSeason = season || cropEntry.season || '';
+            const useYear   = year   || cropEntry.year   || '';
+            const cropRec   = cropNPKRecommendations[crop];
+            const rec       = cropRec
+                ? (cropRec[useSeason] || cropRec['Kharif'] || Object.values(cropRec)[0])
+                : null;
+
+            const eligUrea = rec ? Math.ceil((rec.N * cropExtent) / 46 * 100 / 50) : 0;
+            const eligDAP  = rec ? Math.ceil((rec.P * cropExtent) / 46 * 100 / 50) : 0;
+            const givenUrea = getTotalBagsTakenByKhathaAndCrop(khatha, 'Urea', crop, useSeason, useYear);
+            const givenDAP  = getTotalBagsTakenByKhathaAndCrop(khatha, 'DAP',  crop, useSeason, useYear);
+
+            if (!cropMap[crop]) cropMap[crop] = {
+                khathas: new Set(), extentMap: {}, eligUrea: 0, eligDAP: 0, givenUrea: 0, givenDAP: 0
+            };
+            cropMap[crop].khathas.add(khatha);
+            cropMap[crop].extentMap[khatha] = (cropMap[crop].extentMap[khatha] || 0) + cropExtent;
+            cropMap[crop].eligUrea  += eligUrea;
+            cropMap[crop].eligDAP   += eligDAP;
+            cropMap[crop].givenUrea += givenUrea;
+            cropMap[crop].givenDAP  += givenDAP;
+        });
+    });
+
+    const crops = Object.keys(cropMap);
+    if (!crops.length) return '';
+
+    const fert  = getSelectedFertilizer ? getSelectedFertilizer() : 'Urea';
+    const isDAP = fert === 'DAP';
+
+    // Build rows — highlight currently distributing crop
+    let totExt = 0, totElig = 0, totGiven = 0, totRemain = 0, totNow = 0;
+    const rows = crops.map(crop => {
+        const d   = cropMap[crop];
+        // Total extent for this crop across all khathas
+        let ext = 0;
+        d.khathas.forEach(k => { ext += d.extentMap[k] || 0; });
+        totExt += ext;
+        const elig   = isDAP ? d.eligDAP  : d.eligUrea;
+        const given  = isDAP ? d.givenDAP : d.givenUrea;
+        const remain = Math.max(0, elig - given);
+
+        // Bags distributing NOW only for the current crop being distributed
+        const isCurrentCrop  = crop === (currentCrop || '').toLowerCase().trim();
+        const nowBags        = isCurrentCrop ? Number(currentBagsNow || 0) : 0;
+        const remainAfterNow = Math.max(0, remain - nowBags);
+
+        totElig   += elig;
+        totGiven  += given;
+        totRemain += remain;
+        totNow    += nowBags;
+
+        const khathaStr = Array.from(d.khathas).join(', ');
+        const highlight = isCurrentCrop
+            ? 'background:#fff8e1; font-weight:700;'
+            : '';
+        const cropDisplay = crop.charAt(0).toUpperCase() + crop.slice(1);
+        return `<tr style="${highlight}">
+            <td style="padding:2px 5px; border:1px solid #bbb;">${cropDisplay}</td>
+            <td style="padding:2px 5px; border:1px solid #bbb; font-size:9px; color:#555;">${khathaStr}</td>
+            <td style="padding:2px 5px; border:1px solid #bbb; text-align:center;">${ext.toFixed(2)}</td>
+            <td style="padding:2px 5px; border:1px solid #bbb; text-align:center; font-weight:600;">${elig}</td>
+            <td style="padding:2px 5px; border:1px solid #bbb; text-align:center; color:#555;">${given}</td>
+            <td style="padding:2px 5px; border:1px solid #bbb; text-align:center; color:#1976d2; font-weight:${isCurrentCrop ? '800' : '400'};">${isCurrentCrop ? '✅ ' + nowBags : '—'}</td>
+            <td style="padding:2px 5px; border:1px solid #bbb; text-align:center; color:${remainAfterNow > 0 ? '#2e7d32' : '#c62828'}; font-weight:600;">${remainAfterNow}</td>
+        </tr>`;
+    }).join('');
+
+    const totRemainFinal = Math.max(0, totRemain - totNow);
+    const headerBg = isDAP ? '#1565c0' : '#33691e';
+
+    return `
+    <div style="margin-top:6px;">
+        <div style="background:${headerBg}; color:#fff; font-size:9.5px; font-weight:700; padding:3px 6px; border-radius:4px 4px 0 0;">
+            📊 All Khathas — Crop-wise ${fert} Summary (${season} ${year})
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:9.5px;">
+            <thead>
+                <tr style="background:#f5f5f5;">
+                    <th style="padding:2px 5px; border:1px solid #bbb; text-align:left;">Crop</th>
+                    <th style="padding:2px 5px; border:1px solid #bbb;">Khathas</th>
+                    <th style="padding:2px 5px; border:1px solid #bbb; text-align:center;">Extent (Ac)</th>
+                    <th style="padding:2px 5px; border:1px solid #bbb; text-align:center;">Eligible</th>
+                    <th style="padding:2px 5px; border:1px solid #bbb; text-align:center;">Given So Far</th>
+                    <th style="padding:2px 5px; border:1px solid #bbb; text-align:center;">Distributing Now</th>
+                    <th style="padding:2px 5px; border:1px solid #bbb; text-align:center;">Remaining</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+            <tfoot>
+                <tr style="background:#e8f5e9; font-weight:700; font-size:9.5px;">
+                    <td style="padding:2px 5px; border:1px solid #bbb;" colspan="2">TOTAL</td>
+                    <td style="padding:2px 5px; border:1px solid #bbb; text-align:center;">${totExt.toFixed(2)} Ac</td>
+                    <td style="padding:2px 5px; border:1px solid #bbb; text-align:center;">${totElig}</td>
+                    <td style="padding:2px 5px; border:1px solid #bbb; text-align:center;">${totGiven}</td>
+                    <td style="padding:2px 5px; border:1px solid #bbb; text-align:center; color:#1976d2;">${totNow}</td>
+                    <td style="padding:2px 5px; border:1px solid #bbb; text-align:center; color:${totRemainFinal > 0 ? '#2e7d32' : '#c62828'};">${totRemainFinal}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>`;
+}
+
 
 function searchUreaFarmer() {
     setSelectedFertilizerKey();
@@ -4166,7 +4619,7 @@ function searchUreaFarmer() {
     const data = getCurrentFertData();
     const a    = cleanAadhaar(document.getElementById("ureaSearch")?.value);
     const aadhaarCheck = validateAadhaar(a);
-if (!aadhaarCheck.valid) return alert(aadhaarCheck.msg);
+    if (!aadhaarCheck.valid) return alert(aadhaarCheck.msg);
 
     showAadhaarHistory(a);
 
@@ -4175,156 +4628,70 @@ if (!aadhaarCheck.valid) return alert(aadhaarCheck.msg);
 
     // ✅ If NO profile at all — block and prompt user to create profile
     if (!profiles || !profiles.length) {
-        // Hide the form fields since we can't proceed
         document.getElementById("ureaFields")?.classList.add("hidden");
         const goToProfile = confirm(
             `⚠️ Farmer Profile Not Created!\n\nAadhaar: ${a}\n\nNo farmer profile found for this Aadhaar number.\nPlease create the farmer profile first before distributing fertilizer.\n\nClick OK to go to Farmer Profile section.`
         );
         if (goToProfile) {
             showSection('farmerProfileSection');
-            // Pre-fill Aadhaar in farmer profile form if available
             const fpAadhaarEl = document.getElementById('fpAadhaar');
-            if (fpAadhaarEl) {
-                fpAadhaarEl.value = a;
-            }
+            if (fpAadhaarEl) fpAadhaarEl.value = a;
         }
         return;
     }
 
     document.getElementById("ureaFields")?.classList.remove("hidden");
+    _isManualEntry = false;
 
-    if (profiles && profiles.length) {
-        // Auto-fill name/father/mobile from first profile entry
-        const fp = profiles[0];
-        document.getElementById("ureaFarmerName").value    = fp.farmerName || '';
-        document.getElementById("ureaFatherName").value    = fp.fatherName || '';
-        document.getElementById("ureaMobile").value        = fp.mobile     || '';
-        document.getElementById("ureaFarmerName").readOnly = true;
-        document.getElementById("ureaFatherName").readOnly = true;
+    // ── 1. Fill basic farmer info from first profile ──
+    const fp = profiles[0];
+    document.getElementById("ureaFarmerName").value    = fp.farmerName || '';
+    document.getElementById("ureaFatherName").value    = fp.fatherName || '';
+    document.getElementById("ureaMobile").value        = fp.mobile     || '';
+    document.getElementById("ureaFarmerName").readOnly = true;
+    document.getElementById("ureaFatherName").readOnly = true;
 
-        // Build khatha dropdown from profiles
-        const sel = document.getElementById("ureaKhathaSelect");
-        sel.innerHTML = '<option value="">--Select Khatha--</option>';
-        profiles.forEach(p => {
-            const opt       = document.createElement('option');
-            opt.value       = p.khatha;
-            opt.textContent = `Khatha ${p.khatha} (${p.crops.map(c => `${c.crop} ${c.extent}ac`).join(', ')})`;
-            sel.appendChild(opt);
-        });
+    // ── 2. Auto-populate ALL khathas from all profiles ──
+    const allKhathas = profiles.map(p => String(p.khatha)).filter(Boolean);
+    const uniqueKhathas = [...new Set(allKhathas)];
 
-        document.getElementById("ureaKhathaInput").style.display  = "none";
-        document.getElementById("ureaKhathaSelect").style.display = "block";
-        document.getElementById("ureaExtent").value        = '';
-        document.getElementById("ureaBagsEligible").value  = '';
-        document.getElementById("ureaRemainingBags").value = '';
-        document.getElementById("ureaCrop").value          = '';
-        document.getElementById("cropRecommendationCard").innerHTML =
-            'Select Khatha and Crop to auto-calculate eligible bags.';
-        _isManualEntry = false;
+    const khathaInpEl  = document.getElementById('ureaKhathaInput');
+    const khathaHidden = document.getElementById('ureaKhathaHidden');
+    const khathaNote   = document.getElementById('ureaKhathaNote');
+    const khathaBadge  = document.getElementById('khathaCountBadge');
 
-    } else if (Object.keys(data).length > 0) {
-        // Fallback: search in 1B file
-        const matches = Object.values(data).filter(g =>
-            toArray(g.farmers).some(f => cleanAadhaar(f["Aadhaar"]) === a)
-        );
+    if (khathaInpEl) khathaInpEl.value = uniqueKhathas.join(', ');
+    if (khathaHidden) khathaHidden.value = uniqueKhathas.join(',');
 
-        if (matches.length > 1) {
-            _isManualEntry = false;
-            const f = toArray(matches[0].farmers).find(x => cleanAadhaar(x["Aadhaar"]) === a);
-            document.getElementById("ureaFarmerName").value    = f?.["Farmer Name"] || '';
-            document.getElementById("ureaFatherName").value    = f?.["Father Name"]  || '';
-            document.getElementById("ureaFarmerName").readOnly = true;
-            document.getElementById("ureaFatherName").readOnly = true;
-
-            const sel = document.getElementById("ureaKhathaSelect");
-            sel.innerHTML = '<option value="">--Select Khatha--</option>';
-            matches.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m.khatha;
-                opt.textContent = `Khatha ${m.khatha} (Extent: ${Number(m.extent||0).toFixed(2)})`;
-                sel.appendChild(opt);
-            });
-            document.getElementById("ureaKhathaInput").style.display  = "none";
-            document.getElementById("ureaKhathaSelect").style.display = "block";
-            document.getElementById("ureaExtent").value = '';
-            document.getElementById("ureaCrop").value   = '';
-
-        } else if (matches.length === 1) {
-            _isManualEntry = false;
-            const match = matches[0];
-            const f     = toArray(match.farmers).find(x => cleanAadhaar(x["Aadhaar"]) === a);
-            document.getElementById("ureaFarmerName").value           = f?.["Farmer Name"] || '';
-            document.getElementById("ureaFatherName").value           = f?.["Father Name"]  || '';
-            document.getElementById("ureaFarmerName").readOnly        = true;
-            document.getElementById("ureaFatherName").readOnly        = true;
-            document.getElementById("ureaKhathaInput").value          = match.khatha;
-            document.getElementById("ureaKhathaInput").style.display  = "block";
-            document.getElementById("ureaKhathaSelect").style.display = "none";
-            document.getElementById("ureaExtent").value       = Number(match.extent||0).toFixed(2);
-            document.getElementById("ureaBagsEligible").value = match.bagsEligible || 0;
-            document.getElementById("ureaCrop").value         = '';
-            updateRemainingBagsDisplay(match.khatha);
-
-        } else {
-            _isManualEntry = true;
-            document.getElementById("ureaFarmerName").value           = '';
-            document.getElementById("ureaFatherName").value           = '';
-            document.getElementById("ureaMobile").value               = '';
-            document.getElementById("ureaFarmerName").readOnly        = false;
-            document.getElementById("ureaFatherName").readOnly        = false;
-            document.getElementById("ureaKhathaInput").style.display  = "none";
-            document.getElementById("ureaKhathaSelect").style.display = "block";
-            document.getElementById("ureaExtent").value        = '';
-            document.getElementById("ureaBagsEligible").value  = '';
-            document.getElementById("ureaRemainingBags").value = '';
-            document.getElementById("ureaCrop").value          = '';
-            document.getElementById("cropRecommendationCard").innerHTML =
-                'Select crop and season to auto-calculate eligible Urea/DAP bags.';
-            refreshKhathaDropdown();
-            setTimeout(() => alert(`⚠️ No profile or 1B record found for this Aadhaar. Enter manually.`), 100);
-        }
+    if (uniqueKhathas.length > 1) {
+        if (khathaBadge) { khathaBadge.textContent = `${uniqueKhathas.length} Khathas`; khathaBadge.style.display = 'inline'; }
+        if (khathaNote)  khathaNote.textContent = `All khathas from profile auto-populated`;
     } else {
-        _isManualEntry = true;
-        document.getElementById("ureaFarmerName").readOnly        = false;
-        document.getElementById("ureaFatherName").readOnly        = false;
-        document.getElementById("ureaKhathaInput").style.display  = "none";
-        document.getElementById("ureaKhathaSelect").style.display = "block";
-        refreshKhathaDropdown();
-        setTimeout(() => alert(`⚠️ No profile found and no 1B file uploaded. Enter manually.`), 100);
+        if (khathaBadge) khathaBadge.style.display = 'none';
+        if (khathaNote)  khathaNote.textContent = '';
     }
 
+    // ── 3. Compute total cumulative extent across all khathas ──
+    const totalExtent = profiles.reduce((sum, p) => sum + Number(p.extent || 0), 0);
+    // (actual extent will be set crop-wise after crop selection)
+
+    // ── 4. Auto-populate Year / Season ──
+    autoPopulateYearSeason(a);
+
+    // ── 5. Auto-populate Crop (based on year+season) ──
+    autoPopulateCrop(a);
+
+    // ── 6. Build cumulative summary table ──
+    buildCropCumulativeSummary(a);
     updateBagRecommendation();
 }
 
+// Note: khathaSelect dropdown removed — khathas are now auto-populated from profile
+// The following block is kept as a stub for backward compatibility
 const khathaSelect = document.getElementById("ureaKhathaSelect");
 if (khathaSelect) {
     khathaSelect.addEventListener("change", e => {
-        const k    = e.target.value;
-        const a    = cleanAadhaar(document.getElementById("ureaSearch")?.value);
-        const data = getCurrentFertData();
-
-        if (k) {
-            // Get extent from profile if available, else from 1B data
-            const profile = getProfileForDistribution(a, k);
-            const ext     = profile ? profile.extent : Number(data[k]?.extent || 0);
-
-            document.getElementById("ureaExtent").value       = parseFloat(ext).toFixed(2);
-            document.getElementById("ureaBagsEligible").value = data[k]?.bagsEligible || 0;
-            updateRemainingBagsDisplay(k);
-
-            // If profile has crops, restrict crop dropdown to only those crops
-            const cropEl = document.getElementById('ureaCrop');
-            if (profile && profile.crops.length && cropEl) {
-                const currentVal = cropEl.value;
-                cropEl.innerHTML = '<option value="">-- Select Crop --</option>' +
-                    profile.crops.map(c =>
-                        `<option value="${c.crop}" ${currentVal === c.crop ? 'selected' : ''}>${c.crop.charAt(0).toUpperCase() + c.crop.slice(1)} (${c.extent} ac)</option>`
-                    ).join('');
-            }
-        } else {
-            document.getElementById("ureaBagsEligible").value             = '';
-            document.getElementById("ureaBagsEligibleToShow").textContent = '';
-        }
+        // Legacy handler — no longer used in new profile-driven flow
         updateBagRecommendation();
     });
 }
@@ -4442,133 +4809,159 @@ function stampPrintReceipt(rec, isReprint) {
 
 function recordDistribution() {
     setSelectedFertilizerKey();
-    const k    = getCurrentKhatha();
+
+    // ── Read khatha(s) — all khathas from hidden field ──
+    const allKhathas = getAllKhathas();
+    const khathaStr  = allKhathas.join(', ');   // for display/print
+    const kFirst     = allKhathas[0] || '';      // for legacy record field
+
     const a    = cleanAadhaar(document.getElementById("ureaSearch")?.value);
     const n    = document.getElementById("ureaFarmerName")?.value.trim();
     const fn   = document.getElementById("ureaFatherName")?.value.trim();
     const m    = document.getElementById("ureaMobile")?.value.trim();
-    const e    = document.getElementById("ureaExtent")?.value.trim();
+    const e    = document.getElementById("ureaExtent")?.value.trim(); // crop-specific extent
     const b    = document.getElementById("ureaBagsDist")?.value.trim();
     const d    = document.getElementById("ureaDate")?.value.trim();
-    const s    = document.getElementById("ureaSeason")?.value.trim();
-    const y    = document.getElementById("ureaYear")?.value.trim();
-    const crop = document.getElementById("ureaCrop")?.value || '';
+    const s    = getCurrentSeason();
+    const y    = getCurrentYear();
     const fert = selectedFertilizerKey;
+
+    // Get crop — check auto-fill input or dropdown
+    const cropInpEl = document.getElementById('ureaCropInput');
+    const cropSelEl = document.getElementById('ureaCrop');
+    let crop = '';
+    if (cropInpEl && cropInpEl.style.display !== 'none' && cropSelEl?.value) {
+        crop = cropSelEl.value;
+    } else if (cropSelEl?.value) {
+        crop = cropSelEl.value;
+    }
 
     if (!crop) return alert("Select crop.");
     if (!s)    return alert("Select season.");
     if (!y)    return alert("Select crop year.");
     if (!n || !fn || !m || !/^[0-9]{10}$/.test(m)) return alert("Check farmer details / mobile (10 digits).");
-    if (!k)    return alert("Select/enter Khatha.");
+    if (!allKhathas.length) return alert("No khathas found. Please create farmer profile first.");
     if (!b || Number(b) <= 0) return alert("Enter bags to distribute.");
 
+    // ── Compute eligible and given across ALL khathas for this crop ──
     let eligible = 0;
     if (fert === 'Urea')     eligible = Number(document.getElementById('ureaBagsEligible')?.value || 0);
     else if (fert === 'DAP') eligible = Number(document.getElementById('dapBagsEligible')?.value  || 0);
-    if (eligible === 0)      eligible = getEligibleBagsForKhatha(k);
 
-    const given  = getTotalBagsTakenByKhathaAndCrop(k, fert, crop, s, y);  // ✅ NEW
-const remain = Math.max(0, eligible - given);
+    let given = 0;
+    allKhathas.forEach(k => {
+        given += getTotalBagsTakenByKhathaAndCrop(k, fert, crop, s, y);
+    });
+    const remain = Math.max(0, eligible - given);
 
-// ✅ Block distribution if remaining is 0 for this crop
-if (remain === 0 && eligible > 0) {
-    return alert(`🚫 Distribution Not Allowed!\n\nKhatha ${k} — Crop [${crop.toUpperCase()}] has already received all ${eligible} eligible ${fert} bags for ${s} ${y}.\n\nRemaining bags: 0. No further distribution allowed for this crop.`);
-}
-
-if (Number(b) > remain && eligible > 0) {
-    return alert(`Khatha ${k} — Crop [${crop.toUpperCase()}] has only ${remain} ${fert} bags remaining for ${s} ${y}.`);
-}
+    if (remain === 0 && eligible > 0) {
+        return alert(`🚫 Distribution Not Allowed!\n\nAll ${eligible} eligible ${fert} bags for ${crop.toUpperCase()} (${s} ${y}) have already been distributed.\n\nRemaining: 0. No further distribution allowed.`);
+    }
+    if (Number(b) > remain && eligible > 0) {
+        return alert(`Only ${remain} ${fert} bags remaining for ${crop.toUpperCase()} (${s} ${y}).`);
+    }
 
     const sno = getNextSerialNo();
-const newRec = {
-    serialNo: sno, date: d, farmerName: n, fatherName: fn,
-    aadhaar: a, mobile: m, khatha: k, extent: e,
-    crop: crop, bags: b, season: s, year: y, fertilizerType: fert,
-    printCount: 1,
-    printToken: generatePrintToken({serialNo: sno, date: d, aadhaar: a, khatha: k, bags: b, fertilizerType: fert})
-};
-ureaHistory.push(newRec);
-saveToCloud();
+    const newRec = {
+        serialNo: sno, date: d, farmerName: n, fatherName: fn,
+        aadhaar: a, mobile: m,
+        khatha:    khathaStr,    // ← all khathas stored
+        khathaAll: khathaStr,    // ← explicit all-khathas field
+        extent: e,
+        crop: crop, bags: b, season: s, year: y, fertilizerType: fert,
+        printCount: 1,
+        printToken: generatePrintToken({serialNo: sno, date: d, aadhaar: a, khatha: kFirst, bags: b, fertilizerType: fert})
+    };
+    ureaHistory.push(newRec);
+    saveToCloud();
 
-// ✅ Immediately refresh remaining bags display to show updated (possibly 0) value
-{
-    const _givenAfterSave = getTotalBagsTakenByKhathaAndCrop(k, fert, crop, s, y);
-    const _remainAfterSave = Math.max(0, eligible - _givenAfterSave);
-    const remElAfter = document.getElementById("ureaRemainingBags");
-    if (remElAfter) remElAfter.value = _remainAfterSave;
-    const noteElAfter = document.getElementById("ureaBagsEligibleToShow");
-    if (noteElAfter) noteElAfter.textContent = `Crop: ${crop.toUpperCase()} | Total: ${eligible} | Given [${fert}/${s}/${y}]: ${_givenAfterSave} | Remaining: ${_remainAfterSave}`;
-    const bagsElAfter = document.getElementById("ureaBagsDist");
-    if (bagsElAfter) { bagsElAfter.max = _remainAfterSave; bagsElAfter.placeholder = `Max: ${_remainAfterSave} bags`; }
-}
+    // ✅ Refresh remaining bags display
+    {
+        let _givenAfterSave = 0;
+        allKhathas.forEach(k => {
+            _givenAfterSave += getTotalBagsTakenByKhathaAndCrop(k, fert, crop, s, y);
+        });
+        const _remainAfterSave = Math.max(0, eligible - _givenAfterSave);
+        const remElAfter = document.getElementById("ureaRemainingBags");
+        if (remElAfter) remElAfter.value = _remainAfterSave;
+        const noteElAfter = document.getElementById("ureaBagsEligibleToShow");
+        if (noteElAfter) noteElAfter.textContent = `Crop: ${crop.toUpperCase()} | Total: ${eligible} | Given [${fert}/${s}/${y}]: ${_givenAfterSave} | Remaining: ${_remainAfterSave}`;
+        const bagsElAfter = document.getElementById("ureaBagsDist");
+        if (bagsElAfter) { bagsElAfter.max = _remainAfterSave; bagsElAfter.placeholder = `Max: ${_remainAfterSave} bags`; bagsElAfter.value = ''; }
+    }
 
-// ✅ Fill all print fields
-document.getElementById("printSerialNo").textContent   = sno;
-document.getElementById("printFertilizer").textContent = fert;
-document.getElementById("printFarmerName").textContent = n;
-document.getElementById("printFatherName").textContent = fn;
-document.getElementById("printMobile").textContent     = m;
-document.getElementById("printAadhaar").textContent    = a;
-document.getElementById("printKhatha").textContent     = k;
-document.getElementById("printExtent").textContent     = e;
-document.getElementById("printBags").textContent       = b;
-document.getElementById("printDate").textContent       = d;
+    // ✅ Fill all print fields — show ALL khathas and crop-specific extent
+    document.getElementById("printSerialNo").textContent   = sno;
+    document.getElementById("printFertilizer").textContent = fert;
+    document.getElementById("printFarmerName").textContent = n;
+    document.getElementById("printFatherName").textContent = fn;
+    document.getElementById("printMobile").textContent     = m;
+    document.getElementById("printAadhaar").textContent    = a;
+    document.getElementById("printKhatha").textContent     = khathaStr;  // ALL khathas
+    document.getElementById("printExtent").textContent     = e;          // crop extent
+    document.getElementById("printBags").textContent       = b;
+    document.getElementById("printDate").textContent       = d;
 
-// ✅ Mirror to Officer copy fields
-['Officer'].forEach(suffix => {
-    const s2 = suffix;
-    document.getElementById("printSerialNo"+s2).textContent   = sno;
-    document.getElementById("printFertilizer"+s2).textContent = fert;
-    document.getElementById("printFarmerName"+s2).textContent = n;
-    document.getElementById("printFatherName"+s2).textContent = fn;
-    document.getElementById("printMobile"+s2).textContent     = m;
-    document.getElementById("printAadhaar"+s2).textContent    = a;
-    document.getElementById("printKhatha"+s2).textContent     = k;
-    document.getElementById("printExtent"+s2).textContent     = e;
-    document.getElementById("printBags"+s2).textContent       = b;
-    document.getElementById("printDate"+s2).textContent       = d;
-});
+    // ✅ Inject crop-wise summary into both print copies
+    const _printSumHTML = buildPrintCropSummaryHTML(a, kFirst, crop, b, s, y);
+    const _pcsF = document.getElementById('printCropSummaryFarmer');
+    const _pcsO = document.getElementById('printCropSummaryOfficer');
+    if (_pcsF) _pcsF.innerHTML = _printSumHTML;
+    if (_pcsO) _pcsO.innerHTML = _printSumHTML;
 
-// ✅ Fill crop, season, year in print
-const printCropEl = document.getElementById("printCrop");
-const printSeasonEl = document.getElementById("printSeason");
-const printYearEl   = document.getElementById("printYear");
-if (printCropEl)   printCropEl.textContent   = crop ? crop.toUpperCase() : '—';
-if (printSeasonEl) printSeasonEl.textContent = s || '—';
-if (printYearEl)   printYearEl.textContent   = y || '—';
+    // ✅ Mirror to Officer copy fields
+    ['Officer'].forEach(suffix => {
+        const s2 = suffix;
+        document.getElementById("printSerialNo"+s2).textContent   = sno;
+        document.getElementById("printFertilizer"+s2).textContent = fert;
+        document.getElementById("printFarmerName"+s2).textContent = n;
+        document.getElementById("printFatherName"+s2).textContent = fn;
+        document.getElementById("printMobile"+s2).textContent     = m;
+        document.getElementById("printAadhaar"+s2).textContent    = a;
+        document.getElementById("printKhatha"+s2).textContent     = khathaStr;  // ALL khathas
+        document.getElementById("printExtent"+s2).textContent     = e;
+        document.getElementById("printBags"+s2).textContent       = b;
+        document.getElementById("printDate"+s2).textContent       = d;
+    });
 
-// ✅ Mirror crop/season/year to officer copy
-const printCropElO = document.getElementById("printCropOfficer");
-const printSeasonElO = document.getElementById("printSeasonOfficer");
-const printYearElO   = document.getElementById("printYearOfficer");
-if (printCropElO)   printCropElO.textContent   = crop ? crop.toUpperCase() : '—';
-if (printSeasonElO) printSeasonElO.textContent = s || '—';
-if (printYearElO)   printYearElO.textContent   = y || '—';
+    // ✅ Fill crop, season, year in print
+    const printCropEl = document.getElementById("printCrop");
+    const printSeasonEl = document.getElementById("printSeason");
+    const printYearEl   = document.getElementById("printYear");
+    if (printCropEl)   printCropEl.textContent   = crop ? crop.toUpperCase() : '—';
+    if (printSeasonEl) printSeasonEl.textContent = s || '—';
+    if (printYearEl)   printYearEl.textContent   = y || '—';
 
-// ✅ Set print title
-const titleEl = document.getElementById("printFormTitle");
-if (titleEl) titleEl.textContent = `${fert} Distribution`;
-const titleElO = document.getElementById("printFormTitleOfficer");
-if (titleElO) titleElO.textContent = `${fert} Distribution`;
+    const printCropElO = document.getElementById("printCropOfficer");
+    const printSeasonElO = document.getElementById("printSeasonOfficer");
+    const printYearElO   = document.getElementById("printYearOfficer");
+    if (printCropElO)   printCropElO.textContent   = crop ? crop.toUpperCase() : '—';
+    if (printSeasonElO) printSeasonElO.textContent = s || '—';
+    if (printYearElO)   printYearElO.textContent   = y || '—';
 
-// ✅ Fill Village + Mandal + Digital Signature from Firebase profile, then print
-const user = firebase.auth().currentUser;
+    // ✅ Set print title
+    const titleEl = document.getElementById("printFormTitle");
+    if (titleEl) titleEl.textContent = `${fert} Distribution`;
+    const titleElO = document.getElementById("printFormTitleOfficer");
+    if (titleElO) titleElO.textContent = `${fert} Distribution`;
 
-function _triggerPrint() {
-    stampPrintReceipt(newRec, false);
-    // Scale printArea to fit exactly one A4 page (210mm wide, 297mm tall at 96dpi ≈ 794×1123px)
-    const el = document.getElementById('printArea');
-    const A4_W = 794, A4_H = 1123;
-    el.style.width = A4_W + 'px';
-    el.style.transform = 'none';
-    const h = el.scrollHeight;
-    const scale = Math.min(A4_W / el.scrollWidth, A4_H / h, 1);
-    el.style.transform = 'scale(' + scale + ')';
-    el.style.transformOrigin = 'top left';
-    setTimeout(() => {
-        window.print();
-    }, 300);
-}
+    // ✅ Fill Village + Mandal + Digital Signature from Firebase profile, then print
+    const user = firebase.auth().currentUser;
+
+    function _triggerPrint() {
+        stampPrintReceipt(newRec, false);
+        const el = document.getElementById('printArea');
+        const A4_W = 794, A4_H = 1123;
+        el.style.width = A4_W + 'px';
+        el.style.transform = 'none';
+        const h = el.scrollHeight;
+        const scale = Math.min(A4_W / el.scrollWidth, A4_H / h, 1);
+        el.style.transform = 'scale(' + scale + ')';
+        el.style.transformOrigin = 'top left';
+        setTimeout(() => {
+            window.print();
+        }, 300);
+    }
 
 if (user) {
     database.ref(`users/${user.uid}/profile`).once('value').then(snap => {
@@ -4857,6 +5250,15 @@ function reprintDistribution(serialNo) {
     const titleElO = document.getElementById('printFormTitleOfficer');
     if (titleElO) titleElO.textContent = (rec.fertilizerType || 'Fertilizer') + ' Distribution — REPRINT';
 
+    // ✅ Inject crop-wise summary for reprint (bags now = 0 since already recorded)
+    const _reprintSumHTML = buildPrintCropSummaryHTML(
+        cleanAadhaar(rec.aadhaar), rec.khatha, rec.crop, 0, rec.season, rec.year
+    );
+    const _rpcsF = document.getElementById('printCropSummaryFarmer');
+    const _rpcsO = document.getElementById('printCropSummaryOfficer');
+    if (_rpcsF) _rpcsF.innerHTML = _reprintSumHTML;
+    if (_rpcsO) _rpcsO.innerHTML = _reprintSumHTML;
+
     // --- Fetch Firebase profile for Village, Mandal, Officer Name & Signature ---
     const _doReprint = () => {
         const printEl = document.getElementById('printArea');
@@ -5064,35 +5466,33 @@ function refreshUreaRegId() {
     if (!regIdEl) return;
 
     const aadhaar = cleanAadhaar(document.getElementById('ureaSearch')?.value);
-    const khatha  = document.getElementById('ureaKhathaSelect')?.value
-                 || document.getElementById('ureaKhathaInput')?.value;
-    const crop    = document.getElementById('ureaCrop')?.value;
-    const season  = document.getElementById('ureaSeason')?.value;
+    const allKhathas = getAllKhathas();
+    const crop    = document.getElementById('ureaCrop')?.value || '';
+    const season  = getCurrentSeason();
 
-    if (!aadhaar || aadhaar.length !== 12 || !khatha) {
+    if (!aadhaar || aadhaar.length !== 12 || !allKhathas.length) {
         regIdEl.value = ''; return;
     }
 
-    const profile = getProfileForDistribution(aadhaar, khatha);
-    if (!profile) { regIdEl.value = ''; return; }
+    // Look through all khathas for a matching reg ID
+    for (const k of allKhathas) {
+        const profile = getProfileForDistribution(aadhaar, k);
+        if (!profile) continue;
 
-    // Exact match: crop + season both selected
-    if (crop && season) {
-        const exact = (profile.crops || []).find(c =>
-            c.crop === crop && c.season === season
-        );
-        if (exact?.registrationId) { regIdEl.value = exact.registrationId; return; }
+        if (crop && season) {
+            const exact = (profile.crops || []).find(c =>
+                c.crop === crop && c.season === season
+            );
+            if (exact?.registrationId) { regIdEl.value = exact.registrationId; return; }
+        }
+        if (crop) {
+            const byCrop = (profile.crops || []).find(c => c.crop === crop && c.registrationId);
+            if (byCrop?.registrationId) { regIdEl.value = byCrop.registrationId; return; }
+        }
+        const first = (profile.crops || []).find(c => c.registrationId);
+        if (first?.registrationId) { regIdEl.value = first.registrationId; return; }
     }
-
-    // Partial match: only crop selected
-    if (crop) {
-        const byCrop = (profile.crops || []).find(c => c.crop === crop && c.registrationId);
-        if (byCrop?.registrationId) { regIdEl.value = byCrop.registrationId; return; }
-    }
-
-    // Fallback: first crop in profile with any reg ID
-    const first = (profile.crops || []).find(c => c.registrationId);
-    regIdEl.value = first?.registrationId || '';
+    regIdEl.value = '';
 }
 
 // --- FARMER PROFILE LOGIC ---
