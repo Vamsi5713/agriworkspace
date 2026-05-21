@@ -668,10 +668,14 @@
                            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,10)">
                 </div>
                 <div class="col-md-3 mb-2">
-                    <label>Registration ID:</label>
-                    <input type="text" id="ureaRegId" class="form-control bg-light"
-                           readonly placeholder="Auto-filled from profile"
-                           style="font-family:monospace; letter-spacing:0.5px; color:#1862ab; font-weight:600;">
+                    <label>Card Number: <span class="text-danger">*</span>
+                        <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">1 Aadhaar = 1 Card</span>
+                    </label>
+                    <input type="text" id="ureaCardNumber" class="form-control"
+                           placeholder="Enter Dept. of Agriculture Card No."
+                           style="font-family:monospace; letter-spacing:0.8px; color:#1862ab; font-weight:600; text-transform:uppercase;"
+                           oninput="this.value = this.value.toUpperCase()">
+                    <small class="text-muted" style="font-size:0.72rem;"><i class="fas fa-info-circle me-1"></i>Same card number for all khathas of this farmer</small>
                 </div>
             </div>
 
@@ -994,91 +998,140 @@
 
       <!-- Profile Section -->
 <div class="container hidden mt-4" id="profileSection" role="main">
-<div class="card p-4 mx-auto" style="max-width: 400px">
-    <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()">
-        <i class="fas fa-arrow-left me-2"></i> Back
-    </button>
-    <h2>Profile Settings</h2>
-    <form id="profileForm">
-        <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" id="profileEmail" class="form-control" readonly />
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Display Name</label>
-            <input type="text" id="profileDisplayName" class="form-control" />
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Mandal Name <span class="text-danger">*</span></label>
-            <input type="text" id="profileMandal" class="form-control" placeholder="Enter Mandal name" />
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Village Name <span class="text-danger">*</span></label>
-            <input type="text" id="profileVillage" class="form-control" placeholder="Enter Village name" />
-        </div>
-        <!-- Digital Signature Upload -->
-        <div class="mb-3">
-            <label class="form-label fw-semibold">
-                <i class="fas fa-signature me-1 text-primary"></i> Digital Signature
-                <small class="text-muted fw-normal">(printed on distribution receipts)</small>
-            </label>
-            <input type="file" id="profileSignatureInput" class="form-control" accept="image/*"
-                   onchange="previewSignature(this)" />
-            <div id="signaturePreviewBox" class="mt-2 text-center hidden">
-                <img id="signaturePreviewImg"
-                     src="" alt="Signature Preview"
-                     style="max-height:80px; max-width:220px; border:1px dashed #aaa;
-                            border-radius:6px; padding:4px; background:#fafafa;" />
-                <br>
-                <small class="text-success"><i class="fas fa-check-circle me-1"></i>Signature loaded</small>
-                <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2"
-                        onclick="clearSignature()">Remove</button>
-            </div>
-            <div id="signatureCurrentBox" class="mt-2 text-center hidden">
-                <p class="small text-muted mb-1">Current saved signature:</p>
-                <img id="signatureCurrentImg"
-                     src="" alt="Current Signature"
-                     style="max-height:80px; max-width:220px; border:1px dashed #aaa;
-                            border-radius:6px; padding:4px; background:#fafafa;" />
-                <br>
-                <button type="button" class="btn btn-outline-danger btn-sm mt-2"
-                        onclick="removeCloudSignature()">
-                    <i class="fas fa-cloud-download-alt me-1"></i>
-                    Remove Saved Signature from Cloud
-                </button>
-            </div>
-        </div>
+<div class="card p-0 mx-auto overflow-hidden" style="max-width: 540px; border-radius: 20px; box-shadow: 0 8px 32px rgba(24,98,171,0.12);">
 
-        <button type="submit" class="btn btn-primary w-100">Update Profile</button>
-        <button type="button" class="btn btn-outline-success w-100 mt-2" onclick="syncProfileToCloud()">
-            <i class="fas fa-cloud-upload-alt me-2"></i>Sync Profile to Cloud
-        </button>
-        <div id="profileSyncStatus" class="mt-2 hidden"></div>
-    </form>
-
-    <!-- Alert for missing mandal/village -->
-    <div id="profileLocationAlert" class="alert alert-warning mt-3 hidden">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        Please update your <strong>Mandal</strong> and <strong>Village</strong> name to use all features.
+    <!-- Header Banner -->
+    <div class="text-center py-4 px-4" style="background: linear-gradient(135deg, #1862ab 0%, #2980b9 100%);">
+        <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
+             style="width:64px;height:64px;background:rgba(255,255,255,0.2);">
+            <i class="fas fa-user-circle fa-2x text-white"></i>
+        </div>
+        <h5 class="text-white fw-bold mb-1 mt-1">Profile Settings</h5>
+        <p class="text-white-50 small mb-0">Update your officer details</p>
     </div>
 
-    <hr class="my-4"/>
-    <h4>Change Password</h4>
-    <form id="changePasswordForm">
-        <div class="mb-3">
-            <label class="form-label">Current Password</label>
-            <input type="password" id="currentPassword" class="form-control" required />
+    <div class="p-4">
+        <button class="btn btn-outline-secondary btn-sm mb-4" onclick="goBack()">
+            <i class="fas fa-arrow-left me-1"></i> Back
+        </button>
+
+        <form id="profileForm">
+            <!-- Email (readonly) -->
+            <div class="mb-3">
+                <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Email Address</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-envelope text-muted"></i></span>
+                    <input type="email" id="profileEmail" class="form-control border-start-0 bg-light" readonly />
+                </div>
+            </div>
+
+            <!-- Display Name -->
+            <div class="mb-3">
+                <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Display Name</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-user text-muted"></i></span>
+                    <input type="text" id="profileDisplayName" class="form-control border-start-0" placeholder="Your full name" />
+                </div>
+            </div>
+
+            <!-- Mandal + Village row -->
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Mandal <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-map-marker-alt text-muted"></i></span>
+                        <input type="text" id="profileMandal" class="form-control border-start-0" placeholder="Mandal name" />
+                    </div>
+                </div>
+                <div class="col-6">
+                    <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Village <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-home text-muted"></i></span>
+                        <input type="text" id="profileVillage" class="form-control border-start-0" placeholder="Village name" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Digital Signature -->
+            <div class="mb-3 p-3 rounded" style="background:#f8faff; border:1px dashed #90caf9;">
+                <label class="form-label fw-semibold mb-2">
+                    <i class="fas fa-signature me-1 text-primary"></i> Digital Signature
+                    <small class="text-muted fw-normal ms-1">(printed on receipts)</small>
+                </label>
+                <input type="file" id="profileSignatureInput" class="form-control form-control-sm" accept="image/*"
+                       onchange="previewSignature(this)" />
+                <div id="signaturePreviewBox" class="mt-2 text-center hidden">
+                    <img id="signaturePreviewImg"
+                         src="" alt="Signature Preview"
+                         style="max-height:70px; max-width:200px; border:1px dashed #aaa;
+                                border-radius:6px; padding:4px; background:#fafafa;" />
+                    <br>
+                    <small class="text-success"><i class="fas fa-check-circle me-1"></i>New signature ready to save</small>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2"
+                            onclick="clearSignature()">Remove</button>
+                </div>
+                <div id="signatureCurrentBox" class="mt-2 text-center hidden">
+                    <p class="small text-muted mb-1">Current saved signature:</p>
+                    <img id="signatureCurrentImg"
+                         src="" alt="Current Signature"
+                         style="max-height:70px; max-width:200px; border:1px dashed #aaa;
+                                border-radius:6px; padding:4px; background:#fafafa;" />
+                    <br>
+                    <button type="button" class="btn btn-outline-danger btn-sm mt-2"
+                            onclick="removeCloudSignature()">
+                        <i class="fas fa-trash-alt me-1"></i>
+                        Remove Saved Signature
+                    </button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary fw-semibold py-2" style="border-radius:12px;">
+                    <i class="fas fa-save me-2"></i>Update Profile
+                </button>
+                <button type="button" class="btn btn-outline-success fw-semibold" onclick="syncProfileToCloud()" style="border-radius:12px;">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>Sync to Cloud
+                </button>
+            </div>
+            <div id="profileSyncStatus" class="mt-2 hidden"></div>
+        </form>
+
+        <!-- Alert for missing mandal/village -->
+        <div id="profileLocationAlert" class="alert alert-warning mt-3 hidden" style="border-radius:12px;">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Please update your <strong>Mandal</strong> and <strong>Village</strong> name to use all features.
         </div>
-        <div class="mb-3">
-            <label class="form-label">New Password</label>
-            <input type="password" id="newPassword" class="form-control" required />
+
+        <hr class="my-4"/>
+
+        <!-- Change Password -->
+        <div class="p-3 rounded" style="background:#fff8f8; border:1px solid #ffc0c0; border-radius:12px !important;">
+            <h6 class="fw-bold text-danger mb-3"><i class="fas fa-lock me-2"></i>Change Password</h6>
+            <form id="changePasswordForm">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Current Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-key text-muted"></i></span>
+                        <input type="password" id="currentPassword" class="form-control border-start-0" required />
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">New Password</label>
+                        <input type="password" id="newPassword" class="form-control" required />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Confirm New</label>
+                        <input type="password" id="confirmNewPassword" class="form-control" required />
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-warning w-100 fw-semibold" style="border-radius:12px;">
+                    <i class="fas fa-lock me-2"></i>Change Password
+                </button>
+            </form>
         </div>
-        <div class="mb-3">
-            <label class="form-label">Confirm New</label>
-            <input type="password" id="confirmNewPassword" class="form-control" required />
-        </div>
-               <button type="submit" class="btn btn-warning w-100">Change Password</button>
-    </form>
+    </div>
 </div>
 </div>  <!-- closes id="profileSection" -->
 
@@ -1330,6 +1383,7 @@
                         <th style="width:115px">Father</th>
                         <th style="width:120px">Aadhaar</th>
                         <th style="width:100px">Mobile</th>
+                        <th style="width:110px">Card No.</th>
                         <th style="width:80px">Khatha</th>
                         <th style="width:65px">Extent(ac)</th>
                         <th style="width:55px">Bags</th>
@@ -1379,6 +1433,7 @@
                         <th style="width:130px">Name</th>
                         <th style="width:115px">Father</th>
                         <th style="width:100px">Mobile</th>
+                        <th style="width:110px">Card No.</th>
                         <th style="width:80px">Khatha</th>
                         <th style="width:65px">Extent(ac)</th>
                         <th style="width:55px">Bags</th>
@@ -1457,8 +1512,9 @@
                 <td style="padding:4px 7px; border:1px solid #333;"><strong>Fertilizer:</strong> <span id="printFertilizer" style="font-weight:600; color:#d32f2f;"></span></td>
             </tr>
             <tr>
-                <td colspan="2" style="padding:4px 7px; border:1px solid #333; background:#fffde7;">
-                    <strong>Reg ID:</strong> <span id="printRegId" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:11px;">—</span>
+                <td colspan="2" style="padding:4px 7px; border:1px solid #333; background:#e8f5e9;">
+                    <strong>🪪 Card Number:</strong> <span id="printCardNumber" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:12px; letter-spacing:1px;">—</span>
+                    &nbsp;&nbsp;<small style="color:#888; font-size:9px;">(Dept. of Agriculture)</small>
                 </td>
             </tr>
             <tr>
@@ -1557,8 +1613,9 @@
                 <td style="padding:4px 7px; border:1px solid #333;"><strong>Fertilizer:</strong> <span id="printFertilizerOfficer" style="font-weight:600; color:#d32f2f;"></span></td>
             </tr>
             <tr>
-                <td colspan="2" style="padding:4px 7px; border:1px solid #333; background:#fffde7;">
-                    <strong>Reg ID:</strong> <span id="printRegIdOfficer" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:11px;">—</span>
+                <td colspan="2" style="padding:4px 7px; border:1px solid #333; background:#e8f5e9;">
+                    <strong>🪪 Card Number:</strong> <span id="printCardNumberOfficer" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:12px; letter-spacing:1px;">—</span>
+                    &nbsp;&nbsp;<small style="color:#888; font-size:9px;">(Dept. of Agriculture)</small>
                 </td>
             </tr>
             <tr>
@@ -1710,6 +1767,19 @@
           <label class="form-label fw-semibold">Father Name *</label>
           <input type="text" id="fpFather" class="form-control" placeholder="Father Name">
         </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">
+            <i class="fas fa-id-card me-1 text-primary"></i>Card Number
+            <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">Dept. of Agriculture</span>
+          </label>
+          <input type="text" id="fpCardNumber" class="form-control"
+                 placeholder="Card No. provided by Dept. of Agriculture"
+                 style="font-family:monospace; letter-spacing:0.8px; text-transform:uppercase;"
+                 oninput="this.value = this.value.toUpperCase()">
+          <small class="text-muted" style="font-size:0.72rem;">
+            <i class="fas fa-info-circle me-1"></i>1 card per Aadhaar — same number for all khathas
+          </small>
+        </div>
       </div>
 
       <!-- Row 2: Mobile, Khatha, Extent -->
@@ -1853,7 +1923,7 @@
                   <thead class="table-dark">
                       <tr>
                           <th style="width:45px">S.No</th>
-                          <th>Reg ID</th>
+                          <th>Card No.</th>
                           <th>Farmer Name</th>
                           <th>Father Name</th>
                           <th>Aadhaar</th>
@@ -4123,7 +4193,8 @@ function clearOneUreaRecord(sno) {
 function clearUreaForm() {
     ['ureaSearch', 'ureaFarmerName', 'ureaFatherName', 'ureaMobile',
      'ureaExtent', 'ureaBagsDist', 'ureaBagsEligible', 'ureaRemainingBags',
-     'dapBagsEligible', 'dapAlreadyGiven', 'dapRemainingBags', 'ureaAlreadyGiven'].forEach(id => {
+     'dapBagsEligible', 'dapAlreadyGiven', 'dapRemainingBags', 'ureaAlreadyGiven',
+     'ureaCardNumber'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -4562,17 +4633,7 @@ function updateBagRecommendation() {
         if (recBtn) { recBtn.disabled = true; recBtn.classList.add('btn-secondary'); recBtn.classList.remove('btn-success'); }
     }
 
-    const regIdEl = document.getElementById('ureaRegId');
-    if (regIdEl && aadhaar && crop && season) {
-        const allK = getAllKhathas();
-        let regId = '';
-        for (const k of allK) {
-            const profile = typeof getProfileForDistribution === 'function' ? getProfileForDistribution(aadhaar, k) : null;
-            const entry   = (profile?.crops || []).find(c => c.crop === crop && c.season === season);
-            if (entry?.registrationId) { regId = entry.registrationId; break; }
-        }
-        if (regId) regIdEl.value = regId;
-    }
+    buildCropCumulativeSummary(aadhaar);
 }
 
 function onYearOrSeasonChange() {
@@ -4864,6 +4925,13 @@ function searchUreaFarmer() {
     autoPopulateCrop(a);
     buildCropCumulativeSummary(a);
     updateBagRecommendation();
+
+    // ── Auto-fill Card Number from profile (same for all khathas) ──
+    const cardEl = document.getElementById('ureaCardNumber');
+    if (cardEl) {
+        const cardNumber = profiles.reduce((found, p) => found || p.cardNumber || '', '');
+        cardEl.value = cardNumber || '';
+    }
 }
 
 function generatePrintToken(rec) {
@@ -5012,6 +5080,7 @@ function recordDistribution() {
     }
 
     const sno = getNextSerialNo();
+    const cardNumber = (document.getElementById('ureaCardNumber')?.value.trim().toUpperCase()) || '—';
     const newRec = {
         serialNo: sno, date: d, farmerName: n, fatherName: fn,
         aadhaar: a, mobile: m,
@@ -5020,7 +5089,8 @@ function recordDistribution() {
         extent: e,
         crop: crop, bags: b, season: s, year: y, fertilizerType: fert,
         splitIndex: sIdx,       
-        splitName: splitName,   
+        splitName: splitName,
+        cardNumber: cardNumber,
         printCount: 1,
         printToken: generatePrintToken({serialNo: sno, date: d, aadhaar: a, khatha: kFirst, bags: b, fertilizerType: fert})
     };
@@ -5105,15 +5175,15 @@ function recordDistribution() {
     ureaEl.style.display  = "none";
     ureaEl.classList.add("hidden");
 
-    const printRegIdEl = document.getElementById("printRegId");
-    if (printRegIdEl) {
-        const regIdVal = document.getElementById('ureaRegId')?.value?.trim() || '—';
-        printRegIdEl.textContent = regIdVal;
+    const printCardEl = document.getElementById("printCardNumber");
+    if (printCardEl) {
+        const cardVal = document.getElementById('ureaCardNumber')?.value?.trim() || '—';
+        printCardEl.textContent = cardVal;
     }
-    const printRegIdElO = document.getElementById("printRegIdOfficer");
-    if (printRegIdElO) {
-        const regIdVal = document.getElementById('ureaRegId')?.value?.trim() || '—';
-        printRegIdElO.textContent = regIdVal;
+    const printCardElO = document.getElementById("printCardNumberOfficer");
+    if (printCardElO) {
+        const cardVal = document.getElementById('ureaCardNumber')?.value?.trim() || '—';
+        printCardElO.textContent = cardVal;
     }
 
     const restoreAfterPrint = () => {
@@ -5180,12 +5250,12 @@ function recordDistribution() {
 function exportUreaData() {
     if (!ureaHistory.length) return alert("No history.");
 
-    const rows = [['S.No','Date','Fertilizer','Crop','Name','Father','Aadhaar','Mobile','Khatha','Extent','Bags','Season','Year']];
+    const rows = [['S.No','Date','Fertilizer','Crop','Name','Father','Aadhaar','Mobile','Card No.','Khatha','Extent','Bags','Season','Year']];
     ureaHistory.forEach(r => {
         rows.push([
             r.serialNo||'', r.date||'', r.fertilizerType||'Urea', r.crop||'',
             r.farmerName||'', r.fatherName||'', r.aadhaar||'', r.mobile||'',
-            r.khatha||'', r.extent||'', r.bags||'', r.season||'', r.year||''
+            r.cardNumber||'', r.khatha||'', r.extent||'', r.bags||'', r.season||'', r.year||''
         ]);
     });
 
@@ -5210,6 +5280,7 @@ function renderHistoryRows(rec) {
             <td>${r.fatherName||""}</td>
             <td>${r.aadhaar||""}</td>
             <td>${r.mobile||""}</td>
+            <td><code style="font-size:0.78rem; color:#1562ab; font-weight:600;">${r.cardNumber||"—"}</code></td>
             <td>${r.khatha||""}</td>
             <td>${r.extent||""}</td>
             <td><span class="badge bg-primary">${r.bags||""}</span></td>
@@ -5264,6 +5335,7 @@ function showAadhaarHistory(a) {
             <td>${r.farmerName||""}</td>
             <td>${r.fatherName||""}</td>
             <td>${r.mobile||""}</td>
+            <td><code style="font-size:0.78rem; color:#1562ab; font-weight:600;">${r.cardNumber||"—"}</code></td>
             <td>${r.khatha||""}</td>
             <td>${r.extent||""}</td>
             <td><span class="badge bg-primary">${r.bags||""}</span></td>
@@ -5318,21 +5390,16 @@ function reprintDistribution(serialNo) {
 
     let regIdForPrint = '—';
     const aadhaarClean = cleanAadhaar(rec.aadhaar);
-    if (aadhaarClean && farmerProfiles[aadhaarClean]) {
+    // Get card number: first from record itself, then from profile
+    let cardForPrint = rec.cardNumber || '—';
+    if (cardForPrint === '—' && aadhaarClean && farmerProfiles[aadhaarClean]) {
         const profiles = farmerProfiles[aadhaarClean];
-        const matchProfile = profiles.find(p => String(p.khatha) === String(rec.khatha));
-        if (matchProfile && matchProfile.crops) {
-            const exactCrop = matchProfile.crops.find(c =>
-                c.crop === rec.crop && c.season === rec.season && c.registrationId
-            );
-            const anyCrop = matchProfile.crops.find(c => c.registrationId);
-            regIdForPrint = (exactCrop || anyCrop)?.registrationId || '—';
-        }
+        cardForPrint = profiles.reduce((found, p) => found || p.cardNumber || '', '') || '—';
     }
 
     setText('printSerialNo',   String(rec.serialNo || '—'));
     setText('printFertilizer', rec.fertilizerType || 'Urea');
-    setText('printRegId',      regIdForPrint);
+    setText('printCardNumber', cardForPrint);
     setText('printFarmerName', rec.farmerName  || '');
     setText('printFatherName', rec.fatherName  || '');
     setText('printAadhaar',    rec.aadhaar     || '');
@@ -5351,7 +5418,7 @@ function reprintDistribution(serialNo) {
 
     setText('printSerialNoOfficer',   String(rec.serialNo || '—'));
     setText('printFertilizerOfficer', rec.fertilizerType || 'Urea');
-    setText('printRegIdOfficer',      regIdForPrint);
+    setText('printCardNumberOfficer', cardForPrint);
     setText('printFarmerNameOfficer', rec.farmerName  || '');
     setText('printFatherNameOfficer', rec.fatherName  || '');
     setText('printAadhaarOfficer',    rec.aadhaar     || '');
@@ -5561,38 +5628,10 @@ function generateRegistrationId(year, season, aadhaar) {
 }
 
 function refreshUreaRegId() {
-    const regIdEl = document.getElementById('ureaRegId');
-    if (!regIdEl) return;
-
-    const aadhaar = cleanAadhaar(document.getElementById('ureaSearch')?.value);
-    const allKhathas = getAllKhathas();
-    const crop    = document.getElementById('ureaCrop')?.value || '';
-    const season  = getCurrentSeason();
-
-    if (!aadhaar || aadhaar.length !== 12 || !allKhathas.length) {
-        regIdEl.value = ''; return;
-    }
-
-    // Look through all khathas for a matching reg ID
-    for (const k of allKhathas) {
-        const profile = getProfileForDistribution(aadhaar, k);
-        if (!profile) continue;
-
-        if (crop && season) {
-            const exact = (profile.crops || []).find(c =>
-                c.crop === crop && c.season === season
-            );
-            if (exact?.registrationId) { regIdEl.value = exact.registrationId; return; }
-        }
-        if (crop) {
-            const byCrop = (profile.crops || []).find(c => c.crop === crop && c.registrationId);
-            if (byCrop?.registrationId) { regIdEl.value = byCrop.registrationId; return; }
-        }
-        const first = (profile.crops || []).find(c => c.registrationId);
-        if (first?.registrationId) { regIdEl.value = first.registrationId; return; }
-    }
-    regIdEl.value = '';
+    // Card Number is now used instead of Registration ID.
+    // Card Number is entered manually and synced from farmer profile.
 }
+
 
 // --- FARMER PROFILE LOGIC ---
 
@@ -5682,6 +5721,20 @@ async function saveFarmerProfile() {
         savedAt: new Date().toISOString()
     };
 
+    // ── Card Number: stored per-Aadhaar, same for all khathas ──
+    const cardNumEl = document.getElementById('fpCardNumber');
+    const newCardNumber = cardNumEl ? cardNumEl.value.trim().toUpperCase() : '';
+
+    // Carry forward existing card number if none entered
+    const existingCardNumber = (farmerProfiles[a] || []).reduce((found, p) => found || p.cardNumber || '', '');
+    if (newCardNumber) {
+        profileEntry.cardNumber = newCardNumber;
+        // Sync card number to ALL profiles of this aadhaar
+        (farmerProfiles[a] || []).forEach(p => { p.cardNumber = newCardNumber; });
+    } else if (existingCardNumber) {
+        profileEntry.cardNumber = existingCardNumber;
+    }
+
     if (existingIdx !== -1) {
         profileEntry.savedAt   = farmerProfiles[a][existingIdx].savedAt || new Date().toISOString();
         profileEntry.updatedAt = new Date().toISOString();
@@ -5689,8 +5742,8 @@ async function saveFarmerProfile() {
         alert(`✅ Profile updated for Aadhaar ${a} — Khatha ${k}.`);
     } else {
         farmerProfiles[a].push(profileEntry);
-        const regIds = crops.map(c => c.registrationId).join(', ');
-        alert(`✅ Profile saved!\nReg ID(s): ${regIds}`);
+        const cardMsg = profileEntry.cardNumber ? `\nCard No: ${profileEntry.cardNumber}` : '';
+        alert(`✅ Profile saved for Aadhaar ${a} — Khatha ${k}.${cardMsg}`);
     }
 
     saveToCloud();
@@ -5698,7 +5751,7 @@ async function saveFarmerProfile() {
 }
 
 function clearFarmerProfileForm() {
-    ['fpAadhaar','fpName','fpFather','fpMobile','fpExtent'].forEach(id => {
+    ['fpAadhaar','fpName','fpFather','fpMobile','fpExtent','fpCardNumber'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -6126,14 +6179,19 @@ function searchFpByAadhaar() {
 
     // STEP 6: Status message
     const profiles    = farmerProfiles[a];
+    // Auto-fill card number from existing profiles
+    const fpCardNumEl = document.getElementById('fpCardNumber');
+    if (fpCardNumEl && profiles?.length) {
+        const existingCard = profiles.reduce((found, p) => found || p.cardNumber || '', '');
+        if (existingCard && !fpCardNumEl.value.trim()) fpCardNumEl.value = existingCard;
+    }
+
     const profileInfo = profiles?.length
         ? `ℹ️ ${profiles.length} existing khatha profile(s) found. Select a Khatha to edit or add new.
            <ul class="mb-0 mt-1">${profiles.map(p =>
                `<li><strong>Khatha ${p.khatha}</strong> — ${(p.crops || []).map(c =>
-                   `${c.crop} (${c.extent}ac)${c.registrationId
-                       ? ` <code style="font-size:0.75rem">${c.registrationId}</code>`
-                       : ''}`
-               ).join(', ')}</li>`
+                   `${c.crop} (${c.extent}ac)`
+               ).join(', ')}${p.cardNumber ? ` <span class="badge bg-primary ms-1" style="font-size:0.7rem;">🪪 ${p.cardNumber}</span>` : ''}</li>`
            ).join('')}</ul>`
         : 'No existing profile — fill crops and save.';
 
@@ -6171,6 +6229,15 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
 
     document.getElementById('fpMobile').value = profile.mobile  || '';
     document.getElementById('fpKhatha').value = profile.khatha  || '';
+    // Load Card Number (per-aadhaar field)
+    const fpCardNumEl = document.getElementById('fpCardNumber');
+    if (fpCardNumEl) {
+        // Find card number from any profile for this aadhaar
+        const a = cleanAadhaar(profile.aadhaar);
+        const cardNum = profile.cardNumber ||
+            (farmerProfiles[a] || []).reduce((found, p) => found || p.cardNumber || '', '') || '';
+        fpCardNumEl.value = cardNum;
+    }
     // Also set the visible text input
     const khathaInp = document.getElementById('fpKhathaSearchInput');
     if (khathaInp) khathaInp.value = profile.khatha ? 'Khatha ' + profile.khatha : '';
@@ -6291,17 +6358,16 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
             ? `<span class="badge bg-primary" style="font-size:0.7rem">Owner</span>`
             : `<span class="badge bg-secondary" style="font-size:0.7rem">Tenant</span>`;
 
-        const regIds = (p.crops || []).map(c => c.registrationId
-            ? `<code class="d-block bg-light border rounded px-2 py-1 mb-1"
-                style="letter-spacing:0.4px; font-size:0.75rem; white-space:nowrap">
-                ${escapeHtml(c.registrationId)}
+        const cardNumberDisplay = p.cardNumber
+            ? `<code class="d-block bg-light border border-primary rounded px-2 py-1"
+                style="letter-spacing:0.8px; font-size:0.82rem; color:#1562ab; font-weight:700; white-space:nowrap">
+                🪪 ${escapeHtml(p.cardNumber)}
                </code>`
-            : `<span class="text-muted small d-block">—</span>`
-        ).join('');
+            : `<span class="text-muted small">—</span>`;
 
         return `<tr>
             <td class="text-center text-muted">${idx + 1}</td>
-            <td style="font-size:0.78rem; min-width:130px">${regIds}</td>
+            <td style="font-size:0.78rem; min-width:130px">${cardNumberDisplay}</td>
             <td style="min-width:140px">
                 <div class="fw-semibold" style="word-break:break-word">${escapeHtml(p.farmerName || '—')}</div>
                 ${typeBadge}
@@ -6413,7 +6479,7 @@ function deleteFarmerProfile(aadhaar, khatha) {
     if (!profile) return alert('Profile not found.');
 
     const cropList = (profile.crops || [])
-        .map(c => `• ${c.crop} (${c.extent}ac) — ${c.registrationId || 'no ID'}`)
+        .map(c => `• ${c.crop} (${c.extent}ac)`)
         .join('\n');
 
     const confirmed = confirm(
@@ -6479,6 +6545,7 @@ function exportAllFarmerProfiles() {
 
     const headers = [
         'S.No',
+        'Card Number',
         'Khatha Number',
         'Owner Name',
         'Owner Father Name',
@@ -6549,6 +6616,7 @@ function exportAllFarmerProfiles() {
         cropList.forEach((c) => {
             rows.push([
                 sno,
+                p.cardNumber || '',
                 khatha,
                 ownerName,
                 ownerFather,
@@ -6981,7 +7049,7 @@ function loadAdminData() {
                                                     <tr>
                                                         <th>S.No</th><th>Date</th><th>Farmer Name</th>
                                                         <th>Father Name</th><th>Aadhaar</th><th>Mobile</th>
-                                                        <th>Khatha</th><th>Extent</th><th>Bags</th>
+                                                        <th>Card No.</th><th>Khatha</th><th>Extent</th><th>Bags</th>
                                                         <th>Season</th><th>Year</th>
                                                     </tr>
                                                 </thead>
@@ -6994,6 +7062,7 @@ function loadAdminData() {
                                                         <td>${escapeHtml(r.fatherName || '')}</td>
                                                         <td><code style="font-size:0.8rem;">${escapeHtml(r.aadhaar || '')}</code></td>
                                                         <td>${escapeHtml(r.mobile || '')}</td>
+                                                        <td><code style="font-size:0.78rem;color:#1562ab;font-weight:600;">${escapeHtml(r.cardNumber || '—')}</code></td>
                                                         <td><span class="badge bg-secondary">${escapeHtml(String(r.khatha || ''))}</span></td>
                                                         <td>${escapeHtml(String(r.extent || ''))}</td>
                                                         <td><strong class="text-warning">${r.bags || 0}</strong></td>
@@ -7003,7 +7072,7 @@ function loadAdminData() {
                                                 </tbody>
                                                 <tfoot>
                                                     <tr class="table-light fw-bold">
-                                                        <td colspan="8" class="text-end">Total Bags:</td>
+                                                        <td colspan="9" class="text-end">Total Bags:</td>
                                                         <td class="text-warning">${u.ureaBags}</td>
                                                         <td colspan="2"></td>
                                                     </tr>
@@ -7033,7 +7102,7 @@ function loadAdminData() {
                                                     <tr>
                                                         <th>S.No</th><th>Date</th><th>Farmer Name</th>
                                                         <th>Father Name</th><th>Aadhaar</th><th>Mobile</th>
-                                                        <th>Khatha</th><th>Extent</th><th>Bags</th>
+                                                        <th>Card No.</th><th>Khatha</th><th>Extent</th><th>Bags</th>
                                                         <th>Season</th><th>Year</th>
                                                     </tr>
                                                 </thead>
@@ -7046,6 +7115,7 @@ function loadAdminData() {
                                                         <td>${escapeHtml(r.fatherName || '')}</td>
                                                         <td><code style="font-size:0.8rem;">${escapeHtml(r.aadhaar || '')}</code></td>
                                                         <td>${escapeHtml(r.mobile || '')}</td>
+                                                        <td><code style="font-size:0.78rem;color:#1562ab;font-weight:600;">${escapeHtml(r.cardNumber || '—')}</code></td>
                                                         <td><span class="badge bg-secondary">${escapeHtml(String(r.khatha || ''))}</span></td>
                                                         <td>${escapeHtml(String(r.extent || ''))}</td>
                                                         <td><strong class="text-info">${r.bags || 0}</strong></td>
@@ -7055,7 +7125,7 @@ function loadAdminData() {
                                                 </tbody>
                                                 <tfoot>
                                                     <tr class="table-light fw-bold">
-                                                        <td colspan="8" class="text-end">Total Bags:</td>
+                                                        <td colspan="9" class="text-end">Total Bags:</td>
                                                         <td class="text-info">${u.dapBags}</td>
                                                         <td colspan="2"></td>
                                                     </tr>
@@ -7094,11 +7164,11 @@ function exportAdminData() {
 
     const wb      = XLSX.utils.book_new();
     const headers = ['Date','Mandal','Village','Farmer','Father Name','Aadhaar',
-                     'Mobile','Khatha','Extent','Bags','Season','Year','Entered By'];
+                     'Mobile','Card No.','Khatha','Extent','Bags','Season','Year','Entered By'];
     const toRow   = r => [
         r.date||'', r.mandal||'', r.village||'', r.farmerName||'',
-        r.fatherName||'', r.aadhaar||'', r.mobile||'', r.khatha||'',
-        r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
+        r.fatherName||'', r.aadhaar||'', r.mobile||'', r.cardNumber||'',
+        r.khatha||'', r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
     ];
 
     if (allAdminData.length)
@@ -7118,11 +7188,11 @@ function exportFertilizerData(type) {
         return alert(`No ${type.toUpperCase()} data to export. Load admin data first.`);
 
     const headers = ['Date','Mandal','Village','Farmer','Father Name','Aadhaar',
-                     'Mobile','Khatha','Extent','Bags','Season','Year','Entered By'];
+                     'Mobile','Card No.','Khatha','Extent','Bags','Season','Year','Entered By'];
     const rows = dataToExport.map(r => [
         r.date||'', r.mandal||'', r.village||'', r.farmerName||'',
-        r.fatherName||'', r.aadhaar||'', r.mobile||'', r.khatha||'',
-        r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
+        r.fatherName||'', r.aadhaar||'', r.mobile||'', r.cardNumber||'',
+        r.khatha||'', r.extent||'', r.bags||'', r.season||'', r.year||'', r.email||''
     ]);
 
     const wb = XLSX.utils.book_new();
