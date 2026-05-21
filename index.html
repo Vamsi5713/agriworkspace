@@ -717,14 +717,14 @@
                            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,10)">
                 </div>
                 <div class="col-md-3 mb-2">
-                    <label>Card Number: <span class="text-danger">*</span>
-                        <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">1 Aadhaar = 1 Card</span>
+                    <label>Card Number:
+                        <span class="badge bg-secondary ms-1" style="font-size:0.65rem;"><i class="fas fa-lock me-1"></i>Auto from Profile</span>
                     </label>
-                    <input type="text" id="ureaCardNumber" class="form-control"
-                           placeholder="Enter Dept. of Agriculture Card No."
-                           style="font-family:monospace; letter-spacing:0.8px; color:#1862ab; font-weight:600; text-transform:uppercase;"
-                           oninput="this.value = this.value.toUpperCase()">
-                    <small class="text-muted" style="font-size:0.72rem;"><i class="fas fa-info-circle me-1"></i>Same card number for all khathas of this farmer</small>
+                    <input type="text" id="ureaCardNumber" class="form-control bg-light"
+                           placeholder="Auto-filled from farmer profile"
+                           readonly
+                           style="font-family:monospace; letter-spacing:0.8px; color:#1862ab; font-weight:600; text-transform:uppercase; cursor:not-allowed;">
+                    <small class="text-muted" style="font-size:0.72rem;"><i class="fas fa-info-circle me-1"></i>Set in Farmer Profile — same for all khathas</small>
                 </div>
             </div>
 
@@ -5067,11 +5067,24 @@ function searchUreaFarmer() {
     buildCropCumulativeSummary(a);
     updateBagRecommendation();
 
-    // ── Auto-fill Card Number from profile (same for all khathas) ──
+    // ── Auto-fill Card Number from profile (readonly — set in Farmer Profile) ──
     const cardEl = document.getElementById('ureaCardNumber');
     if (cardEl) {
         const cardNumber = profiles.reduce((found, p) => found || p.cardNumber || '', '');
-        cardEl.value = cardNumber || '';
+        cardEl.value    = cardNumber || '';
+        cardEl.readOnly = true;
+        cardEl.style.cursor = 'not-allowed';
+        // Show a hint if no card number exists yet
+        const cardSmall = cardEl.closest('.col-md-3')?.querySelector('small');
+        if (cardSmall) {
+            if (!cardNumber) {
+                cardSmall.innerHTML = '<i class="fas fa-exclamation-triangle text-warning me-1"></i>No card number in profile — add it in <strong>Farmer Profile</strong>';
+                cardSmall.style.color = '#e67e22';
+            } else {
+                cardSmall.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i>Auto-filled from farmer profile';
+                cardSmall.style.color = '';
+            }
+        }
     }
 }
 
