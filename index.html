@@ -211,6 +211,33 @@
     </head>
 <body>
 
+<!-- ☁️ CLOUD SYNC LOADING OVERLAY — shown while data loads on new device login -->
+<div id="cloudSyncOverlay" class="hidden" style="
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(24,98,171,0.92);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1.5rem; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 20px; padding: 2.5rem 3rem; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 360px; width: 90%;">
+        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1862ab,#27ae60);display:flex;align-items:center;justify-content:center;margin:0 auto 1.2rem;">
+            <i class="fas fa-cloud-download-alt fa-2x text-white"></i>
+        </div>
+        <h5 style="color:#1862ab;font-weight:700;margin-bottom:0.5rem;">Syncing Your Data</h5>
+        <p style="color:#7f8c8d;font-size:0.9rem;margin-bottom:1.5rem;">Loading your reports and entries from cloud…</p>
+        <div style="height:6px;background:#e0e6ed;border-radius:10px;overflow:hidden;">
+            <div id="syncProgressBar" style="height:100%;width:30%;background:linear-gradient(90deg,#1862ab,#27ae60);border-radius:10px;animation:syncPulse 1.4s ease-in-out infinite;"></div>
+        </div>
+        <p id="syncStatusText" style="color:#7f8c8d;font-size:0.8rem;margin-top:0.8rem;margin-bottom:0;">Connecting to server…</p>
+    </div>
+</div>
+
+<style>
+@keyframes syncPulse {
+    0%   { width: 20%; margin-left: 0%; }
+    50%  { width: 60%; margin-left: 20%; }
+    100% { width: 20%; margin-left: 80%; }
+}
+</style>
 
  <!-- Navigation Bar -->
       <div id="mainNavbar" class="hidden" role="navigation" aria-label="Main Navigation">
@@ -420,6 +447,28 @@
                </div>
                <!-- Right Column: Search & Utilities -->
                <div class="col-lg-4">
+
+                  <!-- ☁️ Cloud Sync Status Card -->
+                  <div id="cloudSyncStatusCard" class="card mb-3 border-0 shadow-sm" style="border-radius:16px; background: linear-gradient(135deg,#eaf4ff 0%,#f0fff4 100%);">
+                    <div class="card-body py-3 px-3">
+                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                          <div id="syncDot" style="width:10px;height:10px;border-radius:50%;background:#95a5a6;flex-shrink:0;transition:background 0.5s;"></div>
+                          <div>
+                            <div id="syncLabel" style="font-weight:600;font-size:0.85rem;color:#2c3e50;">&#9729;&#65039; Cloud Sync</div>
+                            <div id="syncSubLabel" style="font-size:0.75rem;color:#7f8c8d;">Waiting for data&hellip;</div>
+                          </div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                          <div id="syncCountBadges" class="d-flex gap-1 flex-wrap"></div>
+                          <button class="btn btn-sm btn-outline-primary" style="border-radius:20px;font-size:0.78rem;padding:3px 12px;" onclick="manualSyncNow()" title="Sync Now">
+                            <i class="fas fa-sync-alt me-1"></i>Sync
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div class="search-farmer-card sticky-lg-top" style="top: 100px;">
                      <h4 class="mb-4 text-primary"><i class="fas fa-search me-2"></i>Quick Search</h4>
                      <div class="mb-3">
@@ -2143,10 +2192,151 @@ function toArray(val) {
     return [];
 }
 
-    // --- CLOUD SYNC LOGIC ---
-let _cloudListenerUid = null;
+    // ============================================================
+    //  CLOUD SYNC LOGIC  (v2 — overlay + status card + retry)
+    // ============================================================
 
+let _cloudListenerUid = null;
+let _lastSyncTime     = null;
+let _syncRetryTimer   = null;
+
+// ── Overlay helpers ──────────────────────────────────────────
+function showSyncOverlay(msg) {
+    const ov = document.getElementById('cloudSyncOverlay');
+    const st = document.getElementById('syncStatusText');
+    if (ov) { ov.classList.remove('hidden'); ov.style.display = 'flex'; }
+    if (st) st.textContent = msg || 'Loading your data…';
+}
+function hideSyncOverlay() {
+    const ov = document.getElementById('cloudSyncOverlay');
+    if (ov) { ov.style.display = 'none'; ov.classList.add('hidden'); }
+}
+
+// ── Dashboard status card helpers ────────────────────────────
+function updateSyncStatusCard(state, message, sub) {
+    const dot   = document.getElementById('syncDot');
+    const label = document.getElementById('syncLabel');
+    const sub2  = document.getElementById('syncSubLabel');
+    const badges = document.getElementById('syncCountBadges');
+    if (!dot) return;
+
+    const colors = { synced: '#27ae60', syncing: '#f39c12', error: '#e74c3c', idle: '#95a5a6' };
+    dot.style.background = colors[state] || colors.idle;
+    if (label) label.textContent = state === 'synced' ? '☁️ Synced' : state === 'syncing' ? '☁️ Syncing…' : state === 'error' ? '⚠️ Sync Error' : '☁️ Cloud Sync';
+    if (sub2)  sub2.textContent = sub || message || '';
+
+    if (badges && state === 'synced') {
+        const rCount = Object.keys(allReportsCache || {}).length;
+        const pCount = Object.values(farmerProfiles || {}).reduce((s,a) => s + (a?.length||0), 0);
+        const hCount = (ureaHistory || []).length;
+        badges.innerHTML = [
+            rCount ? `<span class="badge bg-primary" style="font-size:0.7rem;" title="Reports">${rCount}R</span>` : '',
+            pCount ? `<span class="badge bg-success" style="font-size:0.7rem;" title="Profiles">${pCount}P</span>` : '',
+            hCount ? `<span class="badge bg-warning text-dark" style="font-size:0.7rem;" title="History">${hCount}H</span>` : ''
+        ].join('');
+    } else if (badges) {
+        badges.innerHTML = '';
+    }
+}
+
+// ── Manual Sync Now (dashboard button) ──────────────────────
+function manualSyncNow() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    updateSyncStatusCard('syncing', 'Syncing…', 'Refreshing all data…');
+    database.ref('users/' + user.uid).once('value').then(snap => {
+        _applyCloudSnapshot(snap);
+    }).catch(err => {
+        updateSyncStatusCard('error', '', 'Sync failed — check connection');
+        console.error('Manual sync error:', err);
+    });
+}
+
+// ── Core data application (shared by listener + manualSync) ──
+function _applyCloudSnapshot(snapshot) {
+    if (snapshot.exists()) {
+        const data = snapshot.val();
+
+        // 1. e-Panta Reports
+        allReportsCache = data.allReports || {};
+
+        // 2. 1B Uploaded Data
+        let rawUreaData = {};
+        if (data.ureaData) {
+            const keys = Object.keys(data.ureaData);
+            const fertNames = ['Urea', 'DAP', 'MOP', 'NPK', 'SSP', 'Other'];
+            const isNewStruct = keys.some(k => fertNames.includes(k));
+            rawUreaData = isNewStruct ? data.ureaData : { Urea: data.ureaData };
+        }
+        ureaData = fixUreaDataFromFirebase(rawUreaData);
+
+        uploadedFertilizers = {};
+        Object.keys(ureaData).forEach(fert => {
+            if (ureaData[fert] && Object.keys(ureaData[fert]).length > 0)
+                uploadedFertilizers[fert] = true;
+        });
+
+        // 3. Fertilizer Distribution History
+        ureaHistory = Array.isArray(data.ureaHistory)
+            ? data.ureaHistory
+            : (data.ureaHistory ? Object.values(data.ureaHistory) : []);
+
+        // 4. Farmer Profiles
+        if (data.farmerProfiles && typeof data.farmerProfiles === 'object') {
+            farmerProfiles = {};
+            Object.entries(data.farmerProfiles).forEach(([aadhaar, profiles]) => {
+                const profileArray = Array.isArray(profiles) ? profiles : Object.values(profiles);
+                farmerProfiles[aadhaar] = profileArray.map(p => ({
+                    ...p,
+                    crops: Array.isArray(p.crops) ? p.crops : Object.values(p.crops || {})
+                }));
+            });
+        } else {
+            farmerProfiles = {};
+        }
+
+        // 5. User profile refresh
+        if (data.profile && typeof loadUserProfile === 'function' &&
+            document.getElementById('profileEmail')?.value === '') {
+            loadUserProfile();
+        }
+
+    } else {
+        allReportsCache = {}; ureaData = {}; uploadedFertilizers = {};
+        ureaHistory = []; farmerProfiles = {};
+    }
+
+    isDataLoaded  = true;
+    _lastSyncTime = new Date();
+
+    // ── Hide overlay ──
+    hideSyncOverlay();
+
+    // ── Update status card ──
+    const timeStr = _lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    updateSyncStatusCard('synced', '', `Last synced at ${timeStr}`);
+
+    // ── Refresh dependent UI ──
+    if (typeof refreshKhathaDropdown     === 'function') refreshKhathaDropdown();
+    if (typeof refreshUploadInfo         === 'function') refreshUploadInfo();
+
+    const fpSection = document.getElementById('farmerProfileSection');
+    if (fpSection && fpSection.style.display !== 'none' && fpSection.style.display !== '') {
+        if (typeof populateFpKhathaDropdown === 'function') populateFpKhathaDropdown();
+    }
+    const reportPage = document.getElementById('ePantaReportPage');
+    if (reportPage && reportPage.style.display !== 'none' && reportPage.style.display !== '') {
+        if (typeof loadReport === 'function') loadReport();
+    }
+    const histModal = document.getElementById('ureaHistoryModal');
+    if (histModal && histModal.classList.contains('show')) {
+        if (typeof openHistoryModal === 'function') openHistoryModal(ureaHistory);
+    }
+}
+
+// ── Main listener ────────────────────────────────────────────
 function loadUserCloudData(uid) {
+    // Detach any previous listener
     if (_cloudListenerUid) {
         database.ref('users/' + _cloudListenerUid).off('value');
         _cloudListenerUid = null;
@@ -2154,114 +2344,58 @@ function loadUserCloudData(uid) {
 
     _cloudListenerUid = uid;
 
+    // Show loading overlay immediately
+    showSyncOverlay('Connecting to server…');
+    updateSyncStatusCard('syncing', '', 'Loading your data…');
+
+    // Safety timeout — if Firebase doesn't respond within 15 s, hide overlay anyway
+    const overlayTimeout = setTimeout(() => {
+        if (!isDataLoaded) {
+            hideSyncOverlay();
+            updateSyncStatusCard('error', '', 'Slow connection — data may be incomplete');
+        }
+    }, 15000);
+
     database.ref('users/' + uid).on('value', (snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            
-            // 1. Sync e-Panta Reports
-            allReportsCache = data.allReports || {};
-
-            // 2. Sync Uploaded 1B Data (Urea, DAP, MOP, etc.)
-            let rawUreaData = {};
-            if (data.ureaData) {
-                const keys = Object.keys(data.ureaData);
-                const fertNames = ['Urea', 'DAP', 'MOP', 'NPK', 'SSP', 'Other'];
-                const isNewStruct = keys.some(k => fertNames.includes(k));
-                rawUreaData = isNewStruct
-                    ? data.ureaData
-                    : { Urea: data.ureaData }; // migrate old flat data
-            }
-
-            // Fix arrays corrupted by Firebase storage
-            ureaData = fixUreaDataFromFirebase(rawUreaData);
-
-            // ✅ CRITICAL FIX: Restore uploadedFertilizers state so UI knows which 1B files exist
-            uploadedFertilizers = {};
-            Object.keys(ureaData).forEach(fert => {
-                if (ureaData[fert] && Object.keys(ureaData[fert]).length > 0) {
-                    uploadedFertilizers[fert] = true;
-                }
-            });
-
-            // 3. Sync Fertilizer Distribution History
-            ureaHistory = Array.isArray(data.ureaHistory)
-                ? data.ureaHistory
-                : (data.ureaHistory ? Object.values(data.ureaHistory) : []);
-
-            // 4. Sync Farmer Profiles — fix Firebase object-as-array corruption
-            if (data.farmerProfiles && typeof data.farmerProfiles === 'object') {
-                farmerProfiles = {};
-                Object.entries(data.farmerProfiles).forEach(([aadhaar, profiles]) => {
-                    const profileArray = Array.isArray(profiles)
-                        ? profiles
-                        : Object.values(profiles);
-                    farmerProfiles[aadhaar] = profileArray.map(p => ({
-                        ...p,
-                        crops: Array.isArray(p.crops)
-                            ? p.crops
-                            : Object.values(p.crops || {})
-                    }));
-                });
-            } else {
-                farmerProfiles = {};
-            }
-
-            // 5. Trigger User Profile UI refresh if needed
-            if (data.profile && typeof loadUserProfile === 'function' && document.getElementById('profileEmail')?.value === '') {
-                loadUserProfile();
-            }
-
-        } else {
-            // Reset state on empty snapshot
-            allReportsCache     = {};
-            ureaData            = {};
-            uploadedFertilizers = {};
-            ureaHistory         = [];
-            farmerProfiles      = {}; 
-        }
-
-        isDataLoaded = true;
-        
-        // Refresh dependent UI Elements
-        if (typeof refreshKhathaDropdown === 'function') refreshKhathaDropdown();
-        if (typeof refreshUploadInfo === 'function') refreshUploadInfo();
-
-        const fpSection = document.getElementById('farmerProfileSection');
-        if (fpSection && fpSection.style.display !== 'none' && fpSection.style.display !== '') {
-            if (typeof populateFpKhathaDropdown === 'function') populateFpKhathaDropdown();
-        }
-
-        const reportPage = document.getElementById('ePantaReportPage');
-        if (reportPage && reportPage.style.display !== 'none' && reportPage.style.display !== '') {
-            if (typeof loadReport === 'function') loadReport();
-        }
-
-        const histModal = document.getElementById('ureaHistoryModal');
-        if (histModal && histModal.classList.contains('show')) {
-            if (typeof openHistoryModal === 'function') openHistoryModal(ureaHistory);
-        }
-
+        clearTimeout(overlayTimeout);
+        document.getElementById('syncStatusText') && (document.getElementById('syncStatusText').textContent = 'Applying data…');
+        _applyCloudSnapshot(snapshot);
     }, (err) => {
-        console.error("Firebase sync error:", err);
+        clearTimeout(overlayTimeout);
+        hideSyncOverlay();
+        updateSyncStatusCard('error', '', 'Connection error — retry in 30s');
+        console.error('Firebase sync error:', err);
+
+        // Auto-retry after 30 s
+        if (_syncRetryTimer) clearTimeout(_syncRetryTimer);
+        _syncRetryTimer = setTimeout(() => loadUserCloudData(uid), 30000);
     });
 }
 
+// ── Save to cloud (with toast notification) ──────────────────
 function saveToCloud() {
     const user = firebase.auth().currentUser;
     if (!user || !isDataLoaded) return Promise.resolve(false);
 
-    // Save all local reports and states back to Firebase
+    updateSyncStatusCard('syncing', '', 'Saving…');
+
     const dataToSave = {
-        allReports:     allReportsCache, // ✅ e-Panta reports
-        ureaData:       ureaData,        // ✅ 1B Uploads (Urea, DAP, MOP, etc.)
-        ureaHistory:    ureaHistory,     // ✅ Distribution History
-        farmerProfiles: farmerProfiles,  // ✅ Farmer Profiles
+        allReports:     allReportsCache,
+        ureaData:       ureaData,
+        ureaHistory:    ureaHistory,
+        farmerProfiles: farmerProfiles,
         lastUpdated:    new Date().toISOString()
     };
 
     return database.ref('users/' + user.uid).update(dataToSave)
-        .then(() => true)
+        .then(() => {
+            _lastSyncTime = new Date();
+            const timeStr = _lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            updateSyncStatusCard('synced', '', `Saved at ${timeStr}`);
+            return true;
+        })
         .catch(err => {
+            updateSyncStatusCard('error', '', 'Save failed — check connection');
             console.error('Save error:', err);
             alert('Cloud save failed: ' + err.message);
             return false;
@@ -2273,6 +2407,7 @@ function detachCloudListener() {
         database.ref('users/' + _cloudListenerUid).off('value');
         _cloudListenerUid = null;
     }
+    if (_syncRetryTimer) { clearTimeout(_syncRetryTimer); _syncRetryTimer = null; }
 }
 
          
@@ -2369,6 +2504,14 @@ firebase.auth().onAuthStateChanged(user => {
         const displayName = user.displayName || user.email;
         document.getElementById('userEmail').textContent = displayName;
         try { loadUserProfile(); } catch(e) {}
+
+        // ── Show dashboard immediately, then load data in background ──
+        pageStateStack = ['dashboardSection'];
+        history.replaceState({ section: 'dashboardSection' }, '');
+        showSection('dashboardSection', false);
+        populateYearDropdowns();
+
+        // ── Start cloud sync (shows overlay automatically) ──
         loadUserCloudData(user.uid);
 
         database.ref('users/' + user.uid + '/profile').once('value').then(snap => {
@@ -2379,14 +2522,9 @@ firebase.auth().onAuthStateChanged(user => {
                         showSection('profileSection');
                         loadUserProfile();
                     }
-                }, 1000);
+                }, 1500);
             }
         });
-
-        pageStateStack = ['dashboardSection'];
-        history.replaceState({ section: 'dashboardSection' }, '');
-        showSection('dashboardSection', false);
-        populateYearDropdowns();
 
     } else {
         isDataLoaded    = false;
@@ -2394,6 +2532,9 @@ firebase.auth().onAuthStateChanged(user => {
         ureaData        = {};
         ureaHistory     = [];
         farmerProfiles  = {};   // ✅ reset on logout
+
+        hideSyncOverlay();
+        updateSyncStatusCard('idle', '', 'Not signed in');
 
         pageStateStack = ['loginPage'];
         history.replaceState({ section: 'loginPage' }, '');
@@ -6638,6 +6779,7 @@ function exportAllFarmerProfiles() {
     // Style header row width
     ws['!cols'] = [
         { wch: 6 },   // S.No
+        { wch: 18 },  // Card Number
         { wch: 14 },  // Khatha
         { wch: 22 },  // Owner Name
         { wch: 22 },  // Owner Father
