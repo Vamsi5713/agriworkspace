@@ -1724,9 +1724,21 @@
         </div>
         <div class="col-md-4">
           <label class="form-label fw-semibold">Khatha Number *</label>
-          <select id="fpKhatha" class="form-select" onchange="onFpKhathaChange()">
-            <option value="">--Select Khatha--</option>
-          </select>
+          <div style="position:relative;">
+            <input type="text" id="fpKhathaSearchInput" class="form-control"
+              placeholder="Type to search Khatha..." autocomplete="off"
+              oninput="onFpKhathaSearch(this.value)"
+              onfocus="showFpKhathaDropdown()"
+              onblur="hideFpKhathaDropdownDelayed()">
+            <input type="hidden" id="fpKhatha" value="">
+            <div id="fpKhathaDropdown"
+              style="display:none; position:absolute; z-index:999; width:100%;
+                     max-height:200px; overflow-y:auto; background:#fff;
+                     border:1px solid #ced4da; border-top:none; border-radius:0 0 8px 8px;
+                     box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+            </div>
+          </div>
+          <small id="fpKhathaHint" class="text-muted" style="font-size:0.76rem;">Type a number to filter available Khathas</small>
         </div>
         <div class="col-md-4">
           <label class="form-label fw-semibold">Total Khatha Extent (Acres)</label>
@@ -5706,6 +5718,15 @@ function clearFarmerProfileForm() {
 
     document.getElementById('fpCropRows').innerHTML      = '';
     document.getElementById('fpProfileStatus').innerHTML = '';
+    // Reset khatha search input and hidden value
+    const khathaSearchInput = document.getElementById('fpKhathaSearchInput');
+    if (khathaSearchInput) khathaSearchInput.value = '';
+    const khathaHidden = document.getElementById('fpKhatha');
+    if (khathaHidden) khathaHidden.value = '';
+    const khathaDD = document.getElementById('fpKhathaDropdown');
+    if (khathaDD) khathaDD.style.display = 'none';
+    const khathaHint = document.getElementById('fpKhathaHint');
+    if (khathaHint) khathaHint.textContent = 'Type a number to filter available Khathas';
     addFpCropRow();
     populateFpKhathaDropdown(); // ✅ repopulate from data, don't blank it
 }
@@ -5773,10 +5794,10 @@ function onFpCropOrExtentChange() {
     }
 }
 
-function populateFpKhathaDropdown() {
-    const sel = document.getElementById('fpKhatha');
-    if (!sel) return;
+// All available khatha numbers (populated once, filtered on input)
+let _fpAllKhathas = [];
 
+function populateFpKhathaDropdown() {
     const aadhaar    = cleanAadhaar(document.getElementById('fpAadhaar')?.value || '');
     const allKhathas = new Set();
 
@@ -5804,15 +5825,71 @@ function populateFpKhathaDropdown() {
         }
     }
 
-    const sorted = Array.from(allKhathas).sort((a, b) => Number(a) - Number(b));
-    sel.innerHTML = `<option value="">--Select Khatha--</option>` +
-        sorted.map(k => `<option value="${k}">Khatha ${k}</option>`).join('');
+    _fpAllKhathas = Array.from(allKhathas).sort((a, b) => Number(a) - Number(b));
 
-    // Auto-select if only one khatha
-    if (sorted.length === 1) {
-        sel.value = sorted[0];
+    // If only one khatha, auto-select it
+    if (_fpAllKhathas.length === 1) {
+        const inp = document.getElementById('fpKhathaSearchInput');
+        if (inp) inp.value = 'Khatha ' + _fpAllKhathas[0];
+        document.getElementById('fpKhatha').value = _fpAllKhathas[0];
         onFpKhathaChange();
     }
+}
+
+function onFpKhathaSearch(query) {
+    const dd   = document.getElementById('fpKhathaDropdown');
+    const hint = document.getElementById('fpKhathaHint');
+    const hidden = document.getElementById('fpKhatha');
+    if (!dd) return;
+
+    // Clear current selection when user types
+    if (hidden) hidden.value = '';
+
+    const q = query.trim();
+    const matches = q
+        ? _fpAllKhathas.filter(k => k.includes(q))
+        : _fpAllKhathas;
+
+    if (hint) hint.textContent = q
+        ? (matches.length ? `${matches.length} khatha${matches.length !== 1 ? 's' : ''} found` : 'No matching Khatha found')
+        : 'Type a number to filter available Khathas';
+
+    if (!matches.length) { dd.style.display = 'none'; return; }
+
+    dd.innerHTML = matches.map(k =>
+        `<div class="fp-khatha-opt" data-val="${k}"
+              style="padding:8px 12px; cursor:pointer; font-weight:500; border-bottom:1px solid #f0f0f0;"
+              onmousedown="selectFpKhatha('${k}')"
+              onmouseover="this.style.background='#e8f4fd'"
+              onmouseout="this.style.background=''">
+            Khatha <strong>${k}</strong>
+         </div>`
+    ).join('');
+    dd.style.display = 'block';
+}
+
+function selectFpKhatha(k) {
+    const inp    = document.getElementById('fpKhathaSearchInput');
+    const hidden = document.getElementById('fpKhatha');
+    const dd     = document.getElementById('fpKhathaDropdown');
+    const hint   = document.getElementById('fpKhathaHint');
+    if (inp)    inp.value    = 'Khatha ' + k;
+    if (hidden) hidden.value = k;
+    if (dd)     dd.style.display = 'none';
+    if (hint)   hint.textContent = '';
+    onFpKhathaChange();
+}
+
+function showFpKhathaDropdown() {
+    const inp = document.getElementById('fpKhathaSearchInput');
+    onFpKhathaSearch(inp?.value?.replace(/^khatha\s*/i, '').trim() || '');
+}
+
+function hideFpKhathaDropdownDelayed() {
+    setTimeout(() => {
+        const dd = document.getElementById('fpKhathaDropdown');
+        if (dd) dd.style.display = 'none';
+    }, 200);
 }
 
 function onFpKhathaChange() {
@@ -5908,10 +5985,19 @@ function onFpFarmerTypeChange() {
     // NOTE: do NOT reset fpCropYear / fpCropSeason — user selected them first intentionally
     addFpCropRow();
 
+    // Reset khatha input on farmer type change
+    const khathaSearchInput = document.getElementById('fpKhathaSearchInput');
+    if (khathaSearchInput) khathaSearchInput.value = '';
+    const khathaHidden = document.getElementById('fpKhatha');
+    if (khathaHidden) khathaHidden.value = '';
+    const khathaDD = document.getElementById('fpKhathaDropdown');
+    if (khathaDD) khathaDD.style.display = 'none';
+
     if (type === 'owner') {
         if (nameEl)   { nameEl.readOnly   = true; nameEl.placeholder   = 'Auto-filled after Aadhaar search'; }
         if (fatherEl) { fatherEl.readOnly = true; fatherEl.placeholder = 'Auto-filled after Aadhaar search'; }
         if (khathaEl) khathaEl.disabled = true;
+        if (khathaSearchInput) { khathaSearchInput.disabled = true; khathaSearchInput.placeholder = 'Auto-filled after Aadhaar search'; }
         if (extentEl) extentEl.placeholder = 'Auto-filled after Aadhaar search';
 
         if (statusEl) statusEl.innerHTML = `
@@ -5923,6 +6009,7 @@ function onFpFarmerTypeChange() {
         if (nameEl)   nameEl.placeholder   = 'Full Name';
         if (fatherEl) fatherEl.placeholder = 'Father Name';
         if (khathaEl) khathaEl.disabled    = false;
+        if (khathaSearchInput) { khathaSearchInput.disabled = false; khathaSearchInput.placeholder = 'Type to search Khatha...'; }
         if (extentEl) extentEl.placeholder = 'Auto-filled on Khatha select';
 
         if (statusEl) statusEl.innerHTML = `
@@ -6008,15 +6095,18 @@ function searchFpByAadhaar() {
     }
 
     // STEP 4: Lock fields
+    const khathaSearchInp = document.getElementById('fpKhathaSearchInput');
     if (type === 'owner') {
         if (nameEl)   { nameEl.readOnly   = false; nameEl.classList.add('border-warning'); }
         if (fatherEl) { fatherEl.readOnly = false; fatherEl.classList.add('border-warning'); }
         if (khathaEl) khathaEl.disabled = true;
+        if (khathaSearchInp) { khathaSearchInp.disabled = true; khathaSearchInp.placeholder = 'Auto-filled after Aadhaar search'; }
         if (extentEl) extentEl.readOnly = true;
     } else {
         if (nameEl)   { nameEl.readOnly   = false; nameEl.classList.remove('border-warning'); }
         if (fatherEl) { fatherEl.readOnly = false; fatherEl.classList.remove('border-warning'); }
         if (khathaEl) khathaEl.disabled   = false;
+        if (khathaSearchInp) { khathaSearchInp.disabled = false; khathaSearchInp.placeholder = 'Type to search Khatha...'; }
         if (extentEl) extentEl.readOnly   = false;
     }
 
@@ -6028,8 +6118,10 @@ function searchFpByAadhaar() {
             khathaEl.disabled = false;
             khathaEl.value    = foundKhatha;
             khathaEl.disabled = true;
-            onFpKhathaChange();
         }
+        const khathaInp = document.getElementById('fpKhathaSearchInput');
+        if (khathaInp) { khathaInp.value = 'Khatha ' + foundKhatha; khathaInp.disabled = true; }
+        onFpKhathaChange();
     }
 
     // STEP 6: Status message
@@ -6079,6 +6171,11 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
 
     document.getElementById('fpMobile').value = profile.mobile  || '';
     document.getElementById('fpKhatha').value = profile.khatha  || '';
+    // Also set the visible text input
+    const khathaInp = document.getElementById('fpKhathaSearchInput');
+    if (khathaInp) khathaInp.value = profile.khatha ? 'Khatha ' + profile.khatha : '';
+    // Disable text input for owners (auto-filled)
+    if (khathaInp) khathaInp.disabled = (profile.farmerType === 'owner');
     document.getElementById('fpExtent').value = profile.extent  || '';
 
     document.getElementById('fpCropRows').innerHTML = '';
@@ -6348,12 +6445,53 @@ function exportAllFarmerProfiles() {
     if (!farmerProfiles || !Object.keys(farmerProfiles).length)
         return alert('No profiles to export.');
 
-    const rows = [[
-        'S.No', 'Registered On', 'Updated On', 'Farmer Type',
-        'Farmer Name', 'Father Name', 'Aadhaar', 'Mobile',
-        'Khatha', 'Extent (Ac)', 'Crop', 'Crop Extent (Ac)',
-        'Season', 'Year', 'Registration ID'
-    ]];
+    // ── Build a map: aadhaar → owner profile (for owner lookup in tenant rows) ──
+    const ownerByKhatha = {}; // khatha → { farmerName, fatherName, aadhaar }
+    Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
+        (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
+            if (p.farmerType === 'owner' && p.khatha) {
+                ownerByKhatha[String(p.khatha)] = {
+                    farmerName: p.farmerName || '',
+                    fatherName: p.fatherName || '',
+                    aadhaar: p.aadhaar || aadhaar
+                };
+            }
+        });
+    });
+
+    // ── Also pull owner info from 1B data if not found in profiles ──
+    const ownerFrom1B = {}; // khatha → { farmerName, fatherName, aadhaar }
+    for (const fertData of Object.values(ureaData || {})) {
+        if (!fertData || typeof fertData !== 'object') continue;
+        for (const [k, kData] of Object.entries(fertData)) {
+            if (ownerFrom1B[k]) continue; // already found
+            const farmers = toArray(kData?.farmers || []);
+            if (farmers.length > 0) {
+                const f = farmers[0];
+                ownerFrom1B[k] = {
+                    farmerName: f['Farmer Name'] || f['farmerName'] || '',
+                    fatherName: f['Father Name'] || f['fatherName'] || '',
+                    aadhaar:    f['Aadhaar'] || f['aadhaar'] || ''
+                };
+            }
+        }
+    }
+
+    const headers = [
+        'S.No',
+        'Khatha Number',
+        'Owner Name',
+        'Owner Father Name',
+        'Owner Aadhaar Number',
+        'Tenant Name',
+        'Tenant Father Name',
+        'Tenant Aadhaar Number',
+        'Tenant Mobile Number',
+        'Crop',
+        'Extent (Ac)'
+    ];
+
+    const rows = [headers];
 
     let allProfiles = [];
     Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
@@ -6362,44 +6500,89 @@ function exportAllFarmerProfiles() {
         });
     });
 
+    // Sort by khatha number (numeric), then by farmer type (owner first)
     allProfiles.sort((a, b) => {
-        const ta = a.savedAt ? new Date(a.savedAt).getTime() : 0;
-        const tb = b.savedAt ? new Date(b.savedAt).getTime() : 0;
-        return tb - ta;
+        const ka = Number(a.khatha) || 0;
+        const kb = Number(b.khatha) || 0;
+        if (ka !== kb) return ka - kb;
+        if (a.farmerType === 'owner' && b.farmerType !== 'owner') return -1;
+        if (b.farmerType === 'owner' && a.farmerType !== 'owner') return  1;
+        return 0;
     });
 
     let sno = 1;
     allProfiles.forEach(p => {
-        const savedDate   = p.savedAt   ? new Date(p.savedAt).toLocaleDateString('en-IN')   : '';
-        const updatedDate = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('en-IN') : '';
-        const cropList    = p.crops?.length
-            ? p.crops
-            : [{ crop: '', extent: '', season: '', year: '', registrationId: '' }];
+        const khatha = String(p.khatha || '');
+        const isOwner = p.farmerType === 'owner';
 
-        cropList.forEach((c, i) => {
+        // ── Determine owner info ──
+        let ownerName = '', ownerFather = '', ownerAadhaar = '';
+        if (isOwner) {
+            ownerName    = p.farmerName || '';
+            ownerFather  = p.fatherName || '';
+            ownerAadhaar = p.aadhaar || '';
+        } else {
+            // Tenant: look up owner from profiles, then 1B
+            const ownerFromProfiles = ownerByKhatha[khatha];
+            if (ownerFromProfiles) {
+                ownerName    = ownerFromProfiles.farmerName;
+                ownerFather  = ownerFromProfiles.fatherName;
+                ownerAadhaar = ownerFromProfiles.aadhaar;
+            } else if (ownerFrom1B[khatha]) {
+                ownerName    = ownerFrom1B[khatha].farmerName;
+                ownerFather  = ownerFrom1B[khatha].fatherName;
+                ownerAadhaar = ownerFrom1B[khatha].aadhaar;
+            }
+        }
+
+        // ── Determine tenant info ──
+        // If owner is cultivating their own land, put owner info in tenant columns too
+        const tenantName    = p.farmerName || '';
+        const tenantFather  = p.fatherName || '';
+        const tenantAadhaar = p.aadhaar || '';
+        const tenantMobile  = p.mobile   || '';
+
+        const cropList = p.crops?.length
+            ? p.crops
+            : [{ crop: '', extent: '' }];
+
+        cropList.forEach((c) => {
             rows.push([
-                i === 0 ? sno         : '',
-                i === 0 ? savedDate   : '',
-                i === 0 ? updatedDate : '',
-                i === 0 ? (p.farmerType || 'tenant') : '',
-                i === 0 ? p.farmerName : '',
-                i === 0 ? p.fatherName : '',
-                i === 0 ? p.aadhaar   : '',
-                i === 0 ? p.mobile    : '',
-                i === 0 ? p.khatha    : '',
-                i === 0 ? p.extent    : '',
-                c.crop           || '',
-                c.extent         || '',
-                c.season         || '',
-                c.year           || '',
-                c.registrationId || ''
+                sno,
+                khatha,
+                ownerName,
+                ownerFather,
+                ownerAadhaar,
+                tenantName,
+                tenantFather,
+                tenantAadhaar,
+                tenantMobile,
+                c.crop   || '',
+                c.extent || ''
             ]);
         });
         sno++;
     });
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'FarmerProfiles');
+    const wb  = XLSX.utils.book_new();
+    const ws  = XLSX.utils.aoa_to_sheet(rows);
+
+    // Style header row width
+    ws['!cols'] = [
+        { wch: 6 },   // S.No
+        { wch: 14 },  // Khatha
+        { wch: 22 },  // Owner Name
+        { wch: 22 },  // Owner Father
+        { wch: 16 },  // Owner Aadhaar
+        { wch: 22 },  // Tenant Name
+        { wch: 22 },  // Tenant Father
+        { wch: 16 },  // Tenant Aadhaar
+        { wch: 15 },  // Tenant Mobile
+        { wch: 18 },  // Crop
+        { wch: 12 }   // Extent
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'FarmerProfiles');
     XLSX.writeFile(wb, `FarmerProfiles_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
    // ---- ADMIN PANEL FUNCTIONS ----
