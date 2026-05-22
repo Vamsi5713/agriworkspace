@@ -5879,6 +5879,24 @@ async function saveFarmerProfile() {
     const cardNumEl = document.getElementById('fpCardNumber');
     const newCardNumber = cardNumEl ? cardNumEl.value.trim().toUpperCase() : '';
 
+    // ── Card Number uniqueness check: block if card already belongs to a DIFFERENT Aadhaar ──
+    if (newCardNumber) {
+        const conflictEntry = Object.entries(farmerProfiles).find(([otherAadhaar, otherProfiles]) => {
+            if (cleanAadhaar(otherAadhaar) === cleanAadhaar(a)) return false;
+            return (Array.isArray(otherProfiles) ? otherProfiles : Object.values(otherProfiles))
+                .some(p => (p.cardNumber || '').trim().toUpperCase() === newCardNumber);
+        });
+        if (conflictEntry) {
+            const [conflictAadhaarKey, conflictProfiles] = conflictEntry;
+            const conflictFarmer = (Array.isArray(conflictProfiles) ? conflictProfiles : Object.values(conflictProfiles))[0];
+            return alert(
+                '⚠️ Card Number "' + newCardNumber + '" is already assigned to:\\n\\n' +
+                'Name: ' + (conflictFarmer?.farmerName || '—') + '\\nAadhaar: ' + conflictAadhaarKey +
+                '\\n\\nEach card must belong to only one farmer. Use a different card number.'
+            );
+        }
+    }
+
     // Carry forward existing card number if none entered
     const existingCardNumber = (farmerProfiles[a] || []).reduce((found, p) => found || p.cardNumber || '', '');
     if (newCardNumber) {
@@ -6684,7 +6702,7 @@ function exportAllFarmerProfiles() {
     for (const fertData of Object.values(ureaData || {})) {
         if (!fertData || typeof fertData !== 'object') continue;
         for (const [k, kData] of Object.entries(fertData)) {
-            if (ownerFrom1B[k]) continue; // already found
+            if (ownerFrom1B[k]) continue;
             const farmers = toArray(kData?.farmers || []);
             if (farmers.length > 0) {
                 const f = farmers[0];
@@ -6695,6 +6713,62 @@ function exportAllFarmerProfiles() {
                 };
             }
         }
+    }
+
+    // ── Card number uniqueness check ──
+    // Ensure each card number is mapped to exactly one aadhaar (no duplicates across farmers)
+    const cardToAadhaar = {};
+    const cardDuplicates = [];
+    Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
+        (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
+            const card = (p.cardNumber || '').trim().toUpperCase();
+            if (!card) return;
+            if (cardToAadhaar[card] && cardToAadhaar[card] !== aadhaar) {
+                if (!cardDuplicates.includes(card)) cardDuplicates.push(card);
+            } else {
+                cardToAadhaar[card] = aadhaar;
+            }
+        });
+    });
+    if (cardDuplicates.length > 0) {
+        const proceed = confirm(
+            `⚠️ WARNING: The following Card Number(s) are assigned to MULTIPLE farmers:\n\n` +
+            cardDuplicates.map(c => `• ${c}`).join('\n') +
+            `\n\nThis is not allowed — each card number must belong to only one farmer.\nProceed with export anyway?`
+        );
+        if (!proceed) return;
+    }
+
+    // ── Helper: get split distribution details for a farmer+crop+fert ──
+    // Returns array of { bags, dates } per split (up to 3 splits)
+    function getSplitDistDetails(aadhaar, crop, fertType, season, year) {
+        const a = cleanAadhaar(aadhaar);
+        const results = [null, null, null]; // up to 3 splits
+
+        (ureaHistory || []).forEach(h => {
+            if (cleanAadhaar(h.aadhaar) !== a) return;
+            if ((h.fertilizerType || 'Urea') !== fertType) return;
+            if ((h.crop || '').toLowerCase().trim() !== (crop || '').toLowerCase().trim()) return;
+            if (season && h.season !== season) return;
+            if (year   && h.year   !== year)   return;
+
+            const si = parseInt(h.splitIndex);
+            if (isNaN(si) || si < 0 || si > 2) return; // only splits 0,1,2
+
+            if (!results[si]) results[si] = { bags: 0, dates: [] };
+            results[si].bags += Number(h.bags || 0);
+            if (h.date && !results[si].dates.includes(h.date)) {
+                results[si].dates.push(h.date);
+            }
+        });
+        return results; // index 0 = Split 1, index 1 = Split 2, index 2 = Split 3
+    }
+
+    // ── Format split cell: "3 bags\n22-05-2026" or "2 bags (22-05-2026) + 1 bag (25-05-2026)" ──
+    function formatSplitCell(splitData) {
+        if (!splitData || splitData.bags === 0) return '';
+        const dateStr = splitData.dates.sort().join(', ');
+        return `${splitData.bags} bag(s) | ${dateStr}`;
     }
 
     const headers = [
@@ -6709,7 +6783,19 @@ function exportAllFarmerProfiles() {
         'Tenant Aadhaar Number',
         'Tenant Mobile Number',
         'Crop',
-        'Extent (Ac)'
+        'Extent (Ac)',
+        'Season',
+        'Year',
+        // Urea splits
+        'Urea Split 1 (Bags | Dates)',
+        'Urea Split 2 (Bags | Dates)',
+        'Urea Split 3 (Bags | Dates)',
+        'Urea Total Bags Given',
+        // DAP splits
+        'DAP Split 1 (Bags | Dates)',
+        'DAP Split 2 (Bags | Dates)',
+        'DAP Split 3 (Bags | Dates)',
+        'DAP Total Bags Given'
     ];
 
     const rows = [headers];
@@ -6733,7 +6819,7 @@ function exportAllFarmerProfiles() {
 
     let sno = 1;
     allProfiles.forEach(p => {
-        const khatha = String(p.khatha || '');
+        const khatha  = String(p.khatha || '');
         const isOwner = p.farmerType === 'owner';
 
         // ── Determine owner info ──
@@ -6743,7 +6829,6 @@ function exportAllFarmerProfiles() {
             ownerFather  = p.fatherName || '';
             ownerAadhaar = p.aadhaar || '';
         } else {
-            // Tenant: look up owner from profiles, then 1B
             const ownerFromProfiles = ownerByKhatha[khatha];
             if (ownerFromProfiles) {
                 ownerName    = ownerFromProfiles.farmerName;
@@ -6756,18 +6841,25 @@ function exportAllFarmerProfiles() {
             }
         }
 
-        // ── Determine tenant info ──
-        // If owner is cultivating their own land, put owner info in tenant columns too
         const tenantName    = p.farmerName || '';
         const tenantFather  = p.fatherName || '';
         const tenantAadhaar = p.aadhaar || '';
         const tenantMobile  = p.mobile   || '';
 
-        const cropList = p.crops?.length
-            ? p.crops
-            : [{ crop: '', extent: '' }];
+        const cropList = p.crops?.length ? p.crops : [{ crop: '', extent: '', season: '', year: '' }];
 
         cropList.forEach((c) => {
+            const cropName = (c.crop || '').toLowerCase().trim();
+            const season   = c.season || '';
+            const year     = c.year   || '';
+
+            // Get split distribution details for Urea and DAP
+            const ureaSplits = getSplitDistDetails(p.aadhaar, cropName, 'Urea', season, year);
+            const dapSplits  = getSplitDistDetails(p.aadhaar, cropName, 'DAP',  season, year);
+
+            const ureaTotal = ureaSplits.reduce((s, x) => s + (x ? x.bags : 0), 0);
+            const dapTotal  = dapSplits.reduce((s, x)  => s + (x ? x.bags : 0), 0);
+
             rows.push([
                 sno,
                 p.cardNumber || '',
@@ -6780,16 +6872,28 @@ function exportAllFarmerProfiles() {
                 tenantAadhaar,
                 tenantMobile,
                 c.crop   || '',
-                c.extent || ''
+                c.extent || '',
+                season,
+                year,
+                // Urea splits
+                formatSplitCell(ureaSplits[0]),
+                formatSplitCell(ureaSplits[1]),
+                formatSplitCell(ureaSplits[2]),
+                ureaTotal || '',
+                // DAP splits
+                formatSplitCell(dapSplits[0]),
+                formatSplitCell(dapSplits[1]),
+                formatSplitCell(dapSplits[2]),
+                dapTotal || ''
             ]);
         });
         sno++;
     });
 
-    const wb  = XLSX.utils.book_new();
-    const ws  = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
 
-    // Style header row width
+    // Column widths
     ws['!cols'] = [
         { wch: 6 },   // S.No
         { wch: 18 },  // Card Number
@@ -6802,7 +6906,17 @@ function exportAllFarmerProfiles() {
         { wch: 16 },  // Tenant Aadhaar
         { wch: 15 },  // Tenant Mobile
         { wch: 18 },  // Crop
-        { wch: 12 }   // Extent
+        { wch: 12 },  // Extent
+        { wch: 10 },  // Season
+        { wch: 10 },  // Year
+        { wch: 30 },  // Urea Split 1
+        { wch: 30 },  // Urea Split 2
+        { wch: 30 },  // Urea Split 3
+        { wch: 16 },  // Urea Total
+        { wch: 30 },  // DAP Split 1
+        { wch: 30 },  // DAP Split 2
+        { wch: 30 },  // DAP Split 3
+        { wch: 16 }   // DAP Total
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'FarmerProfiles');
