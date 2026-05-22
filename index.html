@@ -2032,7 +2032,7 @@ let isDataLoaded    = false;
 // ✅ MOVED TO TOP — must be before addFpCropRow() and updateBagRecommendation()
 const cropNPKRecommendations = {
     paddy: {
-        Kharif: { N: 42, P: 24, K: 24 },
+        Kharif: { N: 41.4, P: 24, K: 24 },
         Rabi:   { N: 72, P: 36, K: 24 },
         Summer: { N: 72, P: 36, K: 24 }
     },
@@ -3236,7 +3236,7 @@ const agriculturalCrops = ["Paddy","Maize","Jowar","Sugarcane","Blackgram","Gree
 const horticulturalCrops = ["Yam","Banana","Oilpalm","Vegetables","Tomato","Potato","Onion","Brinjal","Cabbage","Cauliflower","Bhendi","Carrot","Cucumber","Peas","Chili","Garlic","Apple","Mango","Grapes","Orange"];
 
 const fertilizerDosage = {
-    paddy:       { seasons: { Kharif:{N:42,P:24,K:24}, Rabi:{N:72,P:36,K:24}, Summer:{N:72,P:36,K:24} }, Ca:4,  Mg:3,  S:12, splits:"Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation." },
+    paddy:       { seasons: { Kharif:{N:41.4,P:24,K:24}, Rabi:{N:72,P:36,K:24}, Summer:{N:72,P:36,K:24} }, Ca:4,  Mg:3,  S:12, splits:"Apply 1/3 nitrogen as basal, 1/3 at tillering stage, 1/3 at panicle initiation." },
     maize:       { seasons: { Kharif:{N:80,P:32,K:32}, Rabi:{N:80,P:32,K:32}, Summer:{N:80,P:32,K:32} }, Ca:6,  Mg:5,  S:14, splits:"Apply half nitrogen and full P and K at planting, rest N at knee height." },
     jowar:       { seasons: { Kharif:{N:32,P:16,K:16}, Rabi:{N:32,P:16,K:16}, Summer:{N:32,P:16,K:16} }, Ca:4,  Mg:3,  S:10, splits:"Apply full P and K basally, N in two splits." },
     sugarcane: {
