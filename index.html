@@ -6139,11 +6139,19 @@ const cropNPKRecommendations = new Proxy({}, {
                 return entry.seasons[season] || entry.seasons['Kharif'] || undefined;
             },
             ownKeys() { return Object.keys(entry.seasons); },
-            has(__, key) { return key in entry.seasons; }
+            has(__, key) { return key in entry.seasons; },
+            getOwnPropertyDescriptor(__, key) {
+                if (key in entry.seasons) return { enumerable: true, configurable: true, writable: true };
+                return undefined;
+            }
         });
     },
     ownKeys() { return Object.keys(fertilizerDosage); },
-    has(_, key) { return key in fertilizerDosage; }
+    has(_, key) { return key in fertilizerDosage; },
+    getOwnPropertyDescriptor(_, key) {
+        if (key in fertilizerDosage) return { enumerable: true, configurable: true, writable: true };
+        return undefined;
+    }
 });
 
 // ============================================================
@@ -8956,6 +8964,22 @@ async function saveFarmerProfile() {
     if (!k || k === '--Select Khatha--') return alert('Select Khatha.');
     if (!totalExt || totalExt <= 0) return alert('Extent must be greater than 0.');
 
+    // ── Khatha extent validation: block if exceeds remaining balance ──
+    const officialExt       = getKhathaOfficialExtent(k);
+    const allocatedByOthers = getKhathaAllocatedExtentByOthers(k, a);
+    const remainingBalance  = Math.max(0, parseFloat((officialExt - allocatedByOthers).toFixed(2)));
+
+    if (officialExt > 0 && parseFloat(totalExt.toFixed(2)) > remainingBalance) {
+        return alert(
+            `⚠️ Extent exceeds the remaining balance for Khatha ${k}.\n\n` +
+            `Khatha Official Extent : ${officialExt.toFixed(2)} ac\n` +
+            `Already Allocated (others) : ${allocatedByOthers.toFixed(2)} ac\n` +
+            `Remaining Balance : ${remainingBalance.toFixed(2)} ac\n\n` +
+            `You entered : ${totalExt.toFixed(2)} ac\n\n` +
+            `Please enter an extent ≤ ${remainingBalance.toFixed(2)} ac.`
+        );
+    }
+
     const selectedYear   = document.getElementById('fpCropYear')?.value?.trim();
     const selectedSeason = document.getElementById('fpCropSeason')?.value?.trim();
 
@@ -9103,7 +9127,7 @@ function clearFarmerProfileForm() {
 
 function addFpCropRow() {
     const container = document.getElementById('fpCropRows');
-    const cropList  = Object.keys(cropNPKRecommendations);
+    const cropList  = Object.keys(fertilizerDosage);   // ✅ fixed: Proxy ownKeys needs getOwnPropertyDescriptor trap; read source directly
     const idx       = container.querySelectorAll('.fp-crop-row').length + 1;
 
     const row = document.createElement('div');
@@ -9153,19 +9177,60 @@ function onFpCropOrExtentChange() {
     if (!statusEl) return;
     if (totalExt <= 0) { statusEl.innerHTML = ''; return; }
 
+    // Fetch official/allocated context from stored values on extent field
+    const extEl = document.getElementById('fpExtent');
+    const officialExt       = extEl?._officialExtent  || 0;
+    const allocatedByOthers = extEl?._allocatedByOthers || 0;
+
+    const otherInfo = (officialExt > 0 && allocatedByOthers > 0)
+        ? ` &nbsp;<span class="text-danger" style="font-size:0.82rem;">(Official: ${officialExt.toFixed(2)} ac — ${allocatedByOthers.toFixed(2)} ac used by others)</span>`
+        : '';
+
     if (sumExt > totalExt) {
         statusEl.innerHTML = `<div class="alert alert-danger py-1 mb-0">
-            ⚠️ Crop extents (${sumExt.toFixed(2)} ac) exceed Khatha extent (${totalExt.toFixed(2)} ac).
+            ⚠️ Crop extents (${sumExt.toFixed(2)} ac) exceed available extent (${totalExt.toFixed(2)} ac).${otherInfo}
         </div>`;
     } else {
         statusEl.innerHTML = `<div class="alert alert-success py-1 mb-0">
-            ✅ Allocated: ${sumExt.toFixed(2)} ac &nbsp;|&nbsp; Remaining: ${remaining.toFixed(2)} ac of ${totalExt.toFixed(2)} ac
+            ✅ Allocated: ${sumExt.toFixed(2)} ac &nbsp;|&nbsp; Remaining: ${remaining.toFixed(2)} ac of ${totalExt.toFixed(2)} ac${otherInfo}
         </div>`;
     }
 }
 
 // All available khatha numbers (populated once, filtered on input)
 let _fpAllKhathas = [];
+
+/**
+ * Returns the total extent already allocated to OTHER farmers (different Aadhaar)
+ * for a given khatha number, across all farmerProfiles.
+ * Excludes the current farmer's own profile so editing doesn't double-count.
+ */
+function getKhathaAllocatedExtentByOthers(khathaNo, currentAadhaar) {
+    let allocated = 0;
+    const normalK = String(khathaNo).trim();
+    const normalA = cleanAadhaar(currentAadhaar || '');
+    for (const [aadhaarKey, profiles] of Object.entries(farmerProfiles || {})) {
+        if (cleanAadhaar(aadhaarKey) === normalA) continue; // skip current farmer
+        const arr = Array.isArray(profiles) ? profiles : Object.values(profiles);
+        arr.forEach(p => {
+            if (String(p.khatha || '').trim() === normalK) {
+                allocated += Number(p.extent || 0);
+            }
+        });
+    }
+    return allocated;
+}
+
+/**
+ * Returns the full (official) extent of a khatha from 1B data.
+ */
+function getKhathaOfficialExtent(khathaNo) {
+    const normalK = String(khathaNo).trim();
+    for (const fertData of Object.values(ureaData)) {
+        if (fertData[normalK]) return Number(fertData[normalK].extent || 0);
+    }
+    return 0;
+}
 
 function populateFpKhathaDropdown() {
     const aadhaar    = cleanAadhaar(document.getElementById('fpAadhaar')?.value || '');
@@ -9226,15 +9291,27 @@ function onFpKhathaSearch(query) {
 
     if (!matches.length) { dd.style.display = 'none'; return; }
 
-    dd.innerHTML = matches.map(k =>
-        `<div class="fp-khatha-opt" data-val="${k}"
-              style="padding:8px 12px; cursor:pointer; font-weight:500; border-bottom:1px solid #f0f0f0;"
+    dd.innerHTML = matches.map(k => {
+        const currentAadhaar = document.getElementById('fpAadhaar')?.value?.trim() || '';
+        const officialExt    = getKhathaOfficialExtent(k);
+        const allocatedByOthers = getKhathaAllocatedExtentByOthers(k, currentAadhaar);
+        const remaining      = Math.max(0, parseFloat((officialExt - allocatedByOthers).toFixed(2)));
+        const extInfo        = officialExt > 0
+            ? (allocatedByOthers > 0
+                ? `<span style="font-size:0.78rem; color:#c0392b; margin-left:8px;">
+                       <i class="fas fa-lock" style="font-size:0.7rem;"></i>
+                       ${remaining.toFixed(2)} ac remaining of ${officialExt.toFixed(2)} ac
+                   </span>`
+                : `<span style="font-size:0.78rem; color:#27ae60; margin-left:8px;">${officialExt.toFixed(2)} ac</span>`)
+            : '';
+        return `<div class="fp-khatha-opt" data-val="${k}"
+              style="padding:8px 12px; cursor:pointer; font-weight:500; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;"
               onmousedown="selectFpKhatha('${k}')"
               onmouseover="this.style.background='#e8f4fd'"
               onmouseout="this.style.background=''">
-            Khatha <strong>${k}</strong>
-         </div>`
-    ).join('');
+            <span>Khatha <strong>${k}</strong></span>${extInfo}
+         </div>`;
+    }).join('');
     dd.style.display = 'block';
 }
 
@@ -9272,11 +9349,42 @@ function onFpKhathaChange() {
         return;
     }
 
-    let foundExt = 0;
-    for (const fertData of Object.values(ureaData)) {
-        if (fertData[k]) { foundExt = Number(fertData[k].extent || 0); break; }
+    const officialExt  = getKhathaOfficialExtent(k);
+    const currentAadhaar = document.getElementById('fpAadhaar')?.value?.trim() || '';
+    const allocatedByOthers = getKhathaAllocatedExtentByOthers(k, currentAadhaar);
+    const remainingExt = Math.max(0, parseFloat((officialExt - allocatedByOthers).toFixed(2)));
+
+    // Store official and remaining on the extent field for validation use
+    ext._officialExtent  = officialExt;
+    ext._remainingExtent = remainingExt;
+    ext._allocatedByOthers = allocatedByOthers;
+
+    // Show remaining balance (not full extent) so user can't exceed it
+    ext.value = remainingExt > 0 ? remainingExt.toFixed(2) : (officialExt > 0 ? '0.00' : '');
+    ext.max   = remainingExt;
+
+    // Show allocation info banner near the extent field
+    const hintEl = document.getElementById('fpKhathaHint');
+    if (hintEl && officialExt > 0) {
+        if (allocatedByOthers > 0) {
+            hintEl.innerHTML = `
+                <span class="text-danger fw-semibold">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Khatha Extent: <strong>${officialExt.toFixed(2)} ac</strong> &nbsp;|&nbsp;
+                    Already Allocated: <strong>${allocatedByOthers.toFixed(2)} ac</strong> &nbsp;|&nbsp;
+                    Remaining Balance: <strong>${remainingExt.toFixed(2)} ac</strong>
+                </span>`;
+        } else {
+            hintEl.innerHTML = `
+                <span class="text-success fw-semibold">
+                    <i class="fas fa-check-circle me-1"></i>
+                    Khatha Extent: <strong>${officialExt.toFixed(2)} ac</strong> &nbsp;|&nbsp; Fully available
+                </span>`;
+        }
+    } else if (hintEl) {
+        hintEl.textContent = 'Type a number to filter available Khathas';
     }
-    ext.value = foundExt > 0 ? foundExt.toFixed(2) : '';
+
     onFpCropOrExtentChange();
 
     // ── Show Owner info when Tenant selects a Khatha ──
