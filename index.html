@@ -169,6 +169,14 @@
          *         ".read": "auth != null && auth.uid == $voUid",
          *         ".write": "auth != null"
          *       }
+         *     },
+         *     "deleteRequests": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null",
+         *       "$reqId": {
+         *         ".read": "auth != null",
+         *         ".write": "auth != null"
+         *       }
          *     }
          *   }
          * }
@@ -743,17 +751,30 @@
 
 </div><!-- /login-split-wrap -->
 
-         <!-- Register Page -->
-         <div class="container" id="registerPage" role="main">
-<div class="card shadow-lg mx-auto overflow-hidden" style="max-width:520px; border-radius:20px; border:1px solid #dee2e6; width:100%;">
+<!-- Register Page — full-screen with own background, matches login page gradient -->
+<div class="hidden" id="registerPage" role="main"
+     style="min-height:100vh; background:linear-gradient(135deg,#0f2942 0%,#1862ab 50%,#1a7a5e 100%);
+            display:flex; align-items:flex-start; justify-content:center; padding:2rem 1rem; position:relative; overflow-x:hidden;">
+
+    <!-- Background blobs matching login page -->
+    <div style="position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,#27ae60,transparent 70%);opacity:.10;top:-120px;left:-120px;pointer-events:none;"></div>
+    <div style="position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,#f39c12,transparent 70%);opacity:.10;bottom:-100px;right:-100px;pointer-events:none;"></div>
+
+<div class="card shadow-lg mx-auto overflow-hidden" style="max-width:520px; border-radius:20px; border:none; width:100%; position:relative; z-index:2; margin-top:1rem; margin-bottom:2rem;">
 
   <!-- Header -->
-  <div class="text-center py-4 px-4" style="background:linear-gradient(135deg,#1862ab 0%,#2980b9 100%);">
-    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width:56px;height:56px;background:rgba(255,255,255,0.2);">
-      <i class="fas fa-user-plus fa-xl text-white"></i>
+  <div class="text-center py-4 px-4" style="background:linear-gradient(135deg,#1862ab 0%,#1a7a5e 100%);">
+    <!-- decorative rings -->
+    <div style="position:relative;display:inline-block;margin-bottom:0.75rem;">
+        <div style="position:absolute;inset:-8px;border-radius:50%;border:2px solid rgba(255,255,255,.2);"></div>
+        <div style="position:absolute;inset:-16px;border-radius:50%;border:1px solid rgba(255,255,255,.1);"></div>
+        <div class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width:60px;height:60px;background:rgba(255,255,255,0.22);position:relative;z-index:1;">
+            <i class="fas fa-user-plus fa-2x text-white"></i>
+        </div>
     </div>
-    <h4 class="text-white fw-bold mb-1">New User Registration</h4>
-    <p class="text-white-50 small mb-0">Submit your details for Admin approval</p>
+    <h4 class="text-white fw-bold mb-1 mt-2">New User Registration</h4>
+    <p class="text-white-50 small mb-0">Department of Agriculture · Andhra Pradesh</p>
+    <p class="text-white-50 small mb-0 mt-1">Submit your details for Admin approval</p>
   </div>
 
   <div class="px-4 pt-4 pb-3">
@@ -817,18 +838,27 @@
         <option value="">-- Select Village --</option>
       </select>
       <div id="regVillageConflictMsg" class="text-danger small mt-1 hidden">
-        <i class="fas fa-exclamation-triangle me-1"></i>Village Officer already exists for this village.
+        <i class="fas fa-exclamation-triangle me-1"></i>A Village Officer already exists for this village + Grama Sachivalayam combination.
       </div>
+    </div>
+
+    <!-- Grama Sachivalayam (VO only) -->
+    <div class="mb-3 hidden" id="regSachivalayamField">
+      <label class="form-label fw-semibold small"><i class="fas fa-building me-1 text-primary"></i>Grama Sachivalayam <span class="text-danger">*</span></label>
+      <input type="text" id="regSachivalayam" class="form-control" placeholder="Enter Grama Sachivalayam name / office number" style="border-radius:12px;">
+      <div class="form-text text-muted small"><i class="fas fa-info-circle me-1"></i>If a village has multiple offices, each officer enters their specific Sachivalayam name/number.</div>
     </div>
 
     <!-- Status message -->
     <div id="regStatusMsg" class="mb-3"></div>
 
-    <button class="btn btn-primary w-100 fw-semibold py-2 mb-2" onclick="submitRegistration()" style="border-radius:12px; font-size:1rem;">
+    <button class="btn btn-primary w-100 fw-semibold py-2 mb-3" onclick="submitRegistration()" style="border-radius:12px; font-size:1rem;">
       <i class="fas fa-paper-plane me-2"></i>Submit Registration
     </button>
-    <div class="text-center">
-      <a href="#" class="small text-muted" onclick="showSection('loginPage');return false;"><i class="fas fa-arrow-left me-1"></i>Back to Login</a>
+    <div class="text-center pb-2">
+      <a href="#" class="small text-muted text-decoration-none" onclick="showSection('loginPage');return false;">
+        <i class="fas fa-arrow-left me-1"></i>Back to Login
+      </a>
     </div>
   </div>
 </div>
@@ -1802,6 +1832,14 @@
                         </select>
                     </div>
                 </div>
+                <div class="col-12" id="profileSachivalayamField">
+                    <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Grama Sachivalayam</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-building text-muted"></i></span>
+                        <input type="text" id="profileSachivalayam" class="form-control border-start-0" placeholder="Sachivalayam name / office number" />
+                    </div>
+                    <div class="form-text text-muted small"><i class="fas fa-info-circle me-1"></i>Identifies your specific office if multiple exist in the same village.</div>
+                </div>
                 <div class="col-12" id="profileDivisionField">
                     <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Division <span class="text-danger">*</span></label>
                     <div class="input-group">
@@ -1875,8 +1913,20 @@
 
         <hr class="my-4"/>
 
+        <!-- Reset Password via Email -->
+        <div class="p-3 rounded mb-4" style="background:#f0f7ff; border:1px solid #b3d4f7; border-radius:12px !important;">
+            <h6 class="fw-bold text-primary mb-2"><i class="fas fa-envelope me-2"></i>Reset Password via Email</h6>
+            <p class="text-muted small mb-3">Click below to send a password reset link to your registered email address. You can then use that link to set a new password.</p>
+            <button type="button" class="btn btn-outline-primary w-100 fw-semibold" onclick="sendProfilePasswordReset()" style="border-radius:12px;">
+                <i class="fas fa-paper-plane me-2"></i>Send Password Reset Email
+            </button>
+            <div id="profileResetStatus" class="mt-2 hidden"></div>
+        </div>
+
+        <hr class="my-4"/>
+
         <!-- Change Password -->
-        <div class="p-3 rounded" style="background:#fff8f8; border:1px solid #ffc0c0; border-radius:12px !important;">
+        <div class="p-3 rounded mb-4" style="background:#fff8f8; border:1px solid #ffc0c0; border-radius:12px !important;">
             <h6 class="fw-bold text-danger mb-3"><i class="fas fa-lock me-2"></i>Change Password</h6>
             <form id="changePasswordForm">
                 <div class="mb-3">
@@ -1900,6 +1950,55 @@
                     <i class="fas fa-lock me-2"></i>Change Password
                 </button>
             </form>
+        </div>
+
+        <hr class="my-4"/>
+
+        <!-- Account Reset -->
+        <div class="p-3 rounded" style="background:#fff4f4; border:1px solid #f5c6c6; border-radius:12px !important;">
+            <h6 class="fw-bold mb-2" style="color:#c0392b;"><i class="fas fa-redo-alt me-2"></i>Account Reset</h6>
+            <p class="text-muted small mb-3">Select what you want to delete and submit a request. The Admin will review and confirm before any data is removed. You will start fresh once approved.</p>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Select sections to reset:</label>
+                <div class="d-flex flex-column gap-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="resetAll" onchange="toggleResetAllSections(this)">
+                        <label class="form-check-label fw-semibold text-danger" for="resetAll">
+                            <i class="fas fa-trash-alt me-1"></i> Everything (Full Reset)
+                        </label>
+                    </div>
+                    <div id="resetSectionCheckboxes">
+                        <div class="form-check ms-3">
+                            <input class="form-check-input reset-section-cb" type="checkbox" id="resetFertilizer" value="ureaHistory">
+                            <label class="form-check-label small" for="resetFertilizer"><i class="fas fa-flask me-1 text-warning"></i>Fertilizer Distribution History</label>
+                        </div>
+                        <div class="form-check ms-3">
+                            <input class="form-check-input reset-section-cb" type="checkbox" id="resetReports" value="allReports">
+                            <label class="form-check-label small" for="resetReports"><i class="fas fa-file-alt me-1 text-info"></i>e-Panta Crop Reports</label>
+                        </div>
+                        <div class="form-check ms-3">
+                            <input class="form-check-input reset-section-cb" type="checkbox" id="resetFarmers" value="farmerProfiles">
+                            <label class="form-check-label small" for="resetFarmers"><i class="fas fa-users me-1 text-success"></i>Farmer Profiles</label>
+                        </div>
+                        <div class="form-check ms-3">
+                            <input class="form-check-input reset-section-cb" type="checkbox" id="resetUreaData" value="ureaData">
+                            <label class="form-check-label small" for="resetUreaData"><i class="fas fa-upload me-1 text-secondary"></i>Uploaded 1B Data</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Reason (optional)</label>
+                <textarea id="accountResetReason" class="form-control" rows="2" placeholder="Briefly describe why you need a reset..." style="border-radius:10px; font-size:0.9rem;"></textarea>
+            </div>
+
+            <button type="button" class="btn w-100 fw-semibold" onclick="submitAccountResetRequest()"
+                    style="background:#c0392b; color:#fff; border-radius:12px;">
+                <i class="fas fa-paper-plane me-2"></i>Submit Reset Request to Admin
+            </button>
+            <div id="accountResetStatus" class="mt-2 hidden"></div>
         </div>
     </div>
 </div>
@@ -1955,6 +2054,12 @@
                     <i class="fas fa-database me-1"></i> User Data
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link position-relative" href="#" onclick="showAdminTab('adminResetTab');loadAdminResetRequests();loadAdminAccountResetRequests();return false;" id="adminResetNavLink">
+                    <i class="fas fa-undo-alt me-1"></i> Reset Requests
+                    <span id="adminResetBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.65rem; display:none;">0</span>
+                </a>
+            </li>
         </ul>
 
         <!-- Create Users Tab -->
@@ -1993,6 +2098,10 @@
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Village <span class="text-danger">*</span></label>
                             <input type="text" id="adminVoVillage" class="form-control" placeholder="Village name">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Grama Sachivalayam <span class="text-danger">*</span></label>
+                            <input type="text" id="adminVoSachivalayam" class="form-control" placeholder="Sachivalayam name / office number">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Mandal <span class="text-danger">*</span></label>
@@ -2275,6 +2384,104 @@
         </div>
 
         </div><!-- closes adminDataTab -->
+
+        <!-- ═══════════════════════════════════════════════════════
+             ADMIN — RESET REQUESTS TAB
+             Handles: VO→MO delete pending requests + direct admin resets
+             ═══════════════════════════════════════════════════════ -->
+        <div id="adminResetTab" class="hidden">
+
+            <!-- Section 0: User-submitted Account Reset Requests -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="fas fa-redo-alt me-2 text-danger"></i>Account Reset Requests
+                            <span id="adminAccountResetBadge" class="badge bg-danger ms-2" style="display:none; font-size:0.72rem;">0</span>
+                        </h5>
+                        <p class="text-muted small mb-0">Officers have requested to reset (delete) their data sections. Review and approve or reject each request.</p>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadAdminAccountResetRequests()">
+                        <i class="fas fa-sync me-1"></i> Refresh
+                    </button>
+                </div>
+                <div id="adminAccountResetContainer">
+                    <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i> Loading...</div>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <!-- Section 1: Pending Delete Requests from VOs (awaiting MO then Admin) -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="fas fa-clock me-2 text-warning"></i>Pending Fertilizer Delete Requests</h5>
+                        <p class="text-muted small mb-0">Requests from Village Officers to delete fertilizer history entries. MO must confirm first, then Admin can approve.</p>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadAdminResetRequests()">
+                        <i class="fas fa-sync me-1"></i> Refresh
+                    </button>
+                </div>
+                <div id="adminPendingDeleteContainer">
+                    <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i> Loading...</div>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <!-- Section 2: Direct Admin Reset — reset any user's data -->
+            <div>
+                <h5 class="fw-bold mb-1"><i class="fas fa-user-times me-2 text-danger"></i>Direct Admin Reset</h5>
+                <p class="text-muted small mb-3">Reset or clear data for any user account (VO, MO, Retailer, DO) on request.</p>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small"><i class="fas fa-search me-1 text-primary"></i>Find User by Email</label>
+                        <div class="input-group">
+                            <input type="email" id="adminResetUserEmail" class="form-control" placeholder="Enter user email to find...">
+                            <button class="btn btn-primary" onclick="adminFindUserForReset()"><i class="fas fa-search"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="adminResetUserInfo" class="mt-3 hidden">
+                    <div class="card border-0 shadow-sm p-3" style="border-radius:12px; border-left:4px solid #e74c3c !important;">
+                        <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width:48px;height:48px;background:linear-gradient(135deg,#ffe0e0,#ffc8c8);">
+                                <i class="fas fa-user text-danger fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-6" id="adminResetFoundName">—</div>
+                                <div class="text-muted small" id="adminResetFoundEmail">—</div>
+                                <span class="badge bg-secondary mt-1" id="adminResetFoundRole">—</span>
+                            </div>
+                        </div>
+
+                        <p class="text-danger fw-semibold small mb-2">⚠️ Select what to reset for this user:</p>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-outline-danger btn-sm fw-semibold" onclick="adminDirectReset('all')">
+                                <i class="fas fa-trash-alt me-1"></i>All Data
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm fw-semibold" onclick="adminDirectReset('ureaHistory')">
+                                <i class="fas fa-flask me-1"></i>Fertilizer History
+                            </button>
+                            <button class="btn btn-outline-info btn-sm fw-semibold" onclick="adminDirectReset('allReports')">
+                                <i class="fas fa-file-alt me-1"></i>e-Panta Reports
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm fw-semibold" onclick="adminDirectReset('farmerProfiles')">
+                                <i class="fas fa-user-circle me-1"></i>Farmer Profiles
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm fw-semibold" onclick="adminDirectReset('ureaData')">
+                                <i class="fas fa-upload me-1"></i>1B Uploaded Data
+                            </button>
+                        </div>
+                        <div id="adminDirectResetStatus" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- closes adminResetTab -->
+
     </div>
 </div>
 
@@ -2415,6 +2622,10 @@
       <button class="mo-tab-btn" onclick="switchMoMainTab('moTabRetailers', this)">
         <i class="fas fa-store me-1"></i>Retailers
       </button>
+      <button class="mo-tab-btn position-relative" onclick="switchMoMainTab('moTabDeleteApprovals', this)" id="moDeleteApprovalTabBtn">
+        <i class="fas fa-trash-restore me-1"></i>Delete Requests
+        <span id="moDeleteApprovalBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem; display:none;">0</span>
+      </button>
       <button class="mo-tab-btn ms-auto" onclick="switchMoMainTab('moTabRegister', this)"
               style="background:#e8f5e9;border-color:#27ae60;color:#1a7a4a;">
         <i class="fas fa-user-plus me-1"></i>Create Login
@@ -2529,6 +2740,26 @@
       </div>
     </div>
 
+    </div>
+
+    <!-- ── TAB: Delete Approvals ── -->
+    <div id="moTabDeleteApprovals" class="mo-section-tab">
+      <div class="card border-0 shadow-sm p-4 mb-4" style="border-radius:16px;">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <div>
+            <h5 class="fw-bold mb-0"><i class="fas fa-trash-restore me-2 text-danger"></i>Fertilizer History Delete Requests</h5>
+            <p class="text-muted small mb-0">Village Officers have requested deletion of the following records. Review and confirm or reject each.</p>
+          </div>
+          <button class="btn btn-outline-secondary btn-sm" onclick="loadMoDeleteRequests()">
+            <i class="fas fa-sync me-1"></i> Refresh
+          </button>
+        </div>
+        <div id="moDeleteRequestsList">
+          <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── TAB: Create Login ── -->
     <div id="moTabRegister" class="mo-section-tab">
       <div class="row g-4">
@@ -2555,6 +2786,11 @@
                 <select id="moNewOfficerVillage" class="form-select">
                   <option value="">-- Select Village --</option>
                 </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Grama Sachivalayam *</label>
+                <input type="text" id="moNewOfficerSachivalayam" class="form-control" placeholder="Sachivalayam name / office number">
+                <div class="form-text text-muted small"><i class="fas fa-info-circle me-1"></i>Allows multiple logins per village if it has more than one office.</div>
               </div>
               <div class="col-12">
                 <button class="btn btn-primary w-100" onclick="createVillageOfficer()">
@@ -4204,7 +4440,8 @@ function detachCloudListener() {
 
     const target = document.getElementById(sectionId);
     if (target) {
-        target.style.display = 'block';
+        // registerPage uses flex layout for centering
+        target.style.display = (sectionId === 'registerPage') ? 'flex' : 'block';
         target.classList.remove('hidden');
     }
 
@@ -4213,12 +4450,17 @@ function detachCloudListener() {
     }
 
     const authSections = ['loginPage', 'registerPage', 'resetPasswordSection'];
+    const loginWrapperSections = ['loginPage', 'resetPasswordSection']; // registerPage has its own full-screen bg
     const loginWrapper = document.getElementById('loginWrapper');
     const mainNavbar   = document.getElementById('mainNavbar');
 
     if (authSections.includes(sectionId)) {
-        if (loginWrapper) { loginWrapper.style.display = 'flex'; loginWrapper.classList.remove('hidden'); }
-        if (mainNavbar)   mainNavbar.classList.add('hidden');
+        if (loginWrapperSections.includes(sectionId)) {
+            if (loginWrapper) { loginWrapper.style.display = 'flex'; loginWrapper.classList.remove('hidden'); }
+        } else {
+            if (loginWrapper) { loginWrapper.style.display = 'none'; loginWrapper.classList.add('hidden'); }
+        }
+        if (mainNavbar) mainNavbar.classList.add('hidden');
     } else {
         if (loginWrapper) { loginWrapper.style.display = 'none'; loginWrapper.classList.add('hidden'); }
         if (mainNavbar)   mainNavbar.classList.remove('hidden');
@@ -4351,6 +4593,8 @@ firebase.auth().onAuthStateChanged(user => {
                 populateYearDropdowns();
                 loadUserCloudData(user.uid);
                 loadVoOutlets(user.uid, profile.mandal);
+                // Check for any approved/rejected delete requests
+                setTimeout(pollVoDeleteApprovals, 2000);
                 if (!profile.mandal || !profile.village) {
                     setTimeout(() => {
                         if (confirm('⚠️ Please update your Mandal and Village name in Profile Settings.\n\nGo to Profile now?')) {
@@ -4365,6 +4609,14 @@ firebase.auth().onAuthStateChanged(user => {
                 loadMandalReports();
                 loadMoOfficersList(profile.mandal);
                 loadMoRetailersList(profile.mandal);
+                // Check pending delete requests badge
+                setTimeout(() => {
+                    database.ref('deleteRequests').once('value').then(snap => {
+                        if (!snap.exists()) return;
+                        const count = Object.values(snap.val()).filter(r => r.status === 'pending_mo' && r.voMandal === profile.mandal).length;
+                        updateMoDeleteBadge(count);
+                    }).catch(() => {});
+                }, 1000);
             } else if (role === 'divisional_officer') {
                 const doLabel = document.getElementById('doMandalLabel');
                 if (doLabel) doLabel.textContent = 'Division: ' + (profile.division || profile.mandal || 'All');
@@ -4500,6 +4752,7 @@ function onRegRoleChange() {
     const distField   = document.getElementById('regDistrictField');
     const mandalField = document.getElementById('regMandalField');
     const villField   = document.getElementById('regVillageField');
+    const sachField   = document.getElementById('regSachivalayamField');
     const conflictMsg = document.getElementById('regVillageConflictMsg');
 
     // Reset cascades
@@ -4508,14 +4761,17 @@ function onRegRoleChange() {
         const el = document.getElementById(id);
         if (el) { el.innerHTML = `<option value="">-- Select ${id === 'regMandal' ? 'Mandal' : 'Village'} --</option>`; }
     });
+    const sachEl = document.getElementById('regSachivalayam');
+    if (sachEl) sachEl.value = '';
 
     if (!role) {
-        [distField, mandalField, villField].forEach(el => { if (el) el.classList.add('hidden'); });
+        [distField, mandalField, villField, sachField].forEach(el => { if (el) el.classList.add('hidden'); });
         return;
     }
     if (distField) distField.classList.remove('hidden');
     if (mandalField) mandalField.classList.toggle('hidden', role === 'divisional_officer');
     if (villField)  villField.classList.toggle('hidden', role !== 'village_officer');
+    if (sachField)  sachField.classList.toggle('hidden', role !== 'village_officer');
 }
 
 function onRegDistrictChange() {
@@ -4590,6 +4846,7 @@ async function submitRegistration() {
     const district       = document.getElementById('regDistrict')?.value || '';
     const mandal         = document.getElementById('regMandal')?.value || '';
     const village        = document.getElementById('regVillage')?.value || '';
+    const sachivalayam   = document.getElementById('regSachivalayam')?.value.trim() || '';
 
     const statusEl = document.getElementById('regStatusMsg');
     const conflictEl = document.getElementById('regVillageConflictMsg');
@@ -4620,18 +4877,24 @@ async function submitRegistration() {
         if (statusEl) statusEl.innerHTML = '<div class="alert alert-danger py-2 small"><i class="fas fa-exclamation-circle me-2"></i>Please select a Village.</div>';
         return;
     }
+    if (role === 'village_officer' && !sachivalayam) {
+        if (statusEl) statusEl.innerHTML = '<div class="alert alert-danger py-2 small"><i class="fas fa-exclamation-circle me-2"></i>Please enter your Grama Sachivalayam name/number.</div>';
+        return;
+    }
 
     if (statusEl) statusEl.innerHTML = '<div class="alert alert-info py-2 small"><i class="fas fa-spinner fa-spin me-2"></i>Submitting registration…</div>';
 
-    // VO uniqueness check — only possible if already authenticated (e.g. admin testing)
-    // For unauthenticated users this is skipped silently; admin verifies on approval
+    // VO uniqueness check — based on village + sachivalayam combination
+    // This allows multiple logins per village as long as sachivalayam differs
     if (role === 'village_officer' && firebase.auth().currentUser) {
         try {
             const usersSnap = await database.ref('users').once('value');
             let alreadyExists = false;
             usersSnap.forEach(userChild => {
                 const profile = userChild.val()?.profile || {};
-                if ((profile.role === 'village_officer' || profile.role === 'vo') && profile.village === village) {
+                if ((profile.role === 'village_officer' || profile.role === 'vo')
+                    && profile.village === village
+                    && (profile.sachivalayam || '').toLowerCase() === sachivalayam.toLowerCase()) {
                     alreadyExists = true;
                 }
             });
@@ -4651,6 +4914,7 @@ async function submitRegistration() {
         id: pendingKey,
         fullName, email, password,
         role, district, mandal: mandal || '', village: village || '',
+        sachivalayam: sachivalayam || '',
         status: 'pending',
         submittedAt: new Date().toISOString()
     };
@@ -4659,7 +4923,7 @@ async function submitRegistration() {
         await database.ref('pendingUsers/' + pendingKey).set(pendingData);
         if (statusEl) statusEl.innerHTML = '<div class="alert alert-success py-2 small"><i class="fas fa-check-circle me-2"></i>Registration submitted successfully. Waiting for Admin approval.</div>';
         // Clear form after success
-        ['regFullName','regEmail','regPassword','regConfirmPassword'].forEach(id => {
+        ['regFullName','regEmail','regPassword','regConfirmPassword','regSachivalayam'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -4667,7 +4931,7 @@ async function submitRegistration() {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
-        ['regMandalField','regVillageField'].forEach(id => {
+        ['regMandalField','regVillageField','regSachivalayamField'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         });
@@ -4840,6 +5104,24 @@ function sendPasswordReset() {
     firebase.auth().sendPasswordResetEmail(email)
         .then(() => { alert('Password reset email sent!'); showSection('loginPage'); })
         .catch(e => alert(e.message));
+}
+
+// ── Profile page: send password reset email for currently logged-in user ──
+function sendProfilePasswordReset() {
+    const user = firebase.auth().currentUser;
+    const statusEl = document.getElementById('profileResetStatus');
+    if (!user || !user.email) {
+        if (statusEl) { statusEl.classList.remove('hidden'); statusEl.innerHTML = '<div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-2"></i>No logged-in user email found.</div>'; }
+        return;
+    }
+    if (statusEl) { statusEl.classList.remove('hidden'); statusEl.innerHTML = '<div class="alert alert-info py-2 small"><i class="fas fa-spinner fa-spin me-2"></i>Sending reset email to ' + escapeHtml(user.email) + '…</div>'; }
+    firebase.auth().sendPasswordResetEmail(user.email)
+        .then(() => {
+            if (statusEl) statusEl.innerHTML = `<div class="alert alert-success py-2 small"><i class="fas fa-check-circle me-2"></i>Password reset email sent to <strong>${escapeHtml(user.email)}</strong>. Check your inbox.</div>`;
+        })
+        .catch(e => {
+            if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger py-2 small"><i class="fas fa-times-circle me-2"></i>${escapeHtml(e.message)}</div>`;
+        });
 }
 
 function populateYearDropdowns() {
@@ -5881,6 +6163,9 @@ function validateAadhaar(aadhaar) {
             setSelectValue('profileMandal', profile.mandal || '');
             setSelectValue('profileVillage', profile.village || '');
             setSelectValue('profileDivision', profile.division || '');
+            // Load sachivalayam for VO
+            const sachEl = document.getElementById('profileSachivalayam');
+            if (sachEl) sachEl.value = profile.sachivalayam || '';
             applyProfileFieldConfig(role);
         });
 
@@ -5921,6 +6206,7 @@ function validateAadhaar(aadhaar) {
     const mandal = document.getElementById('profileMandal').value.trim();
     const village = document.getElementById('profileVillage').value.trim();
     const division = document.getElementById('profileDivision').value.trim();
+    const sachivalayam = document.getElementById('profileSachivalayam')?.value.trim() || '';
 
     if (!district || !division) return alert('Please select District and Division.');
     if (config.requireMandal && !mandal) return alert('Please select your Mandal.');
@@ -5934,7 +6220,7 @@ function validateAadhaar(aadhaar) {
         updatedAt: new Date().toISOString()
     };
     if (config.requireMandal) updateObj.mandal = mandal;
-    if (config.requireVillage) updateObj.village = village;
+    if (config.requireVillage) { updateObj.village = village; updateObj.sachivalayam = sachivalayam; }
     if (pendingSig) updateObj.signatureBase64 = pendingSig;
 
     user.updateProfile({ displayName: name }).then(() =>
@@ -7211,12 +7497,20 @@ function submitClearUreaHistory() {
             clearUreaForm();
             alert('✅ History cleared!');
         } else if (pendingClearType === 'one' && pendingClearSerialNo !== null) {
-            const idx = ureaHistory.findIndex(r => r.serialNo === pendingClearSerialNo);
-            if (idx !== -1) {
-                ureaHistory.splice(idx, 1);
-                saveToCloud();
-                alert(`✅ Record #${pendingClearSerialNo} deleted.`);
+            // Check if retailer already accepted this distribution
+            const rec = ureaHistory.find(r => r.serialNo === pendingClearSerialNo);
+            if (!rec) {
+                alert('⚠️ Record not found.');
+                pendingClearType = null; pendingClearSerialNo = null;
+                return;
             }
+            if (rec.retailerVerified || rec.status === 'Distributed') {
+                alert('🚫 Cannot delete this record.\n\nThe retailer has already accepted this distribution. Deletion is not allowed after retailer acceptance.');
+                pendingClearType = null; pendingClearSerialNo = null;
+                return;
+            }
+            // Route through MO approval
+            submitVoDeleteRequest(pendingClearSerialNo, rec);
         }
         pendingClearType     = null;
         pendingClearSerialNo = null;
@@ -7224,6 +7518,47 @@ function submitClearUreaHistory() {
         showSection('ureaSection');
     }, 300);
 }
+
+// ─── VO submits a delete request → goes to MO for confirmation ───────────────
+function submitVoDeleteRequest(serialNo, rec) {
+    const user = firebase.auth().currentUser;
+    if (!user || !currentUserProfile) {
+        alert('⚠️ Not logged in.');
+        return;
+    }
+
+    const requestId = `del_${user.uid}_${serialNo}_${Date.now()}`;
+    const requestData = {
+        requestId,
+        voUid: user.uid,
+        voName: currentUserProfile.name || user.email,
+        voEmail: user.email,
+        voVillage: currentUserProfile.village || '—',
+        voMandal: currentUserProfile.mandal || '—',
+        serialNo,
+        farmerName: rec.farmerName || '',
+        aadhaar: rec.aadhaar || '',
+        date: rec.date || '',
+        fertilizerType: rec.fertilizerType || 'Urea',
+        crop: rec.crop || '',
+        bags: rec.bags || '',
+        season: rec.season || '',
+        year: rec.year || '',
+        status: 'pending_mo',
+        requestedAt: new Date().toISOString()
+    };
+
+    database.ref('deleteRequests/' + requestId).set(requestData)
+        .then(() => {
+            alert(
+                '✅ Delete request submitted!\n\n' +
+                'Your request to delete record #' + serialNo + ' has been sent to your Mandal Officer for confirmation.\n\n' +
+                'The record will only be deleted after MO approval.'
+            );
+        })
+        .catch(err => alert('❌ Error submitting request: ' + err.message));
+}
+
 
 function clearUreaHistory() {
     ureaHistory = [];
@@ -7245,6 +7580,10 @@ function clearUreaHistory() {
 function clearOneUreaRecord(sno) {
     const idx = ureaHistory.findIndex(r => r.serialNo === sno);
     if (idx === -1) return alert("Not found.");
+    const rec = ureaHistory[idx];
+    if (rec.retailerVerified || rec.status === 'Distributed') {
+        return alert('🚫 Cannot delete this record.\n\nThe retailer has already accepted this distribution. Deletion is not allowed after retailer acceptance.');
+    }
     ureaHistory.splice(idx, 1);
     saveToCloud();
 
@@ -8589,7 +8928,24 @@ function getHistoryStatusBadge(r) {
 }
 
 function renderHistoryRows(rec) {
-    return rec.map(r => `
+    return rec.map(r => {
+        const isDistributed = r.retailerVerified || r.status === 'Distributed';
+        let deleteBtn = '';
+        if (isDistributed) {
+            deleteBtn = `<span class="badge bg-secondary" title="Retailer accepted — cannot delete">
+                            <i class="bi bi-lock-fill me-1"></i>Locked
+                         </span>`;
+        } else if (r._pendingDelete) {
+            deleteBtn = `<span class="badge bg-warning text-dark" title="Delete request pending MO approval">
+                            <i class="fas fa-clock me-1"></i>Pending MO
+                         </span>`;
+        } else {
+            deleteBtn = `<button class="btn btn-sm btn-outline-danger"
+                            onclick="showClearUreaPasswordModal('one', ${r.serialNo})">
+                            <i class="bi bi-trash me-1"></i>Delete
+                         </button>`;
+        }
+        return `
         <tr>
             <td>${r.serialNo||""}</td>
             <td>${r.date||""}</td>
@@ -8610,10 +8966,10 @@ function renderHistoryRows(rec) {
                 ${(r.printCount && r.printCount > 1)
                     ? `<span class="badge bg-warning text-dark mb-1" title="Printed ${r.printCount} times">🖨️ ×${r.printCount}</span><br>`
                     : ''}
-                <button class="btn btn-sm btn-outline-danger"
-                    onclick="showClearUreaPasswordModal('one', ${r.serialNo})">Delete</button>
+                ${deleteBtn}
             </td>
-        </tr>`).join("");
+        </tr>`;
+    }).join("");
 }
 
 function openHistoryModal(recs) {
@@ -8646,7 +9002,20 @@ function showAadhaarHistory(a) {
     document.getElementById("aadhaarRecordCount").classList.remove("hidden");
     document.getElementById("noAadhaarHistoryMsg").classList.add("hidden");
 
-    document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => `
+    document.querySelector("#aadhaarHistoryTable tbody").innerHTML = h.map(r => {
+        const isDistributed = r.retailerVerified || r.status === 'Distributed';
+        let deletePart = '';
+        if (isDistributed) {
+            deletePart = `<span class="badge bg-secondary" title="Retailer accepted — cannot delete"><i class="bi bi-lock-fill me-1"></i>Locked</span>`;
+        } else if (r._pendingDelete) {
+            deletePart = `<span class="badge bg-warning text-dark" title="Pending MO approval"><i class="fas fa-clock me-1"></i>Pending MO</span>`;
+        } else {
+            deletePart = `<button class="btn btn-sm btn-outline-danger"
+                            onclick="showClearUreaPasswordModal('one', ${r.serialNo})">
+                            <i class="bi bi-trash"></i> Delete
+                         </button>`;
+        }
+        return `
         <tr>
             <td>${r.serialNo||""}</td>
             <td>${r.date||""}</td>
@@ -8672,14 +9041,12 @@ function showAadhaarHistory(a) {
                             onclick="reprintDistribution(${r.serialNo})">
                             <i class="bi bi-printer"></i> Reprint
                         </button>
-                        <button class="btn btn-sm btn-outline-danger"
-                            onclick="showClearUreaPasswordModal('one', ${r.serialNo})">
-                            <i class="bi bi-trash"></i> Delete
-                        </button>
+                        ${deletePart}
                     </div>
                 </div>
             </td>
-        </tr>`).join("");
+        </tr>`;
+    }).join("");
 
     new bootstrap.Modal(document.getElementById("aadhaarHistoryModal")).show();
 }
@@ -10780,6 +11147,7 @@ function switchMoMainTab(tabId, btn) {
     // Lazy-load lists when switching
     if (tabId === 'moTabOfficers') loadMoOfficersList(currentUserProfile?.mandal || '');
     if (tabId === 'moTabRetailers') loadMoRetailersList(currentUserProfile?.mandal || '');
+    if (tabId === 'moTabDeleteApprovals') loadMoDeleteRequests();
 }
 
 function switchMoDetailTab(tabId, btn) {
@@ -11220,14 +11588,15 @@ function loadMoOfficersList(mandal) {
 }
 
 function createVillageOfficer() {
-    const name    = document.getElementById('moNewOfficerName').value.trim();
-    const email   = document.getElementById('moNewOfficerEmail').value.trim();
-    const pass    = document.getElementById('moNewOfficerPass').value.trim();
-    const village = document.getElementById('moNewOfficerVillage').value.trim();
-    const status  = document.getElementById('moCreateOfficerStatus');
+    const name           = document.getElementById('moNewOfficerName').value.trim();
+    const email          = document.getElementById('moNewOfficerEmail').value.trim();
+    const pass           = document.getElementById('moNewOfficerPass').value.trim();
+    const village        = document.getElementById('moNewOfficerVillage').value.trim();
+    const sachivalayam   = document.getElementById('moNewOfficerSachivalayam').value.trim();
+    const status         = document.getElementById('moCreateOfficerStatus');
 
-    if (!name || !email || !pass || !village) {
-        status.innerHTML = '<div class="alert alert-warning">Please fill all fields.</div>'; return;
+    if (!name || !email || !pass || !village || !sachivalayam) {
+        status.innerHTML = '<div class="alert alert-warning">Please fill all fields including Grama Sachivalayam.</div>'; return;
     }
     if (pass.length < 6) {
         status.innerHTML = '<div class="alert alert-warning">Password must be at least 6 characters.</div>'; return;
@@ -11247,7 +11616,7 @@ function createVillageOfficer() {
             return Promise.all([
                 cred.user.updateProfile({ displayName: name }),
                 database.ref('users/' + cred.user.uid + '/profile').set({
-                    email, name, district, mandal, village, division,
+                    email, name, district, mandal, village, sachivalayam, division,
                     role: 'village_officer',
                     createdBy: firebase.auth().currentUser?.uid || '',
                     updatedAt: new Date().toISOString()
@@ -11257,8 +11626,8 @@ function createVillageOfficer() {
         })
         .then(() => {
             secondaryAuth.signOut();
-            status.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Village Officer login created for <strong>${escapeHtml(name)}</strong> — Village: ${escapeHtml(village)}.<br><small>Login credentials: <code>${escapeHtml(email)}</code> / <code>${escapeHtml(pass)}</code></small></div>`;
-            ['moNewOfficerName','moNewOfficerEmail','moNewOfficerPass'].forEach(id => document.getElementById(id).value = '');
+            status.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Village Officer login created for <strong>${escapeHtml(name)}</strong> — Village: ${escapeHtml(village)}, Sachivalayam: ${escapeHtml(sachivalayam)}.<br><small>Login credentials: <code>${escapeHtml(email)}</code> / <code>${escapeHtml(pass)}</code></small></div>`;
+            ['moNewOfficerName','moNewOfficerEmail','moNewOfficerPass','moNewOfficerSachivalayam'].forEach(id => document.getElementById(id).value = '');
             setSelectValue('moNewOfficerVillage', '');
             loadMoOfficersList(mandal);
         })
@@ -12216,7 +12585,7 @@ document.addEventListener('DOMContentLoaded', function() {
 //  ADMIN TAB SWITCHING
 // ============================================================
 function showAdminTab(tabId) {
-    ['adminCreateUsersTab', 'adminPendingApprovalsTab', 'adminManageUsersTab', 'adminDataTab'].forEach(id => {
+    ['adminCreateUsersTab', 'adminPendingApprovalsTab', 'adminManageUsersTab', 'adminDataTab', 'adminResetTab'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('hidden', id !== tabId);
     });
@@ -12253,18 +12622,19 @@ function adminCreateSelectedUser() {
 //  ADMIN: CREATE VILLAGE OFFICER
 // ============================================================
 function adminCreateVillageOfficer() {
-    const name     = (document.getElementById('adminVoName')?.value     || '').trim();
-    const email    = (document.getElementById('adminVoEmail')?.value    || '').trim();
-    const pass     = (document.getElementById('adminVoPass')?.value     || '').trim();
-    const village  = (document.getElementById('adminVoVillage')?.value  || '').trim();
-    const mandal   = (document.getElementById('adminVoMandal')?.value   || '').trim();
-    const district = (document.getElementById('adminVoDistrict')?.value || '').trim();
-    const division = (document.getElementById('adminVoDivision')?.value || '').trim();
-    const mobile   = (document.getElementById('adminVoMobile')?.value   || '').trim();
-    const statusEl = document.getElementById('adminCreateSelectedUserStatus');
+    const name          = (document.getElementById('adminVoName')?.value          || '').trim();
+    const email         = (document.getElementById('adminVoEmail')?.value         || '').trim();
+    const pass          = (document.getElementById('adminVoPass')?.value          || '').trim();
+    const village       = (document.getElementById('adminVoVillage')?.value       || '').trim();
+    const sachivalayam  = (document.getElementById('adminVoSachivalayam')?.value  || '').trim();
+    const mandal        = (document.getElementById('adminVoMandal')?.value        || '').trim();
+    const district      = (document.getElementById('adminVoDistrict')?.value      || '').trim();
+    const division      = (document.getElementById('adminVoDivision')?.value      || '').trim();
+    const mobile        = (document.getElementById('adminVoMobile')?.value        || '').trim();
+    const statusEl      = document.getElementById('adminCreateSelectedUserStatus');
 
-    if (!name || !email || !pass || !village || !mandal)
-        return (statusEl.innerHTML = '<div class="alert alert-warning py-2">Please fill: Name, Email, Password, Village, Mandal.</div>');
+    if (!name || !email || !pass || !village || !sachivalayam || !mandal)
+        return (statusEl.innerHTML = '<div class="alert alert-warning py-2">Please fill: Name, Email, Password, Village, Grama Sachivalayam, Mandal.</div>');
     if (pass.length < 6)
         return (statusEl.innerHTML = '<div class="alert alert-warning py-2">Password must be at least 6 characters.</div>');
 
@@ -12280,7 +12650,7 @@ function adminCreateVillageOfficer() {
         if (data.error) throw new Error(data.error.message);
         const newUid = data.localId;
         const profile = {
-            name, email, village, mandal, district, division, mobile,
+            name, email, village, sachivalayam, mandal, district, division, mobile,
             role:      'village_officer',
             createdBy: 'admin',
             createdAt: new Date().toISOString()
@@ -12291,8 +12661,8 @@ function adminCreateVillageOfficer() {
     .then(() => {
         statusEl.innerHTML = `<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>
             ✅ Village Officer <strong>${escapeHtml(name)}</strong> created for village 
-            <strong>${escapeHtml(village)}</strong>, ${escapeHtml(mandal)} Mandal!</div>`;
-        ['adminVoName','adminVoEmail','adminVoPass','adminVoVillage',
+            <strong>${escapeHtml(village)}</strong> (${escapeHtml(sachivalayam)}), ${escapeHtml(mandal)} Mandal!</div>`;
+        ['adminVoName','adminVoEmail','adminVoPass','adminVoVillage','adminVoSachivalayam',
          'adminVoMandal','adminVoDistrict','adminVoDivision','adminVoMobile']
             .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         loadAdminOfficersList();
@@ -13994,6 +14364,632 @@ function exportSelectedMandalFertilizerRows() {
     XLSX.writeFile(workbook, `${(currentUserProfile?.mandal || 'Mandal').replace(/\\s+/g, '_')}_Selected_Fertilizer_Details.xlsx`);
 }
 
+// ════════════════════════════════════════════════════════════════
+//  MO: LOAD & HANDLE VO DELETE REQUESTS
+// ════════════════════════════════════════════════════════════════
+function loadMoDeleteRequests() {
+    const container = document.getElementById('moDeleteRequestsList');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading delete requests...</div>';
+
+    const mandal = currentUserProfile?.mandal || '';
+    if (!mandal) {
+        container.innerHTML = '<div class="alert alert-warning">Mandal not set in profile.</div>';
+        return;
+    }
+
+    database.ref('deleteRequests').once('value').then(snap => {
+        if (!snap.exists()) {
+            container.innerHTML = '<div class="alert alert-info"><i class="fas fa-check-circle me-2"></i>No pending delete requests.</div>';
+            updateMoDeleteBadge(0);
+            return;
+        }
+        const all = snap.val();
+        const pending = Object.values(all).filter(r =>
+            r.status === 'pending_mo' && r.voMandal === mandal
+        );
+
+        updateMoDeleteBadge(pending.length);
+
+        if (!pending.length) {
+            container.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>No pending delete requests for your mandal.</div>';
+            return;
+        }
+
+        const rows = pending.map(r => `
+            <div class="card border-0 shadow-sm mb-3 p-3" style="border-radius:14px; border-left:4px solid #e74c3c !important;">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <div class="fw-bold text-danger mb-1">
+                            <i class="fas fa-trash-alt me-1"></i>Delete Request — Record #${r.serialNo}
+                        </div>
+                        <div class="small mb-1">
+                            <span class="text-muted">Village Officer:</span>
+                            <strong>${escapeHtml(r.voName)}</strong>
+                            <span class="text-muted ms-2">(${escapeHtml(r.voVillage)})</span>
+                        </div>
+                        <div class="small text-muted mb-1">Requested: ${new Date(r.requestedAt).toLocaleString('en-IN')}</div>
+                        <table class="table table-sm table-borderless mt-2 mb-0" style="font-size:0.83rem; max-width:480px;">
+                            <tr><td class="text-muted pe-2">Farmer:</td><td><strong>${escapeHtml(r.farmerName)}</strong></td>
+                                <td class="text-muted ps-3 pe-2">Aadhaar:</td><td><code>${escapeHtml(r.aadhaar)}</code></td></tr>
+                            <tr><td class="text-muted pe-2">Date:</td><td>${escapeHtml(r.date)}</td>
+                                <td class="text-muted ps-3 pe-2">Fertilizer:</td><td>${escapeHtml(r.fertilizerType)}</td></tr>
+                            <tr><td class="text-muted pe-2">Crop:</td><td>${escapeHtml(r.crop)}</td>
+                                <td class="text-muted ps-3 pe-2">Bags:</td><td><strong>${escapeHtml(String(r.bags))}</strong></td></tr>
+                            <tr><td class="text-muted pe-2">Season:</td><td>${escapeHtml(r.season)}</td>
+                                <td class="text-muted ps-3 pe-2">Year:</td><td>${escapeHtml(r.year)}</td></tr>
+                        </table>
+                    </div>
+                    <div class="d-flex gap-2 flex-column align-items-end">
+                        <button class="btn btn-success btn-sm fw-semibold px-3"
+                                onclick="moApproveDeleteRequest('${escapeHtml(r.requestId)}', '${escapeHtml(r.voUid)}', ${r.serialNo})">
+                            <i class="fas fa-check me-1"></i>Approve
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm fw-semibold px-3"
+                                onclick="moRejectDeleteRequest('${escapeHtml(r.requestId)}')">
+                            <i class="fas fa-times me-1"></i>Reject
+                        </button>
+                    </div>
+                </div>
+            </div>`).join('');
+
+        container.innerHTML = rows;
+    }).catch(err => {
+        container.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${escapeHtml(err.message)}</div>`;
+    });
+}
+
+function updateMoDeleteBadge(count) {
+    const badge = document.getElementById('moDeleteApprovalBadge');
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = '';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function moApproveDeleteRequest(requestId, voUid, serialNo) {
+    if (!confirm(`✅ Approve deletion of Record #${serialNo}?\n\nThis will permanently remove the fertilizer history entry for this VO.\n\nConfirm?`)) return;
+
+    // Mark request as approved_mo in Firebase
+    database.ref('deleteRequests/' + requestId).update({
+        status: 'approved_mo',
+        moApprovedAt: new Date().toISOString(),
+        moName: currentUserProfile?.name || 'MO'
+    }).then(() => {
+        // Fetch VO's ureaHistory to find the matching record (and its token)
+        return database.ref('users/' + voUid + '/ureaHistory').once('value');
+    }).then(snap => {
+        if (!snap.exists()) return Promise.resolve({ newArr: [], tokenKey: null });
+        const hist = snap.val();
+        const arr = Array.isArray(hist) ? hist : Object.values(hist);
+        // Find the record being deleted so we can grab its authToken
+        const targetRec = arr.find(r => r.serialNo === serialNo);
+        const rawToken = targetRec ? (targetRec.authToken || targetRec.tokenKey || targetRec.printToken || '') : '';
+        const tokenKey = rawToken.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        const newArr = arr.filter(r => r.serialNo !== serialNo);
+        return database.ref('users/' + voUid + '/ureaHistory').set(newArr)
+            .then(() => ({ newArr, tokenKey }));
+    }).then(({ tokenKey }) => {
+        // Also delete the corresponding fertilizerDistributions entry so MO view stays accurate
+        const ops = [];
+        if (tokenKey) {
+            ops.push(database.ref('fertilizerDistributions/' + tokenKey).remove()
+                .catch(e => console.warn('fertilizerDistributions remove:', e.message)));
+        }
+        // Notify VO via distributionUpdates path
+        ops.push(database.ref('distributionUpdates/' + voUid + '/deleteApproved_' + serialNo).set({
+            serialNo,
+            approvedAt: new Date().toISOString(),
+            message: 'Your delete request for Record #' + serialNo + ' has been approved by MO.'
+        }));
+        return Promise.all(ops);
+    }).then(() => {
+        alert(`✅ Record #${serialNo} deleted successfully.\nThe VO has been notified.`);
+        loadMoDeleteRequests();
+    }).catch(err => alert('❌ Error: ' + err.message));
+}
+
+function moRejectDeleteRequest(requestId) {
+    const reason = prompt('Enter reason for rejection (optional):') || '';
+    database.ref('deleteRequests/' + requestId).update({
+        status: 'rejected_mo',
+        moRejectedAt: new Date().toISOString(),
+        rejectionReason: reason,
+        moName: currentUserProfile?.name || 'MO'
+    }).then(() => {
+        alert('✅ Delete request rejected. The VO will see the rejection.');
+        loadMoDeleteRequests();
+    }).catch(err => alert('❌ Error: ' + err.message));
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ADMIN: RESET REQUESTS TAB
+// ════════════════════════════════════════════════════════════════
+let _adminResetTargetUID = null;
+let _adminResetTargetName = null;
+
+function loadAdminResetRequests() {
+    const container = document.getElementById('adminPendingDeleteContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-3 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>';
+
+    database.ref('deleteRequests').once('value').then(snap => {
+        if (!snap.exists()) {
+            container.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>No pending delete requests.</div>';
+            updateAdminResetBadge(0);
+            return;
+        }
+        const all = snap.val();
+        const requests = Object.values(all);
+
+        // All non-deleted requests shown to admin
+        const active = requests.filter(r => !r.status.includes('deleted'));
+        updateAdminResetBadge(active.filter(r => r.status === 'approved_mo').length);
+
+        if (!active.length) {
+            container.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>No pending delete requests.</div>';
+            return;
+        }
+
+        const statusColor = {
+            'pending_mo': 'warning',
+            'approved_mo': 'success',
+            'rejected_mo': 'danger'
+        };
+        const statusLabel = {
+            'pending_mo': '⏳ Awaiting MO',
+            'approved_mo': '✅ MO Approved — Awaiting Admin',
+            'rejected_mo': '❌ Rejected by MO'
+        };
+
+        const rows = active.map(r => `
+            <div class="card border-0 shadow-sm mb-3 p-3" style="border-radius:14px; border-left:4px solid var(--${statusColor[r.status] || 'secondary'}) !important;">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge bg-${statusColor[r.status] || 'secondary'}">${statusLabel[r.status] || r.status}</span>
+                            <span class="fw-bold text-dark">Record #${r.serialNo}</span>
+                        </div>
+                        <div class="small mb-1">
+                            <span class="text-muted">VO:</span> <strong>${escapeHtml(r.voName)}</strong>
+                            <span class="text-muted ms-2">Mandal:</span> ${escapeHtml(r.voMandal)}
+                            <span class="text-muted ms-2">Village:</span> ${escapeHtml(r.voVillage)}
+                        </div>
+                        <div class="small text-muted">Requested: ${new Date(r.requestedAt).toLocaleString('en-IN')}</div>
+                        <div class="small mt-1">
+                            Farmer: <strong>${escapeHtml(r.farmerName)}</strong> | ${escapeHtml(r.fertilizerType)} | ${escapeHtml(r.crop)} | ${escapeHtml(r.bags)} bags | ${escapeHtml(r.season)} ${escapeHtml(r.year)}
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 flex-column align-items-end">
+                        ${r.status === 'rejected_mo'
+                            ? `<span class="text-muted small">Rejected${r.rejectionReason ? ': ' + escapeHtml(r.rejectionReason) : ''}</span>`
+                            : `<button class="btn btn-danger btn-sm fw-semibold px-3"
+                                       onclick="adminFinalApproveDelete('${escapeHtml(r.requestId)}', '${escapeHtml(r.voUid)}', ${r.serialNo})">
+                                   <i class="fas fa-trash-alt me-1"></i>Force Delete
+                               </button>`
+                        }
+                        <button class="btn btn-outline-secondary btn-sm"
+                                onclick="adminDismissDeleteRequest('${escapeHtml(r.requestId)}')">
+                            <i class="fas fa-times me-1"></i>Dismiss
+                        </button>
+                    </div>
+                </div>
+            </div>`).join('');
+
+        container.innerHTML = rows;
+    }).catch(err => {
+        container.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${escapeHtml(err.message)}</div>`;
+    });
+}
+
+function updateAdminResetBadge(count) {
+    const badge = document.getElementById('adminResetBadge');
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = '';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function adminFinalApproveDelete(requestId, voUid, serialNo) {
+    if (!confirm(`⚠️ Force-delete Record #${serialNo} from VO's history?\n\nThis is irreversible. Confirm?`)) return;
+
+    database.ref('users/' + voUid + '/ureaHistory').once('value').then(snap => {
+        if (!snap.exists()) return database.ref('deleteRequests/' + requestId).update({ status: 'completed' });
+        const hist = snap.val();
+        const arr = Array.isArray(hist) ? hist : Object.values(hist);
+        const newArr = arr.filter(r => r.serialNo !== serialNo);
+        return database.ref('users/' + voUid + '/ureaHistory').set(newArr).then(() =>
+            database.ref('deleteRequests/' + requestId).update({ status: 'completed', adminApprovedAt: new Date().toISOString() })
+        );
+    }).then(() => {
+        alert(`✅ Record #${serialNo} deleted by Admin.`);
+        loadAdminResetRequests();
+    }).catch(err => alert('❌ Error: ' + err.message));
+}
+
+function adminDismissDeleteRequest(requestId) {
+    if (!confirm('Dismiss this delete request?')) return;
+    database.ref('deleteRequests/' + requestId).update({ status: 'dismissed' })
+        .then(() => loadAdminResetRequests())
+        .catch(err => alert('❌ Error: ' + err.message));
+}
+
+// ════════════════════════════════════════════════════════════════
+//  USER ACCOUNT RESET REQUEST — Submit from Profile
+// ════════════════════════════════════════════════════════════════
+function toggleResetAllSections(cb) {
+    const boxes = document.querySelectorAll('.reset-section-cb');
+    boxes.forEach(b => { b.checked = cb.checked; b.disabled = cb.checked; });
+}
+
+function submitAccountResetRequest() {
+    const user = firebase.auth().currentUser;
+    if (!user || !currentUserProfile) return alert('⚠️ Not logged in.');
+
+    const allChecked = document.getElementById('resetAll')?.checked;
+    const sectionBoxes = [...document.querySelectorAll('.reset-section-cb:checked')].map(b => b.value);
+
+    if (!allChecked && !sectionBoxes.length) {
+        return alert('⚠️ Please select at least one section to reset, or choose "Everything".');
+    }
+
+    const sections = allChecked ? ['all'] : sectionBoxes;
+    const reason = (document.getElementById('accountResetReason')?.value || '').trim();
+
+    const statusEl = document.getElementById('accountResetStatus');
+    if (!confirm(
+        `⚠️ Submit Account Reset Request?\n\n` +
+        `Sections: ${sections.join(', ')}\n\n` +
+        `This request will be sent to Admin for approval. No data is deleted until Admin confirms.`
+    )) return;
+
+    const requestId = `accreset_${user.uid}_${Date.now()}`;
+    const requestData = {
+        requestId,
+        uid: user.uid,
+        userName: currentUserProfile.name || user.email,
+        userEmail: user.email,
+        userRole: currentUserProfile.role || '—',
+        userVillage: currentUserProfile.village || '—',
+        userMandal: currentUserProfile.mandal || '—',
+        sections,
+        reason,
+        status: 'pending_admin',
+        requestedAt: new Date().toISOString()
+    };
+
+    if (statusEl) { statusEl.classList.remove('hidden'); statusEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Submitting...</div>'; }
+
+    database.ref('accountResetRequests/' + requestId).set(requestData)
+        .then(() => {
+            if (statusEl) statusEl.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>Reset request submitted! Admin will review and confirm.</div>';
+            // Clear form
+            document.getElementById('resetAll').checked = false;
+            document.querySelectorAll('.reset-section-cb').forEach(b => { b.checked = false; b.disabled = false; });
+            if (document.getElementById('accountResetReason')) document.getElementById('accountResetReason').value = '';
+        })
+        .catch(err => {
+            if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
+        });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ADMIN: ACCOUNT RESET REQUESTS
+// ════════════════════════════════════════════════════════════════
+// Store pending account reset requests by requestId for safe onclick access
+const _acctResetMap = {};
+
+function loadAdminAccountResetRequests() {
+    const container = document.getElementById('adminAccountResetContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-3 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>';
+
+    database.ref('accountResetRequests').once('value').then(snap => {
+        if (!snap.exists()) {
+            container.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>No account reset requests.</div>';
+            updateAdminAccountResetBadge(0);
+            return;
+        }
+        const all = Object.values(snap.val());
+        const active = all.filter(r => r.status === 'pending_admin');
+        updateAdminAccountResetBadge(active.length);
+
+        if (!active.length) {
+            container.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>No pending account reset requests.</div>';
+            return;
+        }
+
+        const sectionLabel = {
+            all:           '🗑️ Everything (Full Reset)',
+            ureaHistory:   '💊 Fertilizer Distribution History',
+            allReports:    '📄 e-Panta Crop Reports',
+            farmerProfiles:'👤 Farmer Profiles',
+            ureaData:      '📤 Uploaded 1B Data'
+        };
+
+        const roleLabel = {
+            village_officer:    'Village Officer',
+            mandal_officer:     'Mandal Officer',
+            divisional_officer: 'Divisional Officer',
+            retailer:           'Retailer'
+        };
+
+        const rows = active.map(r => {
+            // Store in map so onclick can retrieve without JSON issues
+            _acctResetMap[r.requestId] = r;
+
+            const sectionBadges = (r.sections || []).map(s =>
+                `<span class="badge me-1 mb-1" style="background:#fde8e8; color:#c0392b; border:1px solid #f5c6c6; font-weight:600;">
+                    ${escapeHtml(sectionLabel[s] || s)}
+                </span>`
+            ).join('');
+
+            const roleDisplay = roleLabel[r.userRole] || escapeHtml(r.userRole || '—');
+
+            return `
+            <div class="card border-0 shadow-sm mb-3" style="border-radius:14px; border-left:5px solid #c0392b !important; overflow:hidden;">
+                <!-- Card header -->
+                <div class="d-flex align-items-center gap-3 px-4 py-3"
+                     style="background:linear-gradient(90deg,#fef2f2,#fff7f7);">
+                    <div class="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
+                         style="width:42px;height:42px;background:linear-gradient(135deg,#e74c3c,#c0392b);">
+                        <i class="fas fa-redo-alt text-white"></i>
+                    </div>
+                    <div style="flex:1;">
+                        <div class="fw-bold" style="color:#c0392b; font-size:0.95rem;">Account Reset Request</div>
+                        <div class="text-muted small">Submitted: ${new Date(r.requestedAt).toLocaleString('en-IN')}</div>
+                    </div>
+                    <span class="badge" style="background:#c0392b; font-size:0.75rem;">Pending</span>
+                </div>
+
+                <!-- Details -->
+                <div class="px-4 py-3">
+                    <div class="row g-2 mb-3">
+                        <div class="col-sm-6">
+                            <div class="small text-muted text-uppercase fw-semibold mb-1" style="letter-spacing:.4px; font-size:0.7rem;">Officer Name</div>
+                            <div class="fw-bold">${escapeHtml(r.userName || '—')}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted text-uppercase fw-semibold mb-1" style="letter-spacing:.4px; font-size:0.7rem;">Role</div>
+                            <div><span class="badge bg-secondary">${roleDisplay}</span></div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted text-uppercase fw-semibold mb-1" style="letter-spacing:.4px; font-size:0.7rem;">Email</div>
+                            <div class="small">${escapeHtml(r.userEmail || '—')}</div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="small text-muted text-uppercase fw-semibold mb-1" style="letter-spacing:.4px; font-size:0.7rem;">Mandal</div>
+                            <div class="small fw-semibold">${escapeHtml(r.userMandal || '—')}</div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="small text-muted text-uppercase fw-semibold mb-1" style="letter-spacing:.4px; font-size:0.7rem;">Village</div>
+                            <div class="small fw-semibold">${escapeHtml(r.userVillage || '—')}</div>
+                        </div>
+                    </div>
+
+                    <!-- Sections to reset -->
+                    <div class="mb-3 p-3 rounded" style="background:#fff5f5; border:1px solid #f5c6c6;">
+                        <div class="small text-muted text-uppercase fw-semibold mb-2" style="letter-spacing:.4px; font-size:0.7rem;">
+                            <i class="fas fa-trash-alt me-1"></i>Sections Requested for Deletion
+                        </div>
+                        <div>${sectionBadges}</div>
+                    </div>
+
+                    ${r.reason ? `
+                    <div class="mb-3 p-2 rounded" style="background:#f8f9fa; border-left:3px solid #aaa;">
+                        <div class="small text-muted text-uppercase fw-semibold mb-1" style="font-size:0.7rem;">Reason</div>
+                        <div class="small">${escapeHtml(r.reason)}</div>
+                    </div>` : ''}
+
+                    <!-- Action buttons -->
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-danger fw-semibold px-4"
+                                style="border-radius:10px;"
+                                onclick="_doAdminApproveReset('${escapeHtml(r.requestId)}')">
+                            <i class="fas fa-check me-2"></i>Approve &amp; Reset Data
+                        </button>
+                        <button class="btn btn-outline-secondary fw-semibold px-4"
+                                style="border-radius:10px;"
+                                onclick="_doAdminRejectReset('${escapeHtml(r.requestId)}')">
+                            <i class="fas fa-times me-2"></i>Reject Request
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = rows;
+    }).catch(err => {
+        container.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${escapeHtml(err.message)}</div>`;
+    });
+}
+
+function updateAdminAccountResetBadge(count) {
+    const badge = document.getElementById('adminAccountResetBadge');
+    if (!badge) return;
+    if (count > 0) { badge.textContent = count; badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+}
+
+function adminApproveAccountReset(requestId, uid, sections) {
+    // Legacy fallback — prefer _doAdminApproveReset
+    _acctResetMap[requestId] = _acctResetMap[requestId] || { requestId, uid, sections };
+    _doAdminApproveReset(requestId);
+}
+
+function adminRejectAccountReset(requestId, uid) {
+    _doAdminRejectReset(requestId);
+}
+
+function _doAdminApproveReset(requestId) {
+    const r = _acctResetMap[requestId];
+    if (!r) return alert('❌ Request data not found. Please refresh.');
+    const sArr = Array.isArray(r.sections) ? r.sections : [];
+    const isAll = sArr.includes('all');
+    const sectionLabel = {
+        all:           'Everything (Full Reset)',
+        ureaHistory:   'Fertilizer History',
+        allReports:    'e-Panta Reports',
+        farmerProfiles:'Farmer Profiles',
+        ureaData:      'Uploaded 1B Data'
+    };
+    const label = isAll ? 'ALL DATA' : sArr.map(s => sectionLabel[s] || s).join(', ');
+
+    if (!confirm(
+        `⚠️ Approve Account Reset?\n\n` +
+        `Officer: ${r.userName} (${r.userEmail})\n` +
+        `Sections to DELETE: ${label}\n\n` +
+        `This is IRREVERSIBLE. The selected data will be permanently cleared.\n\nConfirm?`
+    )) return;
+
+    const uid = r.uid;
+    const resetField = (field) => database.ref('users/' + uid + '/' + field).remove();
+
+    let ops;
+    if (isAll) {
+        ops = [
+            resetField('ureaHistory'),
+            resetField('allReports'),
+            resetField('farmerProfiles'),
+            resetField('ureaData'),
+            resetField('reports')
+        ];
+    } else {
+        ops = sArr.map(s => resetField(s));
+    }
+
+    Promise.all(ops).then(() => {
+        return database.ref('accountResetRequests/' + requestId).update({
+            status: 'approved',
+            approvedAt: new Date().toISOString()
+        });
+    }).then(() => {
+        alert(`✅ Account reset completed!\n\nThe following data has been cleared for ${r.userName}:\n${label}`);
+        delete _acctResetMap[requestId];
+        loadAdminAccountResetRequests();
+    }).catch(err => alert('❌ Error: ' + err.message));
+}
+
+function _doAdminRejectReset(requestId) {
+    const r = _acctResetMap[requestId];
+    if (!r) return alert('❌ Request data not found. Please refresh.');
+    const reason = prompt(`Reject reset request from ${r.userName}?\n\nEnter reason for rejection (optional):`) || '';
+    if (reason === null) return; // cancelled
+    database.ref('accountResetRequests/' + requestId).update({
+        status: 'rejected',
+        rejectedAt: new Date().toISOString(),
+        rejectionReason: reason
+    }).then(() => {
+        alert('✅ Request rejected. The officer will be notified.');
+        delete _acctResetMap[requestId];
+        loadAdminAccountResetRequests();
+    }).catch(err => alert('❌ Error: ' + err.message));
+}
+
+// Admin find user for direct reset
+function adminFindUserForReset() {
+    const email = (document.getElementById('adminResetUserEmail')?.value || '').trim().toLowerCase();
+    if (!email) return alert('Enter an email address.');
+
+    const infoBox = document.getElementById('adminResetUserInfo');
+    const statusEl = document.getElementById('adminDirectResetStatus');
+    if (infoBox) infoBox.classList.add('hidden');
+    if (statusEl) statusEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Searching...</div>';
+
+    database.ref('users').once('value').then(snap => {
+        if (!snap.exists()) { if (statusEl) statusEl.innerHTML = '<div class="alert alert-warning">No users found.</div>'; return; }
+        const all = snap.val();
+        let found = null;
+        Object.entries(all).forEach(([uid, data]) => {
+            if (!data) return;
+            const profile = data.profile || {};
+            const e = (data.userEmail || profile.email || '').toLowerCase();
+            if (e === email) found = { uid, ...profile, userEmail: data.userEmail || profile.email };
+        });
+
+        if (!found) {
+            if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger">No user found with email: <strong>${escapeHtml(email)}</strong></div>`;
+            return;
+        }
+
+        _adminResetTargetUID = found.uid;
+        _adminResetTargetName = found.name || found.userEmail;
+
+        const roleMap = { village_officer: 'Village Officer', mandal_officer: 'Mandal Officer', divisional_officer: 'Divisional Officer', retailer: 'Retailer' };
+        document.getElementById('adminResetFoundName').textContent = found.name || '—';
+        document.getElementById('adminResetFoundEmail').textContent = found.userEmail || email;
+        document.getElementById('adminResetFoundRole').textContent = roleMap[found.role] || (found.role || 'User');
+        if (statusEl) statusEl.innerHTML = '';
+        if (infoBox) infoBox.classList.remove('hidden');
+    }).catch(err => {
+        if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message)}</div>`;
+    });
+}
+
+function adminDirectReset(dataType) {
+    if (!_adminResetTargetUID) { alert('No user selected.'); return; }
+    const label = { all: 'ALL DATA', ureaHistory: 'Fertilizer History', allReports: 'e-Panta Reports', farmerProfiles: 'Farmer Profiles', ureaData: '1B Uploaded Data' }[dataType] || dataType;
+    if (!confirm(`⚠️ Reset "${label}" for:\n${_adminResetTargetName}\n\nThis CANNOT be undone. Confirm?`)) return;
+
+    const statusEl = document.getElementById('adminDirectResetStatus');
+    if (statusEl) statusEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Resetting...</div>';
+
+    const ref = dataType === 'all'
+        ? database.ref('users/' + _adminResetTargetUID)
+        : database.ref('users/' + _adminResetTargetUID + '/' + dataType);
+
+    ref.remove().then(() => {
+        if (statusEl) statusEl.innerHTML = `<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>"${label}" reset successfully for <strong>${escapeHtml(_adminResetTargetName)}</strong>.</div>`;
+        if (dataType === 'all' || dataType === 'farmerProfiles') {
+            if (confirm('🔄 Also reset Registration ID counters?')) {
+                database.ref('registrationCounters').remove();
+            }
+        }
+    }).catch(err => {
+        if (statusEl) statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>${escapeHtml(err.message)}</div>`;
+    });
+}
+
+// ── Poll for approved delete requests when VO is logged in ──────────────────
+function pollVoDeleteApprovals() {
+    const user = firebase.auth().currentUser;
+    if (!user || !currentUserProfile || currentUserProfile.role !== 'village_officer') return;
+
+    database.ref('distributionUpdates/' + user.uid).once('value').then(snap => {
+        if (!snap.exists()) return;
+        const updates = snap.val();
+        let notify = [];
+        Object.entries(updates).forEach(([key, data]) => {
+            if (key.startsWith('deleteApproved_') && data.serialNo) {
+                notify.push(data);
+            }
+        });
+        if (notify.length) {
+            notify.forEach(n => {
+                // Remove from local cache (already deleted server-side by MO)
+                const idx = ureaHistory.findIndex(r => r.serialNo === n.serialNo);
+                if (idx !== -1) {
+                    ureaHistory.splice(idx, 1);
+                    saveToCloud();
+                }
+                // Remove the notification key
+                database.ref('distributionUpdates/' + user.uid + '/deleteApproved_' + n.serialNo).remove();
+            });
+            if (notify.length === 1) {
+                alert('ℹ️ Your delete request for Record #' + notify[0].serialNo + ' was approved by MO and the record has been removed.');
+            } else {
+                alert('ℹ️ ' + notify.length + ' delete request(s) were approved by MO.');
+            }
+        }
+    }).catch(() => {});
+}
+
     </script>
 
 <!-- ============================================================
@@ -14368,7 +15364,7 @@ function confirmDeleteUser() {
             <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
                  style="width:28px;height:28px;background:#1562ab;font-size:0.78rem;min-width:28px;">1</div>
             <p class="mb-0 small" style="line-height:1.8; color:#1a3a5c;">
-              ముందుగా ఈ పంట నుంచి <strong>పంట నమోదు వివరాలు డౌన్లోడ్</strong> చేసుకోవాలి.
+              ముందుగా ఈ పంట నుంచి <strong>పంట నమోదు వివరాలు డౌన్లోడ్</strong> చేసుకోవాలి.Village Profile కొరకు  <strong>పంట నమోదు వివరాలు MAO లాగిన్ నుంచి </strong> Pattadhar/Cultivator ఉన్న ఫైల్ ని డౌన్లోడ్ చేసుకోండి.
             </p>
           </div>
 
