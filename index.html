@@ -2411,6 +2411,23 @@
 
             <hr class="my-4">
 
+            <!-- Section 1: Pending Delete Requests from VOs (awaiting MO then Admin) -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="fas fa-clock me-2 text-warning"></i>Pending Fertilizer Delete Requests</h5>
+                        <p class="text-muted small mb-0">Requests from Village Officers to delete fertilizer history entries. MO must confirm first, then Admin can approve.</p>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadAdminResetRequests()">
+                        <i class="fas fa-sync me-1"></i> Refresh
+                    </button>
+                </div>
+                <div id="adminPendingDeleteContainer">
+                    <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i> Loading...</div>
+                </div>
+            </div>
+
+            <hr class="my-4">
 
             <!-- Section 2: Direct Admin Reset — reset any user's data -->
             <div>
@@ -2609,9 +2626,6 @@
         <i class="fas fa-trash-restore me-1"></i>Delete Requests
         <span id="moDeleteApprovalBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem; display:none;">0</span>
       </button>
-      <button class="mo-tab-btn position-relative" onclick="switchMoMainTab('moTabStockApprovals', this); loadMoStockRequests();" id="moStockApprovalTabBtn">
-        <i class="fas fa-boxes me-1"></i>Retailer Stock Requests
-      </button>
       <button class="mo-tab-btn ms-auto" onclick="switchMoMainTab('moTabRegister', this)"
               style="background:#e8f5e9;border-color:#27ae60;color:#1a7a4a;">
         <i class="fas fa-user-plus me-1"></i>Create Login
@@ -2729,22 +2743,6 @@
     </div>
 
     <!-- ── TAB: Delete Approvals ── -->
-     <div id="moTabStockApprovals" class="mo-section-tab">
-      <div class="card border-0 shadow-sm p-4 mb-4" style="border-radius:16px;">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <div>
-            <h5 class="fw-bold mb-0"><i class="fas fa-boxes me-2 text-warning"></i>Retailer Stock Requests</h5>
-            <p class="text-muted small mb-0">Approve or reject stock Add/Edit/Delete requests from Retailers.</p>
-          </div>
-          <button class="btn btn-outline-secondary btn-sm" onclick="loadMoStockRequests()">
-            <i class="fas fa-sync me-1"></i> Refresh
-          </button>
-        </div>
-        <div id="moStockRequestsList">
-          <div class="text-center text-muted py-4">Click Refresh to load...</div>
-        </div>
-      </div>
-    </div>
     <div id="moTabDeleteApprovals" class="mo-section-tab">
       <div class="card border-0 shadow-sm p-4 mb-4" style="border-radius:16px;">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -2941,13 +2939,10 @@
             </div>
         </div>
         <div class="mt-4">
-            <h5 class="fw-bold mb-3"><i class="fas fa-clock me-2 text-warning"></i>Pending Requests (Sent to MO)</h5>
-            <div id="rtPendingRequestsTable"></div>
-        </div>
-        <div class="mt-4">
             <h5 class="fw-bold mb-3"><i class="fas fa-list me-2 text-secondary"></i>Stock Receipt History</h5>
             <div id="rtStockHistoryTable"></div>
         </div>
+    </div>
 
     <!-- Pending Distributions Tab -->
     <div id="rtDistributionsTab" class="hidden">
@@ -12178,55 +12173,54 @@ function loadRetailerStock() {
         ? `mandals/${mandalKey}/retailers/${outletId}/stockHistory`
         : `users/${uid}/retailerStock/history`;
 
-   database.ref(histPath).once('value').then(snap => {
-        if (!snap.exists() || !histContainer) {
-             if (histContainer) histContainer.innerHTML = '<p class="text-muted">No history found.</p>';
-             return;
-        }
+    database.ref(histPath).once('value').then(snap => {
+        if (!snap.exists() || !histContainer) return;
         const data = snap.val();
-        const items = Object.entries(data).map(([key, val]) => ({ key, ...val }));
+        const items = Array.isArray(data) ? data : Object.values(data);
         histContainer.innerHTML = `<div class="table-responsive"><table class="table table-sm table-hover">
-            <thead class="table-secondary"><tr><th>#</th><th>Date</th><th>Fertilizer</th><th>Bags Received</th><th>Notes</th><th>Actions</th></tr></thead>
+            <thead class="table-secondary"><tr><th>#</th><th>Date</th><th>Fertilizer</th><th>Bags Received</th><th>Notes</th></tr></thead>
             <tbody>${items.slice().reverse().map((r,i)=>`<tr>
                 <td>${i+1}</td><td>${escapeHtml(r.date||'')}</td>
                 <td><span class="badge bg-secondary">${escapeHtml(r.fert||'')}</span></td>
                 <td class="fw-bold text-success">+${r.bags}</td>
                 <td class="text-muted small">${escapeHtml(r.notes||'—')}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary py-0" onclick="requestRetailerStockEdit('${r.key}', '${r.fert}', ${r.bags}, '${r.date}', '${escapeHtml(r.notes||'')}')"><i class="fas fa-edit"></i></button>
-                    <button class="btn btn-sm btn-outline-danger py-0" onclick="requestRetailerStockDelete('${r.key}', '${r.fert}', ${r.bags}, '${r.date}')"><i class="fas fa-trash"></i></button>
-                </td>
             </tr>`).join('')}
             </tbody></table></div>`;
     });
-    
-    loadRetailerPendingRequests(outletId, mandalKey, uid);
 }
 
 function addRetailerStock() {
-    const fert = document.getElementById('rtStockFert').value;
-    const bags = parseInt(document.getElementById('rtStockBags').value)||0;
-    const date = document.getElementById('rtStockDate').value || new Date().toISOString().slice(0,10);
+    const { uid, outletId, mandalKey } = getRetailerInfo();
+    if (!uid) return;
+    const fert  = document.getElementById('rtStockFert').value;
+    const bags  = parseInt(document.getElementById('rtStockBags').value)||0;
+    const date  = document.getElementById('rtStockDate').value || new Date().toISOString().slice(0,10);
     const notes = document.getElementById('rtStockNotes').value.trim();
     const status = document.getElementById('rtStockStatus');
 
-    if (!fert || bags <= 0) {
-        status.innerHTML = '<div class="alert alert-warning">Select fertilizer type and enter valid bag count.</div>';
-        return;
-    }
+    if (!fert) { status.innerHTML = '<div class="alert alert-warning">Select fertilizer type.</div>'; return; }
+    if (bags <= 0) { status.innerHTML = '<div class="alert alert-warning">Enter valid bag count.</div>'; return; }
 
-    status.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Sending request to MO...</div>';
-    
-    retailerSubmitStockRequest('ADD', null, fert, bags, date, notes)
-        .then(() => {
-            status.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Add request for ${bags} bags of ${fert} sent to MO.</div>`;
-            document.getElementById('rtStockBags').value = '';
-            document.getElementById('rtStockNotes').value = '';
-            loadRetailerStock();
-        })
-        .catch(e => {
-            status.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(e.message)}</div>`;
-        });
+    const balPath  = outletId ? `mandals/${mandalKey}/retailers/${outletId}/stock/${fert}` : `users/${uid}/retailerStock/balance/${fert}`;
+    const histPath = outletId ? `mandals/${mandalKey}/retailers/${outletId}/stockHistory` : `users/${uid}/retailerStock/history`;
+
+    status.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Saving...</div>';
+
+    database.ref(balPath).once('value').then(snap => {
+        const current = Number(snap.val())||0;
+        const newBal  = current + bags;
+        return Promise.all([
+            database.ref(balPath).set(newBal),
+            database.ref(histPath).push({ fert, bags, date, notes, addedAt: new Date().toISOString() })
+        ]);
+    }).then(() => {
+        status.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Added ${bags} bags of ${fert}. Stock updated.</div>`;
+        document.getElementById('rtStockBags').value = '';
+        document.getElementById('rtStockNotes').value = '';
+        loadRetailerStock();
+    }).catch(e => {
+        status.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`;
+    });
 }
 
 // Global store for pending distribution records — avoids JSON.stringify in onclick attributes
@@ -15458,181 +15452,6 @@ function openManualWorkflowModal() {
     if (!modalEl) return;
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
-}
-// ============================================================
-// RETAILER STOCK REQUESTS TO MO (ADD/EDIT/DELETE)
-// ============================================================
-
-function retailerSubmitStockRequest(actionType, targetStockId, fert, bags, date, notes) {
-    const { uid, outletId, mandalKey, outletName } = getRetailerInfo();
-    if (!uid || !mandalKey) return Promise.reject(new Error("Missing Retailer Info"));
-
-    const requestPayload = {
-        retailerId: uid,
-        outletId: outletId || '',
-        outletName: outletName || 'Retailer',
-        mandal: mandalKey, 
-        action: actionType, // 'ADD', 'EDIT', 'DELETE'
-        targetStockId: targetStockId || null, 
-        data: { fert, bags, date, notes }, 
-        status: 'PENDING',
-        timestamp: Date.now()
-    };
-
-    return database.ref('fertilizerRequests').push(requestPayload);
-}
-
-function requestRetailerStockEdit(key, fert, bags, date, notes) {
-    const newBags = prompt(`Editing ${fert} bags received on ${date}.\nEnter new bag count:`, bags);
-    if (newBags === null || newBags.trim() === '') return;
-    
-    if (parseInt(newBags) === parseInt(bags)) return; // No change
-
-    retailerSubmitStockRequest('EDIT', key, fert, parseInt(newBags), date, notes)
-        .then(() => { alert("Edit request sent to MO."); loadRetailerStock(); })
-        .catch(err => alert("Failed: " + err.message));
-}
-
-function requestRetailerStockDelete(key, fert, bags, date) {
-    if (!confirm(`Are you sure you want to request deletion of ${bags} ${fert} bags from ${date}?`)) return;
-
-    retailerSubmitStockRequest('DELETE', key, fert, bags, date, '')
-        .then(() => { alert("Delete request sent to MO."); loadRetailerStock(); })
-        .catch(err => alert("Failed: " + err.message));
-}
-
-function loadRetailerPendingRequests(outletId, mandalKey, uid) {
-    const table = document.getElementById('rtPendingRequestsTable');
-    if (!table) return;
-
-    database.ref('fertilizerRequests').orderByChild('retailerId').equalTo(uid).once('value').then(snap => {
-        if (!snap.exists()) {
-            table.innerHTML = '<p class="text-muted">No pending requests.</p>';
-            return;
-        }
-        let html = `<div class="table-responsive"><table class="table table-sm">
-            <thead class="table-warning"><tr><th>Date Sent</th><th>Action</th><th>Details</th><th>Status</th></tr></thead><tbody>`;
-        
-        snap.forEach(child => {
-            const req = child.val();
-            if (req.status !== 'PENDING') return;
-            const reqDate = new Date(req.timestamp).toLocaleDateString();
-            const actionBadge = req.action === 'DELETE' ? 'danger' : (req.action === 'EDIT' ? 'primary' : 'success');
-            
-            html += `<tr>
-                <td>${reqDate}</td>
-                <td><span class="badge bg-${actionBadge}">${req.action}</span></td>
-                <td>${req.data.bags} bags of ${req.data.fert}</td>
-                <td><span class="badge bg-warning text-dark">Pending MO</span></td>
-            </tr>`;
-        });
-        html += `</tbody></table></div>`;
-        table.innerHTML = html;
-    });
-}
-
-function loadMoStockRequests() {
-    const container = document.getElementById('moStockRequestsList');
-    if (!container) return;
-    
-    const mandal = currentUserProfile?.mandal || '';
-    if (!mandal) return;
-    const mandalKey = mandal.trim().toLowerCase().replace(/\s+/g,'_');
-
-    container.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading requests...</div>';
-
-    database.ref('fertilizerRequests').orderByChild('mandal').equalTo(mandalKey).on('value', snap => {
-        if (!snap.exists()) {
-            container.innerHTML = '<div class="alert alert-success">No pending stock requests.</div>';
-            return;
-        }
-        
-        let hasPending = false;
-        let html = `<div class="table-responsive"><table class="table table-hover table-bordered align-middle">
-            <thead class="table-light"><tr><th>Date</th><th>Outlet</th><th>Action</th><th>Fertilizer</th><th>Bags</th><th>Actions</th></tr></thead><tbody>`;
-            
-        snap.forEach(child => {
-            const req = child.val();
-            if (req.status !== 'PENDING') return;
-            hasPending = true;
-            
-            const reqDate = new Date(req.timestamp).toLocaleDateString();
-            const actionBadge = req.action === 'DELETE' ? 'danger' : (req.action === 'EDIT' ? 'primary' : 'success');
-            
-            html += `<tr>
-                <td>${reqDate}</td>
-                <td class="fw-bold">${escapeHtml(req.outletName || 'Retailer')}</td>
-                <td><span class="badge bg-${actionBadge}">${req.action}</span></td>
-                <td>${req.data.fert}</td>
-                <td class="fw-bold">${req.data.bags}</td>
-                <td>
-                    <button class="btn btn-sm btn-success me-1" onclick="processMoStockRequest('${child.key}', true)">Approve</button>
-                    <button class="btn btn-sm btn-danger" onclick="processMoStockRequest('${child.key}', false)">Reject</button>
-                </td>
-            </tr>`;
-        });
-        html += `</tbody></table></div>`;
-        
-        if (!hasPending) {
-            container.innerHTML = '<div class="alert alert-success">No pending stock requests.</div>';
-        } else {
-            container.innerHTML = html;
-        }
-    });
-}
-
-function processMoStockRequest(requestId, isApproved) {
-    if (!confirm(`Are you sure you want to ${isApproved ? 'APPROVE' : 'REJECT'} this request?`)) return;
-
-    const reqRef = database.ref('fertilizerRequests/' + requestId);
-    
-    if (!isApproved) {
-        reqRef.update({ status: 'REJECTED', processedAt: Date.now() });
-        return;
-    }
-
-    reqRef.once('value').then(snap => {
-        const req = snap.val();
-        const { action, targetStockId, data, outletId, mandal, retailerId } = req;
-        
-        const balPath = outletId ? `mandals/${mandal}/retailers/${outletId}/stock/${data.fert}` : `users/${retailerId}/retailerStock/balance/${data.fert}`;
-        const histPath = outletId ? `mandals/${mandal}/retailers/${outletId}/stockHistory` : `users/${retailerId}/retailerStock/history`;
-
-        // We need current balance to properly calculate additions/deductions
-        database.ref(balPath).once('value').then(balSnap => {
-            let currentBal = Number(balSnap.val()) || 0;
-            let dbUpdate;
-
-            if (action === 'ADD') {
-                dbUpdate = Promise.all([
-                    database.ref(balPath).set(currentBal + data.bags),
-                    database.ref(histPath).push({ ...data, addedAt: new Date().toISOString() })
-                ]);
-            } 
-            else if (action === 'EDIT' && targetStockId) {
-                // Must fetch original record to know difference
-                database.ref(histPath + '/' + targetStockId).once('value').then(oldSnap => {
-                    const oldData = oldSnap.val();
-                    const diff = data.bags - (oldData.bags || 0);
-                    Promise.all([
-                        database.ref(balPath).set(currentBal + diff),
-                        database.ref(histPath + '/' + targetStockId).update({ bags: data.bags })
-                    ]).then(() => reqRef.update({ status: 'APPROVED', processedAt: Date.now() }));
-                });
-                return; // Handled async
-            } 
-            else if (action === 'DELETE' && targetStockId) {
-                database.ref(balPath).set(currentBal - data.bags);
-                dbUpdate = database.ref(histPath + '/' + targetStockId).remove();
-            }
-
-            if (dbUpdate) {
-                dbUpdate.then(() => {
-                    reqRef.update({ status: 'APPROVED', processedAt: Date.now() });
-                });
-            }
-        });
-    }).catch(err => alert("Error processing request: " + err.message));
 }
 </script>
 
