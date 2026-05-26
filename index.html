@@ -605,49 +605,137 @@
 
                <div class="px-4 pt-4 pb-2">
 
-                  <!-- Role Selector Tabs -->
+                  <!-- Role Selector Tabs — redesigned grid -->
                   <div class="mb-4">
-                     <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Login As</label>
-                     <div class="d-flex flex-wrap gap-2" id="roleTabsContainer">
-                        <button type="button" class="role-tab-btn active" data-role="village_officer" onclick="selectLoginRole('village_officer',this)">
-                           <i class="fas fa-user me-1"></i>Village Officer
+                     <label class="form-label fw-semibold small text-muted text-uppercase mb-2" style="letter-spacing:.6px;font-size:0.7rem;">
+                       <i class="fas fa-id-badge me-1"></i>Select Your Role
+                     </label>
+                     <div class="role-grid" id="roleTabsContainer">
+                        <button type="button" class="role-tile active" data-role="village_officer" onclick="selectLoginRole('village_officer',this)">
+                           <span class="role-tile-icon" style="background:linear-gradient(135deg,#1862ab22,#1862ab11);color:#1862ab;">
+                             <i class="fas fa-user"></i>
+                           </span>
+                           <span class="role-tile-label">Village<br>Officer</span>
                         </button>
-                        <button type="button" class="role-tab-btn" data-role="mandal_officer" onclick="selectLoginRole('mandal_officer',this)">
-                           <i class="fas fa-landmark me-1"></i>Mandal Officer
+                        <button type="button" class="role-tile" data-role="mandal_officer" onclick="selectLoginRole('mandal_officer',this)">
+                           <span class="role-tile-icon" style="background:linear-gradient(135deg,#27ae6022,#27ae6011);color:#27ae60;">
+                             <i class="fas fa-landmark"></i>
+                           </span>
+                           <span class="role-tile-label">Mandal<br>Officer</span>
                         </button>
-                        <button type="button" class="role-tab-btn" data-role="divisional_officer" onclick="selectLoginRole('divisional_officer',this)">
-                           <i class="fas fa-sitemap me-1"></i>Divisional Officer
+                        <button type="button" class="role-tile" data-role="divisional_officer" onclick="selectLoginRole('divisional_officer',this)">
+                           <span class="role-tile-icon" style="background:linear-gradient(135deg,#0dcaf022,#0dcaf011);color:#0d9fb5;">
+                             <i class="fas fa-sitemap"></i>
+                           </span>
+                           <span class="role-tile-label">Divisional<br>Officer</span>
                         </button>
-                        <button type="button" class="role-tab-btn" data-role="retailer" onclick="selectLoginRole('retailer',this)">
-                           <i class="fas fa-store me-1"></i>Retailer
+                        <button type="button" class="role-tile" data-role="retailer" onclick="selectLoginRole('retailer',this)">
+                           <span class="role-tile-icon" style="background:linear-gradient(135deg,#f39c1222,#f39c1211);color:#d68910;">
+                             <i class="fas fa-store"></i>
+                           </span>
+                           <span class="role-tile-label">Retailer</span>
                         </button>
-                        <button type="button" class="role-tab-btn" data-role="admin" onclick="selectLoginRole('admin',this)" style="border-color:#8e44ad;color:#8e44ad;">
-                           <i class="fas fa-user-shield me-1"></i>Admin
+                        <button type="button" class="role-tile" data-role="admin" onclick="selectLoginRole('admin',this)">
+                           <span class="role-tile-icon" style="background:linear-gradient(135deg,#8e44ad22,#8e44ad11);color:#8e44ad;">
+                             <i class="fas fa-user-shield"></i>
+                           </span>
+                           <span class="role-tile-label">Admin</span>
                         </button>
                      </div>
                      <input type="hidden" id="selectedLoginRole" value="village_officer" />
                   </div>
 
                   <style>
-                  .role-tab-btn {
-                     padding: 6px 14px; border-radius: 30px; font-size: 0.78rem; font-weight: 600;
-                     border: 1.5px solid #c0cfe0; background: #f4f8fb; color: #5a7a9b;
-                     cursor: pointer; transition: all 0.2s;
+                  /* Role tile grid */
+                  .role-grid {
+                    display: grid;
+                    grid-template-columns: repeat(5, 1fr);
+                    gap: 8px;
+                    margin-bottom: 0;
                   }
-                  .role-tab-btn.active { background: #1862ab; color: #fff; border-color: #1862ab; }
-                  .role-tab-btn[data-role="admin"].active { background: #8e44ad; border-color: #8e44ad; }
-                  .role-tab-btn:hover:not(.active) { background: #e3eef9; border-color: #1862ab; color: #1862ab; }
-                  .role-tab-btn[data-role="admin"]:hover:not(.active) { background: #f5eef8; border-color: #8e44ad; color: #8e44ad; }
+                  @media (max-width: 480px) {
+                    .role-grid { grid-template-columns: repeat(3, 1fr); }
+                  }
+                  .role-tile {
+                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    gap: 6px; padding: 10px 6px; border-radius: 14px;
+                    border: 2px solid #e8eef5; background: #f7fafd;
+                    cursor: pointer; transition: all 0.22s cubic-bezier(.4,0,.2,1);
+                    font-family: 'Poppins', sans-serif;
+                  }
+                  .role-tile-icon {
+                    width: 36px; height: 36px; border-radius: 10px;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 1rem; transition: transform 0.2s;
+                  }
+                  .role-tile-label {
+                    font-size: 0.65rem; font-weight: 600; color: #5a7a9b;
+                    text-align: center; line-height: 1.25; letter-spacing: 0.1px;
+                  }
+                  .role-tile:hover:not(.active) {
+                    border-color: #a8c4e0; background: #eef5fc;
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(24,98,171,0.12);
+                  }
+                  .role-tile:hover .role-tile-icon { transform: scale(1.08); }
+                  .role-tile.active {
+                    border-color: #1862ab; background: #e8f0fb;
+                    box-shadow: 0 2px 10px rgba(24,98,171,0.18);
+                  }
+                  .role-tile[data-role="mandal_officer"].active { border-color:#27ae60; background:#e8f8ee; }
+                  .role-tile[data-role="divisional_officer"].active { border-color:#0dcaf0; background:#e0f7fb; }
+                  .role-tile[data-role="retailer"].active { border-color:#f39c12; background:#fef8ec; }
+                  .role-tile[data-role="admin"].active { border-color:#8e44ad; background:#f3e8fb; }
+                  .role-tile.active .role-tile-label { color: #1862ab; font-weight: 700; }
+                  .role-tile[data-role="mandal_officer"].active .role-tile-label { color:#27ae60; }
+                  .role-tile[data-role="divisional_officer"].active .role-tile-label { color:#0d9fb5; }
+                  .role-tile[data-role="retailer"].active .role-tile-label { color:#d68910; }
+                  .role-tile[data-role="admin"].active .role-tile-label { color:#8e44ad; }
+
+                  /* Login input field redesign */
+                  .login-input-group {
+                    position: relative; margin-bottom: 1rem;
+                  }
+                  .login-input-group .login-input-icon {
+                    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+                    color: #94a3b8; font-size: 0.95rem; z-index: 2; pointer-events: none;
+                  }
+                  .login-input-group input {
+                    padding-left: 42px; padding-right: 16px; padding-top: 13px; padding-bottom: 13px;
+                    border-radius: 12px; border: 1.5px solid #dde4ed; background: #f8fafd;
+                    font-size: 0.92rem; transition: all 0.2s; width: 100%; outline: none;
+                    font-family: 'Poppins', sans-serif;
+                  }
+                  .login-input-group input:focus {
+                    border-color: #1862ab; background: #fff;
+                    box-shadow: 0 0 0 4px rgba(24,98,171,0.08);
+                  }
+                  .login-input-group input::placeholder { color: #b0bec8; }
+                  .login-input-group .login-pw-toggle {
+                    position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+                    cursor: pointer; color: #94a3b8; font-size: 0.9rem; z-index: 2;
+                    background: none; border: none; padding: 0;
+                    transition: color 0.15s;
+                  }
+                  .login-input-group .login-pw-toggle:hover { color: #1862ab; }
                   </style>
 
-                  <div class="form-floating mb-3 shadow-sm">
-                     <input id="loginEmail" type="email" class="form-control bg-light" placeholder="name@example.com" aria-label="Email" style="border-radius: 12px; border: 1px solid #e0e6ed;">
-                     <label for="loginEmail" class="text-muted"><i class="fas fa-envelope me-2"></i>Email Address</label>
+                  <!-- Email field -->
+                  <div class="login-input-group mt-4">
+                    <span class="login-input-icon"><i class="fas fa-envelope"></i></span>
+                    <input id="loginEmail" type="email" placeholder="Email Address" aria-label="Email"
+                           onkeydown="if(event.key==='Enter') document.getElementById('loginPassword').focus()">
                   </div>
 
-                  <div class="form-floating mb-3 shadow-sm">
-                     <input id="loginPassword" type="password" class="form-control bg-light" placeholder="Password" aria-label="Password" style="border-radius: 12px; border: 1px solid #e0e6ed;">
-                     <label for="loginPassword" class="text-muted"><i class="fas fa-lock me-2"></i>Password</label>
+                  <!-- Password field -->
+                  <div class="login-input-group" style="margin-bottom:0.5rem;">
+                    <span class="login-input-icon"><i class="fas fa-lock"></i></span>
+                    <input id="loginPassword" type="password" placeholder="Password" aria-label="Password"
+                           onkeydown="if(event.key==='Enter') loginUser()">
+                    <button class="login-pw-toggle" tabindex="-1"
+                            onclick="(function(b){var i=document.getElementById('loginPassword');i.type=i.type==='password'?'text':'password';b.innerHTML=i.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>';})(this)">
+                      <i class="fas fa-eye"></i>
+                    </button>
                   </div>
 
                   <div class="text-end mb-3">
@@ -656,8 +744,13 @@
                      </a>
                   </div>
 
-                  <button class="btn btn-primary w-100 fw-semibold py-2 mb-2" onclick="loginUser()" style="background:linear-gradient(135deg,#1862ab,#1a7a5e);border:none;border-radius:12px; font-size:1rem; letter-spacing:.3px;box-shadow:0 4px 14px rgba(24,98,171,.35);">
-                     <i class="fas fa-sign-in-alt me-2"></i>Login
+                  <button class="btn btn-primary w-100 fw-semibold py-2 mb-2" onclick="loginUser()"
+                          style="background:linear-gradient(135deg,#1862ab,#1a7a5e);border:none;border-radius:12px;
+                                 font-size:1rem;letter-spacing:.3px;box-shadow:0 4px 14px rgba(24,98,171,.35);
+                                 transition: transform .15s, box-shadow .15s;"
+                          onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(24,98,171,.45)'"
+                          onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(24,98,171,.35)'">
+                     <i class="fas fa-sign-in-alt me-2"></i>Sign In
                   </button>
 
                   <div class="text-center mb-3">
@@ -779,84 +872,146 @@
 
   <div class="px-4 pt-4 pb-3">
 
+    <style>
+    .reg-input-group {
+      position: relative; margin-bottom: 1rem;
+    }
+    .reg-input-group .reg-input-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: #94a3b8; font-size: 0.88rem; z-index: 2; pointer-events: none;
+    }
+    .reg-input-group input, .reg-input-group select {
+      padding-left: 40px; padding-right: 16px; padding-top: 12px; padding-bottom: 12px;
+      border-radius: 12px; border: 1.5px solid #dde4ed; background: #f8fafd;
+      font-size: 0.88rem; transition: all 0.2s; width: 100%; outline: none;
+      font-family: 'Poppins', sans-serif; color: #2c3e50;
+    }
+    .reg-input-group select { padding-left: 40px; }
+    .reg-input-group input:focus, .reg-input-group select:focus {
+      border-color: #1862ab; background: #fff;
+      box-shadow: 0 0 0 3px rgba(24,98,171,0.08);
+    }
+    .reg-input-group input::placeholder { color: #b0bec8; }
+    .reg-input-group .reg-pw-toggle {
+      position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+      cursor: pointer; color: #94a3b8; font-size: 0.85rem; z-index: 2;
+      background: none; border: none; padding: 0; transition: color 0.15s;
+    }
+    .reg-input-group .reg-pw-toggle:hover { color: #1862ab; }
+    .reg-section-label {
+      font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;
+      letter-spacing: 0.8px; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px;
+    }
+    .reg-section-label::after {
+      content: ''; flex: 1; height: 1px; background: #e8eef5;
+    }
+    </style>
+
+    <!-- Account Info Section -->
+    <div class="reg-section-label mb-2"><i class="fas fa-lock" style="font-size:0.7rem;"></i>Account Information</div>
+
     <!-- Full Name -->
-    <div class="mb-3">
-      <label class="form-label fw-semibold small"><i class="fas fa-user me-1 text-primary"></i>Full Name <span class="text-danger">*</span></label>
-      <input type="text" id="regFullName" class="form-control" placeholder="Enter your full name" style="border-radius:12px;">
+    <div class="reg-input-group">
+      <span class="reg-input-icon"><i class="fas fa-user"></i></span>
+      <input type="text" id="regFullName" placeholder="Full Name *">
     </div>
 
     <!-- Email -->
-    <div class="mb-3">
-      <label class="form-label fw-semibold small"><i class="fas fa-envelope me-1 text-primary"></i>Email Address <span class="text-danger">*</span></label>
-      <input type="email" id="regEmail" class="form-control" placeholder="Enter your email" style="border-radius:12px;">
+    <div class="reg-input-group">
+      <span class="reg-input-icon"><i class="fas fa-envelope"></i></span>
+      <input type="email" id="regEmail" placeholder="Email Address *">
     </div>
 
-    <!-- Password -->
-    <div class="mb-3">
-      <label class="form-label fw-semibold small"><i class="fas fa-lock me-1 text-primary"></i>Password <span class="text-danger">*</span></label>
-      <input type="password" id="regPassword" class="form-control" placeholder="Min 6 characters" style="border-radius:12px;">
+    <!-- Password row -->
+    <div class="row g-2 mb-0">
+      <div class="col-6">
+        <div class="reg-input-group" style="margin-bottom:0;">
+          <span class="reg-input-icon"><i class="fas fa-lock"></i></span>
+          <input type="password" id="regPassword" placeholder="Password *" style="padding-right:36px;">
+          <button class="reg-pw-toggle" tabindex="-1"
+                  onclick="(function(b){var i=document.getElementById('regPassword');i.type=i.type==='password'?'text':'password';b.innerHTML=i.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>';})(this)">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="reg-input-group" style="margin-bottom:0;">
+          <span class="reg-input-icon"><i class="fas fa-lock"></i></span>
+          <input type="password" id="regConfirmPassword" placeholder="Confirm *" style="padding-right:36px;">
+          <button class="reg-pw-toggle" tabindex="-1"
+                  onclick="(function(b){var i=document.getElementById('regConfirmPassword');i.type=i.type==='password'?'text':'password';b.innerHTML=i.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>';})(this)">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+      </div>
     </div>
+    <div class="text-muted mb-3 mt-1" style="font-size:0.72rem;"><i class="fas fa-info-circle me-1"></i>Minimum 6 characters</div>
 
-    <!-- Confirm Password -->
-    <div class="mb-3">
-      <label class="form-label fw-semibold small"><i class="fas fa-lock me-1 text-primary"></i>Confirm Password <span class="text-danger">*</span></label>
-      <input type="password" id="regConfirmPassword" class="form-control" placeholder="Re-enter password" style="border-radius:12px;">
-    </div>
+    <!-- Role & Location Section -->
+    <div class="reg-section-label mb-2"><i class="fas fa-map-marker-alt" style="font-size:0.7rem;"></i>Role &amp; Location</div>
 
     <!-- Role Selection -->
-    <div class="mb-3">
-      <label class="form-label fw-semibold small"><i class="fas fa-id-badge me-1 text-primary"></i>Role <span class="text-danger">*</span></label>
-      <select id="regRole" class="form-select" onchange="onRegRoleChange()" style="border-radius:12px;">
-        <option value="">-- Select Role --</option>
-        <option value="village_officer">Village Officer</option>
-        <option value="mandal_officer">Mandal Officer</option>
-        <option value="divisional_officer">Divisional Officer</option>
+    <div class="reg-input-group">
+      <span class="reg-input-icon"><i class="fas fa-id-badge"></i></span>
+      <select id="regRole" onchange="onRegRoleChange()">
+        <option value="">-- Select Your Role *</option>
+        <option value="village_officer">🏡 Village Officer</option>
+        <option value="mandal_officer">🏛️ Mandal Officer</option>
+        <option value="divisional_officer">🏢 Divisional Officer</option>
       </select>
     </div>
 
     <!-- Dynamic Location Fields -->
-    <!-- District (all roles) -->
-    <div class="mb-3 hidden" id="regDistrictField">
-      <label class="form-label fw-semibold small"><i class="fas fa-map-marker-alt me-1 text-primary"></i>District <span class="text-danger">*</span></label>
-      <select id="regDistrict" class="form-select" onchange="onRegDistrictChange()" style="border-radius:12px;">
-        <option value="">-- Select District --</option>
-      </select>
+    <div class="hidden" id="regDistrictField">
+      <div class="reg-input-group">
+        <span class="reg-input-icon"><i class="fas fa-city"></i></span>
+        <select id="regDistrict" onchange="onRegDistrictChange()">
+          <option value="">-- Select District *</option>
+        </select>
+      </div>
     </div>
 
-    <!-- Mandal (VO and MO) -->
-    <div class="mb-3 hidden" id="regMandalField">
-      <label class="form-label fw-semibold small"><i class="fas fa-map me-1 text-primary"></i>Mandal <span class="text-danger">*</span></label>
-      <select id="regMandal" class="form-select" onchange="onRegMandalChange()" style="border-radius:12px;">
-        <option value="">-- Select Mandal --</option>
-      </select>
+    <div class="hidden" id="regMandalField">
+      <div class="reg-input-group">
+        <span class="reg-input-icon"><i class="fas fa-map"></i></span>
+        <select id="regMandal" onchange="onRegMandalChange()">
+          <option value="">-- Select Mandal *</option>
+        </select>
+      </div>
     </div>
 
-    <!-- Village (VO only) -->
-    <div class="mb-3 hidden" id="regVillageField">
-      <label class="form-label fw-semibold small"><i class="fas fa-home me-1 text-primary"></i>Village <span class="text-danger">*</span></label>
-      <select id="regVillage" class="form-select" style="border-radius:12px;">
-        <option value="">-- Select Village --</option>
-      </select>
-      <div id="regVillageConflictMsg" class="text-danger small mt-1 hidden">
+    <div class="hidden" id="regVillageField">
+      <div class="reg-input-group">
+        <span class="reg-input-icon"><i class="fas fa-home"></i></span>
+        <select id="regVillage">
+          <option value="">-- Select Village *</option>
+        </select>
+      </div>
+      <div id="regVillageConflictMsg" class="text-danger small mt-1 mb-2 hidden">
         <i class="fas fa-exclamation-triangle me-1"></i>A Village Officer already exists for this village + Grama Sachivalayam combination.
       </div>
     </div>
 
-    <!-- Grama Sachivalayam (VO only) -->
-    <div class="mb-3 hidden" id="regSachivalayamField">
-      <label class="form-label fw-semibold small"><i class="fas fa-building me-1 text-primary"></i>Grama Sachivalayam <span class="text-danger">*</span></label>
-      <input type="text" id="regSachivalayam" class="form-control" placeholder="Enter Grama Sachivalayam name / office number" style="border-radius:12px;">
-      <div class="form-text text-muted small"><i class="fas fa-info-circle me-1"></i>If a village has multiple offices, each officer enters their specific Sachivalayam name/number.</div>
+    <div class="hidden" id="regSachivalayamField">
+      <div class="reg-input-group">
+        <span class="reg-input-icon"><i class="fas fa-building"></i></span>
+        <input type="text" id="regSachivalayam" placeholder="Grama Sachivalayam name / number *">
+      </div>
+      <div class="text-muted mb-3 mt-1" style="font-size:0.72rem;"><i class="fas fa-info-circle me-1"></i>If a village has multiple offices, each officer enters their specific Sachivalayam name/number.</div>
     </div>
 
     <!-- Status message -->
     <div id="regStatusMsg" class="mb-3"></div>
 
-    <button class="btn btn-primary w-100 fw-semibold py-2 mb-3" onclick="submitRegistration()" style="border-radius:12px; font-size:1rem;">
-      <i class="fas fa-paper-plane me-2"></i>Submit Registration
+    <button class="btn btn-primary w-100 fw-semibold py-2 mb-3" onclick="submitRegistration()"
+            style="border-radius:12px; font-size:1rem; background:linear-gradient(135deg,#1862ab,#1a7a5e);
+                   border:none; box-shadow:0 4px 14px rgba(24,98,171,.35); transition: transform .15s, box-shadow .15s;"
+            onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(24,98,171,.45)'"
+            onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(24,98,171,.35)'">
+      <i class="fas fa-paper-plane me-2"></i>Submit Registration Request
     </button>
     <div class="text-center pb-2">
-      <a href="#" class="small text-muted text-decoration-none" onclick="showSection('loginPage');return false;">
+      <a href="#" class="small text-muted text-decoration-none fw-semibold" onclick="showSection('loginPage');return false;">
         <i class="fas fa-arrow-left me-1"></i>Back to Login
       </a>
     </div>
@@ -2626,6 +2781,10 @@
         <i class="fas fa-trash-restore me-1"></i>Delete Requests
         <span id="moDeleteApprovalBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem; display:none;">0</span>
       </button>
+      <button class="mo-tab-btn position-relative" onclick="switchMoMainTab('moTabStockRequests', this)" id="moStockRequestTabBtn">
+        <i class="fas fa-boxes me-1"></i>Stock Requests
+        <span id="moStockRequestBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark" style="font-size:0.6rem; display:none;">0</span>
+      </button>
       <button class="mo-tab-btn ms-auto" onclick="switchMoMainTab('moTabRegister', this)"
               style="background:#e8f5e9;border-color:#27ae60;color:#1a7a4a;">
         <i class="fas fa-user-plus me-1"></i>Create Login
@@ -2760,6 +2919,24 @@
       </div>
     </div>
 
+    <!-- ── TAB: Stock Requests (Retailer Edit/Delete approvals) ── -->
+    <div id="moTabStockRequests" class="mo-section-tab">
+      <div class="card border-0 shadow-sm p-4 mb-4" style="border-radius:16px;">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <div>
+            <h5 class="fw-bold mb-0"><i class="fas fa-boxes me-2 text-warning"></i>Retailer Stock Edit/Delete Requests</h5>
+            <p class="text-muted small mb-0">Retailers have requested changes to their stock receipt history. Review and approve or reject each request.</p>
+          </div>
+          <button class="btn btn-outline-secondary btn-sm" onclick="loadMoStockRequests()">
+            <i class="fas fa-sync me-1"></i> Refresh
+          </button>
+        </div>
+        <div id="moStockRequestsList">
+          <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── TAB: Create Login ── -->
     <div id="moTabRegister" class="mo-section-tab">
       <div class="row g-4">
@@ -2886,6 +3063,11 @@
         <li class="nav-item">
             <a class="nav-link" href="#" onclick="showRetailerTab('rtHistoryTab');return false;">
                 <i class="fas fa-history me-1"></i> Distribution History
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="showRetailerTab('rtStockHistoryTab');return false;">
+                <i class="fas fa-receipt me-1"></i> Stock Receipts
             </a>
         </li>
     </ul>
@@ -3067,6 +3249,40 @@
             <div class="text-center text-muted py-5">
                 <i class="fas fa-history fa-3x mb-3 opacity-25"></i>
                 <p>Click Refresh to load history</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Receipts Tab — with Edit/Delete (MO approval) -->
+    <div id="rtStockHistoryTab" class="hidden">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <h5 class="fw-bold mb-0"><i class="fas fa-receipt me-2 text-success"></i>Stock Receipt History</h5>
+                <small class="text-muted">Edit or delete entries — changes require Mandal Officer approval.</small>
+            </div>
+            <button class="btn btn-success btn-sm" onclick="loadRetailerStockHistory()">
+                <i class="fas fa-sync me-1"></i> Refresh
+            </button>
+        </div>
+
+        <!-- Pending requests by this retailer -->
+        <div class="card border-0 shadow-sm mb-4 p-3" style="border-radius:14px; border-left:4px solid #f39c12 !important;">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <h6 class="fw-bold mb-0 text-warning"><i class="fas fa-clock me-2"></i>My Pending Requests</h6>
+                <button class="btn btn-outline-warning btn-sm" onclick="loadRetailerMyPendingRequests()">
+                    <i class="fas fa-sync me-1"></i> Refresh
+                </button>
+            </div>
+            <div id="rtMyPendingRequests">
+                <p class="text-muted small mb-0">No pending requests found.</p>
+            </div>
+        </div>
+
+        <!-- Full stock history table -->
+        <div id="rtStockHistoryFull">
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-receipt fa-3x mb-3 opacity-25"></i>
+                <p>Click Refresh to load receipt history</p>
             </div>
         </div>
     </div>
@@ -4617,6 +4833,15 @@ firebase.auth().onAuthStateChanged(user => {
                         updateMoDeleteBadge(count);
                     }).catch(() => {});
                 }, 1000);
+                // Check pending stock edit/delete requests badge
+                setTimeout(() => {
+                    const mandalKey = (profile.mandal || '').trim().toLowerCase().replace(/\s+/g, '_');
+                    database.ref('fertilizerRequests').orderByChild('mandal').equalTo(mandalKey).once('value').then(snap => {
+                        if (!snap.exists()) return;
+                        const count = Object.values(snap.val()).filter(r => r.status === 'PENDING').length;
+                        _updateMoStockBadge(count);
+                    }).catch(() => {});
+                }, 1200);
             } else if (role === 'divisional_officer') {
                 const doLabel = document.getElementById('doMandalLabel');
                 if (doLabel) doLabel.textContent = 'Division: ' + (profile.division || profile.mandal || 'All');
@@ -11148,6 +11373,7 @@ function switchMoMainTab(tabId, btn) {
     if (tabId === 'moTabOfficers') loadMoOfficersList(currentUserProfile?.mandal || '');
     if (tabId === 'moTabRetailers') loadMoRetailersList(currentUserProfile?.mandal || '');
     if (tabId === 'moTabDeleteApprovals') loadMoDeleteRequests();
+    if (tabId === 'moTabStockRequests') loadMoStockRequests();
 }
 
 function switchMoDetailTab(tabId, btn) {
@@ -12125,13 +12351,18 @@ function getSelectedOutletInfo() {
 // ============================================================
 
 function showRetailerTab(tabId) {
-    ['rtStockTab','rtDistributionsTab','rtHistoryTab'].forEach(id => {
+    ['rtStockTab','rtDistributionsTab','rtHistoryTab','rtStockHistoryTab'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('hidden', id !== tabId);
     });
     document.querySelectorAll('#retailerTabs .nav-link').forEach(a => {
         a.classList.toggle('active', a.getAttribute('onclick')?.includes(tabId));
     });
+    // Auto-load when switching to Stock Receipts tab
+    if (tabId === 'rtStockHistoryTab') {
+        loadRetailerStockHistory();
+        loadRetailerMyPendingRequests();
+    }
 }
 
 function getRetailerInfo() {
@@ -12226,13 +12457,360 @@ function addRetailerStock() {
 // Global store for pending distribution records — avoids JSON.stringify in onclick attributes
 window._rtPendingRecords = [];
 
+// ══════════════════════════════════════════════════════════════
+//  RETAILER — STOCK RECEIPT HISTORY with Edit/Delete (MO approval)
+// ══════════════════════════════════════════════════════════════
+
+// Store stock history items keyed by Firebase push key
+window._rtStockHistoryItems = {};
+
+function loadRetailerStockHistory() {
+    const { uid, outletId, mandalKey } = getRetailerInfo();
+    const container = document.getElementById('rtStockHistoryFull');
+    if (!container || !uid) return;
+
+    const histPath = outletId
+        ? `mandals/${mandalKey}/retailers/${outletId}/stockHistory`
+        : `users/${uid}/retailerStock/history`;
+
+    container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-success fa-2x"></i></div>';
+
+    database.ref(histPath).once('value').then(snap => {
+        if (!snap.exists()) {
+            container.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-receipt fa-3x mb-3 opacity-25 d-block"></i>No stock receipts recorded yet.</div>';
+            window._rtStockHistoryItems = {};
+            return;
+        }
+
+        const rawData = snap.val();
+        const items = [];
+        if (typeof rawData === 'object' && !Array.isArray(rawData)) {
+            Object.entries(rawData).forEach(([key, val]) => {
+                if (val && typeof val === 'object') items.push({ _key: key, ...val });
+            });
+        } else if (Array.isArray(rawData)) {
+            rawData.forEach((val, i) => { if (val) items.push({ _key: String(i), ...val }); });
+        }
+
+        // Store for reference
+        window._rtStockHistoryItems = {};
+        items.forEach(it => { window._rtStockHistoryItems[it._key] = it; });
+
+        if (!items.length) {
+            container.innerHTML = '<div class="text-center text-muted py-5">No stock receipts found.</div>';
+            return;
+        }
+
+        // Sort newest first
+        items.sort((a, b) => (b.addedAt || b.date || '').localeCompare(a.addedAt || a.date || ''));
+
+        const fertColors = { Urea:'#fff8e1|#ffc107', DAP:'#e3f2fd|#0dcaf0', MOP:'#fce4ec|#e91e63', NPK:'#e8f5e9|#4caf50', Other:'#f3e5f5|#9c27b0' };
+        const rows = items.map((r, i) => {
+            const [bg, bc] = (fertColors[r.fert] || '#f5f5f5|#9e9e9e').split('|');
+            return `<tr>
+                <td class="text-muted" style="font-size:0.78rem;">${i + 1}</td>
+                <td>${escapeHtml(r.date || '—')}</td>
+                <td><span class="badge" style="background:${bg};color:#333;border:1px solid ${bc};font-weight:600;">${escapeHtml(r.fert || '—')}</span></td>
+                <td class="fw-bold text-success">+${r.bags}</td>
+                <td class="text-muted small">${escapeHtml(r.notes || '—')}</td>
+                <td style="white-space:nowrap;">
+                    <button class="btn btn-outline-primary btn-sm me-1 py-0 px-2" style="border-radius:8px;font-size:0.75rem;"
+                            onclick="openRtEditStockRequest('${r._key}')">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm py-0 px-2" style="border-radius:8px;font-size:0.75rem;"
+                            onclick="openRtDeleteStockRequest('${r._key}')">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `
+        <div class="alert alert-info py-2 small mb-3" style="border-radius:12px;">
+            <i class="fas fa-info-circle me-2"></i>
+            Edit/Delete requests will be sent to the <strong>Mandal Officer</strong> for approval.
+            Changes take effect only after MO approves.
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle" style="border-radius:12px;overflow:hidden;">
+                <thead style="background:linear-gradient(135deg,#1862ab,#1a7a5e);color:#fff;">
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Date</th>
+                        <th>Fertilizer</th>
+                        <th>Bags</th>
+                        <th>Notes</th>
+                        <th style="width:140px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+    }).catch(e => {
+        container.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`;
+    });
+}
+
+function loadRetailerMyPendingRequests() {
+    const { uid, mandalKey } = getRetailerInfo();
+    const container = document.getElementById('rtMyPendingRequests');
+    if (!container || !uid) return;
+
+    database.ref('fertilizerRequests').orderByChild('retailerId').equalTo(uid).once('value').then(snap => {
+        if (!snap.exists()) {
+            container.innerHTML = '<p class="text-muted small mb-0">No pending requests.</p>';
+            return;
+        }
+        const pending = [];
+        snap.forEach(child => {
+            const r = child.val();
+            if (r && r.status === 'PENDING') pending.push({ _key: child.key, ...r });
+        });
+        if (!pending.length) {
+            container.innerHTML = '<p class="text-muted small mb-0"><i class="fas fa-check-circle text-success me-1"></i>No pending requests — all requests have been processed.</p>';
+            return;
+        }
+        const actionColor = { ADD:'success', EDIT:'primary', DELETE:'danger' };
+        const rows = pending.map(r => {
+            const reqDate = r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '—';
+            return `<div class="d-flex align-items-center gap-2 p-2 mb-1 rounded" style="background:#fffbf0;border:1px solid #fce5a0;">
+                <span class="badge bg-${actionColor[r.action]||'secondary'}">${r.action}</span>
+                <span class="small fw-semibold">${escapeHtml(r.data?.fert||'—')}</span>
+                <span class="small text-muted">· ${r.data?.bags} bags</span>
+                <span class="badge bg-warning text-dark ms-auto" style="font-size:0.65rem;">Pending MO</span>
+                <span class="text-muted" style="font-size:0.72rem;">${reqDate}</span>
+            </div>`;
+        }).join('');
+        container.innerHTML = rows;
+    }).catch(() => {
+        container.innerHTML = '<p class="text-muted small mb-0">Could not load pending requests.</p>';
+    });
+}
+
+function openRtEditStockRequest(key) {
+    const rec = window._rtStockHistoryItems[key];
+    if (!rec) return alert('Record not found. Please refresh.');
+
+    const newBags = prompt(
+        `✏️ Edit Stock Entry\n\nFertilizer: ${rec.fert}\nDate: ${rec.date}\nCurrent bags: ${rec.bags}\n\nEnter new bag count:`,
+        rec.bags
+    );
+    if (newBags === null || newBags.trim() === '') return;
+    const parsed = parseInt(newBags);
+    if (isNaN(parsed) || parsed <= 0) { alert('Please enter a valid positive number.'); return; }
+    if (parsed === parseInt(rec.bags)) { alert('No change detected.'); return; }
+
+    const newNotes = prompt('Notes (optional — leave blank to keep current):', rec.notes || '') ?? rec.notes;
+
+    if (!confirm(`📋 Confirm Edit Request\n\nFertilizer: ${rec.fert}\nDate: ${rec.date}\nOld bags: ${rec.bags} → New bags: ${parsed}\n\nThis will be sent to Mandal Officer for approval. Continue?`)) return;
+
+    submitRtStockRequest('EDIT', key, rec.fert, parsed, rec.date, newNotes || rec.notes || '')
+        .then(() => {
+            alert('✅ Edit request sent to Mandal Officer for approval.');
+            loadRetailerMyPendingRequests();
+        })
+        .catch(err => alert('❌ Failed to submit: ' + err.message));
+}
+
+function openRtDeleteStockRequest(key) {
+    const rec = window._rtStockHistoryItems[key];
+    if (!rec) return alert('Record not found. Please refresh.');
+
+    if (!confirm(`🗑️ Request Deletion\n\nFertilizer: ${rec.fert}\nDate: ${rec.date}\nBags: ${rec.bags}\nNotes: ${rec.notes || '—'}\n\nThis will be sent to Mandal Officer for approval. Continue?`)) return;
+
+    submitRtStockRequest('DELETE', key, rec.fert, rec.bags, rec.date, rec.notes || '')
+        .then(() => {
+            alert('✅ Delete request sent to Mandal Officer for approval.');
+            loadRetailerMyPendingRequests();
+        })
+        .catch(err => alert('❌ Failed to submit: ' + err.message));
+}
+
+function submitRtStockRequest(actionType, targetStockKey, fert, bags, date, notes) {
+    const { uid, outletId, mandalKey, outletName } = getRetailerInfo();
+    if (!uid || !mandalKey) return Promise.reject(new Error('Missing retailer info. Please ensure your outlet is linked.'));
+
+    const payload = {
+        retailerId: uid,
+        outletId: outletId || '',
+        outletName: outletName || 'Retailer',
+        mandal: mandalKey,
+        action: actionType,         // 'EDIT' or 'DELETE'
+        targetStockId: targetStockKey || null,
+        data: { fert, bags, date, notes },
+        status: 'PENDING',
+        timestamp: Date.now()
+    };
+    return database.ref('fertilizerRequests').push(payload);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MO — LOAD & PROCESS RETAILER STOCK REQUESTS
+// ══════════════════════════════════════════════════════════════
+
+function loadMoStockRequests() {
+    const container = document.getElementById('moStockRequestsList');
+    if (!container) return;
+
+    const mandal = currentUserProfile?.mandal || '';
+    if (!mandal) {
+        container.innerHTML = '<div class="alert alert-warning">Mandal not configured in your profile.</div>';
+        return;
+    }
+    const mandalKey = mandal.trim().toLowerCase().replace(/\s+/g, '_');
+
+    container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-warning"></i><p class="text-muted mt-2">Loading requests…</p></div>';
+
+    database.ref('fertilizerRequests').orderByChild('mandal').equalTo(mandalKey).on('value', snap => {
+        // Update badge
+        let pendingCount = 0;
+
+        if (!snap.exists()) {
+            container.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>No stock edit/delete requests found.</div>';
+            _updateMoStockBadge(0);
+            return;
+        }
+
+        const requests = [];
+        snap.forEach(child => {
+            const r = child.val();
+            if (r && r.status === 'PENDING') {
+                requests.push({ _key: child.key, ...r });
+                pendingCount++;
+            }
+        });
+
+        _updateMoStockBadge(pendingCount);
+
+        if (!requests.length) {
+            container.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>No pending stock requests. All caught up!</div>';
+            return;
+        }
+
+        // Sort newest first
+        requests.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        const actionColor = { EDIT: 'primary', DELETE: 'danger', ADD: 'success' };
+        const rows = requests.map(r => {
+            const dt = r.timestamp ? new Date(r.timestamp).toLocaleString() : '—';
+            return `<tr>
+                <td style="font-size:0.8rem;">${dt}</td>
+                <td class="fw-semibold">${escapeHtml(r.outletName || 'Retailer')}</td>
+                <td><span class="badge bg-${actionColor[r.action]||'secondary'}">${r.action}</span></td>
+                <td>${escapeHtml(r.data?.fert || '—')}</td>
+                <td class="fw-bold">${r.data?.bags || 0}</td>
+                <td class="text-muted small">${escapeHtml(r.data?.date || '—')}</td>
+                <td class="text-muted small">${escapeHtml(r.data?.notes || '—')}</td>
+                <td>
+                    <button class="btn btn-sm btn-success me-1 py-0 px-2" style="border-radius:8px;"
+                            onclick="processMoStockRequest('${r._key}', true)">
+                        <i class="fas fa-check me-1"></i>Approve
+                    </button>
+                    <button class="btn btn-sm btn-danger py-0 px-2" style="border-radius:8px;"
+                            onclick="processMoStockRequest('${r._key}', false)">
+                        <i class="fas fa-times me-1"></i>Reject
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle" style="border-radius:12px;overflow:hidden;">
+                <thead style="background:linear-gradient(135deg,#1862ab,#1a7a5e);color:#fff;">
+                    <tr>
+                        <th>Date Submitted</th>
+                        <th>Outlet</th>
+                        <th>Action</th>
+                        <th>Fertilizer</th>
+                        <th>Bags</th>
+                        <th>Receipt Date</th>
+                        <th>Notes</th>
+                        <th style="width:160px;">Decision</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+    });
+}
+
+function _updateMoStockBadge(count) {
+    const badge = document.getElementById('moStockRequestBadge');
+    if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline-block' : 'none'; }
+}
+
+function processMoStockRequest(requestId, isApproved) {
+    if (!confirm(`Are you sure you want to ${isApproved ? 'APPROVE' : 'REJECT'} this request?`)) return;
+
+    const reqRef = database.ref('fertilizerRequests/' + requestId);
+    
+    if (!isApproved) {
+        reqRef.update({ status: 'REJECTED', processedAt: Date.now() });
+        return;
+    }
+
+    reqRef.once('value').then(snap => {
+        const req = snap.val();
+        if (!req) return;
+        const { action, targetStockId, data, outletId, mandal, retailerId } = req;
+        
+        const balPath = outletId ? `mandals/${mandal}/retailers/${outletId}/stock/${data.fert}` : `users/${retailerId}/retailerStock/balance/${data.fert}`;
+        const histPath = outletId ? `mandals/${mandal}/retailers/${outletId}/stockHistory` : `users/${retailerId}/retailerStock/history`;
+
+        // We need current balance to properly calculate additions/deductions
+        return database.ref(balPath).once('value').then(balSnap => {
+            let currentBal = Number(balSnap.val()) || 0;
+
+            if (action === 'ADD') {
+                return Promise.all([
+                    database.ref(balPath).set(currentBal + data.bags),
+                    database.ref(histPath).push({ ...data, addedAt: new Date().toISOString() })
+                ]);
+            } 
+            else if (action === 'EDIT' && targetStockId) {
+                // Must fetch original record to know difference
+                return database.ref(histPath + '/' + targetStockId).once('value').then(oldSnap => {
+                    const oldData = oldSnap.val();
+                    const diff = data.bags - (oldData.bags || 0);
+                    return Promise.all([
+                        database.ref(balPath).set(currentBal + diff),
+                        database.ref(histPath + '/' + targetStockId).update({ bags: data.bags, notes: data.notes })
+                    ]);
+                });
+            } 
+            else if (action === 'DELETE' && targetStockId) {
+                return Promise.all([
+                    database.ref(balPath).set(currentBal - data.bags),
+                    database.ref(histPath + '/' + targetStockId).remove()
+                ]);
+            }
+        });
+    })
+    .then(() => {
+        reqRef.update({ status: 'APPROVED', processedAt: Date.now() });
+        alert("Request processed successfully.");
+    })
+    .catch(err => alert("Error processing request: " + err.message));
+}
+
+// Also load stock request badge when MO loads their section
+(function _patchMoInit() {
+    const origSwitchMoMainTab = window.switchMoMainTab;
+    if (typeof origSwitchMoMainTab === 'function') {
+        window.switchMoMainTab = function(tabId, btn) {
+            origSwitchMoMainTab(tabId, btn);
+            if (tabId === 'moTabStockRequests') loadMoStockRequests();
+        };
+    }
+})();
+
 function loadRetailerDistributions() {
     const { uid, outletId } = getRetailerInfo();
     const container = document.getElementById('rtPendingContainer');
     if (!container) return;
-
     if (!uid) { container.innerHTML = '<div class="alert alert-warning">Not logged in.</div>'; return; }
-
     container.innerHTML = `
     <div class="text-center py-5">
         <i class="fas fa-spinner fa-spin fa-2x text-warning mb-2"></i>
@@ -12396,6 +12974,7 @@ function loadRetailerDistributions() {
         </div>`;
     });
 }
+
 
 // ── Distribute directly from pending list (no QR/token result panel needed)
 function _rtExecuteDistributeFromList(r, rowIdx) {
