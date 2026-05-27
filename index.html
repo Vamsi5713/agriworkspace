@@ -460,7 +460,15 @@
                         onclick="showSection('adminSection'); showAdminTab('adminCreateUsersTab'); return false;">
                         <i class="fas fa-user-shield"></i> Admin
                      </a>
-                     <button class="btn btn-outline-light btn-sm ms-2" onclick="logoutUser();return false;">Logout</button>
+                     <button class="btn btn-outline-light btn-sm ms-2"
+        onclick="location.reload();return false;">
+    <i class="fas fa-sync-alt me-1"></i>Refresh
+</button>
+
+<button class="btn btn-outline-light btn-sm ms-2"
+        onclick="logoutUser();return false;">
+    Logout
+</button>
                   </div>
                </div>
             </div>
@@ -2566,23 +2574,6 @@
 
             <hr class="my-4">
 
-            <!-- Section 1: Pending Delete Requests from VOs (awaiting MO then Admin) -->
-            <div class="mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                    <div>
-                        <h5 class="fw-bold mb-0"><i class="fas fa-clock me-2 text-warning"></i>Pending Fertilizer Delete Requests</h5>
-                        <p class="text-muted small mb-0">Requests from Village Officers to delete fertilizer history entries. MO must confirm first, then Admin can approve.</p>
-                    </div>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="loadAdminResetRequests()">
-                        <i class="fas fa-sync me-1"></i> Refresh
-                    </button>
-                </div>
-                <div id="adminPendingDeleteContainer">
-                    <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i> Loading...</div>
-                </div>
-            </div>
-
-            <hr class="my-4">
 
             <!-- Section 2: Direct Admin Reset — reset any user's data -->
             <div>
@@ -4568,42 +4559,114 @@ function _showVoRetailerNotification(html) {
 }
 
 
-// ── Save to cloud (with toast notification) ──────────────────
+// ── Fast Background Cloud Save ───────────────────────────────
 function saveToCloud() {
+
     const user = firebase.auth().currentUser;
-    if (!user || !isDataLoaded) return Promise.resolve(false);
 
-    updateSyncStatusCard('syncing', '', 'Saving…');
+    if (!user || !isDataLoaded) {
+        return Promise.resolve(false);
+    }
 
+    // Instant syncing UI
+    updateSyncStatusCard(
+        'syncing',
+        '',
+        'Saving in background...'
+    );
+
+    // Prepare lightweight save object
     const dataToSave = {
-        allReports:     allReportsCache,
-        ureaData:       ureaData,
-        ureaHistory:    ureaHistory,
-        farmerProfiles: farmerProfiles,
-        lastUpdated:    new Date().toISOString()
+
+        allReports: allReportsCache || {},
+        ureaData: ureaData || {},
+        ureaHistory: ureaHistory || {},
+        farmerProfiles: farmerProfiles || {},
+
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: user.uid
+
     };
 
-    return database.ref('users/' + user.uid).update(dataToSave)
-        .then(() => {
-            _lastSyncTime = new Date();
-            const timeStr = _lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            updateSyncStatusCard('synced', '', `Saved at ${timeStr}`);
-            return true;
-        })
-        .catch(err => {
-            updateSyncStatusCard('error', '', 'Save failed — check connection');
-            console.error('Save error:', err);
-            alert('Cloud save failed: ' + err.message);
-            return false;
-        });
+    // Background async save
+    return new Promise((resolve) => {
+
+        setTimeout(() => {
+
+            database
+                .ref('users/' + user.uid)
+
+                .update(dataToSave)
+
+                .then(() => {
+
+                    _lastSyncTime = new Date();
+
+                    const timeStr =
+                        _lastSyncTime.toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+
+                    updateSyncStatusCard(
+                        'synced',
+                        '',
+                        `Saved at ${timeStr}`
+                    );
+
+                    // Success popup
+                    showModernPopup(
+                        "Success",
+                        "Cloud backup completed",
+                        "success"
+                    );
+
+                    resolve(true);
+
+                })
+
+                .catch((err) => {
+
+                    console.error('Save error:', err);
+
+                    updateSyncStatusCard(
+                        'error',
+                        '',
+                        'Save failed — check connection'
+                    );
+
+                    showModernPopup(
+                        "Cloud Save Failed",
+                        err.message,
+                        "error"
+                    );
+
+                    resolve(false);
+                });
+
+        }, 10);
+
+    });
 }
 
+// ── Detach Cloud Listener ────────────────────────────────────
 function detachCloudListener() {
+
     if (_cloudListenerUid) {
-        database.ref('users/' + _cloudListenerUid).off('value');
+
+        database
+            .ref('users/' + _cloudListenerUid)
+            .off('value');
+
         _cloudListenerUid = null;
     }
-    if (_syncRetryTimer) { clearTimeout(_syncRetryTimer); _syncRetryTimer = null; }
+
+    if (_syncRetryTimer) {
+
+        clearTimeout(_syncRetryTimer);
+
+        _syncRetryTimer = null;
+    }
 }
 
          
@@ -4917,26 +4980,102 @@ function loginUser() {
                     console.info(`User has role '${profile.role}', routing to correct dashboard.`);
                 }
             })
-            .catch(e => alert(e.message));
+           .catch(e => {
+
+    console.error(e);
+
+    if (
+        e.code === "auth/wrong-password" ||
+        e.code === "auth/user-not-found" ||
+        e.code === "auth/invalid-credential"
+    ) {
+
+        showModernPopup(
+            "Login Failed",
+            "Wrong ID or Password",
+            "error"
+        );
+
+    } else {
+
+        showModernPopup(
+            "Error",
+            e.message,
+            "error"
+        );
+    }
+});
         return;
     }
 
     // For all other roles (MO, DO, Retailer, Admin): strict role-match validation
-    firebase.auth().signInWithEmailAndPassword(email, pass)
-        .then(async cred => {
-            const profileSnap = await database.ref('users/' + cred.user.uid + '/profile').once('value');
-            const profile = profileSnap.val() || {};
 
-            if (profile.role && profile.role !== selectedRole) {
-                await firebase.auth().signOut();
-                throw new Error(`This account is registered as ${profile.role.replace(/_/g, ' ')}. Please select the matching login role.`);
-            }
+firebase.auth().signInWithEmailAndPassword(email, pass)
 
-            if (!profile.role) {
-                await database.ref('users/' + cred.user.uid + '/profile/role').set(selectedRole);
-            }
-        })
-        .catch(e => alert(e.message));
+.then(async (cred) => {
+
+    const profileSnap = await database
+        .ref('users/' + cred.user.uid + '/profile')
+        .once('value');
+
+    const profile = profileSnap.val() || {};
+
+    // Role validation
+    if (profile.role && profile.role !== selectedRole) {
+
+        await firebase.auth().signOut();
+
+        showModernPopup(
+            "Login Failed",
+            `This account is registered as ${profile.role.replace(/_/g, ' ')}. Please select the correct role.`,
+            "error"
+        );
+
+        return;
+    }
+
+    // Save role if empty
+    if (!profile.role) {
+
+        await database
+            .ref('users/' + cred.user.uid + '/profile/role')
+            .set(selectedRole);
+    }
+
+    showModernPopup(
+        "Success",
+        "Login Successful",
+        "success"
+    );
+
+})
+
+.catch((e) => {
+
+    console.error(e);
+
+    if (
+        e.code === "auth/wrong-password" ||
+        e.code === "auth/user-not-found" ||
+        e.code === "auth/invalid-credential"
+    ) {
+
+        showModernPopup(
+            "Login Failed",
+            "Wrong ID or Password",
+            "error"
+        );
+
+    } else {
+
+        showModernPopup(
+            "Error",
+            e.message,
+            "error"
+        );
+    }
+
+});
 }
 
 // ============================================================
@@ -5318,9 +5457,73 @@ function registerUser() {
     showSection('registerPage');
     initRegisterForm();
 }
+function showModernPopup(title, message, type = "info") {
+
+    const oldPopup = document.getElementById("modernPopup");
+    if (oldPopup) oldPopup.remove();
+
+    const color =
+        type === "error" ? "#e74c3c" :
+        type === "success" ? "#27ae60" :
+        "#1862ab";
+
+    const popup = document.createElement("div");
+
+    popup.id = "modernPopup";
+
+    popup.innerHTML = `
+        <div style="
+            position:fixed;
+            top:20px;
+            right:20px;
+            z-index:999999;
+            min-width:320px;
+            background:#fff;
+            border-left:6px solid ${color};
+            border-radius:14px;
+            padding:18px;
+            box-shadow:0 10px 30px rgba(0,0,0,0.18);
+        ">
+
+            <div style="
+                font-size:17px;
+                font-weight:700;
+                color:${color};
+                margin-bottom:6px;
+            ">
+                ${title}
+            </div>
+
+            <div style="
+                color:#555;
+                font-size:14px;
+                line-height:1.5;
+            ">
+                ${message}
+            </div>
+
+        </div>
+    `;
+
+    document.body.appendChild(popup);
+
+    setTimeout(() => {
+        popup.remove();
+    }, 3500);
+}
+
 function logoutUser() {
     detachCloudListener();
-    firebase.auth().signOut().catch(e => alert(e.message));
+    firebase.auth().signOut()
+   .catch(e => {
+
+    showModernPopup(
+        "Logout Error",
+        e.message,
+        "error"
+    );
+
+});
 }
 
 function sendPasswordReset() {
@@ -5328,7 +5531,15 @@ function sendPasswordReset() {
     if (!email) return alert('Please enter your email.');
     firebase.auth().sendPasswordResetEmail(email)
         .then(() => { alert('Password reset email sent!'); showSection('loginPage'); })
-        .catch(e => alert(e.message));
+        .catch(e => {
+
+    showModernPopup(
+        "Password Reset Error",
+        e.message,
+        "error"
+    );
+
+});
 }
 
 // ── Profile page: send password reset email for currently logged-in user ──
@@ -8034,11 +8245,19 @@ if (fileInput) {
             try {
                 const wb   = XLSX.read(evt.target.result, { type: "array" });
                 const ws   = wb.Sheets[wb.SheetNames[0]];
-                const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+                const rows = XLSX.utils.sheet_to_json(ws, {
+    defval: "",
+    raw: true,
+    blankrows: false
+});
 
                 if (!rows.length) {
                     updateUploadStatus('danger', `❌ ${fert} file is empty.`);
-                    return alert("File is empty or unreadable.");
+                    return showModernPopup(
+    "Invalid File",
+    "File is empty or unreadable.",
+    "error"
+);
                 }
 
                 const parsed = rows.reduce((acc, r) => {
@@ -8052,7 +8271,11 @@ if (fileInput) {
 
                 if (!Object.keys(parsed).length) {
                     updateUploadStatus('danger', `❌ No valid khatha found in ${fert} file.`);
-                    return alert("No valid Khatha data found.");
+                    return showModernPopup(
+    "Invalid Data",
+    "No valid Khatha data found.",
+    "error"
+);
                 }
 
                 ureaData[fert]            = parsed;
