@@ -6564,7 +6564,27 @@ function validateAadhaar(aadhaar) {
                <h5 style="color:var(--primary); font-weight:600;">All Bookings</h5><div class="table-responsive"><table class="table table-bordered table-striped mb-0"><thead class="bg-primary text-white"><tr><th class="text-white">Booking ID</th><th class="text-white">Khatha</th><th class="text-white">Survey</th><th class="text-white">Crop Name</th><th class="text-white">Area</th></tr></thead><tbody>`;
              detailsList.forEach(d => html += `<tr><td>${escapeHtml(d.bookingID||'-')}</td><td>${escapeHtml(d.khathaNo||'-')}</td><td>${escapeHtml(d.surveyNo||'-')}</td><td>${escapeHtml(d.cropName||'-')}</td><td>${d.area.toFixed(2)}</td></tr>`);
              document.getElementById('farmerModalBody').innerHTML = html + '</tbody></table></div>';
-             new bootstrap.Modal(document.getElementById('farmerModal')).show();
+             new bootstrap.Modal(
+    document.getElementById(
+        'farmerModal'
+    )
+).show();
+
+/* Clear Aadhaar input after search */
+
+document.getElementById(
+    'aadhaarLast4Input'
+).value = '';
+
+document.getElementById(
+    'aadhaarLast4Input'
+).focus();
+
+/* Clear search suggestions */
+
+document.getElementById(
+    'searchResults'
+).innerHTML = '';
          }
          
          document.getElementById('printFarmerModalBtn').onclick = function() {
