@@ -7674,57 +7674,130 @@ function getSplitFraction(crop, splitIndex, fertType) {
     return parseFraction(valStr, sch.length);
 }
 
-// DETERMINISTIC CAPPING LOGIC (Prevents overall recommendation from being exceeded)
+// DETERMINISTIC CAPPING LOGIC
 function getDeterministicSplitEligibilities(totalEligible, crop, fert) {
+    crop = (crop || '').toLowerCase().trim();
+
+    // SPECIAL CASE: Paddy -> 2 splits only
+    if (crop === 'paddy') {
+        const split1 = Math.ceil(totalEligible * 0.5);
+        const split2 = Math.max(0, totalEligible - split1);
+
+        return [split1, split2];
+    }
+
+    // DEFAULT LOGIC FOR OTHER CROPS
     const sch = fertilizerSchedule[crop];
-    if (!sch || sch.length === 0) return [totalEligible];
-    
+
+    if (!sch || sch.length === 0) {
+        return [totalEligible];
+    }
+
     let accumulatedBags = 0;
     const eligibilities = [];
-    
+
     for (let i = 0; i < sch.length; i++) {
         let frac = getSplitFraction(crop, i, fert);
+
         let base = Math.ceil(totalEligible * frac);
-        let actual = Math.max(0, Math.min(base, totalEligible - accumulatedBags));
-        
+
+        let actual = Math.max(
+            0,
+            Math.min(base, totalEligible - accumulatedBags)
+        );
+
         eligibilities.push(actual);
         accumulatedBags += actual;
     }
+
     return eligibilities;
 }
 
 function populateSplitDropdown() {
-    const cropInpEl = document.getElementById('ureaCropInput');
-    const cropSelEl = document.getElementById('ureaCrop');
+    const cropInpEl =
+        document.getElementById('ureaCropInput');
+
+    const cropSelEl =
+        document.getElementById('ureaCrop');
+
     let crop = '';
-    if (cropInpEl && cropInpEl.style.display !== 'none' && cropInpEl.value) {
-        crop = cropSelEl?.value || cropInpEl.value.split(' ')[0].toLowerCase();
+
+    if (
+        cropInpEl &&
+        cropInpEl.style.display !== 'none' &&
+        cropInpEl.value
+    ) {
+        crop =
+            cropSelEl?.value ||
+            cropInpEl.value
+                .split(' ')[0]
+                .toLowerCase();
     } else {
         crop = cropSelEl?.value || '';
     }
 
+    crop = crop.toLowerCase().trim();
+
     const fert = getSelectedFertilizer();
-    const splitSel = document.getElementById('ureaSplit');
+
+    const splitSel =
+        document.getElementById('ureaSplit');
+
     if (!splitSel) return;
 
-    splitSel.innerHTML = '<option value="">--Select Split--</option>';
+    splitSel.innerHTML =
+        '<option value="">--Select Split--</option>';
+
     if (!crop) return;
 
+    // SPECIAL CASE: Paddy -> 2 splits only
+    if (crop === 'paddy') {
+        splitSel.innerHTML += `
+            <option value="0">
+                Split 1: Basal Dose
+            </option>
+        `;
+
+        splitSel.innerHTML += `
+            <option value="1">
+                Split 2: Top Dressing
+            </option>
+        `;
+
+        return;
+    }
+
+    // DEFAULT LOGIC FOR OTHER CROPS
     const sch = fertilizerSchedule[crop];
+
     if (!sch || sch.length === 0) {
-        splitSel.innerHTML += `<option value="0">Split 1: Full Dose</option>`;
+        splitSel.innerHTML += `
+            <option value="0">
+                Split 1: Full Dose
+            </option>
+        `;
         return;
     }
 
     sch.forEach((stage, idx) => {
-        const fraction = getSplitFraction(crop, idx, fert);
+        const fraction =
+            getSplitFraction(crop, idx, fert);
+
         if (fraction > 0) {
-            splitSel.innerHTML += `<option value="${idx}">Split ${idx + 1}: ${stage.stage}</option>`;
+            splitSel.innerHTML += `
+                <option value="${idx}">
+                    Split ${idx + 1}: ${stage.stage}
+                </option>
+            `;
         }
     });
 
     if (splitSel.options.length === 1) {
-        splitSel.innerHTML += `<option value="0">Split 1: Basal/All</option>`;
+        splitSel.innerHTML += `
+            <option value="0">
+                Split 1: Basal/All
+            </option>
+        `;
     }
 }
 
