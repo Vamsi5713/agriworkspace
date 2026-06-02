@@ -15011,13 +15011,32 @@ function fetchProxyText(path) {
 }
 
 function extractVlistLinks(text, pathType) {
-    const re = new RegExp(`\\[([^\\]]+)\\]\\((https://vlist\\.in\\/${pathType}\\/\\d+\\.html)\\)`, 'g');
     const items = [];
-    let match;
-    while ((match = re.exec(text)) !== null) {
-        items.push({ label: match[1].trim(), url: match[2].trim() });
+
+    // Proxy fetches via http://, so links come back as http://vlist.in/...
+    // Accept both http:// and https:// to be safe.
+    const reMd = new RegExp(
+        `\\[([^\\]]+)\\]\\((https?://vlist\\.in\\/${pathType}\\/\\d+\\.html)\\)`, 'g'
+    );
+    let m;
+    while ((m = reMd.exec(text)) !== null) {
+        // Normalise to https so downstream URL replacements stay consistent
+        items.push({ label: m[1].trim(), url: m[2].trim().replace(/^http:\/\//, 'https://') });
     }
-    return items.filter((item, index, array) => array.findIndex(entry => entry.url === item.url) === index);
+
+    // Fallback: bare href attributes (some proxy modes return partial HTML)
+    if (!items.length) {
+        const reHref = new RegExp(
+            `href=["']?(https?://vlist\\.in\\/${pathType}\\/(\\d+)\\.html)["']?[^>]*>([^<]+)<`, 'gi'
+        );
+        while ((m = reHref.exec(text)) !== null) {
+            items.push({ label: m[3].trim(), url: m[1].trim().replace(/^http:\/\//, 'https://') });
+        }
+    }
+
+    return items.filter((item, index, array) =>
+        array.findIndex(entry => entry.url === item.url) === index
+    );
 }
 
 function ensureAPLocationDataLoaded() {
