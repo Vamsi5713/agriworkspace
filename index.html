@@ -1006,6 +1006,7 @@
       </div>
       <div class="text-muted mb-3 mt-1" style="font-size:0.72rem;"><i class="fas fa-info-circle me-1"></i>If a village has multiple offices, each officer enters their specific Sachivalayam name/number.</div>
     </div>
+    
 
     <!-- Status message -->
     <div id="regStatusMsg" class="mb-3"></div>
@@ -8463,11 +8464,13 @@ function checkDistributionAllowed(remain, eligible, crop, fert) {
     }
 }
 
-// --- OVERHAULED FOR DETERMINISTIC SPLIT LOGIC ---
+/// --- OVERHAULED FOR DETERMINISTIC SPLIT LOGIC (NO 7-DAY LOCK) ---
 function updateBagRecommendation() {
     const cropInpEl = document.getElementById('ureaCropInput');
     const cropSelEl = document.getElementById('ureaCrop');
+
     let crop = '';
+
     if (cropInpEl && cropInpEl.style.display !== 'none' && cropInpEl.value) {
         crop = cropSelEl?.value || cropInpEl.value.split(' ')[0].toLowerCase();
     } else {
@@ -8475,48 +8478,68 @@ function updateBagRecommendation() {
     }
 
     const season = getCurrentSeason();
-    const year   = getCurrentYear();
+    const year = getCurrentYear();
 
     if (!crop || crop === '--Select Crop--') return;
     if (!season || season === '--Select Season--') return;
 
     const cropRec = cropNPKRecommendations[crop];
-    const rec     = cropRec ? (cropRec[season] || cropRec['Kharif']) : null;
+    const rec = cropRec ? (cropRec[season] || cropRec['Kharif']) : null;
     if (!rec) return;
 
-    const aadhaar = cleanAadhaar(document.getElementById('ureaSearch')?.value || '');
+    const aadhaar = cleanAadhaar(
+        document.getElementById('ureaSearch')?.value || ''
+    );
 
     let extent = 0;
-    let blocked  = false;
+    let blocked = false;
 
     if (aadhaar.length === 12 && farmerProfiles[aadhaar]?.length) {
         let found = false;
+
         farmerProfiles[aadhaar].forEach(p => {
             (p.crops || []).forEach(c => {
-                if ((c.crop || '').toLowerCase().trim() !== crop.toLowerCase().trim()) return;
-                const yearMatch   = !year   || c.year   === year;
+                if (
+                    (c.crop || '').toLowerCase().trim() !==
+                    crop.toLowerCase().trim()
+                ) {
+                    return;
+                }
+
+                const yearMatch = !year || c.year === year;
                 const seasonMatch = !season || c.season === season;
+
                 if (!yearMatch || !seasonMatch) return;
+
                 extent += Number(c.extent || 0);
                 found = true;
             });
         });
+
         blocked = !found;
     } else {
-        extent = Number(document.getElementById('ureaExtent')?.value || 0);
+        extent = Number(
+            document.getElementById('ureaExtent')?.value || 0
+        );
     }
 
-    const ureaBags = blocked ? 0 : Math.ceil((rec.N * extent) / 46 * 100 / 45);
-    const dapBags  = blocked ? 0 : Math.ceil((rec.P * extent) / 46 * 100 / 50);
-    const fert  = getSelectedFertilizer();
-    
+    const ureaBags = blocked
+        ? 0
+        : Math.ceil((rec.N * extent) / 46 * 100 / 45);
+
+    const dapBags = blocked
+        ? 0
+        : Math.ceil((rec.P * extent) / 46 * 100 / 50);
+
+    const fert = getSelectedFertilizer();
     const totalEligible = fert === 'Urea' ? ureaBags : dapBags;
 
-    // --- SPLIT LOGIC INTERCEPT ---
+    // --- SPLIT LOGIC ---
     const splitSel = document.getElementById('ureaSplit');
     const splitNote = document.getElementById('ureaSplitNote');
-    if(splitNote) splitNote.textContent = '';
-    
+
+    if (splitNote) splitNote.textContent = '';
+
     let splitIdx = splitSel ? parseInt(splitSel.value) : -1;
     let thisSplitEligible = 0;
     let thisSplitGiven = 0;
@@ -8525,219 +8548,271 @@ function updateBagRecommendation() {
     let blockReason = '';
 
     if (!isNaN(splitIdx) && splitIdx >= 0) {
-        const splitEligibilities = getDeterministicSplitEligibilities(totalEligible, crop, fert);
-        thisSplitEligible = splitEligibilities[splitIdx] || 0;
-        
+        const splitEligibilities =
+            getDeterministicSplitEligibilities(
+                totalEligible,
+                crop,
+                fert
+            );
+
+        thisSplitEligible =
+            splitEligibilities[splitIdx] || 0;
+
+        // CHECK PREVIOUS SPLITS ONLY
         if (splitIdx > 0) {
             for (let i = 0; i < splitIdx; i++) {
-                let prevEligible = splitEligibilities[i];
-                if (prevEligible <= 0) continue;
-                
-                let prevGiven = getTotalBagsTakenByAadhaarCropAndSplit(aadhaar, fert, crop, season, year, i);
+                const prevEligible =
+                    splitEligibilities[i] || 0;
 
+                if (prevEligible <= 0) continue;
+
+                const prevGiven =
+                    getTotalBagsTakenByAadhaarCropAndSplit(
+                        aadhaar,
+                        fert,
+                        crop,
+                        season,
+                        year,
+                        i
+                    );
+
+                // BLOCK ONLY IF PREVIOUS SPLIT NOT COMPLETED
                 if (prevGiven < prevEligible) {
                     isSplitBlocked = true;
-                    blockReason = `⚠️ Finish Split ${i+1} (${prevEligible} bags) before proceeding.`;
+                    blockReason =
+                        `⚠️ Finish Split ${i + 1} ` +
+                        `(${prevEligible} bags) before proceeding.`;
                     break;
-                }
-
-                let prevDistDates = ureaHistory
-                    .filter(h => cleanAadhaar(h.aadhaar) === aadhaar && h.fertilizerType === fert && h.crop === crop && h.season === season && h.year === year && parseInt(h.splitIndex) === i)
-                    .map(h => new Date(h.date).getTime());
-
-                if (prevDistDates.length > 0) {
-                    let lastDate = new Date(Math.max(...prevDistDates));
-                    let today = new Date();
-                    today.setHours(0,0,0,0);
-                    lastDate.setHours(0,0,0,0);
-                    
-                    let diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-                    if (diffDays < 7) {
-                        isSplitBlocked = true;
-                        blockReason = `⚠️ Blocked. Wait ${7 - diffDays} more day(s) since Split ${i+1} completion.`;
-                        break;
-                    }
                 }
             }
         }
-        
-        thisSplitGiven = getTotalBagsTakenByAadhaarCropAndSplit(aadhaar, fert, crop, season, year, splitIdx);
-        thisSplitRem = Math.max(0, thisSplitEligible - thisSplitGiven);
 
-        if (thisSplitEligible === 0 && !isSplitBlocked) {
+        thisSplitGiven =
+            getTotalBagsTakenByAadhaarCropAndSplit(
+                aadhaar,
+                fert,
+                crop,
+                season,
+                year,
+                splitIdx
+            );
+
+        thisSplitRem = Math.max(
+            0,
+            thisSplitEligible - thisSplitGiven
+        );
+
+        if (
+            thisSplitEligible === 0 &&
+            !isSplitBlocked
+        ) {
             isSplitBlocked = true;
-            blockReason = `⚠️ No bags left for Split ${splitIdx + 1}. Total recommendation (${totalEligible} bags) already assigned to previous splits.`;
+
+            blockReason =
+                `⚠️ No bags left for Split ${
+                    splitIdx + 1
+                }. Total recommendation ` +
+                `(${totalEligible} bags) already ` +
+                `assigned to previous splits.`;
         }
     }
 
-    const activeEligible = (isNaN(splitIdx) || splitIdx < 0) ? 0 : thisSplitEligible;
-    const activeRem = (isNaN(splitIdx) || splitIdx < 0) ? 0 : thisSplitRem;
+    const activeEligible =
+        isNaN(splitIdx) || splitIdx < 0
+            ? 0
+            : thisSplitEligible;
 
-    const ureaEligible  = document.getElementById('ureaBagsEligible');
-    const dapEligible   = document.getElementById('dapBagsEligible');
-    const remainingEl   = document.getElementById('ureaRemainingBags');
-    
+    const activeRem =
+        isNaN(splitIdx) || splitIdx < 0
+            ? 0
+            : thisSplitRem;
+
+    const ureaEligible =
+        document.getElementById('ureaBagsEligible');
+
+    const dapEligible =
+        document.getElementById('dapBagsEligible');
+
+    const remainingEl =
+        document.getElementById('ureaRemainingBags');
+
     if (fert === 'Urea') {
-        if (ureaEligible)  ureaEligible.value  = activeEligible;
-        if (remainingEl) remainingEl.value = activeRem;
-        const noteEl = document.getElementById('ureaBagsEligibleToShow');
-        if (noteEl) noteEl.innerHTML = blocked ? `🚫 Not in profile` : `Split ${splitIdx+1} Eligible: <strong>${activeEligible}</strong> | Given: <strong>${thisSplitGiven}</strong> | Total Crop Eligible: ${totalEligible}`;
+        if (ureaEligible)
+            ureaEligible.value = activeEligible;
+
+        if (remainingEl)
+            remainingEl.value = activeRem;
+
+        const noteEl =
+            document.getElementById(
+                'ureaBagsEligibleToShow'
+            );
+
+        if (noteEl) {
+            noteEl.innerHTML = blocked
+                ? `🚫 Not in profile`
+                : `Split ${splitIdx + 1} Eligible:
+                <strong>${activeEligible}</strong> |
+                Given:
+                <strong>${thisSplitGiven}</strong> |
+                Total Crop Eligible:
+                ${totalEligible}`;
+        }
     } else if (fert === 'DAP') {
-        if (dapEligible)  dapEligible.value  = activeEligible;
-        if (remainingEl) remainingEl.value = activeRem;
-        const noteEl = document.getElementById('dapBagsEligibleToShow');
-        if (noteEl) noteEl.innerHTML = blocked ? `🚫 Not in profile` : `Split ${splitIdx+1} Eligible: <strong>${activeEligible}</strong> | Given: <strong>${thisSplitGiven}</strong> | Total Crop Eligible: ${totalEligible}`;
+        if (dapEligible)
+            dapEligible.value = activeEligible;
+
+        if (remainingEl)
+            remainingEl.value = activeRem;
+
+        const noteEl =
+            document.getElementById(
+                'dapBagsEligibleToShow'
+            );
+
+        if (noteEl) {
+            noteEl.innerHTML = blocked
+                ? `🚫 Not in profile`
+                : `Split ${splitIdx + 1} Eligible:
+                <strong>${activeEligible}</strong> |
+                Given:
+                <strong>${thisSplitGiven}</strong> |
+                Total Crop Eligible:
+                ${totalEligible}`;
+        }
     }
 
-    const card = document.getElementById('bagRecommendationCard');
+    const card =
+        document.getElementById(
+            'bagRecommendationCard'
+        );
+
     if (card) {
         if (blocked) {
             card.innerHTML = `
-                <span class="badge bg-danger fs-6">🚫 ${crop.toUpperCase()} not in farmer profile for ${season} ${year}</span><br>
-                <small class="text-danger">0 bags eligible. Update farmer profile to enable this crop.</small>
+                <span class="badge bg-danger fs-6">
+                    🚫 ${crop.toUpperCase()}
+                    not in farmer profile for
+                    ${season} ${year}
+                </span><br>
+
+                <small class="text-danger">
+                    0 bags eligible.
+                    Update farmer profile
+                    to enable this crop.
+                </small>
             `;
         } else {
-            const khathaStr = getAllKhathas().join(', ') || '—';
+            const khathaStr =
+                getAllKhathas().join(', ') || '—';
+
             card.innerHTML = `
-                <strong>Crop:</strong> ${crop.toUpperCase()} &nbsp;|&nbsp;
-                <strong>Season:</strong> ${season} &nbsp;|&nbsp;
-                <strong>Year:</strong> ${year || '—'}<br>
-                <strong>All Khathas:</strong> ${khathaStr} &nbsp;|&nbsp;
-                <strong>Total ${crop.toUpperCase()} Extent:</strong> ${extent.toFixed(2)} Ac
-                <span class="badge bg-info text-dark ms-1">📋 Profile cumulative</span><br>
-                <strong>Total Crop Eligible -> Urea: ${ureaBags} bags</strong> | <strong>DAP: ${dapBags} bags</strong>
+                <strong>Crop:</strong>
+                ${crop.toUpperCase()}
+                &nbsp;|&nbsp;
+
+                <strong>Season:</strong>
+                ${season}
+                &nbsp;|&nbsp;
+
+                <strong>Year:</strong>
+                ${year || '—'}<br>
+
+                <strong>All Khathas:</strong>
+                ${khathaStr}
+                &nbsp;|&nbsp;
+
+                <strong>
+                    Total ${crop.toUpperCase()}
+                    Extent:
+                </strong>
+                ${extent.toFixed(2)} Ac
+
+                <span
+                    class="badge bg-info text-dark ms-1">
+                    📋 Profile cumulative
+                </span><br>
+
+                <strong>
+                    Total Crop Eligible ->
+                    Urea: ${ureaBags} bags
+                </strong>
+                |
+                <strong>
+                    DAP: ${dapBags} bags
+                </strong>
             `;
         }
     }
 
-    const bagsEl = document.getElementById('ureaBagsDist');
-    if (bagsEl) { bagsEl.max = activeRem; bagsEl.placeholder = `Max: ${activeRem} bags`; }
-    
+    const bagsEl =
+        document.getElementById('ureaBagsDist');
+
+    if (bagsEl) {
+        bagsEl.max = activeRem;
+        bagsEl.placeholder =
+            `Max: ${activeRem} bags`;
+    }
+
     if (isSplitBlocked) {
-        if (splitNote) splitNote.textContent = blockReason;
-        const recBtn = document.getElementById('recordDistBtn');
-        if (recBtn) { recBtn.disabled = true; recBtn.classList.add('btn-secondary'); recBtn.classList.remove('btn-success'); }
-        if (bagsEl) { bagsEl.disabled = true; bagsEl.value = ''; }
-        const alertEl = document.getElementById('fullyDistributedAlert');
-        if (alertEl) alertEl.classList.add('d-none');
-    } else if (!isNaN(splitIdx) && splitIdx >= 0) {
-        checkDistributionAllowed(activeRem, activeEligible, crop, fert);
+        if (splitNote)
+            splitNote.textContent = blockReason;
+
+        const recBtn =
+            document.getElementById(
+                'recordDistBtn'
+            );
+
+        if (recBtn) {
+            recBtn.disabled = true;
+            recBtn.classList.add(
+                'btn-secondary'
+            );
+            recBtn.classList.remove(
+                'btn-success'
+            );
+        }
+
+        if (bagsEl) {
+            bagsEl.disabled = true;
+            bagsEl.value = '';
+        }
+
+        const alertEl =
+            document.getElementById(
+                'fullyDistributedAlert'
+            );
+
+        if (alertEl)
+            alertEl.classList.add('d-none');
+    } else if (
+        !isNaN(splitIdx) &&
+        splitIdx >= 0
+    ) {
+        checkDistributionAllowed(
+            activeRem,
+            activeEligible,
+            crop,
+            fert
+        );
     } else {
-        const recBtn = document.getElementById('recordDistBtn');
-        if (recBtn) { recBtn.disabled = true; recBtn.classList.add('btn-secondary'); recBtn.classList.remove('btn-success'); }
+        const recBtn =
+            document.getElementById(
+                'recordDistBtn'
+            );
+
+        if (recBtn) {
+            recBtn.disabled = true;
+            recBtn.classList.add(
+                'btn-secondary'
+            );
+            recBtn.classList.remove(
+                'btn-success'
+            );
+        }
     }
 
     buildCropCumulativeSummary(aadhaar);
-}
-
-function onYearOrSeasonChange() {
-    const aadhaar = cleanAadhaar(document.getElementById("ureaSearch")?.value || '');
-    if (aadhaar.length === 12 && farmerProfiles[aadhaar]?.length) {
-        autoPopulateCrop(aadhaar);
-    }
-    const crop = document.getElementById('ureaCrop')?.value || document.getElementById('ureaCropInput')?.value || '';
-    if (crop) updateExtentForCrop(aadhaar, crop.toLowerCase().split(' ')[0]);
-    populateSplitDropdown(); // <-- ADDED
-    updateBagRecommendation();
-    buildCropCumulativeSummary(aadhaar);
-}
-
-function buildCropCumulativeSummary(aadhaar) {
-    const panel  = document.getElementById('cropCumulativeSummary');
-    const tbody  = document.getElementById('cropCumulativeTbody');
-    const tfoot  = document.getElementById('cropCumulativeFoot');
-    const badge  = document.getElementById('cropSumFarmerBadge');
-    if (!panel || !tbody || !tfoot) return;
-
-    const a = cleanAadhaar(aadhaar);
-    const profiles = farmerProfiles[a];
-    if (!profiles || !profiles.length) { panel.classList.add('hidden'); return; }
-
-    const season = document.getElementById('ureaSeason')?.value || '';
-    const year   = document.getElementById('ureaYear')?.value   || '';
-
-    const cropMap = {};
-
-    profiles.forEach(profile => {
-        const khatha = String(profile.khatha || '');
-        (profile.crops || []).forEach(cropEntry => {
-            const crop      = (cropEntry.crop || '').toLowerCase().trim();
-            const cropExtent = Number(cropEntry.extent || 0);
-            if (!crop) return;
-
-            const useSeason = season || cropEntry.season || '';
-            const useYear   = year   || cropEntry.year   || '';
-
-            const cropRec = cropNPKRecommendations[crop];
-            const rec     = cropRec
-                ? (cropRec[useSeason] || cropRec['Kharif'] || Object.values(cropRec)[0])
-                : null;
-
-            const eligUrea = rec ? Math.ceil((rec.N * cropExtent) / 46 * 100 / 45) : 0;
-            const eligDAP  = rec ? Math.ceil((rec.P * cropExtent) / 46 * 100 / 50) : 0;
-
-            if (!cropMap[crop]) {
-                cropMap[crop] = {
-                    khathas: [], totalExtent: 0,
-                    eligibleUrea: 0, eligibleDAP: 0,
-                    givenUrea: 0,    givenDAP: 0,
-                    _givenFetched: false, _useSeason: useSeason, _useYear: useYear
-                };
-            }
-            cropMap[crop].khathas.push(khatha);
-            cropMap[crop].totalExtent  += cropExtent;
-            cropMap[crop].eligibleUrea += eligUrea;
-            cropMap[crop].eligibleDAP  += eligDAP;
-        });
-    });
-
-    Object.keys(cropMap).forEach(crop => {
-        const d = cropMap[crop];
-        d.givenUrea = getTotalBagsTakenByAadhaarAndCrop(a, 'Urea', crop, d._useSeason, d._useYear);
-        d.givenDAP  = getTotalBagsTakenByAadhaarAndCrop(a, 'DAP',  crop, d._useSeason, d._useYear);
-    });
-
-    const crops = Object.keys(cropMap);
-    if (!crops.length) { panel.classList.add('hidden'); return; }
-
-    let totExtent = 0, totEU = 0, totED = 0, totGU = 0, totGD = 0;
-
-    tbody.innerHTML = crops.map(crop => {
-        const d  = cropMap[crop];
-        const remU = Math.max(0, d.eligibleUrea - d.givenUrea);
-        const remD = Math.max(0, d.eligibleDAP  - d.givenDAP);
-        totExtent += d.totalExtent;
-        totEU     += d.eligibleUrea;
-        totED     += d.eligibleDAP;
-        totGU     += d.givenUrea;
-        totGD     += d.givenDAP;
-        const khathaList = [...new Set(d.khathas)].join(', ');
-        return `<tr>
-            <td class="px-2 py-1 fw-semibold">${crop.charAt(0).toUpperCase() + crop.slice(1)}</td>
-            <td class="px-2 py-1 text-center text-muted" style="font-size:0.78rem;">${khathaList}</td>
-            <td class="px-2 py-1 text-center">${d.totalExtent.toFixed(2)}</td>
-            <td class="px-2 py-1 text-center"><span class="badge bg-warning text-dark">${d.eligibleUrea}</span></td>
-            <td class="px-2 py-1 text-center"><span class="badge bg-info text-dark">${d.eligibleDAP}</span></td>
-            <td class="px-2 py-1 text-center text-secondary">${d.givenUrea}</td>
-            <td class="px-2 py-1 text-center text-secondary">${d.givenDAP}</td>
-            <td class="px-2 py-1 text-center"><span class="badge ${remU > 0 ? 'bg-success' : 'bg-danger'}">${remU}</span></td>
-            <td class="px-2 py-1 text-center"><span class="badge ${remD > 0 ? 'bg-success' : 'bg-danger'}">${remD}</span></td>
-        </tr>`;
-    }).join('');
-
-    tfoot.innerHTML = `<tr>
-        <td class="px-2 py-1" colspan="2">TOTAL</td>
-        <td class="px-2 py-1 text-center">${totExtent.toFixed(2)} Ac</td>
-        <td class="px-2 py-1 text-center">${totEU}</td>
-        <td class="px-2 py-1 text-center">${totED}</td>
-        <td class="px-2 py-1 text-center">${totGU}</td>
-        <td class="px-2 py-1 text-center">${totGD}</td>
-        <td class="px-2 py-1 text-center">${Math.max(0, totEU - totGU)}</td>
-        <td class="px-2 py-1 text-center">${Math.max(0, totED - totGD)}</td>
-    </tr>`;
-
-    if (badge) badge.textContent = `${profiles.length} Khatha(s) · ${crops.length} Crop(s)`;
-    panel.classList.remove('hidden');
 }
 
 function buildPrintCropSummaryHTML(aadhaar, currentKhatha, currentCrop, currentBagsNow, season, year, isReprint = false) {
