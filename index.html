@@ -3976,10 +3976,19 @@ function submitRejectDistribution() {
           <small id="fpKhathaHint" class="text-muted" style="font-size:0.76rem;">Type a number to filter available Khathas</small>
         </div>
         <div class="col-md-4">
-          <label class="form-label fw-semibold">Total Khatha Extent (Acres)</label>
-          <input type="number" id="fpExtent" class="form-control" placeholder="Auto-filled" readonly>
-        </div>
-      </div>
+  <label class="form-label fw-semibold">Total Khatha Extent (Acres)</label>
+  <input
+    type="text"
+    id="fpExtent"
+    class="form-control"
+    placeholder="Auto-filled on Khatha selection"
+    readonly
+    style="background:#f8f9fa; font-weight:600;"
+  >
+  <small class="text-muted">
+    Auto-populated from selected Khatha
+  </small>
+</div>
 
       <!-- Khatha Owner Info (shown for tenants) -->
       <div id="fpKhathaOwnerInfo" class="hidden mb-3">
@@ -10039,59 +10048,63 @@ function refreshUreaRegId() {
 }
 
 
-// --- FARMER PROFILE LOGIC ---
+/// --- FARMER PROFILE LOGIC ---
 
 function getFarmerProfiles(aadhaar) {
     return farmerProfiles[cleanAadhaar(aadhaar)] || [];
 }
 
 async function saveFarmerProfile() {
-    const a  = document.getElementById('fpAadhaar')?.value.trim();
+    const a = document.getElementById('fpAadhaar')?.value.trim();
     const aadhaarCheck = validateAadhaar(a);
     if (!aadhaarCheck.valid) return alert(aadhaarCheck.msg);
 
-    const n          = document.getElementById('fpName')?.value.trim();
-    const fn         = document.getElementById('fpFather')?.value.trim();
-    const m          = document.getElementById('fpMobile')?.value.trim();
-    const k          = document.getElementById('fpKhatha')?.value.trim();
-    const totalExt   = parseFloat(document.getElementById('fpExtent')?.value || 0);
+    const n = document.getElementById('fpName')?.value.trim();
+    const fn = document.getElementById('fpFather')?.value.trim();
+    const m = document.getElementById('fpMobile')?.value.trim();
+    const k = document.getElementById('fpKhatha')?.value.trim();
+    const totalExt = parseFloat(document.getElementById('fpExtent')?.value || 0);
     const farmerType = document.getElementById('fpFarmerType')?.value || 'tenant';
 
     if (!/^[0-9]{10}$/.test(m)) return alert('⚠️ Mobile number must be exactly 10 digits.');
-    if (!n)                      return alert('Enter farmer name.');
-    if (!fn)                     return alert('Enter father name.');
+    if (!n) return alert('Enter farmer name.');
+    if (!fn) return alert('Enter father name.');
     if (!k || k === '--Select Khatha--') return alert('Select Khatha.');
     if (!totalExt || totalExt <= 0) return alert('Extent must be greater than 0.');
 
     // ── Khatha extent validation: block if exceeds remaining balance ──
-    const officialExt       = getKhathaOfficialExtent(k);
+    const officialExt = getKhathaOfficialExtent(k);
     const allocatedByOthers = getKhathaAllocatedExtentByOthers(k, a);
-    const remainingBalance  = Math.max(0, parseFloat((officialExt - allocatedByOthers).toFixed(2)));
+    const remainingBalance = Math.max(0, parseFloat((officialExt - allocatedByOthers).toFixed(2)));
 
-    if (officialExt > 0 && parseFloat(totalExt.toFixed(2)) > remainingBalance) {
-        return alert(
-            `⚠️ Extent exceeds the remaining balance for Khatha ${k}.\n\n` +
-            `Khatha Official Extent : ${officialExt.toFixed(2)} ac\n` +
-            `Already Allocated (others) : ${allocatedByOthers.toFixed(2)} ac\n` +
-            `Remaining Balance : ${remainingBalance.toFixed(2)} ac\n\n` +
-            `You entered : ${totalExt.toFixed(2)} ac\n\n` +
-            `Please enter an extent ≤ ${remainingBalance.toFixed(2)} ac.`
-        );
+    if (officialExt > 0) {
+        const enteredExt = parseFloat(totalExt.toFixed(2));
+        const allowedExt = parseFloat((remainingBalance + 0.005).toFixed(2));
+        if (enteredExt > allowedExt) {
+            return alert(
+                `⚠️ Extent exceeds the remaining balance for Khatha ${k}.\n\n` +
+                `Khatha Official Extent : ${officialExt.toFixed(2)} ac\n` +
+                `Already Allocated (others) : ${allocatedByOthers.toFixed(2)} ac\n` +
+                `Remaining Balance : ${remainingBalance.toFixed(2)} ac\n\n` +
+                `You entered : ${totalExt.toFixed(2)} ac\n\n` +
+                `Please enter an extent ≤ ${remainingBalance.toFixed(2)} ac.`
+            );
+        }
     }
 
-    const selectedYear   = document.getElementById('fpCropYear')?.value?.trim();
+    const selectedYear = document.getElementById('fpCropYear')?.value?.trim();
     const selectedSeason = document.getElementById('fpCropSeason')?.value?.trim();
 
-    if (!selectedYear)   return alert('⚠️ Please select Crop Year.');
+    if (!selectedYear) return alert('⚠️ Please select Crop Year.');
     if (!selectedSeason) return alert('⚠️ Please select Season.');
 
-    const cropRows    = document.querySelectorAll('.fp-crop-row');
-    const crops       = [];
+    const cropRows = document.querySelectorAll('.fp-crop-row');
+    const crops = [];
     let cropExtentSum = 0;
 
     for (const row of cropRows) {
         const crop = row.querySelector('.fp-crop-select')?.value?.trim();
-        const ext  = parseFloat(row.querySelector('.fp-crop-extent')?.value) || 0;
+        const ext = parseFloat(row.querySelector('.fp-crop-extent')?.value) || 0;
 
         if (!crop && !ext) continue;
         if (!crop) return alert('Select crop name for all added crop rows.');
@@ -10103,13 +10116,14 @@ async function saveFarmerProfile() {
 
     if (!crops.length) return alert('Add at least one crop.');
 
-    if (parseFloat(cropExtentSum.toFixed(2)) > parseFloat(totalExt.toFixed(2))) {
+    if (parseFloat(cropExtentSum.toFixed(2)) > parseFloat((totalExt + 0.005).toFixed(2))) {
         return alert(`Total crop extents (${cropExtentSum.toFixed(2)} ac) exceed Khatha extent (${totalExt.toFixed(2)} ac).`);
     }
 
     const cropNames = crops.map(c => c.crop);
-    if (new Set(cropNames).size !== cropNames.length)
+    if (new Set(cropNames).size !== cropNames.length) {
         return alert('Duplicate crops in same profile. Each crop should appear once per khatha.');
+    }
 
     if (!farmerProfiles[a]) farmerProfiles[a] = [];
 
@@ -10124,7 +10138,6 @@ async function saveFarmerProfile() {
                 ec.season === cropEntry.season &&
                 ec.year === cropEntry.year
             );
-            // Reuse existing ID if crop+season+year match, else generate fresh
             cropEntry.registrationId = old?.registrationId
                 ? old.registrationId
                 : await generateRegistrationId(cropEntry.year, cropEntry.season, a);
@@ -10132,14 +10145,22 @@ async function saveFarmerProfile() {
     } else {
         for (const cropEntry of crops) {
             cropEntry.registrationId = await generateRegistrationId(
-                cropEntry.year, cropEntry.season, a
+                cropEntry.year,
+                cropEntry.season,
+                a
             );
         }
     }
 
     const profileEntry = {
-        aadhaar: a, farmerName: n, fatherName: fn, mobile: m,
-        khatha: k, extent: totalExt, farmerType, crops,
+        aadhaar: a,
+        farmerName: n,
+        fatherName: fn,
+        mobile: m,
+        khatha: k,
+        extent: totalExt,
+        farmerType,
+        crops,
         savedAt: new Date().toISOString()
     };
 
@@ -10154,13 +10175,14 @@ async function saveFarmerProfile() {
             return (Array.isArray(otherProfiles) ? otherProfiles : Object.values(otherProfiles))
                 .some(p => (p.cardNumber || '').trim().toUpperCase() === newCardNumber);
         });
+
         if (conflictEntry) {
             const [conflictAadhaarKey, conflictProfiles] = conflictEntry;
             const conflictFarmer = (Array.isArray(conflictProfiles) ? conflictProfiles : Object.values(conflictProfiles))[0];
             return alert(
-                '⚠️ Card Number "' + newCardNumber + '" is already assigned to:\\n\\n' +
-                'Name: ' + (conflictFarmer?.farmerName || '—') + '\\nAadhaar: ' + conflictAadhaarKey +
-                '\\n\\nEach card must belong to only one farmer. Use a different card number.'
+                '⚠️ Card Number "' + newCardNumber + '" is already assigned to:\n\n' +
+                'Name: ' + (conflictFarmer?.farmerName || '—') + '\nAadhaar: ' + conflictAadhaarKey +
+                '\n\nEach card must belong to only one farmer. Use a different card number.'
             );
         }
     }
@@ -10169,14 +10191,15 @@ async function saveFarmerProfile() {
     const existingCardNumber = (farmerProfiles[a] || []).reduce((found, p) => found || p.cardNumber || '', '');
     if (newCardNumber) {
         profileEntry.cardNumber = newCardNumber;
-        // Sync card number to ALL profiles of this aadhaar
-        (farmerProfiles[a] || []).forEach(p => { p.cardNumber = newCardNumber; });
+        (farmerProfiles[a] || []).forEach(p => {
+            p.cardNumber = newCardNumber;
+        });
     } else if (existingCardNumber) {
         profileEntry.cardNumber = existingCardNumber;
     }
 
     if (existingIdx !== -1) {
-        profileEntry.savedAt   = farmerProfiles[a][existingIdx].savedAt || new Date().toISOString();
+        profileEntry.savedAt = farmerProfiles[a][existingIdx].savedAt || new Date().toISOString();
         profileEntry.updatedAt = new Date().toISOString();
         farmerProfiles[a][existingIdx] = profileEntry;
         alert(`✅ Profile updated for Aadhaar ${a} — Khatha ${k}.`);
@@ -10304,20 +10327,25 @@ let _fpAllKhathas = [];
  * for a given khatha number, across all farmerProfiles.
  * Excludes the current farmer's own profile so editing doesn't double-count.
  */
-function getKhathaAllocatedExtentByOthers(khathaNo, currentAadhaar) {
+function getKhathaAllocatedExtentByOthers(khatha, currentAadhaar) {
     let allocated = 0;
-    const normalK = String(khathaNo).trim();
-    const normalA = cleanAadhaar(currentAadhaar || '');
-    for (const [aadhaarKey, profiles] of Object.entries(farmerProfiles || {})) {
-        if (cleanAadhaar(aadhaarKey) === normalA) continue; // skip current farmer
-        const arr = Array.isArray(profiles) ? profiles : Object.values(profiles);
-        arr.forEach(p => {
-            if (String(p.khatha || '').trim() === normalK) {
-                allocated += Number(p.extent || 0);
-            }
+
+    Object.entries(farmerProfiles || {}).forEach(([aadhaar, profiles]) => {
+        if (String(aadhaar) === String(currentAadhaar)) return;
+
+        (profiles || []).forEach(profile => {
+            if (String(profile.khatha) !== String(khatha)) return;
+
+            const cropExtent = (profile.crops || []).reduce(
+                (sum, crop) => sum + (parseFloat(crop.extent) || 0),
+                0
+            );
+
+            allocated += cropExtent;
         });
-    }
-    return allocated;
+    });
+
+    return parseFloat(allocated.toFixed(2));
 }
 
 /**
@@ -10384,33 +10412,76 @@ function onFpKhathaSearch(query) {
         ? _fpAllKhathas.filter(k => k.includes(q))
         : _fpAllKhathas;
 
-    if (hint) hint.textContent = q
-        ? (matches.length ? `${matches.length} khatha${matches.length !== 1 ? 's' : ''} found` : 'No matching Khatha found')
-        : 'Type a number to filter available Khathas';
+    if (hint) {
+        hint.textContent = q
+            ? (matches.length
+                ? `${matches.length} khatha${matches.length !== 1 ? 's' : ''} found`
+                : 'No matching Khatha found')
+            : 'Type a number to filter available Khathas';
+    }
 
-    if (!matches.length) { dd.style.display = 'none'; return; }
+    if (!matches.length) {
+        dd.style.display = 'none';
+        return;
+    }
 
     dd.innerHTML = matches.map(k => {
+
         const currentAadhaar = document.getElementById('fpAadhaar')?.value?.trim() || '';
-        const officialExt    = getKhathaOfficialExtent(k);
-        const allocatedByOthers = getKhathaAllocatedExtentByOthers(k, currentAadhaar);
-        const remaining      = Math.max(0, parseFloat((officialExt - allocatedByOthers).toFixed(2)));
-        const extInfo        = officialExt > 0
-            ? (allocatedByOthers > 0
-                ? `<span style="font-size:0.78rem; color:#c0392b; margin-left:8px;">
-                       <i class="fas fa-lock" style="font-size:0.7rem;"></i>
-                       ${remaining.toFixed(2)} ac remaining of ${officialExt.toFixed(2)} ac
-                   </span>`
-                : `<span style="font-size:0.78rem; color:#27ae60; margin-left:8px;">${officialExt.toFixed(2)} ac</span>`)
-            : '';
-        return `<div class="fp-khatha-opt" data-val="${k}"
-              style="padding:8px 12px; cursor:pointer; font-weight:500; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;"
-              onmousedown="selectFpKhatha('${k}')"
-              onmouseover="this.style.background='#e8f4fd'"
-              onmouseout="this.style.background=''">
-            <span>Khatha <strong>${k}</strong></span>${extInfo}
-         </div>`;
+
+        const officialExt = parseFloat(getKhathaOfficialExtent(k) || 0);
+
+        // Uses allocated crop extents from OTHER farmers
+        const allocatedByOthers = parseFloat(
+            getKhathaAllocatedExtentByOthers(k, currentAadhaar) || 0
+        );
+
+        const remaining = Math.max(
+            0,
+            parseFloat((officialExt - allocatedByOthers).toFixed(2))
+        );
+
+        let extInfo = '';
+
+        if (officialExt > 0) {
+
+            if (allocatedByOthers > 0) {
+                extInfo = `
+                    <span style="font-size:0.78rem; color:#c0392b; margin-left:8px;">
+                        <i class="fas fa-lock" style="font-size:0.7rem;"></i>
+                        Remaining: ${remaining.toFixed(2)} ac
+                        <br>
+                        <small style="color:#777;">
+                            Used: ${allocatedByOthers.toFixed(2)} / ${officialExt.toFixed(2)} ac
+                        </small>
+                    </span>
+                `;
+            } else {
+                extInfo = `
+                    <span style="font-size:0.78rem; color:#27ae60; margin-left:8px;">
+                        ${officialExt.toFixed(2)} ac Available
+                    </span>
+                `;
+            }
+        }
+
+        return `
+            <div class="fp-khatha-opt"
+                 data-val="${k}"
+                 style="padding:8px 12px; cursor:pointer; font-weight:500; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;"
+                 onmousedown="selectFpKhatha('${k}')"
+                 onmouseover="this.style.background='#e8f4fd'"
+                 onmouseout="this.style.background=''">
+
+                <span>
+                    Khatha <strong>${k}</strong>
+                </span>
+
+                ${extInfo}
+            </div>
+        `;
     }).join('');
+
     dd.style.display = 'block';
 }
 
@@ -10767,7 +10838,7 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
     if (khathaInp) khathaInp.value = profile.khatha ? 'Khatha ' + profile.khatha : '';
     // Disable text input for owners (auto-filled)
     if (khathaInp) khathaInp.disabled = (profile.farmerType === 'owner');
-    document.getElementById('fpExtent').value = profile.extent  || '';
+    document.getElementById('fpExtent').readOnly = true;
 
     document.getElementById('fpCropRows').innerHTML = '';
     const crops = profile.crops || [];
