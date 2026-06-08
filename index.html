@@ -4119,6 +4119,223 @@ function submitRejectDistribution() {
   </div>
 
 </div> <!-- ✅ closes farmerProfileSection -->
+<!-- ══════════════════════════════════════════════════════════
+     MANUAL & WORKFLOW — POPUP MODAL
+     PLACE OUTSIDE farmerProfileSection
+     ══════════════════════════════════════════════════════════ -->
+
+<div class="modal fade"
+     id="manualWorkflowModal"
+     tabindex="-1"
+     aria-labelledby="manualWorkflowModalLabel"
+     aria-hidden="true">
+
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"
+       style="max-width:560px;">
+
+    <div class="modal-content"
+         style="border-radius:20px;
+                overflow:hidden;
+                border:none;
+                box-shadow:0 20px 60px rgba(24,98,171,0.18);">
+
+      <!-- Header -->
+      <div class="modal-header border-0 pb-0 pt-0 px-0">
+        <div class="w-100 py-4 px-4 d-flex align-items-center justify-content-between"
+             style="background:linear-gradient(135deg,#1562ab 0%,#1976d2 100%);">
+
+          <div class="d-flex align-items-center gap-3">
+            <div style="width:44px;height:44px;border-radius:12px;
+                        background:rgba(255,255,255,0.18);
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        flex-shrink:0;">
+              <i class="fas fa-book-open text-white fa-lg"></i>
+            </div>
+
+            <div>
+              <h5 class="mb-0 text-white fw-bold"
+                  id="manualWorkflowModalLabel">
+                  Manual & Workflow
+              </h5>
+              <div class="text-white-50 small">
+                  e-Panta User Guide
+              </div>
+            </div>
+          </div>
+
+          <button type="button"
+                  class="btn-close btn-close-white"
+                  data-bs-dismiss="modal"
+                  aria-label="Close">
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Body -->
+<div class="modal-body px-4 py-4" style="background:#f8fbff;">
+
+    <div class="alert alert-success border-0 shadow-sm">
+        <i class="fas fa-cloud me-2"></i>
+        <strong>Cloud Backup:</strong>
+        మీ డేటా క్లౌడ్‌లో సురక్షితంగా బ్యాకప్ అవుతుంది — మీరు వేరే డివైస్‌లో
+        సైన్ ఇన్ చేసినా ఫైల్స్ మళ్ళీ అప్‌లోడ్ చేయాల్సిన అవసరం లేదు.
+    </div>
+
+    <!-- Step 1 -->
+    <div class="mb-4">
+        <h6 class="fw-bold text-primary d-flex align-items-center">
+            <span class="badge bg-primary me-2">1</span>
+            పంట నమోదు వివరాలు డౌన్లోడ్
+        </h6>
+
+        <p class="mb-0">
+            ముందుగా ఈ పంట నుంచి పంట నమోదు వివరాలు డౌన్లోడ్ చేసుకోవాలి.
+            Village Profile కొరకు పంట నమోదు వివరాలు MAO లాగిన్ నుంచి
+            Pattadhar/Cultivator ఉన్న ఫైల్ ని డౌన్లోడ్ చేసుకోండి.
+        </p>
+    </div>
+
+    <hr>
+
+    <!-- Step 2 -->
+    <div class="mb-4">
+        <h6 class="fw-bold text-primary d-flex align-items-center">
+            <span class="badge bg-primary me-2">2</span>
+            Excel ఫైల్ కాలమ్ పేర్లు మార్చడం
+        </h6>
+
+        <p>
+            ఎక్సెల్ ఫైల్ లో క్రింద చూపిన విధంగా కాలమ్ పేర్లు మార్చుకోగలరు:
+        </p>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped text-center">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Required Column Names</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Booking ID</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Khatha Number</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Survey Number</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Area</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="alert alert-warning mt-3 mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            పైన తెలిపిన విధంగా కాలమ్ పేర్లు మార్చనియెడల రైతుల వివరాలు మరియు
+            పంట వివరాలు రావు.
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Step 3 -->
+    <div class="mb-4">
+        <h6 class="fw-bold text-primary d-flex align-items-center">
+            <span class="badge bg-primary me-2">3</span>
+            Upload Report
+        </h6>
+
+        <p class="mb-0">
+            Upload Report లో కాలమ్ పేర్లు మార్చిన Excel ఫైల్ ని అప్లోడ్ చేయాలి.
+        </p>
+    </div>
+
+    <hr>
+
+    <!-- Step 4 -->
+    <div class="mb-4">
+        <h6 class="fw-bold text-primary d-flex align-items-center">
+            <span class="badge bg-primary me-2">4</span>
+            e-Panta Report
+        </h6>
+
+        <p class="mb-0">
+            అప్లోడ్ చేసిన తరువాత e-Panta Report లో పంటల వారీగా రైతుల సంఖ్య,
+            విస్తీర్ణం మరియు రైతుల పేర్లు రావడం జరుగుతుంది.
+        </p>
+    </div>
+
+    <hr>
+
+    <!-- Step 5 -->
+    <div class="mb-4">
+        <h6 class="fw-bold text-primary d-flex align-items-center">
+            <span class="badge bg-primary me-2">5</span>
+            Search Farmer
+        </h6>
+
+        <p>
+            ఒక రైతు యొక్క పంట నమోదు వివరాలు చూడాలి అనుకుంటే Dashboard లో
+            <strong>Search Farmer</strong> దగ్గర ఆధార్ కార్డు చివరి నాలుగు
+            అంకెలు ద్వారా చూడవచ్చు.
+        </p>
+
+        <div class="alert alert-info mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>గమనిక:</strong>
+            ఒకవేళ ఇద్దరు రైతులకి ఆధార్ కార్డు చివరి నాలుగు అంకెలు ఒకేలా ఉంటే,
+            ఇద్దరివి కలిపి ఒకరికే చూపెడుతుంది.
+            అలా ఉన్నప్పుడు <strong>ఖాతా నెంబర్</strong> ను పరిశీలించగలరు.
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ============================================================
+// MANUAL & WORKFLOW MODAL FIX
+// ============================================================
+
+window.addEventListener('load', () => {
+
+    const modal =
+        document.getElementById('manualWorkflowModal');
+
+    if (modal &&
+        modal.parentElement !== document.body) {
+
+        document.body.appendChild(modal);
+    }
+});
+
+function openManualWorkflowModal() {
+
+    const modalEl =
+        document.getElementById('manualWorkflowModal');
+
+    if (!modalEl) {
+        console.error('manualWorkflowModal not found');
+        return;
+    }
+
+    document
+        .querySelectorAll('.modal-backdrop')
+        .forEach(el => el.remove());
+
+    document.body.classList.remove('modal-open');
+
+    const modal =
+        bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    modal.show();
+}
+</script>
 
 <!-- ================= FIREBASE & JAVASCRIPT CORE ================= -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -16474,146 +16691,7 @@ function confirmDeleteUser() {
             statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
         });
 }
-</script>
 
-
-<!-- ══════════════════════════════════════════════════════════
-     MANUAL & WORKFLOW — POPUP MODAL
-     Triggered by: openManualWorkflowModal()
-     ══════════════════════════════════════════════════════════ -->
-<div class="modal fade" id="manualWorkflowModal" tabindex="-1" aria-labelledby="manualWorkflowModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width:560px;">
-    <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(24,98,171,0.18);">
-
-      <!-- Header -->
-      <div class="modal-header border-0 pb-0 pt-0 px-0">
-        <div class="w-100 py-4 px-4 d-flex align-items-center justify-content-between"
-             style="background:linear-gradient(135deg,#1562ab 0%,#1976d2 100%);">
-          <div class="d-flex align-items-center gap-3">
-            <div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <i class="fas fa-book-open text-white fa-lg"></i>
-            </div>
-            <div>
-              <h5 class="mb-0 text-white fw-bold" id="manualWorkflowModalLabel"
-                  style="font-family:'Noto Sans Telugu',Poppins,sans-serif; font-size:1.05rem;">
-                Manual &amp; Workflow
-              </h5>
-              <div class="text-white-50 small">e-Panta వాడకం వివరణ</div>
-            </div>
-          </div>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"
-                  style="filter:invert(1) brightness(2);"></button>
-        </div>
-      </div>
-
-      <!-- Body -->
-      <div class="modal-body px-4 pb-4 pt-3" style="font-family:'Noto Sans Telugu',Poppins,sans-serif; background:#f8fbff;">
-
-        <!-- Cloud backup notice -->
-        <div class="d-flex align-items-start gap-3 p-3 mb-3 rounded-3"
-             style="background:linear-gradient(135deg,#e3f2fd,#e8f5e9); border-left:4px solid #1562ab;">
-          <div style="font-size:1.5rem; flex-shrink:0;">☁️</div>
-          <p class="mb-0 small fw-semibold" style="color:#1a5276; line-height:1.8;">
-            మీ డేటా క్లౌడ్‌లో సురక్షితంగా బ్యాకప్ అవుతుంది — మీరు వేరే డివైస్‌లో సైన్ ఇన్ చేసినా ఫైల్స్ మళ్ళీ అప్‌లోడ్ చేయాల్సిన అవసరం లేదు.
-          </p>
-        </div>
-
-        <!-- Step-by-step workflow -->
-        <div class="mb-3">
-          <!-- Step 1 -->
-          <div class="d-flex gap-3 mb-3">
-            <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
-                 style="width:28px;height:28px;background:#1562ab;font-size:0.78rem;min-width:28px;">1</div>
-            <p class="mb-0 small" style="line-height:1.8; color:#1a3a5c;">
-              ముందుగా ఈ పంట నుంచి <strong>పంట నమోదు వివరాలు డౌన్లోడ్</strong> చేసుకోవాలి.Village Profile కొరకు  <strong>పంట నమోదు వివరాలు MAO లాగిన్ నుంచి </strong> Pattadhar/Cultivator ఉన్న ఫైల్ ని డౌన్లోడ్ చేసుకోండి.
-            </p>
-          </div>
-
-          <!-- Step 2 — Column names -->
-          <div class="d-flex gap-3 mb-2">
-            <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
-                 style="width:28px;height:28px;background:#1562ab;font-size:0.78rem;min-width:28px;">2</div>
-            <div class="flex-grow-1">
-              <p class="mb-2 small" style="line-height:1.8; color:#1a3a5c;">
-                ఎక్సెల్ ఫైల్ లో క్రింద చూపిన విధంగా <strong>కాలమ్ పేర్లు మార్చుకోగలరు:</strong>
-              </p>
-              <div class="d-flex flex-wrap gap-2 mb-2">
-                <code class="px-2 py-1 rounded" style="background:#dbeafe;color:#1d4ed8;font-size:0.82rem;border:1px solid #bfdbfe;">Booking ID</code>
-                <code class="px-2 py-1 rounded" style="background:#dbeafe;color:#1d4ed8;font-size:0.82rem;border:1px solid #bfdbfe;">Khatha Number</code>
-                <code class="px-2 py-1 rounded" style="background:#dbeafe;color:#1d4ed8;font-size:0.82rem;border:1px solid #bfdbfe;">Survey Number</code>
-                <code class="px-2 py-1 rounded" style="background:#dbeafe;color:#1d4ed8;font-size:0.82rem;border:1px solid #bfdbfe;">Area</code>
-              </div>
-              <!-- Warning -->
-              <div class="d-flex align-items-start gap-2 p-2 rounded-2" style="background:#fff1f1;border-left:3px solid #e74c3c;">
-                <i class="fas fa-times-circle text-danger mt-1 flex-shrink-0" style="font-size:0.85rem;"></i>
-                <p class="mb-0 small text-danger fw-medium" style="line-height:1.7;">
-                  పైన తెలిపిన విధంగా కాలమ్ పేర్లు మార్చనీఎడాల రైతుల వివరాలు మరియు పంట వివరాలు రావు.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 3 -->
-          <div class="d-flex gap-3 mb-3 mt-3">
-            <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
-                 style="width:28px;height:28px;background:#27ae60;font-size:0.78rem;min-width:28px;">3</div>
-            <p class="mb-0 small" style="line-height:1.8; color:#1a3a5c;">
-              <strong>Upload Report</strong> లో కాలమ్ పేర్లు మార్చిన ఎక్సెల్ ఫైల్ ని అప్లోడు చేయాలి.
-            </p>
-          </div>
-
-          <!-- Step 4 -->
-          <div class="d-flex gap-3 mb-3">
-            <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
-                 style="width:28px;height:28px;background:#27ae60;font-size:0.78rem;min-width:28px;">4</div>
-            <p class="mb-0 small" style="line-height:1.8; color:#1a3a5c;">
-              అప్లోడు చేసిన తరువాత <strong>e-Panta Report</strong> లో పంటల వారీగా రైతుల సంఖ్య మరియు విస్తీర్ణం, రైతుల పేర్లు రావడం జరుగుతుంది.
-            </p>
-          </div>
-
-          <!-- Step 5 -->
-          <div class="d-flex gap-3">
-            <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
-                 style="width:28px;height:28px;background:#27ae60;font-size:0.78rem;min-width:28px;">5</div>
-            <p class="mb-0 small" style="line-height:1.8; color:#1a3a5c;">
-              ఒక రైతు యొక్క పంట నమోదు వివరాలు చూడాలి అనుకుంటే <strong>Dashboard</strong> లో <strong>Search Farmer</strong> దగ్గర ఆధార్ కార్డు చివరి నాలుగు అంకెలు తో చూడవచ్చు.
-            </p>
-          </div>
-        </div>
-
-        <!-- Note / Warning -->
-        <div class="d-flex align-items-start gap-3 p-3 rounded-3 mt-3"
-             style="background:#fffbea; border:1px solid #f6d55c; border-left:4px solid #f39c12;">
-          <i class="fas fa-exclamation-triangle text-warning mt-1 flex-shrink-0"></i>
-          <div class="small" style="line-height:1.8; color:#7d5a00;">
-            <strong>గమనిక:</strong> ఒకవేళ ఇద్దరి రైతులకి ఆధార్ కార్డు చివరి నాలుగు అంకెలు ఒకేలా ఉంటే ఇద్దరివి కలిపి ఒకరికే చూపెడుతుంది. అలా ఉన్నప్పుడు <strong>ఖాతా నెంబర్</strong> ను పరిశీలించగలరు.
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Footer -->
-      <div class="modal-footer border-0 pt-0 pb-3 px-4 justify-content-center" style="background:#f8fbff;">
-        <button type="button" class="btn btn-primary fw-semibold px-5" data-bs-dismiss="modal"
-                style="border-radius:30px;">
-          <i class="fas fa-check me-2"></i>అర్థమైంది, మూసివేయి
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<script>
-// ============================================================
-//  MANUAL & WORKFLOW MODAL — JS
-// ============================================================
-function openManualWorkflowModal() {
-    const modalEl = document.getElementById('manualWorkflowModal');
-    if (!modalEl) return;
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
-}
 </script>
 
     </body>
