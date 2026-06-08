@@ -1179,6 +1179,21 @@
           </div>
         </div>
       </div>
+      <!-- Grievance Card -->
+      <div class="col-6 col-md-4 col-xl-3">
+        <div class="dashboard-card" onclick="showSection('grievanceSection');initGrievanceSection()" style="min-height:0;padding:1rem;cursor:pointer;">
+          <div class="card-topline">
+            <div class="card-icon" style="width:40px;height:40px;border-radius:12px;background:rgba(231,76,60,0.12);color:#e74c3c;"><i class="fas fa-comments fa-lg"></i></div>
+            <span class="card-badge" style="font-size:0.65rem;background:rgba(231,76,60,0.1);color:#e74c3c;">Grievance</span>
+          </div>
+          <h5 style="font-size:0.92rem;margin-bottom:0.25rem;">Grievance</h5>
+          <p style="font-size:0.78rem;">Register &amp; track farmer grievances (ADSB, PM Kisan, e-Panta, FM &amp; more).</p>
+          <div class="card-meta" style="padding-top:0.5rem;">
+            <span style="font-size:0.72rem;">Farmer Support</span>
+            <span class="card-action" style="font-size:0.72rem;color:#e74c3c;">Open <i class="fas fa-arrow-right"></i></span>
+          </div>
+        </div>
+      </div>
       <!-- Crop Recommendation Card -->
       <div class="col-6 col-md-4 col-xl-3">
         <div class="dashboard-card" onclick="showSection('cropRecommendationSection')" style="min-height:0;padding:1rem;">
@@ -1312,6 +1327,15 @@
                <table id="dataTable" class="table table-bordered"></table>
             </div>
             <button id="saveSummaryBtn" class="btn btn-primary">Save & View in e-Panta Report</button>
+
+            <!-- Saved Reports List with Delete option -->
+            <div class="mt-4" id="savedReportsListBox">
+               <hr>
+               <h5 class="fw-bold text-primary mb-3"><i class="fas fa-folder-open me-2"></i>Saved Reports</h5>
+               <div id="savedReportsList">
+                  <p class="text-muted small">Loading saved reports…</p>
+               </div>
+            </div>
          </div>
       </div>
 
@@ -1350,6 +1374,11 @@
                      <div class="col-12 mt-3">
                         <button id="loadReportBtn" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">
                            <i class="fas fa-sync-alt me-2"></i> Load Report
+                        </button>
+                     </div>
+                     <div class="col-12 mt-2">
+                        <button class="btn btn-outline-danger w-100 fw-bold shadow-sm" onclick="deleteEPantaReport()">
+                           <i class="fas fa-trash-alt me-2"></i> Delete Report
                         </button>
                      </div>
                   </div>
@@ -1842,6 +1871,149 @@
          </div>
          <div id="calculatorContent"></div>
       </div>
+
+<!-- ══════════════════════════════════════════════════════════
+     GRIEVANCE SECTION — HTML
+     ══════════════════════════════════════════════════════════ -->
+<div class="container-fluid hidden px-0" id="grievanceSection" role="main">
+
+  <!-- Hero Header -->
+  <div style="background:linear-gradient(135deg,#c0392b 0%,#e74c3c 60%,#e67e22 100%);padding:1.2rem 2rem 1rem 2rem;">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <button class="btn btn-outline-light btn-sm" onclick="goBack()">
+        <i class="fas fa-arrow-left me-2"></i>Back
+      </button>
+      <div style="width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="fas fa-comments fa-lg text-white"></i>
+      </div>
+      <div>
+        <h4 class="fw-bold mb-0 text-white">Grievance Registration</h4>
+        <p class="mb-0 text-white-50 small">Register farmer grievances for ADSB, PM Kisan, e-Panta, FM &amp; others</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mt-4 pb-5" style="max-width:860px;">
+
+    <!-- Registration Form Card -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius:16px;overflow:hidden;">
+      <div class="card-header py-3" style="background:linear-gradient(135deg,#fef9f9,#fff5f5);border-bottom:2px solid #fde8e8;">
+        <h5 class="fw-bold mb-0" style="color:#c0392b;"><i class="fas fa-user-edit me-2"></i>New Grievance Entry</h5>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <!-- Aadhaar -->
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Farmer Aadhaar Number <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-id-card text-muted"></i></span>
+              <input type="text" id="grvAadhaar" class="form-control" placeholder="Enter 12-digit Aadhaar"
+                     maxlength="12" oninput="this.value=this.value.replace(/\D/g,'').slice(0,12)">
+            </div>
+          </div>
+          <!-- Full Name -->
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-user text-muted"></i></span>
+              <input type="text" id="grvName" class="form-control" placeholder="Farmer's full name">
+            </div>
+          </div>
+          <!-- Father Name -->
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Father's Name <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-user-friends text-muted"></i></span>
+              <input type="text" id="grvFatherName" class="form-control" placeholder="Father's full name">
+            </div>
+          </div>
+          <!-- Mobile -->
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Mobile Number <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-mobile-alt text-muted"></i></span>
+              <input type="text" id="grvMobile" class="form-control" placeholder="10-digit mobile number"
+                     maxlength="10" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)">
+            </div>
+          </div>
+          <!-- Owner / Tenant -->
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Farmer Type <span class="text-danger">*</span></label>
+            <select id="grvFarmerType" class="form-select">
+              <option value="">-- Select --</option>
+              <option value="Owner">🏡 Owner</option>
+              <option value="Tenant">🤝 Tenant</option>
+            </select>
+          </div>
+          <!-- Grievance Type -->
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Grievance Type <span class="text-danger">*</span></label>
+            <select id="grvType" class="form-select" onchange="onGrvTypeChange()">
+              <option value="">-- Select Grievance Type --</option>
+              <option value="ADSB">📋 ADSB</option>
+              <option value="PM Kisan">🌾 PM Kisan</option>
+              <option value="EPanta">💻 e-Panta</option>
+              <option value="FM">🗂️ FM</option>
+              <option value="Other">✏️ Other</option>
+            </select>
+          </div>
+          <!-- Other Grievance (shown only when Other selected) -->
+          <div class="col-12 hidden" id="grvOtherRow">
+            <label class="form-label fw-semibold small">Specify Grievance <span class="text-danger">*</span></label>
+            <input type="text" id="grvOtherText" class="form-control"
+                   placeholder="Describe the grievance in detail…">
+          </div>
+        </div>
+
+        <div id="grvFormStatus" class="mt-3"></div>
+
+        <div class="d-flex gap-2 mt-4 flex-wrap">
+          <button class="btn btn-danger fw-semibold px-4" onclick="submitGrievance()">
+            <i class="fas fa-paper-plane me-2"></i>Submit Grievance
+          </button>
+          <button class="btn btn-outline-secondary" onclick="clearGrievanceForm()">
+            <i class="fas fa-times me-1"></i>Clear
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Grievances Panel -->
+    <div class="card border-0 shadow-sm" style="border-radius:16px;overflow:hidden;">
+      <div class="card-header py-3 d-flex align-items-center justify-content-between flex-wrap gap-2"
+           style="background:linear-gradient(135deg,#f8f9fa,#fff);">
+        <h5 class="fw-bold mb-0" style="color:#c0392b;">
+          <i class="fas fa-list-alt me-2"></i>All Grievances
+        </h5>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <select id="grvFilterSelect" class="form-select form-select-sm" style="width:auto;min-width:160px;" onchange="filterAndRenderGrievances()">
+            <option value="">All Types</option>
+            <option value="ADSB">ADSB</option>
+            <option value="PM Kisan">PM Kisan</option>
+            <option value="EPanta">e-Panta</option>
+            <option value="FM">FM</option>
+            <option value="Other">Other</option>
+          </select>
+          <button class="btn btn-success btn-sm fw-semibold" onclick="exportGrievancesToExcel()">
+            <i class="fas fa-file-excel me-1"></i>Export Excel
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="loadAllGrievances()">
+            <i class="fas fa-sync me-1"></i>Refresh
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div id="grvListContainer">
+          <div class="text-center text-muted py-5">
+            <i class="fas fa-comments fa-3x mb-3 opacity-25"></i>
+            <p>No grievances recorded yet. Submit one above.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
 
       <!-- Crop Recommendation Section -->
 <!-- ══════════════════════════════════════════════════════════
@@ -3016,6 +3188,158 @@
 
   </div><!-- /container-fluid -->
 </div><!-- /mandalOfficerSection -->
+<!-- ===================================================== -->
+<!-- DIVISIONAL OFFICER DASHBOARD -->
+<!-- ===================================================== -->
+
+<div id="divisionalOfficerSection"
+     class="container-fluid hidden mt-0"
+     role="main" style="padding:0;">
+
+<!-- ── DO Dashboard (Login Landing) ── -->
+<div id="doDashboardView">
+    <!-- Hero Header -->
+    <div style="background:linear-gradient(135deg,#0f2942 0%,#1862ab 60%,#1a7a5e 100%);padding:1.5rem 2rem 1.2rem 2rem;">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div style="width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-sitemap fa-lg text-white"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0 text-white"><i class="fas fa-landmark me-1"></i>Division Dashboard</h4>
+                <p class="mb-0 text-white-50 small" id="doDivisionLabel">Loading division data…</p>
+            </div>
+            <div class="ms-auto">
+                <button class="btn btn-outline-light btn-sm" onclick="loadDivisionalReports()">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-3 pb-4">
+        <!-- Statistics Cards -->
+        <div class="row g-3 mb-4" id="doStatsRow">
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center p-3 h-100" style="border-left:4px solid #8e44ad!important;border-radius:14px;">
+                    <div class="display-6 fw-bold" style="color:#8e44ad;" id="doStatMandals">—</div>
+                    <div class="text-muted small mt-1"><i class="fas fa-landmark me-1"></i>Mandals</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center p-3 h-100" style="border-left:4px solid #0d6efd!important;border-radius:14px;">
+                    <div class="display-6 fw-bold text-primary" id="doStatVillages">—</div>
+                    <div class="text-muted small mt-1"><i class="fas fa-home me-1"></i>Villages</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center p-3 h-100" style="border-left:4px solid #ffc107!important;border-radius:14px;">
+                    <div class="display-6 fw-bold text-warning" id="doStatUrea">—</div>
+                    <div class="text-muted small mt-1">🌾 Urea Bags</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center p-3 h-100" style="border-left:4px solid #0dcaf0!important;border-radius:14px;">
+                    <div class="display-6 fw-bold text-info" id="doStatDap">—</div>
+                    <div class="text-muted small mt-1">🔵 DAP Bags</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mandal Cards Grid -->
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <h5 class="fw-bold mb-0" style="color:#1862ab;"><i class="fas fa-landmark me-2"></i>Mandals in Your Division</h5>
+            <span class="badge bg-secondary" id="doMandalCountBadge">0 Mandals</span>
+        </div>
+        <div id="doMandalCardsGrid" class="row g-3">
+            <div class="col-12 text-center text-muted py-5">
+                <i class="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
+                <p>Loading mandal data…</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Village Reports View (after clicking mandal) ── -->
+<div id="doVillageReportsView" class="hidden">
+    <!-- Sub-header -->
+    <div style="background:linear-gradient(135deg,#1862ab,#2980b9);padding:1rem 2rem;">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <button class="btn btn-outline-light btn-sm" onclick="showDoMandalDashboard()">
+                <i class="fas fa-arrow-left me-2"></i>Back to Mandals
+            </button>
+            <div>
+                <h5 class="fw-bold mb-0 text-white" id="doSelectedMandalTitle">Mandal Reports</h5>
+                <small class="text-white-50">Village-wise breakdown</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-3 pb-4">
+        <!-- Village-wise e-Panta Report -->
+        <div class="card border-0 shadow-sm mb-4" style="border-radius:14px;overflow:hidden;">
+            <div class="card-header d-flex align-items-center justify-content-between py-3"
+                 style="background:linear-gradient(135deg,#1862ab,#2472c8);border-radius:0;">
+                <h5 class="mb-0 text-white fw-bold"><i class="fas fa-seedling me-2"></i>Village-wise e-Panta Report</h5>
+                <button class="btn btn-light btn-sm fw-semibold" onclick="exportDoMandalEpanta()">
+                    <i class="fas fa-file-excel me-1 text-success"></i>Export Excel
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead style="background:#f0f4ff;">
+                            <tr>
+                                <th class="ps-3">Village</th>
+                                <th>Report Entries</th>
+                                <th>Total Farmers</th>
+                                <th>Total Area (Ac)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="doVillageEpantaBody">
+                            <tr><td colspan="4" class="text-center text-muted py-3">No e-Panta data available.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Village-wise Fertilizer Report -->
+        <div class="card border-0 shadow-sm" style="border-radius:14px;overflow:hidden;">
+            <div class="card-header d-flex align-items-center justify-content-between py-3"
+                 style="background:linear-gradient(135deg,#27ae60,#2ecc71);border-radius:0;">
+                <h5 class="mb-0 text-white fw-bold"><i class="fas fa-flask me-2"></i>Village-wise Fertilizer Report</h5>
+                <button class="btn btn-light btn-sm fw-semibold" onclick="exportDoMandalFertilizer()">
+                    <i class="fas fa-file-excel me-1 text-success"></i>Export Excel
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead style="background:#f0fff4;">
+                            <tr>
+                                <th class="ps-3">Village</th>
+                                <th>Urea Bags</th>
+                                <th>DAP Bags</th>
+                                <th>Unique Farmers</th>
+                            </tr>
+                        </thead>
+                        <tbody id="doVillageFertilizerBody">
+                            <tr><td colspan="4" class="text-center text-muted py-3">No fertilizer data available.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button class="btn btn-outline-primary fw-semibold" onclick="showDoMandalDashboard()">
+                <i class="fas fa-arrow-left me-2"></i>Back to Mandals
+            </button>
+        </div>
+    </div>
+</div>
+
+</div>
 
 <!-- ============================================================
      RETAILER SECTION
@@ -4786,6 +5110,122 @@ function _showVoRetailerNotification(html) {
 
 
 // ── Fast Background Cloud Save ───────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  RENDER SAVED REPORTS LIST (Upload Report Page)
+// ══════════════════════════════════════════════════════════════
+function renderSavedReportsList() {
+    const container = document.getElementById('savedReportsList');
+    if (!container) return;
+    const keys = Object.keys(allReportsCache || {});
+    if (!keys.length) {
+        container.innerHTML = '<p class="text-muted small"><i class="fas fa-inbox me-1"></i>No reports saved yet.</p>';
+        return;
+    }
+    container.innerHTML = keys.map(k => {
+        const parts = k.split('_');
+        const yr = parts[0] || k, szn = parts[1] || '';
+        const count = (allReportsCache[k]?.summary?.totalFarmers) || (allReportsCache[k]?.uniqueFarmers?.length) || '—';
+        return `
+        <div class="d-flex align-items-center justify-content-between border rounded px-3 py-2 mb-2 bg-light">
+            <div>
+                <span class="fw-semibold text-primary">${escapeHtml(yr)}</span>
+                <span class="badge bg-secondary ms-2">${escapeHtml(szn)}</span>
+                <span class="text-muted small ms-2"><i class="fas fa-users me-1"></i>${count} farmers</span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger fw-semibold"
+                onclick="deleteEPantaReport('${escapeHtml(yr)}','${escapeHtml(szn)}'); renderSavedReportsList();">
+                <i class="fas fa-trash-alt me-1"></i>Delete
+            </button>
+        </div>`;
+    }).join('');
+}
+
+
+// ══════════════════════════════════════════════════════════════
+function deleteEPantaReport(yr, szn) {
+    // If called from sidebar button without args, read from filter dropdowns
+    const year   = yr   || document.getElementById('filterYear')?.value || '';
+    const season = szn  || document.getElementById('filterSeason')?.value || '';
+
+    if (!year || !season) {
+        alert('⚠️ Please select a Crop Year and Season first, then click Delete Report.');
+        return;
+    }
+
+    const key = year + '_' + season;
+    if (!allReportsCache || !allReportsCache[key]) {
+        alert(`No report found for ${year} — ${season}.`);
+        return;
+    }
+
+    if (!confirm(`🗑️ Are you sure you want to DELETE the report for:\n\nCrop Year: ${year}\nSeason: ${season}\n\nThis will remove it from cloud permanently.`)) return;
+
+    // Remove from local cache
+    delete allReportsCache[key];
+
+    // Clear the report container
+    const reportContainer = document.getElementById('reportContainer');
+    if (reportContainer) {
+        reportContainer.innerHTML = `
+            <div class="card p-5 border-0 shadow-sm text-center text-muted" style="min-height:300px;display:flex;justify-content:center;align-items:center;">
+                <div>
+                    <i class="fas fa-check-circle fa-3x mb-3 text-success opacity-75"></i>
+                    <h4 class="text-secondary">Report Deleted</h4>
+                    <p>The report for <strong>${escapeHtml(year)} — ${escapeHtml(season)}</strong> has been removed.</p>
+                </div>
+            </div>`;
+    }
+
+    // Save updated cache to cloud (removes deleted report key)
+    const user = firebase.auth().currentUser;
+    if (user && isDataLoaded) {
+        database.ref('users/' + user.uid + '/allReports/' + key).remove()
+            .then(() => {
+                showModernPopup('Deleted', `Report for ${year} — ${season} deleted from cloud.`, 'success');
+            })
+            .catch(err => {
+                // Fallback: full save (also removes the key since it's deleted from allReportsCache)
+                saveToCloud();
+                showModernPopup('Deleted', `Report removed (full cloud sync).`, 'success');
+            });
+    } else {
+        alert('Report removed locally. Sign in to sync deletion to cloud.');
+    }
+
+    // Refresh year dropdowns so the deleted entry disappears
+    if (typeof populateYearDropdowns === 'function') populateYearDropdowns();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  FAST FERTILIZER SAVE — writes ONLY ureaData[fert] directly
+//  instead of the full allReports+ureaHistory+farmerProfiles blob
+// ══════════════════════════════════════════════════════════════
+function saveFertilizerToCloud(fert) {
+    const user = firebase.auth().currentUser;
+    if (!user) return Promise.resolve(false);
+
+    const fertKey = fert || selectedFertilizerKey || 'Urea';
+    const payload = (ureaData && ureaData[fertKey]) ? ureaData[fertKey] : {};
+
+    updateSyncStatusCard('syncing', '', `Uploading ${fertKey} data…`);
+
+    return database.ref('users/' + user.uid + '/ureaData/' + fertKey)
+        .set(payload)
+        .then(() => {
+            _lastSyncTime = new Date();
+            const timeStr = _lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            updateSyncStatusCard('synced', '', `${fertKey} saved at ${timeStr}`);
+            showModernPopup('Uploaded', `${fertKey} 1B data saved to cloud ✅`, 'success');
+            return true;
+        })
+        .catch(err => {
+            console.error('Fertilizer save error:', err);
+            updateSyncStatusCard('error', '', 'Upload failed — check connection');
+            showModernPopup('Upload Failed', err.message, 'error');
+            return false;
+        });
+}
+
 function saveToCloud() {
 
     const user = firebase.auth().currentUser;
@@ -4936,7 +5376,8 @@ function detachCloudListener() {
         'farmerDetailsPage', 'cropFarmersPage', 'ureaSection', 'cropDamageSection',
         'ccExperimentsSection', 'cropRecommendationSection', 'profileSection',
         'loginPage', 'registerPage', 'resetPasswordSection', 'adminSection',
-        'farmerProfileSection', 'mandalOfficerSection', 'divisionalOfficerSection', 'retailerSection'
+        'farmerProfileSection', 'mandalOfficerSection', 'divisionalOfficerSection', 'retailerSection',
+        'grievanceSection'
     ];
     sections.forEach(id => {
         const el = document.getElementById(id);
@@ -4983,6 +5424,11 @@ function detachCloudListener() {
     // Only call if data is already loaded; if not, loadUserCloudData callback will call it
     if (sectionId === 'farmerProfileSection' && isDataLoaded) {
         populateFpKhathaDropdown();
+    }
+
+    // ✅ Render saved reports list when Upload Report page opens
+    if (sectionId === 'uploadReportPage' && isDataLoaded) {
+        if (typeof renderSavedReportsList === 'function') renderSavedReportsList();
     }
 }
 
@@ -6177,6 +6623,15 @@ function validateAadhaar(aadhaar) {
              }
 
              let html = `
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                   <div>
+                      <h5 class="mb-0 fw-bold text-primary"><i class="fas fa-file-alt me-2"></i>Report: ${escapeHtml(year)} &mdash; ${escapeHtml(season)}</h5>
+                   </div>
+                   <button class="btn btn-danger btn-sm fw-semibold shadow-sm"
+                      onclick="deleteEPantaReport('${escapeHtml(year)}','${escapeHtml(season)}')">
+                      <i class="fas fa-trash-alt me-1"></i> Delete This Report
+                   </button>
+                </div>
                 <div class="row g-3 mb-4">
                    <div class="col-md-6"><div class="card p-4 shadow-sm border-0 d-flex flex-row align-items-center gap-4 h-100" style="border-left: 5px solid var(--primary) !important;"><div class="bg-primary bg-opacity-10 p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="fas fa-users fa-2x text-primary"></i></div><div><p class="text-muted mb-1 fw-medium text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Total Unique Farmers</p><h3 class="mb-0 fw-bold text-primary">${_displayFarmers}</h3></div></div></div>
                    <div class="col-md-6"><div class="card p-4 shadow-sm border-0 d-flex flex-row align-items-center gap-4 h-100" style="border-left: 5px solid var(--secondary) !important;"><div class="bg-success bg-opacity-10 p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="fas fa-map-marked-alt fa-2x text-success"></i></div><div><p class="text-muted mb-1 fw-medium text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Total Area (Acres)</p><h3 class="mb-0 fw-bold text-success">${_displayArea.toFixed(2)}</h3></div></div></div>
@@ -8701,12 +9156,24 @@ if (fileInput) {
 
                 ureaData[fert]            = parsed;
                 uploadedFertilizers[fert] = true;
-                saveToCloud();
 
-                updateUploadStatus('success', `✅ ${fert} file uploaded. Khathas: ${Object.keys(parsed).length}`);
-                refreshUploadInfo();
-                refreshKhathaDropdown();
-                updateBagRecommendation();
+                // ── Show immediate "Uploading to cloud…" feedback ──
+                updateUploadStatus('info', `<span class="spinner-border spinner-border-sm me-2"></span>Uploading <strong>${fert}</strong> data to cloud… please wait.`);
+                document.getElementById('uploadInfo').textContent = 'Syncing to cloud…';
+
+                saveFertilizerToCloud(fert).then(ok => {
+                    if (ok) {
+                        updateUploadStatus('success', `✅ ${fert} file uploaded & saved to cloud. Khathas: ${Object.keys(parsed).length}`);
+                    } else {
+                        updateUploadStatus('warning', `⚠️ ${fert} file parsed locally (Khathas: ${Object.keys(parsed).length}) but cloud sync skipped — not logged in yet.`);
+                    }
+                    refreshUploadInfo();
+                    refreshKhathaDropdown();
+                    updateBagRecommendation();
+                }).catch(err => {
+                    updateUploadStatus('danger', `❌ File parsed but cloud save failed: ${err.message}`);
+                    refreshUploadInfo();
+                });
             } catch (err) {
                 updateUploadStatus('danger', `❌ Upload error: ${err.message}`);
             }
@@ -12734,40 +13201,108 @@ function createRetailerOutlet() {
 //  DIVISIONAL OFFICER FUNCTIONS
 // ============================================================
 
-function showDoTab(tabId) {
-    ['doMandalReports','doVillageReports'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.toggle('hidden', id !== tabId);
-    });
-    document.querySelectorAll('#doTabs .nav-link').forEach(a => {
-        a.classList.toggle('active', a.getAttribute('onclick')?.includes(tabId));
-    });
+// ============================================================
+//  DIVISIONAL OFFICER FUNCTIONS
+// ============================================================
+
+let currentDivisionReportState = { epantaSummary: [], fertilizerSummary: [] };
+let _doCurrentMandal = '';
+
+function showDoMandalDashboard() {
+    document.getElementById('doDashboardView').classList.remove('hidden');
+    document.getElementById('doVillageReportsView').classList.add('hidden');
 }
 
+function showDoVillageReports(mandalName) {
+    _doCurrentMandal = mandalName;
+    document.getElementById('doDashboardView').classList.add('hidden');
+    document.getElementById('doVillageReportsView').classList.remove('hidden');
+    document.getElementById('doSelectedMandalTitle').textContent = mandalName + ' — Village Reports';
+
+    // e-Panta table
+    const epantaData = currentDivisionReportState.epantaSummary.find(m => m.mandal === mandalName);
+    const epantaBody = document.getElementById('doVillageEpantaBody');
+    if (epantaData && epantaData.villages.length) {
+        epantaBody.innerHTML = epantaData.villages.map((v,i) => `
+            <tr>
+                <td class="ps-3 fw-semibold"><i class="fas fa-home me-1 text-primary"></i>${escapeHtml(v.village)}</td>
+                <td><span class="badge bg-secondary">${v.reportCount}</span></td>
+                <td><span class="badge bg-success">${v.totalFarmers}</span></td>
+                <td><span class="badge bg-primary">${v.totalArea.toFixed(2)}</span></td>
+            </tr>`).join('');
+    } else {
+        epantaBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No e-Panta data for this mandal.</td></tr>';
+    }
+
+    // Fertilizer table
+    const fertData = currentDivisionReportState.fertilizerSummary.find(m => m.mandal === mandalName);
+    const fertBody = document.getElementById('doVillageFertilizerBody');
+    if (fertData && fertData.villages.length) {
+        fertBody.innerHTML = fertData.villages.map(v => `
+            <tr>
+                <td class="ps-3 fw-semibold"><i class="fas fa-home me-1 text-primary"></i>${escapeHtml(v.village)}</td>
+                <td><span class="badge bg-warning text-dark">${v.urea}</span></td>
+                <td><span class="badge bg-info text-dark">${v.dap}</span></td>
+                <td><span class="badge bg-success">${v.farmers}</span></td>
+            </tr>`).join('');
+    } else {
+        fertBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No fertilizer data for this mandal.</td></tr>';
+    }
+}
+
+function exportDoMandalEpanta() {
+    const data = currentDivisionReportState.epantaSummary.find(m => m.mandal === _doCurrentMandal);
+    if (!data || !data.villages.length) return alert('No e-Panta data to export.');
+    const rows = [['Village','Report Entries','Total Farmers','Total Area (Ac)']];
+    data.villages.forEach(v => rows.push([v.village, v.reportCount, v.totalFarmers, v.totalArea.toFixed(2)]));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'ePanta');
+    XLSX.writeFile(wb, `${_doCurrentMandal.replace(/\s+/g,'_')}_ePanta.xlsx`);
+}
+
+function exportDoMandalFertilizer() {
+    const data = currentDivisionReportState.fertilizerSummary.find(m => m.mandal === _doCurrentMandal);
+    if (!data || !data.villages.length) return alert('No fertilizer data to export.');
+    const rows = [['Village','Urea Bags','DAP Bags','Unique Farmers']];
+    data.villages.forEach(v => rows.push([v.village, v.urea, v.dap, v.farmers]));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Fertilizer');
+    XLSX.writeFile(wb, `${_doCurrentMandal.replace(/\s+/g,'_')}_Fertilizer.xlsx`);
+}
+
+function openDoMandal(mandalName) {
+    showDoVillageReports(mandalName);
+}
+function showDoMandalCards() { showDoMandalDashboard(); }
+function showDoTab(tabId) { /* legacy shim — no-op */ }
+
 function loadDivisionalReports() {
-    const container = document.getElementById('doMandalContainer');
-    const statsRow  = document.getElementById('doStatsRow');
+    const cardsGrid = document.getElementById('doMandalCardsGrid');
     const division = (currentUserProfile?.division || '').trim();
 
+    // Update division label in header
+    const divLabel = document.getElementById('doDivisionLabel');
+    if (divLabel) divLabel.textContent = division ? `Division: ${division}` : 'No division set in profile';
+
     if (!division) {
-        container.innerHTML = '<div class="alert alert-warning">Division is not set in your profile. Update it from Profile Settings.</div>';
+        cardsGrid.innerHTML = '<div class="col-12"><div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>Division is not set in your profile. Update it from Profile Settings.</div></div>';
         return;
     }
 
-    container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2">Loading...</p></div>';
+    cardsGrid.innerHTML = '<div class="col-12 text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2 text-muted">Loading mandal data…</p></div>';
+
+    // Reset views
+    showDoMandalDashboard();
 
     database.ref('users').once('value').then(snap => {
-        if (!snap.exists()) { container.innerHTML = '<div class="alert alert-info">No data found.</div>'; return; }
+        if (!snap.exists()) { cardsGrid.innerHTML = '<div class="col-12"><div class="alert alert-info">No data found.</div></div>'; return; }
         const all = snap.val();
         const mandalMap = {};
         const epantaByMandal = {};
         let totalMandals = 0, totalVillages = 0, totalUrea = 0, totalDap = 0;
-        let totalEpantaReports = 0, totalEpantaFarmers = 0, totalEpantaArea = 0;
+        let totalEpantaFarmers = 0, totalEpantaArea = 0;
 
-        currentDivisionReportState = {
-            epantaSummary: [],
-            fertilizerSummary: []
-        };
+        currentDivisionReportState = { epantaSummary: [], fertilizerSummary: [] };
 
         Object.entries(all).forEach(([uid, data]) => {
             if (!data?.profile) return;
@@ -12801,7 +13336,6 @@ function loadDivisionalReports() {
                 const totalArea = Number(report?.summary?.totalArea) || 0;
                 const crops = Array.isArray(report?.summary?.crops) ? report.summary.crops : [];
 
-                totalEpantaReports += 1;
                 totalEpantaFarmers += totalFarmers;
                 totalEpantaArea += totalArea;
                 epantaByMandal[mandal].reportCount += 1;
@@ -12809,25 +13343,13 @@ function loadDivisionalReports() {
                 epantaByMandal[mandal].totalArea += totalArea;
 
                 if (!epantaByMandal[mandal].villages[village]) {
-                    epantaByMandal[mandal].villages[village] = {
-                        village,
-                        reportCount: 0,
-                        totalFarmers: 0,
-                        totalArea: 0,
-                        crops: []
-                    };
+                    epantaByMandal[mandal].villages[village] = { village, reportCount:0, totalFarmers:0, totalArea:0, crops:[] };
                 }
-
-                const villageBucket = epantaByMandal[mandal].villages[village];
-                villageBucket.reportCount += 1;
-                villageBucket.totalFarmers += totalFarmers;
-                villageBucket.totalArea += totalArea;
-                villageBucket.crops = villageBucket.crops.concat(crops.map(c => ({
-                    cropName: c.cropName || '—',
-                    area: Number(c.areaSown) || 0,
-                    farmers: Number(c.uniqueFarmers) || 0,
-                    year,
-                    season
+                const vb = epantaByMandal[mandal].villages[village];
+                vb.reportCount += 1; vb.totalFarmers += totalFarmers; vb.totalArea += totalArea;
+                vb.crops = vb.crops.concat(crops.map(c => ({
+                    cropName: c.cropName || '—', area: Number(c.areaSown)||0,
+                    farmers: Number(c.uniqueFarmers)||0, year, season
                 })));
             });
         });
@@ -12838,214 +13360,107 @@ function loadDivisionalReports() {
             totalUrea += m.urea; totalDap += m.dap;
         });
 
+        // Update stat cards
+        const el = id => document.getElementById(id);
+        if (el('doStatMandals')) el('doStatMandals').textContent = totalMandals;
+        if (el('doStatVillages')) el('doStatVillages').textContent = totalVillages;
+        if (el('doStatUrea')) el('doStatUrea').textContent = totalUrea;
+        if (el('doStatDap')) el('doStatDap').textContent = totalDap;
+        if (el('doMandalCountBadge')) el('doMandalCountBadge').textContent = `${totalMandals} Mandal${totalMandals !== 1 ? 's' : ''}`;
+
         currentDivisionReportState.fertilizerSummary = Object.entries(mandalMap).map(([mandal, mData]) => ({
             mandal,
             villages: Object.entries(mData.villages).map(([v, vd]) => ({
-                village: v,
-                urea: vd.urea,
-                dap: vd.dap,
-                farmers: vd.farmers.size
+                village: v, urea: vd.urea, dap: vd.dap, farmers: vd.farmers.size
             })),
-            urea: mData.urea,
-            dap: mData.dap
+            urea: mData.urea, dap: mData.dap
         }));
 
         currentDivisionReportState.epantaSummary = Object.entries(epantaByMandal).map(([mandal, data]) => ({
-            mandal,
-            reportCount: data.reportCount,
-            totalFarmers: data.totalFarmers,
-            totalArea: data.totalArea,
+            mandal, reportCount: data.reportCount, totalFarmers: data.totalFarmers, totalArea: data.totalArea,
             villages: Object.entries(data.villages).map(([v, vd]) => ({
-                village: v,
-                reportCount: vd.reportCount,
-                totalFarmers: vd.totalFarmers,
-                totalArea: vd.totalArea,
-                crops: vd.crops
+                village: v, reportCount: vd.reportCount, totalFarmers: vd.totalFarmers,
+                totalArea: vd.totalArea, crops: vd.crops
             }))
         }));
 
-        statsRow.innerHTML = `
-            <div class="col-6 col-md-3"><div class="card border-0 shadow-sm text-center p-3 h-100" style="border-left:4px solid #8e44ad!important;border-radius:12px;"><div class="display-6 fw-bold" style="color:#8e44ad;">${totalMandals}</div><div class="text-muted small mt-1"><i class="fas fa-landmark me-1"></i>Mandals</div></div></div>
-            <div class="col-6 col-md-3"><div class="card border-0 shadow-sm text-center p-3 h-100" style="border-left:4px solid #0d6efd!important;border-radius:12px;"><div class="display-6 fw-bold text-primary">${totalVillages}</div><div class="text-muted small mt-1"><i class="fas fa-home me-1"></i>Villages</div></div></div>
-            <div class="col-6 col-md-3"><div class="card border-0 shadow-sm text-center p-3 h-100" style="border-left:4px solid #ffc107!important;border-radius:12px;"><div class="display-6 fw-bold text-warning">${totalUrea}</div><div class="text-muted small mt-1">🌾 Urea Bags</div></div></div>
-            <div class="col-6 col-md-3"><div class="card border-0 shadow-sm text-center p-3 h-100" style="border-left:4px solid #0dcaf0!important;border-radius:12px;"><div class="display-6 fw-bold text-info">${totalDap}</div><div class="text-muted small mt-1">🔵 DAP Bags</div></div></div>`;
+        // Color palette for cards
+        const palette = [
+            { bg:'#e8f0fb', border:'#1862ab', icon:'#1862ab', ico:'fa-landmark' },
+            { bg:'#e8f8ee', border:'#27ae60', icon:'#27ae60', ico:'fa-leaf' },
+            { bg:'#fef8ec', border:'#f39c12', icon:'#d68910', ico:'fa-map-marker-alt' },
+            { bg:'#f3e8fb', border:'#8e44ad', icon:'#8e44ad', ico:'fa-city' },
+            { bg:'#e0f7fb', border:'#0dcaf0', icon:'#0d9fb5', ico:'fa-water' },
+            { bg:'#fde8e8', border:'#e74c3c', icon:'#c0392b', ico:'fa-map-pin' },
+        ];
 
-        const epantaRowsHtml = currentDivisionReportState.epantaSummary.length
-            ? currentDivisionReportState.epantaSummary.map((mandalItem, index) => `
-                <tr>
-                    <td class="fw-semibold"><i class="fas fa-landmark me-1" style="color:#8e44ad;"></i>${escapeHtml(mandalItem.mandal)}</td>
-                    <td>${mandalItem.reportCount}</td>
-                    <td><span class="badge bg-success">${mandalItem.totalFarmers}</span></td>
-                    <td><span class="badge bg-primary">${mandalItem.totalArea.toFixed(2)}</span></td>
-                    <td>${mandalItem.villages.length}</td>
-                </tr>`).join('')
-            : '<tr><td colspan="5" class="text-center text-muted py-3">No e-Panta data available for this division.</td></tr>';
+        if (!totalMandals) {
+            cardsGrid.innerHTML = '<div class="col-12"><div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No mandal data found for your division.</div></div>';
+            return;
+        }
 
-        const epantaVillageRowsHtml = currentDivisionReportState.epantaSummary.length
-            ? currentDivisionReportState.epantaSummary.flatMap(mandalItem =>
-                mandalItem.villages.map(villageItem => `
-                    <tr>
-                        <td class="fw-semibold"><i class="fas fa-landmark me-1" style="color:#8e44ad;"></i>${escapeHtml(mandalItem.mandal)}</td>
-                        <td class="fw-semibold"><i class="fas fa-home me-1 text-primary"></i>${escapeHtml(villageItem.village)}</td>
-                        <td>${villageItem.reportCount}</td>
-                        <td><span class="badge bg-success">${villageItem.totalFarmers}</span></td>
-                        <td><span class="badge bg-primary">${villageItem.totalArea.toFixed(2)}</span></td>
-                    </tr>`)
-              ).join('')
-            : '<tr><td colspan="5" class="text-center text-muted py-3">No village-level e-Panta data available.</td></tr>';
+        const allMandals = [...new Set([
+            ...Object.keys(mandalMap),
+            ...Object.keys(epantaByMandal)
+        ])].sort();
 
-        const fertilizerRowsHtml = currentDivisionReportState.fertilizerSummary.length
-            ? currentDivisionReportState.fertilizerSummary.flatMap(mandalItem =>
-                mandalItem.villages.map((villageItem, idx) => `
-                    <tr>
-                        <td class="fw-semibold"><i class="fas fa-landmark me-1" style="color:#8e44ad;"></i>${escapeHtml(mandalItem.mandal)}</td>
-                        <td class="fw-semibold"><i class="fas fa-home me-1 text-primary"></i>${escapeHtml(villageItem.village)}</td>
-                        <td><span class="badge bg-warning text-dark">${villageItem.urea}</span></td>
-                        <td><span class="badge bg-info text-dark">${villageItem.dap}</span></td>
-                        <td><span class="badge bg-success">${villageItem.farmers}</span></td>
-                    </tr>`)
-              ).join('')
-            : '<tr><td colspan="5" class="text-center text-muted py-3">No fertilizer distribution data available.</td></tr>';
-
-        container.innerHTML = `
-            <div class="row g-4">
-                <div class="col-lg-6">
-                    <div class="card border-0 shadow-sm p-3 h-100">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="fw-bold mb-0" style="color:#8e44ad;"><i class="fas fa-seedling me-2"></i>e-Panta Report</h5>
-                            <button class="btn btn-sm btn-outline-primary" onclick="exportDoEpantaSummary()">
-                                <i class="fas fa-file-excel me-1"></i> Export Division Report
-                            </button>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover mb-0 align-middle">
-                                <thead class="table-light">
-                                    <tr><th>Mandal</th><th>Report Entries</th><th>Total Farmers</th><th>Total Area</th><th>Villages</th></tr>
-                                </thead>
-                                <tbody>${epantaRowsHtml}</tbody>
-                            </table>
-                        </div>
-                        <div class="mt-3 p-3 rounded" style="background:#f8fbfe;border:1px dashed #b3d4fc;">
-                            <div class="fw-bold text-primary mb-2"><i class="fas fa-home me-2"></i>Village-wise e-Panta Details</div>
-                            <div class="table-responsive">
-                                <table class="table table-sm mb-0">
-                                    <thead class="table-light">
-                                        <tr><th>Mandal</th><th>Village</th><th>Report Entries</th><th>Total Farmers</th><th>Total Area</th></tr>
-                                    </thead>
-                                    <tbody>${epantaVillageRowsHtml}</tbody>
-                                </table>
-                            </div>
-                        </div>
+        cardsGrid.innerHTML = allMandals.map((mandal, idx) => {
+            const mFert = mandalMap[mandal] || { urea:0, dap:0, villages:{} };
+            const mEpanta = epantaByMandal[mandal] || { totalFarmers:0, totalArea:0, reportCount:0 };
+            const villCount = Object.keys(mFert.villages).length;
+            const pal = palette[idx % palette.length];
+            return `
+            <div class="col-12 col-sm-6 col-lg-4">
+              <div class="card border-0 shadow-sm h-100" style="border-radius:16px;border-left:4px solid ${pal.border}!important;background:${pal.bg};cursor:pointer;transition:transform .2s,box-shadow .2s;"
+                   onclick="showDoVillageReports('${escapeHtml(mandal).replace(/'/g,"\\'")}');"
+                   onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 28px rgba(0,0,0,0.12)'"
+                   onmouseout="this.style.transform='';this.style.boxShadow=''">
+                <div class="card-body p-3">
+                  <div class="d-flex align-items-center gap-2 mb-3">
+                    <div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      <i class="fas ${pal.ico}" style="color:${pal.icon};font-size:1.1rem;"></i>
                     </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="card border-0 shadow-sm p-3 h-100">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="fw-bold mb-0" style="color:#8e44ad;"><i class="fas fa-flask me-2"></i>Fertilizer Distribution</h5>
-                            <button class="btn btn-sm btn-outline-success" onclick="exportDoFertilizerSummary()">
-                                <i class="fas fa-file-excel me-1"></i> Export Fertilizer Report
-                            </button>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover mb-0 align-middle">
-                                <thead class="table-light">
-                                    <tr><th>Mandal</th><th>Village</th><th>Urea Bags</th><th>DAP Bags</th><th>Unique Farmers</th></tr>
-                                </thead>
-                                <tbody>${fertilizerRowsHtml}</tbody>
-                            </table>
-                        </div>
+                    <div class="fw-bold" style="color:${pal.icon};font-size:1rem;">${escapeHtml(mandal)}</div>
+                    <i class="fas fa-chevron-right ms-auto text-muted small"></i>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <div class="bg-white rounded p-2 text-center shadow-sm">
+                        <div class="fw-bold text-primary">${villCount}</div>
+                        <div class="text-muted" style="font-size:0.7rem;">Villages</div>
+                      </div>
                     </div>
+                    <div class="col-6">
+                      <div class="bg-white rounded p-2 text-center shadow-sm">
+                        <div class="fw-bold text-success">${mEpanta.totalFarmers}</div>
+                        <div class="text-muted" style="font-size:0.7rem;">e-Panta Farmers</div>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="bg-white rounded p-2 text-center shadow-sm">
+                        <div class="fw-bold text-warning">${mFert.urea}</div>
+                        <div class="text-muted" style="font-size:0.7rem;">Urea Bags</div>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="bg-white rounded p-2 text-center shadow-sm">
+                        <div class="fw-bold text-info">${mFert.dap}</div>
+                        <div class="text-muted" style="font-size:0.7rem;">DAP Bags</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-2 text-center small fw-semibold" style="color:${pal.icon};">
+                    <i class="fas fa-eye me-1"></i>Click to view village reports
+                  </div>
                 </div>
+              </div>
             </div>`;
-    }).catch(err => container.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message)}</div>`);
-}
+        }).join('');
 
-function exportDoEpantaSummary() {
-    if (!currentDivisionReportState.epantaSummary.length) {
-        return alert('No e-Panta data available to export for this division.');
-    }
-
-    const rows = [['Mandal', 'Village', 'Report Entries', 'Total Farmers', 'Total Area (Ac)']];
-    currentDivisionReportState.epantaSummary.forEach(mandalItem => {
-        mandalItem.villages.forEach(villageItem => {
-            rows.push([mandalItem.mandal, villageItem.village, villageItem.reportCount, villageItem.totalFarmers, villageItem.totalArea.toFixed(2)]);
-        });
+    }).catch(err => {
+        if (cardsGrid) cardsGrid.innerHTML = `<div class="col-12"><div class="alert alert-danger">${escapeHtml(err.message)}</div></div>`;
     });
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Division_ePanta');
-    XLSX.writeFile(workbook, `${(currentUserProfile?.division || 'Division').replace(/\s+/g, '_')}_ePanta_Report.xlsx`);
 }
-
-function exportDoFertilizerSummary() {
-    if (!currentDivisionReportState.fertilizerSummary.length) {
-        return alert('No fertilizer data available to export for this division.');
-    }
-
-    const rows = [['Mandal', 'Village', 'Urea Bags', 'DAP Bags', 'Unique Farmers']];
-    currentDivisionReportState.fertilizerSummary.forEach(mandalItem => {
-        mandalItem.villages.forEach(villageItem => {
-            rows.push([mandalItem.mandal, villageItem.village, villageItem.urea, villageItem.dap, villageItem.farmers]);
-        });
-    });
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Division_Fertilizer');
-    XLSX.writeFile(workbook, `${(currentUserProfile?.division || 'Division').replace(/\s+/g, '_')}_Fertilizer_Report.xlsx`);
-}
-
-let _doAllVillageData = [];
-function loadDivisionalVillageReports() {
-    const container = document.getElementById('doVillageContainer');
-    const division = (currentUserProfile?.division || '').trim();
-    container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2">Loading villages...</p></div>';
-
-    database.ref('users').once('value').then(snap => {
-        if (!snap.exists()) { container.innerHTML = '<div class="alert alert-info">No data.</div>'; return; }
-        const all = snap.val();
-        _doAllVillageData = [];
-
-        Object.entries(all).forEach(([uid, data]) => {
-            if (!data?.profile) return;
-            const p = data.profile;
-            if ((p.division || '').trim().toLowerCase() !== division.toLowerCase()) return;
-            if (p.role && !['village_officer','mandal_officer','divisional_officer'].includes(p.role)) return;
-            const hist = Array.isArray(data.ureaHistory) ? data.ureaHistory :
-                         (data.ureaHistory ? Object.values(data.ureaHistory) : []);
-            const urea = hist.filter(r => !r.fertilizerType || r.fertilizerType==='Urea').reduce((s,r)=>s+(Number(r.bags)||0),0);
-            const dap  = hist.filter(r => r.fertilizerType==='DAP').reduce((s,r)=>s+(Number(r.bags)||0),0);
-            _doAllVillageData.push({ mandal: p.mandal||'', village: p.village||'', urea, dap, farmers: new Set(hist.map(r=>r.aadhaar)).size });
-        });
-
-        renderDoVillageTable(_doAllVillageData);
-    }).catch(err => container.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message)}</div>`);
-}
-
-function renderDoVillageTable(data) {
-    const container = document.getElementById('doVillageContainer');
-    if (!data.length) { container.innerHTML = '<div class="alert alert-info">No village data found.</div>'; return; }
-    let html = `<div class="table-responsive"><table class="table table-hover">
-        <thead class="table-dark"><tr><th>#</th><th>Mandal</th><th>Village</th><th>Urea Bags</th><th>DAP Bags</th><th>Unique Farmers</th></tr></thead>
-        <tbody>${data.map((r,i)=>`
-            <tr>
-                <td>${i+1}</td>
-                <td><i class="fas fa-landmark me-1" style="color:#8e44ad;"></i>${escapeHtml(r.mandal)}</td>
-                <td class="fw-semibold"><i class="fas fa-home me-1 text-primary"></i>${escapeHtml(r.village)}</td>
-                <td><span class="badge bg-warning text-dark">${r.urea}</span></td>
-                <td><span class="badge bg-info text-dark">${r.dap}</span></td>
-                <td><span class="badge bg-success">${r.farmers}</span></td>
-            </tr>`).join('')}
-        </tbody></table></div>`;
-    container.innerHTML = html;
-}
-
-function filterDoVillageTable() {
-    const q = (document.getElementById('doVillageFilter')?.value||'').toLowerCase();
-    if (!q) { renderDoVillageTable(_doAllVillageData); return; }
-    renderDoVillageTable(_doAllVillageData.filter(r =>
-        r.mandal.toLowerCase().includes(q) || r.village.toLowerCase().includes(q)));
-}
-
 // ============================================================
 //  VILLAGE OFFICER — OUTLET FUNCTIONS
 // ============================================================
@@ -15413,11 +15828,6 @@ let currentMandalReportState = {
     fertilizerDetails: []
 };
 
-let currentDivisionReportState = {
-    epantaSummary: [],
-    fertilizerSummary: []
-};
-
 const AP_LOCATION_PROXY_BASE = 'https://r.jina.ai/http://';
 const AP_LOCATION_CACHE = {
     districts: [],
@@ -16690,6 +17100,191 @@ function confirmDeleteUser() {
         .catch(err => {
             statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
         });
+}
+
+// ============================================================
+//  GRIEVANCE FUNCTIONS
+// ============================================================
+
+let _grievanceAllData = [];
+
+function initGrievanceSection() {
+    loadAllGrievances();
+}
+
+function onGrvTypeChange() {
+    const val = document.getElementById('grvType').value;
+    const row = document.getElementById('grvOtherRow');
+    if (row) row.classList.toggle('hidden', val !== 'Other');
+}
+
+function clearGrievanceForm() {
+    ['grvAadhaar','grvName','grvFatherName','grvMobile','grvOtherText'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    ['grvFarmerType','grvType'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const row = document.getElementById('grvOtherRow');
+    if (row) row.classList.add('hidden');
+    const st = document.getElementById('grvFormStatus');
+    if (st) st.innerHTML = '';
+}
+
+function submitGrievance() {
+    const aadhaar    = (document.getElementById('grvAadhaar')?.value || '').trim();
+    const name       = (document.getElementById('grvName')?.value || '').trim();
+    const fatherName = (document.getElementById('grvFatherName')?.value || '').trim();
+    const mobile     = (document.getElementById('grvMobile')?.value || '').trim();
+    const farmerType = document.getElementById('grvFarmerType')?.value || '';
+    const grvType    = document.getElementById('grvType')?.value || '';
+    const otherText  = (document.getElementById('grvOtherText')?.value || '').trim();
+    const statusEl   = document.getElementById('grvFormStatus');
+
+    // Validation
+    if (!aadhaar || aadhaar.length !== 12) {
+        statusEl.innerHTML = '<div class="alert alert-warning py-2"><i class="fas fa-exclamation-circle me-2"></i>Please enter a valid 12-digit Aadhaar number.</div>';
+        return;
+    }
+    if (!name) { statusEl.innerHTML = '<div class="alert alert-warning py-2">Farmer name is required.</div>'; return; }
+    if (!fatherName) { statusEl.innerHTML = '<div class="alert alert-warning py-2">Father\'s name is required.</div>'; return; }
+    if (!mobile || mobile.length !== 10) { statusEl.innerHTML = '<div class="alert alert-warning py-2">Please enter a valid 10-digit mobile number.</div>'; return; }
+    if (!farmerType) { statusEl.innerHTML = '<div class="alert alert-warning py-2">Please select farmer type (Owner/Tenant).</div>'; return; }
+    if (!grvType) { statusEl.innerHTML = '<div class="alert alert-warning py-2">Please select grievance type.</div>'; return; }
+    if (grvType === 'Other' && !otherText) { statusEl.innerHTML = '<div class="alert alert-warning py-2">Please describe the grievance.</div>'; return; }
+
+    const user = firebase.auth().currentUser;
+    if (!user) { statusEl.innerHTML = '<div class="alert alert-danger py-2">Not logged in.</div>'; return; }
+
+    statusEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Submitting grievance…</div>';
+
+    const grievanceObj = {
+        aadhaar, name, fatherName, mobile, farmerType,
+        grievanceType: grvType,
+        grievanceDetail: grvType === 'Other' ? otherText : grvType,
+        village: currentUserProfile?.village || '',
+        mandal: currentUserProfile?.mandal || '',
+        district: currentUserProfile?.district || '',
+        submittedBy: user.uid,
+        submittedAt: new Date().toISOString(),
+        timestamp: Date.now()
+    };
+
+    database.ref('grievances/' + user.uid).push(grievanceObj)
+        .then(() => {
+            statusEl.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>Grievance submitted successfully!</div>';
+            clearGrievanceForm();
+            loadAllGrievances();
+        })
+        .catch(err => {
+            statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
+        });
+}
+
+function loadAllGrievances() {
+    const container = document.getElementById('grvListContainer');
+    if (!container) return;
+    const user = firebase.auth().currentUser;
+    if (!user) { container.innerHTML = '<div class="alert alert-warning m-3">Not logged in.</div>'; return; }
+
+    container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-danger opacity-50"></i><p class="mt-2 text-muted">Loading grievances…</p></div>';
+
+    database.ref('grievances/' + user.uid).orderByChild('timestamp').once('value').then(snap => {
+        _grievanceAllData = [];
+        if (snap.exists()) {
+            snap.forEach(child => {
+                _grievanceAllData.push({ key: child.key, ...child.val() });
+            });
+            _grievanceAllData.reverse(); // newest first
+        }
+        filterAndRenderGrievances();
+    }).catch(err => {
+        container.innerHTML = `<div class="alert alert-danger m-3">${escapeHtml(err.message)}</div>`;
+    });
+}
+
+function filterAndRenderGrievances() {
+    const filter = document.getElementById('grvFilterSelect')?.value || '';
+    const filtered = filter
+        ? _grievanceAllData.filter(g => g.grievanceType === filter)
+        : _grievanceAllData;
+    renderGrievanceTable(filtered);
+}
+
+function renderGrievanceTable(data) {
+    const container = document.getElementById('grvListContainer');
+    if (!container) return;
+    if (!data.length) {
+        container.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-inbox fa-3x mb-3 opacity-25"></i><p>No grievances found.</p></div>';
+        return;
+    }
+
+    const typeBadge = t => {
+        const colors = { ADSB:'bg-primary', 'PM Kisan':'bg-success', EPanta:'bg-info text-dark', FM:'bg-warning text-dark', Other:'bg-secondary' };
+        return `<span class="badge ${colors[t]||'bg-secondary'}">${escapeHtml(t)}</span>`;
+    };
+    const farmerBadge = t => t === 'Owner'
+        ? '<span class="badge bg-success">🏡 Owner</span>'
+        : '<span class="badge bg-warning text-dark">🤝 Tenant</span>';
+
+    container.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle" style="font-size:0.88rem;">
+                <thead style="background:linear-gradient(135deg,#fff5f5,#fde8e8);">
+                    <tr>
+                        <th class="ps-3">#</th>
+                        <th>Aadhaar</th>
+                        <th>Farmer Name</th>
+                        <th>Father Name</th>
+                        <th>Mobile</th>
+                        <th>Type</th>
+                        <th>Grievance</th>
+                        <th>Detail</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map((g, i) => `
+                        <tr>
+                            <td class="ps-3 text-muted">${i+1}</td>
+                            <td><code>${escapeHtml(g.aadhaar||'')}</code></td>
+                            <td class="fw-semibold">${escapeHtml(g.name||'')}</td>
+                            <td>${escapeHtml(g.fatherName||'')}</td>
+                            <td>${escapeHtml(g.mobile||'')}</td>
+                            <td>${farmerBadge(g.farmerType||'')}</td>
+                            <td>${typeBadge(g.grievanceType||'')}</td>
+                            <td>${escapeHtml(g.grievanceDetail||g.grievanceType||'')}</td>
+                            <td class="text-muted small">${g.submittedAt ? new Date(g.submittedAt).toLocaleDateString('en-IN') : '—'}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3 text-muted small border-top">
+            <i class="fas fa-list me-1"></i>Showing <strong>${data.length}</strong> grievance${data.length !== 1 ? 's' : ''}
+        </div>`;
+}
+
+function exportGrievancesToExcel() {
+    const filter = document.getElementById('grvFilterSelect')?.value || '';
+    const data = filter ? _grievanceAllData.filter(g => g.grievanceType === filter) : _grievanceAllData;
+    if (!data.length) { alert('No grievances to export.'); return; }
+
+    const rows = [['#','Aadhaar','Farmer Name','Father Name','Mobile','Farmer Type','Grievance Type','Grievance Detail','Village','Mandal','Date']];
+    data.forEach((g, i) => {
+        rows.push([
+            i+1, g.aadhaar||'', g.name||'', g.fatherName||'', g.mobile||'',
+            g.farmerType||'', g.grievanceType||'', g.grievanceDetail||'',
+            g.village||'', g.mandal||'',
+            g.submittedAt ? new Date(g.submittedAt).toLocaleDateString('en-IN') : ''
+        ]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Grievances');
+    const fname = filter ? `Grievances_${filter.replace(/\s+/g,'_')}.xlsx` : 'All_Grievances.xlsx';
+    XLSX.writeFile(wb, fname);
 }
 
 </script>
