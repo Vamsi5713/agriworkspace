@@ -4783,57 +4783,6 @@ let _lastSyncTime     = null;
 let _syncRetryTimer   = null;
 let _manualSyncRequestId = 0;
 
-// ── Offline-safe local persistence ───────────────────────────
-// Keys are scoped per user so multiple accounts on the same device don't collide.
-const LS_KEY = (uid, suffix) => `epanta_${uid}_${suffix}`;
-
-/** Persist all critical data to localStorage (called after every successful cloud save AND after every local mutation). */
-function saveToLocalCache(uid) {
-    if (!uid) return;
-    try {
-        localStorage.setItem(LS_KEY(uid, 'ureaHistory'),    JSON.stringify(ureaHistory    || []));
-        localStorage.setItem(LS_KEY(uid, 'farmerProfiles'), JSON.stringify(farmerProfiles || {}));
-        localStorage.setItem(LS_KEY(uid, 'allReports'),     JSON.stringify(allReportsCache || {}));
-        localStorage.setItem(LS_KEY(uid, 'ureaData'),       JSON.stringify(ureaData       || {}));
-        localStorage.setItem(LS_KEY(uid, 'cachedAt'),       new Date().toISOString());
-    } catch(e) { console.warn('LocalCache write failed', e); }
-}
-
-/** Restore from localStorage.  Returns true if anything was restored. */
-function loadFromLocalCache(uid) {
-    if (!uid) return false;
-    try {
-        const h  = localStorage.getItem(LS_KEY(uid, 'ureaHistory'));
-        const fp = localStorage.getItem(LS_KEY(uid, 'farmerProfiles'));
-        const ar = localStorage.getItem(LS_KEY(uid, 'allReports'));
-        const ud = localStorage.getItem(LS_KEY(uid, 'ureaData'));
-        if (!h && !fp) return false;           // nothing cached yet
-        if (h)  ureaHistory     = JSON.parse(h);
-        if (fp) farmerProfiles  = JSON.parse(fp);
-        if (ar) allReportsCache = JSON.parse(ar);
-        if (ud) ureaData        = JSON.parse(ud);
-        const t = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
-        console.log('LocalCache restored from', t || 'unknown time');
-        return true;
-    } catch(e) { console.warn('LocalCache read failed', e); return false; }
-}
-
-/** Queue for writes that failed due to network errors — flushed when back online. */
-let _pendingCloudWrite = false;  // true = there is unsaved local data
-
-function markPendingWrite() {
-    _pendingCloudWrite = true;
-    updateSyncStatusCard('error', '', 'Offline — data saved locally, will sync when online');
-}
-
-/** Try to flush any pending write once network is restored. */
-window.addEventListener('online', () => {
-    if (_pendingCloudWrite) {
-        console.log('Network restored — flushing pending cloud write');
-        saveToCloud();
-    }
-});
-
 // ── Overlay helpers ──────────────────────────────────────────
 function showSyncOverlay(msg) {
     const ov = document.getElementById('cloudSyncOverlay');
@@ -4878,23 +4827,6 @@ function manualSyncNow() {
     const user = firebase.auth().currentUser;
     if (!user) return;
 
-    // ── Offline: restore from localStorage and show banner ──
-    if (!navigator.onLine) {
-        updateSyncStatusCard('error', '', 'Offline — showing last local backup');
-        const restored = loadFromLocalCache(user.uid);
-        if (restored) {
-            isDataLoaded = true;
-            const cached = localStorage.getItem(LS_KEY(user.uid, 'cachedAt'));
-            const timeStr = cached ? new Date(cached).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
-            updateSyncStatusCard('error', '', `Offline — showing local backup from ${timeStr}`);
-            _refreshDependentUI();
-        } else {
-            updateSyncStatusCard('error', '', 'Offline — no local backup found');
-        }
-        hideSyncOverlay();
-        return;
-    }
-
     const requestId = ++_manualSyncRequestId;
     updateSyncStatusCard('syncing', 'Syncing…', 'Refreshing all data…');
 
@@ -4911,17 +4843,7 @@ function manualSyncNow() {
     }).catch(err => {
         if (requestId !== _manualSyncRequestId) return;
         clearTimeout(timeoutHandle);
-        // Network failed — fall back to localStorage
-        const restored = loadFromLocalCache(user.uid);
-        if (restored) {
-            isDataLoaded = true;
-            const cached = localStorage.getItem(LS_KEY(user.uid, 'cachedAt'));
-            const timeStr = cached ? new Date(cached).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
-            updateSyncStatusCard('error', '', `Network error — showing local backup from ${timeStr}`);
-            _refreshDependentUI();
-        } else {
-            updateSyncStatusCard('error', '', 'Sync failed — check connection');
-        }
+        updateSyncStatusCard('error', '', 'Sync failed — check connection');
         hideSyncOverlay();
         console.error('Manual sync error:', err);
     });
@@ -4929,30 +4851,8 @@ function manualSyncNow() {
 
 // ── Core data application (shared by listener + manualSync) ──
 function _applyCloudSnapshot(snapshot) {
-    const user = firebase.auth().currentUser;
-    const uid  = user ? user.uid : null;
-
     if (snapshot.exists()) {
         const data = snapshot.val();
-
-        // ── Guard: if cloud record has no meaningful data, keep local data ──
-        const cloudHasData = data.ureaHistory || data.farmerProfiles || data.allReports || data.ureaData;
-        if (!cloudHasData) {
-            console.warn('Cloud snapshot exists but contains no data — keeping local data');
-            // Try to restore from localStorage if we have nothing in memory yet
-            if (!isDataLoaded && uid) {
-                const restored = loadFromLocalCache(uid);
-                if (restored) {
-                    isDataLoaded = true;
-                    hideSyncOverlay();
-                    const cached = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
-                    const timeStr = cached ? new Date(cached).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
-                    updateSyncStatusCard('error', '', `Cloud empty — showing local backup from ${timeStr}`);
-                    _refreshDependentUI();
-                }
-            }
-            return;
-        }
 
         // 1. e-Panta Reports
         allReportsCache = data.allReports || {};
@@ -4998,26 +4898,9 @@ function _applyCloudSnapshot(snapshot) {
             loadUserProfile();
         }
 
-        // ── Mirror cloud data to localStorage immediately ──
-        if (uid) saveToLocalCache(uid);
-
     } else {
-        // ── Cloud has NO record at all — DO NOT wipe local data ──
-        // Instead try to restore from localStorage, or keep whatever is already in memory.
-        console.warn('Cloud snapshot does not exist — protecting local data');
-        if (uid) {
-            const hadLocalData = ureaHistory.length > 0 || Object.keys(farmerProfiles).length > 0;
-            if (!hadLocalData) {
-                const restored = loadFromLocalCache(uid);
-                if (restored) {
-                    console.log('Restored data from localStorage after empty cloud snapshot');
-                }
-            }
-        }
-        // Only zero out if we truly have nothing anywhere
-        if (ureaHistory.length === 0 && Object.keys(farmerProfiles).length === 0) {
-            allReportsCache = {}; ureaData = {}; uploadedFertilizers = {};
-        }
+        allReportsCache = {}; ureaData = {}; uploadedFertilizers = {};
+        ureaHistory = []; farmerProfiles = {};
     }
 
     isDataLoaded  = true;
@@ -5028,17 +4911,9 @@ function _applyCloudSnapshot(snapshot) {
 
     // ── Update status card ──
     const timeStr = _lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (_pendingCloudWrite) {
-        updateSyncStatusCard('error', '', `Offline — local data shown (last cloud sync: ${timeStr})`);
-    } else {
-        updateSyncStatusCard('synced', '', `Last synced at ${timeStr}`);
-    }
+    updateSyncStatusCard('synced', '', `Last synced at ${timeStr}`);
 
-    _refreshDependentUI();
-}
-
-// ── Refresh all dependent UI panels ──────────────────────────
-function _refreshDependentUI() {
+    // ── Refresh dependent UI ──
     if (typeof refreshKhathaDropdown     === 'function') refreshKhathaDropdown();
     if (typeof refreshUploadInfo         === 'function') refreshUploadInfo();
 
@@ -5071,21 +4946,11 @@ function loadUserCloudData(uid) {
     showSyncOverlay('Connecting to server…');
     updateSyncStatusCard('syncing', '', 'Loading your data…');
 
-    // Safety timeout — if Firebase doesn't respond within 10 s,
-    // fall back to localStorage so the user always sees their data
+    // Safety timeout — if Firebase doesn't respond within 10 s, hide overlay and surface a retryable error
     const overlayTimeout = setTimeout(() => {
         if (!isDataLoaded) {
             hideSyncOverlay();
-            const restored = loadFromLocalCache(uid);
-            if (restored) {
-                isDataLoaded = true;
-                const cached = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
-                const timeStr = cached ? new Date(cached).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
-                updateSyncStatusCard('error', '', `Cloud timeout — showing local backup from ${timeStr}`);
-                _refreshDependentUI();
-            } else {
-                updateSyncStatusCard('error', '', 'Sync taking too long — please retry');
-            }
+            updateSyncStatusCard('error', '', 'Sync taking too long — please retry');
         }
     }, 10000);
 
@@ -5096,19 +4961,8 @@ function loadUserCloudData(uid) {
     }, (err) => {
         clearTimeout(overlayTimeout);
         hideSyncOverlay();
+        updateSyncStatusCard('error', '', 'Connection error — retry in 30s');
         console.error('Firebase sync error:', err);
-
-        // Fall back to localStorage so data is not lost
-        const restored = loadFromLocalCache(uid);
-        if (restored) {
-            isDataLoaded = true;
-            const cached = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
-            const timeStr = cached ? new Date(cached).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
-            updateSyncStatusCard('error', '', `Connection error — showing local backup from ${timeStr}`);
-            _refreshDependentUI();
-        } else {
-            updateSyncStatusCard('error', '', 'Connection error — retry in 30s');
-        }
 
         // Auto-retry after 30 s
         if (_syncRetryTimer) clearTimeout(_syncRetryTimer);
@@ -5380,15 +5234,6 @@ function saveToCloud() {
         return Promise.resolve(false);
     }
 
-    // ── Always persist locally first — data is NEVER lost ──
-    saveToLocalCache(user.uid);
-
-    // ── If offline, queue for later and bail out gracefully ──
-    if (!navigator.onLine) {
-        markPendingWrite();
-        return Promise.resolve(false);
-    }
-
     // Instant syncing UI
     updateSyncStatusCard(
         'syncing',
@@ -5421,7 +5266,6 @@ function saveToCloud() {
 
                 .then(() => {
 
-                    _pendingCloudWrite = false;   // write succeeded — clear pending flag
                     _lastSyncTime = new Date();
 
                     const timeStr =
@@ -5435,9 +5279,6 @@ function saveToCloud() {
                         '',
                         `Saved at ${timeStr}`
                     );
-
-                    // Refresh local cache timestamp
-                    saveToLocalCache(user.uid);
 
                     // Success popup
                     showModernPopup(
@@ -5454,13 +5295,16 @@ function saveToCloud() {
 
                     console.error('Save error:', err);
 
-                    // Data is already in localStorage — mark pending so we retry on reconnect
-                    markPendingWrite();
+                    updateSyncStatusCard(
+                        'error',
+                        '',
+                        'Save failed — check connection'
+                    );
 
                     showModernPopup(
-                        "Saved Locally",
-                        "Network error — your data is saved on this device and will sync to cloud automatically when connection is restored.",
-                        "warning"
+                        "Cloud Save Failed",
+                        err.message,
+                        "error"
                     );
 
                     resolve(false);
