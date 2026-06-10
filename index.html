@@ -1752,7 +1752,7 @@
 
             <div class="mt-4 p-3 rounded border border-warning border-opacity-50" style="background:linear-gradient(135deg,#fffbf0,#fff8e1);" id="outletSelectorBox">
                 <label class="form-label fw-bold text-warning">
-                    <i class="fas fa-store me-1"></i> Select Retailer for this Distribution: <span class="text-danger">*</span>
+                    <i class="fas fa-store me-1"></i> Select Retailer for this Distribution: <span class="text-muted fw-normal small">(Optional)</span>
                 </label>
                 <div class="row g-2">
                     <div class="col-md-6">
@@ -1766,7 +1766,7 @@
                                oninput="onManualRetailerInput()">
                     </div>
                 </div>
-                <small class="text-muted mt-1 d-block"><i class="fas fa-info-circle me-1"></i>Select the retailer outlet from dropdown, or enter name manually if outlet not listed.</small>
+                <small class="text-muted mt-1 d-block"><i class="fas fa-info-circle me-1"></i>Select the retailer outlet from dropdown, or type the outlet name manually. The name will appear on the printed receipt. Both are optional.</small>
                 <div id="voOutletStockInfo" class="mt-2"></div>
             </div>
 
@@ -4783,8 +4783,75 @@ let _lastSyncTime     = null;
 let _syncRetryTimer   = null;
 let _manualSyncRequestId = 0;
 
+// ── Offline-safe local persistence ───────────────────────────
+// Keys are scoped per user so multiple accounts on the same device don't collide.
+const LS_KEY = (uid, suffix) => `epanta_${uid}_${suffix}`;
+
+/** Persist all critical data to localStorage (called after every successful cloud save AND after every local mutation). */
+function saveToLocalCache(uid) {
+    if (!uid) return;
+    try {
+        localStorage.setItem(LS_KEY(uid, 'ureaHistory'),    JSON.stringify(ureaHistory    || []));
+        localStorage.setItem(LS_KEY(uid, 'farmerProfiles'), JSON.stringify(farmerProfiles || {}));
+        localStorage.setItem(LS_KEY(uid, 'allReports'),     JSON.stringify(allReportsCache || {}));
+        localStorage.setItem(LS_KEY(uid, 'ureaData'),       JSON.stringify(ureaData       || {}));
+        localStorage.setItem(LS_KEY(uid, 'cachedAt'),       new Date().toISOString());
+    } catch(e) { console.warn('LocalCache write failed', e); }
+}
+
+/** Restore from localStorage.  Returns true if anything was restored. */
+function loadFromLocalCache(uid) {
+    if (!uid) return false;
+    try {
+        const h  = localStorage.getItem(LS_KEY(uid, 'ureaHistory'));
+        const fp = localStorage.getItem(LS_KEY(uid, 'farmerProfiles'));
+        const ar = localStorage.getItem(LS_KEY(uid, 'allReports'));
+        const ud = localStorage.getItem(LS_KEY(uid, 'ureaData'));
+        if (!h && !fp) return false;           // nothing cached yet
+        if (h)  ureaHistory     = JSON.parse(h);
+        if (fp) farmerProfiles  = JSON.parse(fp);
+        if (ar) allReportsCache = JSON.parse(ar);
+        if (ud) ureaData        = JSON.parse(ud);
+        const t = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
+        console.log('LocalCache restored from', t || 'unknown time');
+        return true;
+    } catch(e) { console.warn('LocalCache read failed', e); return false; }
+}
+
+/** Queue for writes that failed due to network errors — flushed when back online. */
+let _pendingCloudWrite = false;  // true = there is unsaved local data
+
+function markPendingWrite() {
+    _pendingCloudWrite = true;
+    updateSyncStatusCard('error', '', 'Offline — data saved locally, will sync when online');
+}
+
+/** Try to flush any pending write once network is restored. */
+window.addEventListener('online', () => {
+    if (_pendingCloudWrite) {
+        console.log('Network restored — flushing pending cloud write');
+        saveToCloud();
+    }
+});
+
 // ── Overlay helpers ──────────────────────────────────────────
-function showSyncOverlay(msg) {
+function showSyncOverlay(msg, background) {
+    if (background) {
+        // Non-blocking: small spinning toast in corner, user can still interact
+        let toast = document.getElementById('bgSyncToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'bgSyncToast';
+            toast.style.cssText = 'position:fixed;bottom:1rem;right:1rem;z-index:9998;background:#1862ab;color:#fff;padding:0.45rem 1rem;border-radius:20px;font-size:0.8rem;display:flex;align-items:center;gap:0.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:opacity 0.4s;';
+            toast.innerHTML = '<i class="fas fa-sync-alt fa-spin" style="font-size:0.75rem;"></i><span id="bgSyncToastMsg"></span>';
+            document.body.appendChild(toast);
+        }
+        const msgEl = document.getElementById('bgSyncToastMsg');
+        if (msgEl) msgEl.textContent = msg || 'Syncing…';
+        toast.style.opacity = '1';
+        toast.style.display = 'flex';
+        return;
+    }
     const ov = document.getElementById('cloudSyncOverlay');
     const st = document.getElementById('syncStatusText');
     if (ov) { ov.classList.remove('hidden'); ov.style.display = 'flex'; }
@@ -4793,6 +4860,9 @@ function showSyncOverlay(msg) {
 function hideSyncOverlay() {
     const ov = document.getElementById('cloudSyncOverlay');
     if (ov) { ov.style.display = 'none'; ov.classList.add('hidden'); }
+    // Also hide background sync toast
+    const toast = document.getElementById('bgSyncToast');
+    if (toast) { toast.style.opacity = '0'; setTimeout(() => { if(toast) toast.style.display = 'none'; }, 400); }
 }
 
 // ── Dashboard status card helpers ────────────────────────────
@@ -4827,6 +4897,23 @@ function manualSyncNow() {
     const user = firebase.auth().currentUser;
     if (!user) return;
 
+    // ── Offline: restore from localStorage and show banner ──
+    if (!navigator.onLine) {
+        updateSyncStatusCard('error', '', 'Offline — showing last local backup');
+        const restored = loadFromLocalCache(user.uid);
+        if (restored) {
+            isDataLoaded = true;
+            const cached = localStorage.getItem(LS_KEY(user.uid, 'cachedAt'));
+            const timeStr = cached ? new Date(cached).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
+            updateSyncStatusCard('error', '', `Offline — showing local backup from ${timeStr}`);
+            _refreshDependentUI();
+        } else {
+            updateSyncStatusCard('error', '', 'Offline — no local backup found');
+        }
+        hideSyncOverlay();
+        return;
+    }
+
     const requestId = ++_manualSyncRequestId;
     updateSyncStatusCard('syncing', 'Syncing…', 'Refreshing all data…');
 
@@ -4843,7 +4930,17 @@ function manualSyncNow() {
     }).catch(err => {
         if (requestId !== _manualSyncRequestId) return;
         clearTimeout(timeoutHandle);
-        updateSyncStatusCard('error', '', 'Sync failed — check connection');
+        // Network failed — fall back to localStorage
+        const restored = loadFromLocalCache(user.uid);
+        if (restored) {
+            isDataLoaded = true;
+            const cached = localStorage.getItem(LS_KEY(user.uid, 'cachedAt'));
+            const timeStr = cached ? new Date(cached).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
+            updateSyncStatusCard('error', '', `Network error — showing local backup from ${timeStr}`);
+            _refreshDependentUI();
+        } else {
+            updateSyncStatusCard('error', '', 'Sync failed — check connection');
+        }
         hideSyncOverlay();
         console.error('Manual sync error:', err);
     });
@@ -4851,8 +4948,30 @@ function manualSyncNow() {
 
 // ── Core data application (shared by listener + manualSync) ──
 function _applyCloudSnapshot(snapshot) {
+    const user = firebase.auth().currentUser;
+    const uid  = user ? user.uid : null;
+
     if (snapshot.exists()) {
         const data = snapshot.val();
+
+        // ── Guard: if cloud record has no meaningful data, keep local data ──
+        const cloudHasData = data.ureaHistory || data.farmerProfiles || data.allReports || data.ureaData;
+        if (!cloudHasData) {
+            console.warn('Cloud snapshot exists but contains no data — keeping local data');
+            // Try to restore from localStorage if we have nothing in memory yet
+            if (!isDataLoaded && uid) {
+                const restored = loadFromLocalCache(uid);
+                if (restored) {
+                    isDataLoaded = true;
+                    hideSyncOverlay();
+                    const cached = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
+                    const timeStr = cached ? new Date(cached).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
+                    updateSyncStatusCard('error', '', `Cloud empty — showing local backup from ${timeStr}`);
+                    _refreshDependentUI();
+                }
+            }
+            return;
+        }
 
         // 1. e-Panta Reports
         allReportsCache = data.allReports || {};
@@ -4898,9 +5017,26 @@ function _applyCloudSnapshot(snapshot) {
             loadUserProfile();
         }
 
+        // ── Mirror cloud data to localStorage immediately ──
+        if (uid) saveToLocalCache(uid);
+
     } else {
-        allReportsCache = {}; ureaData = {}; uploadedFertilizers = {};
-        ureaHistory = []; farmerProfiles = {};
+        // ── Cloud has NO record at all — DO NOT wipe local data ──
+        // Instead try to restore from localStorage, or keep whatever is already in memory.
+        console.warn('Cloud snapshot does not exist — protecting local data');
+        if (uid) {
+            const hadLocalData = ureaHistory.length > 0 || Object.keys(farmerProfiles).length > 0;
+            if (!hadLocalData) {
+                const restored = loadFromLocalCache(uid);
+                if (restored) {
+                    console.log('Restored data from localStorage after empty cloud snapshot');
+                }
+            }
+        }
+        // Only zero out if we truly have nothing anywhere
+        if (ureaHistory.length === 0 && Object.keys(farmerProfiles).length === 0) {
+            allReportsCache = {}; ureaData = {}; uploadedFertilizers = {};
+        }
     }
 
     isDataLoaded  = true;
@@ -4911,9 +5047,17 @@ function _applyCloudSnapshot(snapshot) {
 
     // ── Update status card ──
     const timeStr = _lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    updateSyncStatusCard('synced', '', `Last synced at ${timeStr}`);
+    if (_pendingCloudWrite) {
+        updateSyncStatusCard('error', '', `Offline — local data shown (last cloud sync: ${timeStr})`);
+    } else {
+        updateSyncStatusCard('synced', '', `Last synced at ${timeStr}`);
+    }
 
-    // ── Refresh dependent UI ──
+    _refreshDependentUI();
+}
+
+// ── Refresh all dependent UI panels ──────────────────────────
+function _refreshDependentUI() {
     if (typeof refreshKhathaDropdown     === 'function') refreshKhathaDropdown();
     if (typeof refreshUploadInfo         === 'function') refreshUploadInfo();
 
@@ -4942,27 +5086,59 @@ function loadUserCloudData(uid) {
 
     _cloudListenerUid = uid;
 
-    // Show loading overlay immediately
-    showSyncOverlay('Connecting to server…');
-    updateSyncStatusCard('syncing', '', 'Loading your data…');
+    // ── INSTANT START: Load from localStorage immediately so the user sees
+    //    their data right away — no blocking overlay needed ──────────────────
+    const hasCachedData = loadFromLocalCache(uid);
+    if (hasCachedData) {
+        isDataLoaded = true;
+        const cached  = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
+        const timeStr = cached ? new Date(cached).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
+        updateSyncStatusCard('syncing', '', `Showing local data (${timeStr}) — syncing…`);
+        _refreshDependentUI();
+        // Show a small background toast — user can interact immediately
+        showSyncOverlay('Syncing in background…', true);
+    } else {
+        // First-time login or cleared storage: show blocking overlay only when no local data
+        showSyncOverlay('Loading your data for the first time…');
+        updateSyncStatusCard('syncing', '', 'Loading your data…');
+    }
 
-    // Safety timeout — if Firebase doesn't respond within 10 s, hide overlay and surface a retryable error
+    // Background safety timeout — hide overlay after 10 s regardless
     const overlayTimeout = setTimeout(() => {
+        hideSyncOverlay();
         if (!isDataLoaded) {
-            hideSyncOverlay();
             updateSyncStatusCard('error', '', 'Sync taking too long — please retry');
         }
     }, 10000);
 
+    // Queue for retailer actions that arrive before cloud data is applied
+    let _pendingActions = [];
+
+    // ── Background cloud sync: apply fresh data silently ─────────────────────
+    function _applyCloudSnapshotWithFlush(snapshot) {
+        _applyCloudSnapshot(snapshot);
+        if (_pendingActions.length) {
+            const toProcess = _pendingActions.splice(0);
+            toProcess.forEach(({ action, key }) => _applyRetailerAction(action, key));
+        }
+    }
+
     database.ref('users/' + uid).on('value', (snapshot) => {
         clearTimeout(overlayTimeout);
-        document.getElementById('syncStatusText') && (document.getElementById('syncStatusText').textContent = 'Applying data…');
-        _applyCloudSnapshot(snapshot);
+        hideSyncOverlay(); // Always hide overlay when data arrives
+        _applyCloudSnapshotWithFlush(snapshot);
     }, (err) => {
         clearTimeout(overlayTimeout);
         hideSyncOverlay();
-        updateSyncStatusCard('error', '', 'Connection error — retry in 30s');
         console.error('Firebase sync error:', err);
+
+        if (!isDataLoaded) {
+            // No local data and Firebase failed — show error
+            updateSyncStatusCard('error', '', 'Connection error — retry in 30s');
+        } else {
+            // Already showing local data — just note the sync failure quietly
+            updateSyncStatusCard('error', '', 'Background sync failed — showing local data');
+        }
 
         // Auto-retry after 30 s
         if (_syncRetryTimer) clearTimeout(_syncRetryTimer);
@@ -4970,43 +5146,14 @@ function loadUserCloudData(uid) {
     });
 
     // ── Listen for retailer distribution actions in real-time ──
-    // distributionUpdates/{voUid}/{actionKey} is written by the Retailer
-    // and read/processed by the VO here, then saved back to ureaHistory
-    let _pendingActions = []; // queue actions that arrive before data is loaded
     database.ref('distributionUpdates/' + uid).on('child_added', (snap) => {
         const action = snap.val();
         if (!action || !action.type) return;
         if (!isDataLoaded) {
-            // Queue it — will be flushed once _applyCloudSnapshot completes
             _pendingActions.push({ action, key: snap.key });
             return;
         }
         _applyRetailerAction(action, snap.key);
-    });
-
-    // Flush any queued actions after data loads — patch _applyCloudSnapshot to call flush
-    const _origApply = window._applyCloudSnapshot || _applyCloudSnapshot;
-    window._applyCloudSnapshotWithFlush = function(snapshot) {
-        _origApply(snapshot);
-        // Flush queued retailer actions now that ureaHistory is loaded
-        if (_pendingActions.length) {
-            const toProcess = _pendingActions.splice(0);
-            toProcess.forEach(({ action, key }) => _applyRetailerAction(action, key));
-        }
-    };
-    // Rebind the listener to use the flushing version
-    database.ref('users/' + uid).off('value');
-    database.ref('users/' + uid).on('value', (snapshot) => {
-        clearTimeout(overlayTimeout);
-        document.getElementById('syncStatusText') && (document.getElementById('syncStatusText').textContent = 'Applying data…');
-        window._applyCloudSnapshotWithFlush(snapshot);
-    }, (err) => {
-        clearTimeout(overlayTimeout);
-        hideSyncOverlay();
-        updateSyncStatusCard('error', '', 'Connection error — retry in 30s');
-        console.error('Firebase sync error:', err);
-        if (_syncRetryTimer) clearTimeout(_syncRetryTimer);
-        _syncRetryTimer = setTimeout(() => loadUserCloudData(uid), 30000);
     });
 }
 
@@ -5234,6 +5381,15 @@ function saveToCloud() {
         return Promise.resolve(false);
     }
 
+    // ── Always persist locally first — data is NEVER lost ──
+    saveToLocalCache(user.uid);
+
+    // ── If offline, queue for later and bail out gracefully ──
+    if (!navigator.onLine) {
+        markPendingWrite();
+        return Promise.resolve(false);
+    }
+
     // Instant syncing UI
     updateSyncStatusCard(
         'syncing',
@@ -5266,6 +5422,7 @@ function saveToCloud() {
 
                 .then(() => {
 
+                    _pendingCloudWrite = false;   // write succeeded — clear pending flag
                     _lastSyncTime = new Date();
 
                     const timeStr =
@@ -5279,6 +5436,9 @@ function saveToCloud() {
                         '',
                         `Saved at ${timeStr}`
                     );
+
+                    // Refresh local cache timestamp
+                    saveToLocalCache(user.uid);
 
                     // Success popup
                     showModernPopup(
@@ -5295,16 +5455,13 @@ function saveToCloud() {
 
                     console.error('Save error:', err);
 
-                    updateSyncStatusCard(
-                        'error',
-                        '',
-                        'Save failed — check connection'
-                    );
+                    // Data is already in localStorage — mark pending so we retry on reconnect
+                    markPendingWrite();
 
                     showModernPopup(
-                        "Cloud Save Failed",
-                        err.message,
-                        "error"
+                        "Saved Locally",
+                        "Network error — your data is saved on this device and will sync to cloud automatically when connection is restored.",
+                        "warning"
                     );
 
                     resolve(false);
@@ -6074,8 +6231,12 @@ async function approveRegistration(pendingKey) {
             }
         }
 
-        // Create Firebase Auth account
-        const cred = await firebase.auth().createUserWithEmailAndPassword(u.email, u.password);
+        // Create Firebase Auth account using SECONDARY app so admin stays signed in
+        const approvalSecondaryApp = firebase.apps.find(a => a.name === 'approvalSecondary') ||
+            firebase.initializeApp(firebase.app().options, 'approvalSecondary');
+        const approvalSecondaryAuth = firebase.auth(approvalSecondaryApp);
+
+        const cred = await approvalSecondaryAuth.createUserWithEmailAndPassword(u.email, u.password);
         const uid = cred.user.uid;
 
         await cred.user.updateProfile({ displayName: u.fullName });
@@ -6092,6 +6253,9 @@ async function approveRegistration(pendingKey) {
             updatedAt: new Date().toISOString()
         });
         await database.ref('users/' + uid + '/userEmail').set(u.email);
+
+        // Sign out the newly created user from secondary app immediately
+        await approvalSecondaryAuth.signOut();
 
         // Update pending record
         await database.ref('pendingUsers/' + pendingKey).update({
@@ -9858,6 +10022,28 @@ function searchUreaFarmer(filterYear, filterSeason) {
     populateSplitDropdown(); // <--- ADDED THIS LINE to populate the split dropdown
     buildCropCumulativeSummary(a);
     updateBagRecommendation();
+
+    // ── Auto-populate Extent from farmer profile ──
+    const autoCrop = document.getElementById('ureaCrop')?.value || '';
+    if (autoCrop && autoCrop !== '--Select Crop--') {
+        updateExtentForCrop(a, autoCrop);
+    } else {
+        // If crop not yet selected, populate total extent from all profile khathas
+        const extEl   = document.getElementById('ureaExtent');
+        const extNote = document.getElementById('ureaExtentNote');
+        if (extEl && profiles && profiles.length) {
+            let totalExtent = 0;
+            profiles.forEach(p => { totalExtent += Number(p.extent || 0); });
+            // Also sum from crops if present
+            let cropExtent = 0;
+            profiles.forEach(p => { (p.crops || []).forEach(c => { cropExtent += Number(c.extent || 0); }); });
+            const finalExtent = cropExtent > 0 ? cropExtent : totalExtent;
+            if (finalExtent > 0) {
+                extEl.value = finalExtent.toFixed(2);
+                if (extNote) extNote.textContent = 'Auto-filled from farmer profile';
+            }
+        }
+    }
 
     // ── Auto-fill Card Number from profile (readonly — set in Farmer Profile) ──
     const cardEl = document.getElementById('ureaCardNumber');
