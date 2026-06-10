@@ -777,13 +777,19 @@
                <hr class="login-footer-divider">
 
                <!-- Contact Us strip -->
+                
                <div class="login-contact-strip">
-                   <i class="fas fa-headset" style="color:#7dd3fc;"></i>
-                   <span>Contact Us:</span>
-                   <a href="mailto:adminagriworkspace@gmail.com">
-                       <i class="fas fa-envelope me-1"></i>adminagriworkspace@gmail.com
-                   </a>
-               </div>
+                    
+                     <a href="https://mail.google.com/mail/?view=cm&fs=1&to=adminworkspace@gmail.com" target="_blank" style="opacity: 1 !important; transition: none !important;">
+                        <i class="fas fa-exclamation-circle me-1"></i> for Suggestions or Errors contact us at
+                    </a>
+                    
+                    <span>Contact Us:</span>
+                    <a href="https://mail.google.com/mail/?view=cm&fs=1&to=adminagriworkspace@gmail.com" target="_blank" style="margin-right: 15px; opacity: 1 !important; transition: none !important;">
+                        <i class="fas fa-envelope me-1"></i>adminagriworkspace@gmail.com
+                    </a>
+                   
+                </div>
 
             </div>
         </div>
@@ -14526,15 +14532,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const origRec = window.recordDistribution;
     if (typeof origRec === 'function') {
         window.recordDistribution = function() {
-            // Inject outlet info before calling original
+            // Inject outlet info before calling original (retailer is optional)
             const outlet = getSelectedOutletInfo();
-            if (currentUserRole === 'village_officer' && !outlet) {
-                const outletBox = document.getElementById('outletSelectorBox');
-                if (outletBox && !outletBox.classList.contains('hidden')) {
-                    alert('⚠️ Please select a Retailer Outlet before recording the distribution.');
-                    return;
-                }
-            }
             window._pendingOutletInfo = outlet;
             origRec.apply(this, arguments);
         };
@@ -15232,6 +15231,7 @@ function _rtExecuteDistribute(r, method) {
 //  NPK values are sourced from cropNPKRecommendations (proxy
 //  to fertilizerDosage in "Crop Recommendation Card — JS Data")
 // ============================================================
+
 function loadVillageProfile() {
     const displaySeason = (document.getElementById('vpDisplaySeason')?.value || 'Kharif').trim();
     const displayYear   = (document.getElementById('vpDisplayYear')?.value   || '').trim();
