@@ -9289,8 +9289,10 @@ if (fileInput) {
 
         reader.onload = evt => {
             try {
-                const wb   = XLSX.read(evt.target.result, { type: "array" });
-                const ws   = wb.Sheets[wb.SheetNames[0]];
+                const wb      = XLSX.read(evt.target.result, { type: "array" });
+                const ws      = wb.Sheets[wb.SheetNames[0]];
+                // Read as array-of-arrays to support real 1B format (all rows including total rows)
+                const rawAoA  = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true });
                 const rows = XLSX.utils.sheet_to_json(ws, {
     defval: "",
     raw: true,
@@ -9306,14 +9308,99 @@ if (fileInput) {
 );
                 }
 
-                const parsed = rows.reduce((acc, r) => {
-                    const k = String(r["Khatha"] || "").trim();
-                    if (!k) return acc;
-                    if (!acc[k]) acc[k] = { khatha: k, extent: 0, bagsEligible: Number(r["Bags Eligible"] || 0), farmers: [] };
-                    acc[k].extent += Number(r["Extent"] || 0) || 0;
-                    acc[k].farmers.push(r);
-                    return acc;
-                }, {});
+                // ── Detect 1B format (real AP 1B Excel) vs simple flat format ──
+                // Real AP 1B: positional columns — S.No | KhathaNo | FarmerName | FatherName | SurveyNo | LandType | Extent
+                //   with a "TOTAL EXTENT" / "మొత్తం విస్తీర్ణం" sub-total row after each khatha group.
+                // Simple/flat: named columns with "Khatha" header.
+                const allKeys       = rows.length ? Object.keys(rows[0]) : [];
+                const hasKhathaCol  = allKeys.some(k => /khatha/i.test(k));
+                // Also detect via rawAoA header row
+                const headerRow     = rawAoA.length ? rawAoA[0].map(v => String(v || '')) : [];
+                const isRealOneBFormat = !hasKhathaCol || headerRow.some(h => /ఖాతా|khatha\s*నెంబరు/i.test(h));
+
+                let parsed = {};
+
+                if (isRealOneBFormat && rawAoA.length > 1) {
+                    // ── Real 1B format: use rawAoA (array-of-arrays) for reliable row detection ──
+                    // Columns: [0]=S.No, [1]=KhathaNo, [2]=FarmerName, [3]=FatherName, [4]=SurveyNo, [5]=LandType/Aadhaar, [6]=Extent
+                    // "TOTAL EXTENT" row: col[3] or col[4] or col[5] contains "TOTAL EXTENT" / "మొత్తం విస్తీర్ణం"
+                    // The extent value is in the LAST non-empty numeric column of that row.
+
+                    let currentKhatha  = null;
+                    let currentFarmer  = null;
+                    let currentFather  = null;
+                    let currentAadhaar = null;
+
+                    rawAoA.forEach(cols => {
+                        if (!cols || !cols.length) return;
+
+                        // Detect "TOTAL EXTENT" / "మొత్తం విస్తీర్ణం" row
+                        const isTotalRow = cols.some(v => /total\s*extent/i.test(String(v)) || /మొత్తం\s*విస్తీర్ణం/i.test(String(v)));
+
+                        if (isTotalRow && currentKhatha) {
+                            // The total extent is the last numeric value in this row
+                            let totalExt = 0;
+                            for (let ci = cols.length - 1; ci >= 0; ci--) {
+                                const num = parseFloat(cols[ci]);
+                                if (!isNaN(num) && num > 0) { totalExt = num; break; }
+                            }
+                            if (!parsed[currentKhatha]) {
+                                parsed[currentKhatha] = {
+                                    khatha:       currentKhatha,
+                                    farmerName:   currentFarmer  || '',
+                                    fatherName:   currentFather  || '',
+                                    aadhaarNo:    currentAadhaar || '',
+                                    extent:       0,
+                                    bagsEligible: 0,
+                                    farmers:      []
+                                };
+                            }
+                            parsed[currentKhatha].extent = totalExt;
+                            // Reset for next khatha
+                            currentKhatha  = null;
+                            currentFarmer  = null;
+                            currentFather  = null;
+                            currentAadhaar = null;
+                            return;
+                        }
+
+                        // Check if col[1] is a numeric khatha number
+                        const col1 = String(cols[1] || '').trim();
+                        if (col1 && /^\d+$/.test(col1)) {
+                            // New khatha — col[1]=KhathaNo, col[2]=FarmerName, col[3]=FatherName
+                            // Aadhaar may appear in col[5] (12-digit number)
+                            const possibleAadhaar = String(cols[5] || cols[6] || '').replace(/\D/g, '');
+                            currentKhatha  = col1;
+                            currentFarmer  = String(cols[2] || '').trim();
+                            currentFather  = String(cols[3] || '').trim();
+                            currentAadhaar = possibleAadhaar.length >= 12 ? possibleAadhaar.slice(-12) : '';
+                        }
+                        // (other rows are survey sub-rows; we only need the total from the total row)
+                    });
+
+                    // Flush last khatha if file ends without a total row
+                    if (currentKhatha && !parsed[currentKhatha]) {
+                        parsed[currentKhatha] = {
+                            khatha:       currentKhatha,
+                            farmerName:   currentFarmer  || '',
+                            fatherName:   currentFather  || '',
+                            aadhaarNo:    currentAadhaar || '',
+                            extent:       0,
+                            bagsEligible: 0,
+                            farmers:      []
+                        };
+                    }
+                } else {
+                    // ── Simple/flat format with named columns ──
+                    parsed = rows.reduce((acc, r) => {
+                        const k = String(r["Khatha"] || r["KhathaNo"] || r["Khatha Number"] || "").trim();
+                        if (!k) return acc;
+                        if (!acc[k]) acc[k] = { khatha: k, extent: 0, bagsEligible: Number(r["Bags Eligible"] || 0), farmers: [] };
+                        acc[k].extent += Number(r["Extent"] || 0) || 0;
+                        acc[k].farmers.push(r);
+                        return acc;
+                    }, {});
+                }
 
                 if (!Object.keys(parsed).length) {
                     updateUploadStatus('danger', `❌ No valid khatha found in ${fert} file.`);
@@ -9401,6 +9488,135 @@ function checkDistributionAllowed(remain, eligible, crop, fert) {
 }
 
 /// --- OVERHAULED FOR DETERMINISTIC SPLIT LOGIC (NO 7-DAY LOCK) ---
+
+// ============================================================
+//  buildCropCumulativeSummary
+//  Populates the #cropCumulativeSummary panel with a table
+//  showing, per crop across ALL khathas, the eligible Urea &
+//  DAP bags, how many have been given, and how many remain.
+// ============================================================
+function buildCropCumulativeSummary(aadhaar) {
+    const panel  = document.getElementById('cropCumulativeSummary');
+    const tbody  = document.getElementById('cropCumulativeTbody');
+    const tfoot  = document.getElementById('cropCumulativeFoot');
+    const badge  = document.getElementById('cropSumFarmerBadge');
+    if (!panel || !tbody || !tfoot) return;
+
+    const a        = cleanAadhaar(aadhaar || '');
+    const profiles = farmerProfiles[a];
+    if (!profiles || !profiles.length) {
+        panel.classList.add('hidden');
+        return;
+    }
+
+    // Get current season/year from the form
+    const season = (document.getElementById('ureaSeasonInput')?.value ||
+                    document.getElementById('ureaSeason')?.value || '').trim();
+    const year   = (document.getElementById('ureaYearInput')?.value  ||
+                    document.getElementById('ureaYear')?.value  || '').trim();
+
+    const farmerName = (profiles[0]?.farmerName || profiles[0]?.name || '').trim();
+    if (badge) badge.textContent = farmerName ? farmerName : a;
+
+    // Accumulate per-crop totals across all khathas
+    const cropMap = {};
+    profiles.forEach(profile => {
+        const khatha = String(profile.khatha || '');
+        (profile.crops || []).forEach(cropEntry => {
+            const crop       = (cropEntry.crop || '').toLowerCase().trim();
+            const cropExtent = Number(cropEntry.extent || 0);
+            if (!crop) return;
+
+            // Only include crops matching current season/year if set
+            const cSeason = cropEntry.season || '';
+            const cYear   = cropEntry.year   || '';
+            if (season && cSeason && cSeason !== season) return;
+            if (year   && cYear   && cYear   !== year)   return;
+
+            const useSeason = season || cSeason;
+            const useYear   = year   || cYear;
+
+            const recKey = cropNPKRecommendations[crop.toLowerCase()];
+            const rec    = recKey
+                ? (recKey[useSeason] || recKey['Kharif'] || Object.values(recKey)[0])
+                : null;
+
+            const UREA_N = 20.7; // kg N per 45-kg Urea bag (46% N)
+            const DAP_P  = 23;   // kg P per 50-kg DAP  bag (46% P₂O₅)
+            const eligUrea = rec ? Math.ceil((Number(rec.N) || 0) * cropExtent / UREA_N) : 0;
+            const eligDAP  = rec ? Math.ceil((Number(rec.P) || 0) * cropExtent / DAP_P)  : 0;
+
+            if (!cropMap[crop]) {
+                cropMap[crop] = {
+                    khathas: new Set(), extent: 0,
+                    eligUrea: 0, eligDAP: 0,
+                    givenUrea: 0, givenDAP: 0,
+                    useSeason, useYear
+                };
+            }
+            cropMap[crop].khathas.add(khatha);
+            cropMap[crop].extent   += cropExtent;
+            cropMap[crop].eligUrea += eligUrea;
+            cropMap[crop].eligDAP  += eligDAP;
+        });
+    });
+
+    // Fill in given bags from ureaHistory
+    Object.keys(cropMap).forEach(crop => {
+        const d = cropMap[crop];
+        d.givenUrea = getTotalBagsTakenByAadhaarAndCrop(a, 'Urea', crop, d.useSeason, d.useYear);
+        d.givenDAP  = getTotalBagsTakenByAadhaarAndCrop(a, 'DAP',  crop, d.useSeason, d.useYear);
+    });
+
+    const cropKeys = Object.keys(cropMap);
+    if (!cropKeys.length) {
+        panel.classList.add('hidden');
+        return;
+    }
+
+    let totExt = 0, totEligU = 0, totEligD = 0, totGivenU = 0, totGivenD = 0;
+
+    tbody.innerHTML = cropKeys.map(crop => {
+        const d        = cropMap[crop];
+        const remUrea  = Math.max(0, d.eligUrea - d.givenUrea);
+        const remDAP   = Math.max(0, d.eligDAP  - d.givenDAP);
+        totExt    += d.extent;
+        totEligU  += d.eligUrea;
+        totEligD  += d.eligDAP;
+        totGivenU += d.givenUrea;
+        totGivenD += d.givenDAP;
+        const display = crop.charAt(0).toUpperCase() + crop.slice(1);
+        const uRemColor = remUrea > 0 ? '#2e7d32' : '#c62828';
+        const dRemColor = remDAP  > 0 ? '#2e7d32' : '#c62828';
+        return `<tr>
+            <td class="px-2 py-1 fw-semibold">${display}</td>
+            <td class="px-2 py-1 text-center">${d.khathas.size}</td>
+            <td class="px-2 py-1 text-center">${d.extent.toFixed(2)}</td>
+            <td class="px-2 py-1 text-center fw-bold" style="color:#f57c00;">${d.eligUrea}</td>
+            <td class="px-2 py-1 text-center fw-bold" style="color:#0277bd;">${d.eligDAP}</td>
+            <td class="px-2 py-1 text-center" style="color:#555;">${d.givenUrea}</td>
+            <td class="px-2 py-1 text-center" style="color:#555;">${d.givenDAP}</td>
+            <td class="px-2 py-1 text-center fw-bold" style="color:${uRemColor};">${remUrea}</td>
+            <td class="px-2 py-1 text-center fw-bold" style="color:${dRemColor};">${remDAP}</td>
+        </tr>`;
+    }).join('');
+
+    const totRemU = Math.max(0, totEligU - totGivenU);
+    const totRemD = Math.max(0, totEligD - totGivenD);
+    tfoot.innerHTML = `<tr>
+        <td class="px-2 py-1" colspan="2">TOTAL</td>
+        <td class="px-2 py-1 text-center">${totExt.toFixed(2)}</td>
+        <td class="px-2 py-1 text-center" style="color:#f57c00;">${totEligU}</td>
+        <td class="px-2 py-1 text-center" style="color:#0277bd;">${totEligD}</td>
+        <td class="px-2 py-1 text-center">${totGivenU}</td>
+        <td class="px-2 py-1 text-center">${totGivenD}</td>
+        <td class="px-2 py-1 text-center" style="color:${totRemU > 0 ? '#2e7d32' : '#c62828'};">${totRemU}</td>
+        <td class="px-2 py-1 text-center" style="color:${totRemD > 0 ? '#2e7d32' : '#c62828'};">${totRemD}</td>
+    </tr>`;
+
+    panel.classList.remove('hidden');
+}
+
 function updateBagRecommendation() {
     const cropInpEl = document.getElementById('ureaCropInput');
     const cropSelEl = document.getElementById('ureaCrop');
@@ -15265,7 +15481,15 @@ function loadVillageProfile() {
         sourceKey = prevYear + '_' + displaySeason;
     }
 
-    const displayLabel = displayYear + ' ' + displaySeason;
+    // ── Build display label with proper year format ──────────────────────────
+    // For all seasons: show as "Kharif 2026-27", "Rabi 2026-27", "Summer 2026-27"
+    function makeDisplayYearLabel(yr) {
+        const m = String(yr).match(/^(\d{4})/);
+        if (!m) return String(yr);
+        const y = parseInt(m[1]);
+        return `${y}-${String(y + 1).slice(-2)}`;
+    }
+    const displayLabel = displaySeason + ' ' + makeDisplayYearLabel(displayYear);
     const sourceDisplay = sourceKey.replace('_', ' ');
     if (curLabel) curLabel.textContent = displayLabel;
     if (srcLabel) srcLabel.textContent = sourceDisplay;
@@ -15330,15 +15554,18 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
     totalArea = isFinite(totalArea) ? totalArea : 0;
 
     // Farmer size classification
+    // MF = Marginal Farmers: below 2.5 acres
+    // SF = Small Farmers: 2.5 to 5.0 acres
+    // OF = Other Farmers: above 5.0 acres
     let small = 0, marginal = 0, other = 0;
     farmers.forEach(f => {
         const key = f.aadhaarNumber && f.aadhaarNumber !== '-'
             ? f.aadhaarNumber
             : (f.farmerName + '|' + (f.village || ''));
         const area = farmerAreas[key] || 0;
-        if (area <= 2.5)  small++;
-        else if (area <= 5) marginal++;
-        else other++;
+        if (area < 2.5)         marginal++; // MF: below 2.5 acres
+        else if (area <= 5.0)   small++;    // SF: 2.5 to 5.0 acres
+        else                    other++;    // OF: above 5.0 acres
     });
 
     // Pattadhar/Cultivator classification
@@ -15471,6 +15698,31 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
     const grandUreaBags = Math.ceil(totalN_kg / UREA_N_PER_BAG);
     const grandDapBags  = Math.ceil(totalP_kg / DAP_P_PER_BAG);
 
+    // ── 3b. Fertilizer Distribution Status (from ureaHistory) ────────────────
+    // Match history records to the DISPLAY season/year (the current season being planned)
+    // Extract year from displayLabel e.g. "Kharif 2026-27" → year = "2026"
+    const displayYearNum = String(displayLabel).match(/(\d{4})/)?.[1] || '';
+    const displaySeasonStr = season; // already the season string
+
+    let ureaDistributed = 0, dapDistributed = 0;
+    (ureaHistory || []).forEach(h => {
+        const hYear   = String(h.year   || '').trim();
+        const hSeason = String(h.season || '').trim();
+        const hFert   = String(h.fertilizerType || h.fert || 'Urea').trim();
+        const hBags   = Number(h.bags || 0);
+        // Match by season; year match is flexible (compare base 4-digit year)
+        const hYearNum = hYear.match(/(\d{4})/)?.[1] || hYear;
+        if (hSeason.toLowerCase() === displaySeasonStr.toLowerCase() &&
+            hYearNum === displayYearNum) {
+            if (hFert === 'Urea') ureaDistributed += hBags;
+            else if (hFert === 'DAP') dapDistributed += hBags;
+        }
+    });
+    const ureaRemaining = Math.max(0, grandUreaBags - ureaDistributed);
+    const dapRemaining  = Math.max(0, grandDapBags  - dapDistributed);
+    const ureaPct = grandUreaBags > 0 ? Math.min(100, Math.round((ureaDistributed / grandUreaBags) * 100)) : 0;
+    const dapPct  = grandDapBags  > 0 ? Math.min(100, Math.round((dapDistributed  / grandDapBags)  * 100)) : 0;
+
     // ── 4. Paddy gunny sacks ─────────────────────────────────────────────────
     // 80 gunnies per acre of paddy — use same findNPKRecKey for consistency
     const GUNNIES_PER_ACRE = 80;
@@ -15514,24 +15766,24 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100 text-center p-3" style="border-radius:14px;border-top:4px solid #27ae60 !important;cursor:pointer;transition:all .2s;" onclick="window._showFarmerSizeList('small','${escapeHtml(displayLabel)}','${escapeHtml(sourceLabel)}')" title="Click to see Small Farmers list">
-                <div class="fw-bold" style="font-size:2rem;color:#27ae60;">${fc(small)}</div>
-                <div class="small text-muted fw-semibold">Small Farmers <i class="fas fa-arrow-right ms-1" style="font-size:0.65rem;"></i></div>
+            <div class="card border-0 shadow-sm h-100 text-center p-3" style="border-radius:14px;border-top:4px solid #f39c12 !important;cursor:pointer;transition:all .2s;" onclick="window._showFarmerSizeList('marginal','${escapeHtml(displayLabel)}','${escapeHtml(sourceLabel)}')" title="Click to see Marginal Farmers list">
+                <div class="fw-bold" style="font-size:2rem;color:#f39c12;">${fc(marginal)}</div>
+                <div class="small text-muted fw-semibold">MF - Marginal Farmers <i class="fas fa-arrow-right ms-1" style="font-size:0.65rem;"></i></div>
                 <div class="text-muted" style="font-size:10px;">Below 2.5 acres</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100 text-center p-3" style="border-radius:14px;border-top:4px solid #f39c12 !important;cursor:pointer;transition:all .2s;" onclick="window._showFarmerSizeList('marginal','${escapeHtml(displayLabel)}','${escapeHtml(sourceLabel)}')" title="Click to see Marginal Farmers list">
-                <div class="fw-bold" style="font-size:2rem;color:#f39c12;">${fc(marginal)}</div>
-                <div class="small text-muted fw-semibold">Marginal Farmers <i class="fas fa-arrow-right ms-1" style="font-size:0.65rem;"></i></div>
-                <div class="text-muted" style="font-size:10px;">2.5 – 5 acres</div>
+            <div class="card border-0 shadow-sm h-100 text-center p-3" style="border-radius:14px;border-top:4px solid #27ae60 !important;cursor:pointer;transition:all .2s;" onclick="window._showFarmerSizeList('small','${escapeHtml(displayLabel)}','${escapeHtml(sourceLabel)}')" title="Click to see Small Farmers list">
+                <div class="fw-bold" style="font-size:2rem;color:#27ae60;">${fc(small)}</div>
+                <div class="small text-muted fw-semibold">SF - Small Farmers <i class="fas fa-arrow-right ms-1" style="font-size:0.65rem;"></i></div>
+                <div class="text-muted" style="font-size:10px;">2.5 – 5.0 acres</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100 text-center p-3" style="border-radius:14px;border-top:4px solid #e74c3c !important;cursor:pointer;transition:all .2s;" onclick="window._showFarmerSizeList('other','${escapeHtml(displayLabel)}','${escapeHtml(sourceLabel)}')" title="Click to see Other Farmers list">
                 <div class="fw-bold" style="font-size:2rem;color:#e74c3c;">${fc(other)}</div>
-                <div class="small text-muted fw-semibold">Other Farmers <i class="fas fa-arrow-right ms-1" style="font-size:0.65rem;"></i></div>
-                <div class="text-muted" style="font-size:10px;">Above 5 acres</div>
+                <div class="small text-muted fw-semibold">OF - Other Farmers <i class="fas fa-arrow-right ms-1" style="font-size:0.65rem;"></i></div>
+                <div class="text-muted" style="font-size:10px;">Above 5.0 acres</div>
             </div>
         </div>
     </div>
@@ -15626,6 +15878,95 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
                     <div class="fw-semibold small mt-1">${Math.ceil(fc(totalK_kg) / 30)} <small class="text-muted fw-normal">MOP bags (50 kg)</small></div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Fertilizer Distribution Status — Distributed vs To Be Distributed -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius:14px;overflow:hidden;">
+        <div class="card-header border-0 py-3 px-4 d-flex align-items-center justify-content-between" style="background:linear-gradient(135deg,#e65100,#f57c00);">
+            <h6 class="mb-0 text-white fw-bold">
+                <i class="fas fa-truck-loading me-2"></i>Fertilizer Distribution Status — ${escapeHtml(displayLabel)}
+            </h6>
+            <span class="badge bg-white text-warning fw-bold" style="font-size:0.75rem;">Season Summary</span>
+        </div>
+        <div class="p-4">
+            <div class="row g-3">
+                <!-- UREA -->
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:linear-gradient(135deg,#fff8e1,#fffde7);border:1.5px solid #ffe082;">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="fw-bold text-uppercase small" style="color:#f57c00;letter-spacing:.5px;">
+                                <i class="fas fa-sack me-1"></i>🟡 Urea Bags
+                            </div>
+                            <span class="badge" style="background:#f57c00;font-size:0.72rem;">${ureaPct}% Distributed</span>
+                        </div>
+                        <div class="row g-2 text-center mb-2">
+                            <div class="col-4">
+                                <div class="p-2 rounded-2" style="background:#fff3cd;">
+                                    <div class="fw-bold" style="font-size:1.5rem;color:#f57c00;">${fc(grandUreaBags)}</div>
+                                    <div class="text-muted" style="font-size:10px;font-weight:600;">To Be Distributed</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 rounded-2" style="background:#d4edda;">
+                                    <div class="fw-bold" style="font-size:1.5rem;color:#27ae60;">${fc(ureaDistributed)}</div>
+                                    <div class="text-muted" style="font-size:10px;font-weight:600;">Distributed</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 rounded-2" style="background:#f8d7da;">
+                                    <div class="fw-bold" style="font-size:1.5rem;color:#c62828;">${fc(ureaRemaining)}</div>
+                                    <div class="text-muted" style="font-size:10px;font-weight:600;">Remaining</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="progress" style="height:8px;border-radius:4px;background:#ffe082;">
+                            <div class="progress-bar" role="progressbar" style="width:${ureaPct}%;background:#f57c00;border-radius:4px;" aria-valuenow="${ureaPct}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div class="text-muted mt-1" style="font-size:10px;text-align:right;">${ureaDistributed} of ${grandUreaBags} bags distributed (45 kg bags, 46% N)</div>
+                    </div>
+                </div>
+                <!-- DAP -->
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:linear-gradient(135deg,#e3f2fd,#e8f4fd);border:1.5px solid #90caf9;">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="fw-bold text-uppercase small" style="color:#0277bd;letter-spacing:.5px;">
+                                <i class="fas fa-sack me-1"></i>🔵 DAP Bags
+                            </div>
+                            <span class="badge" style="background:#0277bd;font-size:0.72rem;">${dapPct}% Distributed</span>
+                        </div>
+                        <div class="row g-2 text-center mb-2">
+                            <div class="col-4">
+                                <div class="p-2 rounded-2" style="background:#bbdefb;">
+                                    <div class="fw-bold" style="font-size:1.5rem;color:#0277bd;">${fc(grandDapBags)}</div>
+                                    <div class="text-muted" style="font-size:10px;font-weight:600;">To Be Distributed</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 rounded-2" style="background:#d4edda;">
+                                    <div class="fw-bold" style="font-size:1.5rem;color:#27ae60;">${fc(dapDistributed)}</div>
+                                    <div class="text-muted" style="font-size:10px;font-weight:600;">Distributed</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 rounded-2" style="background:#f8d7da;">
+                                    <div class="fw-bold" style="font-size:1.5rem;color:#c62828;">${fc(dapRemaining)}</div>
+                                    <div class="text-muted" style="font-size:10px;font-weight:600;">Remaining</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="progress" style="height:8px;border-radius:4px;background:#90caf9;">
+                            <div class="progress-bar" role="progressbar" style="width:${dapPct}%;background:#0277bd;border-radius:4px;" aria-valuenow="${dapPct}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div class="text-muted mt-1" style="font-size:10px;text-align:right;">${dapDistributed} of ${grandDapBags} bags distributed (50 kg bags, 46% P₂O₅)</div>
+                    </div>
+                </div>
+            </div>
+            ${(ureaDistributed === 0 && dapDistributed === 0) ? `
+            <div class="alert alert-info mt-3 mb-0 py-2 small" style="border-radius:10px;">
+                <i class="fas fa-info-circle me-2"></i>No distribution records found for <strong>${escapeHtml(displayLabel)}</strong>. 
+                Bags distributed will appear here once fertilizer is issued in the <em>Fertilizer Distribution</em> section.
+            </div>` : ''}
         </div>
     </div>
 
@@ -15775,15 +16116,15 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
         if (!farmers || !farmers.length) {
             alert('No farmer data available.'); return;
         }
-        const labels = { small: 'Small Farmers (SF — < 2.5 acres)', marginal: 'Marginal Farmers (MF — 2.5–5 acres)', other: 'Other Farmers (OF — > 5 acres)' };
+        const labels = { small: 'Small Farmers (SF — 2.5–5.0 acres)', marginal: 'Marginal Farmers (MF — below 2.5 acres)', other: 'Other Farmers (OF — above 5.0 acres)' };
         const colors = { small: '#27ae60', marginal: '#f39c12', other: '#e74c3c' };
         const filtered = farmers.filter(f => {
             const key = f.aadhaarNumber && f.aadhaarNumber !== '-'
                 ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''));
             const area = farmerAreas[key] || 0;
-            if (sizeCategory === 'small')    return area <= 2.5;
-            if (sizeCategory === 'marginal') return area > 2.5 && area <= 5;
-            return area > 5;
+            if (sizeCategory === 'marginal') return area < 2.5;   // MF: below 2.5
+            if (sizeCategory === 'small')    return area >= 2.5 && area <= 5.0; // SF: 2.5–5.0
+            return area > 5.0;  // OF: above 5.0
         });
         const titleEl   = document.getElementById('pattadharRoleTitle');
         const contentEl = document.getElementById('pattadharRoleContent');
