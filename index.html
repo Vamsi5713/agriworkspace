@@ -918,6 +918,35 @@
     .reg-section-label::after {
       content: ''; flex: 1; height: 1px; background: #e8eef5;
     }
+    #printFarmerProfileSection .card {
+    border-radius: 20px;
+}
+
+#printFarmerProfileSection .form-label{
+    font-weight:600;
+    color:#2c3e50;
+}
+
+#printFarmerProfileSection .form-select,
+#printFarmerProfileSection .form-control{
+    height:52px;
+    border-radius:14px;
+}
+
+#printFarmerProfileSection .btn-warning{
+    border-radius:14px;
+    min-width:140px;
+}
+
+#printFarmerProfileSection .input-group .form-control{
+    border-top-right-radius:0;
+    border-bottom-right-radius:0;
+}
+
+#printFarmerProfileSection .input-group .btn{
+    border-top-left-radius:0;
+    border-bottom-left-radius:0;
+}
     </style>
 
     <!-- Account Info Section -->
@@ -1463,7 +1492,7 @@
                 <div class="modal-body p-4">
                     <ul class="mb-3 fs-6 lh-lg">
                         <li>🌱 <strong>Select Fertilizer Type</strong> (Urea, DAP, etc.) before uploading file.</li>
-                        <li>🔍 <strong>Prepare 1B with S.No|Khatha|Survey No|Aadhaar|Farmer Name|Father Name|Extent</strong>.</li>
+                        <li>🔍 <strong>FERTILIZER DISTRIBUTION లో 1b కి బదులుగా ఈ పంట VAA లాగిన్ లో లాండ్ సుమ్మరి రిపోర్ట్ ని డౌన్లోడ్ చేసుకొని Occupant Name l Father Name l Survey No l Khata No l Occupant Extent l Data Source l ఈ కొలుమ్న్స్ వరకు ఉంచి మిగితవి డిలీట్ చేసేయండి. డాటా సోర్స్ కాలమ్ లో ఫిల్టర్ పెట్టి W ఉన్న అనగా వెబ్ లాండ్ ఉంచి మిగితవి డిలీట్ చేసేయండి. Occupant Name ని Farmer Name గా Khata No ని Khatha గా Occupant Extent ని Extent గా మార్చి డాటా సోర్స్ కాలమ్ ని డిలీట్ చేసేయండి.అలా చేసిన ఫైల్ ని అప్లోడు చేయండి. Search Farmer దగ్గర ఆధార్ కార్డు చివరి నాలుగు అంకెలు ద్వారా చూడవచ్చు.</strong>.</li>
                         <li>📝 Upload the 1B file once, and re-upload anytime to update the records.</li>
                         <li>📊 <strong>View History</strong> or <strong>Export Excel</strong> anytime.</li>
                     </ul>
@@ -1536,7 +1565,7 @@
         </div>
 
         <div class="mb-3 p-3 border rounded bg-light">
-            <label for="ureaFileInput" class="form-label fw-semibold">📊 Upload 1B Excel File</label>
+            <label for="ureaFileInput" class="form-label fw-semibold">📊 Upload 1B Excel File(click help in dashboard for guidance)</label>
             <input type="file" id="ureaFileInput" class="form-control" accept=".xlsx,.xls">
             <div id="fileStatus" class="mt-2"></div>
             <div id="uploadInfo" class="small text-muted mt-1">Status: waiting for file upload...</div>
@@ -4362,6 +4391,9 @@ function submitRejectDistribution() {
         <button class="btn btn-primary" onclick="showAllFarmerProfiles()">
           📋 View All Profiles
         </button>
+        <button class="btn btn-warning text-dark fw-bold" onclick="openPrintFarmerProfilePanel()">
+          🖨️ Print Farmer Profile
+        </button>
       </div>
 
     </div>
@@ -4433,6 +4465,7 @@ function submitRejectDistribution() {
                           <th>Aadhaar</th>
                           <th>Mobile</th>
                           <th>Khatha</th>
+                          <th>Survey No</th>
                           <th>Extent (Ac)</th>
                           <th>Year · Season</th>
                           <th>Crops</th>
@@ -4440,7 +4473,7 @@ function submitRejectDistribution() {
                       </tr>
                   </thead>
                   <tbody id="fpAllProfilesTbody">
-                      <tr><td colspan="11" class="text-center text-muted p-4">No profiles found.</td></tr>
+                      <tr><td colspan="12" class="text-center text-muted p-4">No profiles found.</td></tr>
                   </tbody>
               </table>
           </div>
@@ -4449,6 +4482,142 @@ function submitRejectDistribution() {
   </div>
 
 </div> <!-- ✅ closes farmerProfileSection -->
+
+<!-- ══════════════════════════════════════════════════════════
+     PRINT FARMER PROFILE PANEL
+     ══════════════════════════════════════════════════════════ -->
+<div id="printFarmerProfilePanel"
+     style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:1060;
+            overflow-y:auto; background:#f0f4f8;">
+
+  <!-- Sticky Header -->
+  <div style="position:sticky; top:0; z-index:10;
+              background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%);
+              color:#fff; padding:0 1.5rem;
+              display:flex; justify-content:space-between; align-items:center;
+              height:56px; box-shadow:0 3px 12px rgba(24,98,171,0.35);">
+    <div style="display:flex; align-items:center; gap:0.6rem;">
+      <div style="width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.15);
+                  display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <i class="fas fa-print" style="font-size:0.9rem;"></i>
+      </div>
+      <div>
+        <div style="font-size:0.95rem; font-weight:700; line-height:1.1;">Print Farmer Profile</div>
+        <div style="font-size:0.7rem; opacity:0.75; line-height:1;">Fertilizer Card Generator</div>
+      </div>
+    </div>
+    <button onclick="closePrintFarmerProfilePanel()"
+            style="background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25);
+                   color:#fff; border-radius:8px; padding:0.35rem 0.9rem;
+                   font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s;"
+            onmouseover="this.style.background='rgba(255,255,255,0.22)'"
+            onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+      <i class="fas fa-times me-1"></i>Close
+    </button>
+  </div>
+
+  <!-- Search Card -->
+  <div style="max-width:900px; margin:1.5rem auto; padding:0 1rem;">
+    <div style="background:#fff; border-radius:16px; box-shadow:0 2px 16px rgba(0,0,0,0.07); overflow:hidden;">
+
+      <!-- Card top accent -->
+      <div style="height:4px; background:linear-gradient(90deg,#1862ab,#f39c12,#27ae60);"></div>
+
+      <div style="padding:1.4rem 1.5rem;">
+        <!-- Section label -->
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1.1rem;">
+          <i class="fas fa-search" style="color:#1862ab; font-size:0.85rem;"></i>
+          <span style="font-size:0.78rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.8px;">Find Farmer</span>
+        </div>
+
+        <div style="display:flex; gap:0.8rem; align-items:flex-end; flex-wrap:wrap;">
+
+          <!-- Crop Year -->
+          <div style="flex:0 0 140px;">
+            <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:0.35rem;">
+              <i class="fas fa-calendar-alt me-1" style="color:#1862ab;"></i>Crop Year
+            </label>
+            <select id="printFpYear"
+                    style="width:100%; padding:0.5rem 0.75rem; border:1.5px solid #dde3ea; border-radius:8px;
+                           font-size:0.85rem; color:#2c3e50; background:#fff; outline:none; cursor:pointer;
+                           appearance:none; background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><path fill=%22%231862ab%22 d=%22M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z%22/></svg>');
+                           background-repeat:no-repeat; background-position:right 8px center; background-size:12px;
+                           padding-right:2rem;"
+                    onfocus="this.style.borderColor='#1862ab'; this.style.boxShadow='0 0 0 3px rgba(24,98,171,0.12)'"
+                    onblur="this.style.borderColor='#dde3ea'; this.style.boxShadow='none'">
+              <option value="">All Years</option>
+              <option value="2025-26">2025-26</option>
+              <option value="2026-27">2026-27</option>
+              <option value="2027-28">2027-28</option>
+            </select>
+          </div>
+
+          <!-- Season -->
+          <div style="flex:0 0 130px;">
+            <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:0.35rem;">
+              <i class="fas fa-seedling me-1" style="color:#27ae60;"></i>Season
+            </label>
+            <select id="printFpSeason"
+                    style="width:100%; padding:0.5rem 0.75rem; border:1.5px solid #dde3ea; border-radius:8px;
+                           font-size:0.85rem; color:#2c3e50; background:#fff; outline:none; cursor:pointer;
+                           appearance:none; background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><path fill=%22%231862ab%22 d=%22M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z%22/></svg>');
+                           background-repeat:no-repeat; background-position:right 8px center; background-size:12px;
+                           padding-right:2rem;"
+                    onfocus="this.style.borderColor='#27ae60'; this.style.boxShadow='0 0 0 3px rgba(39,174,96,0.12)'"
+                    onblur="this.style.borderColor='#dde3ea'; this.style.boxShadow='none'">
+              <option value="">All Seasons</option>
+              <option value="Kharif">🌧 Kharif</option>
+              <option value="Rabi">🌾 Rabi</option>
+              <option value="Summer">☀️ Summer</option>
+            </select>
+          </div>
+
+          <!-- Divider -->
+          <div style="flex:0 0 1px; height:38px; background:#e0e6ed; align-self:flex-end; margin-bottom:2px;"></div>
+
+          <!-- Aadhaar + Search -->
+          <div style="flex:1; min-width:220px;">
+            <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:0.35rem;">
+              <i class="fas fa-id-card me-1" style="color:#e74c3c;"></i>Aadhaar Number
+            </label>
+            <div style="display:flex; gap:0;">
+              <input type="tel"
+                id="printFpAadhaar"
+                placeholder="Enter 12-digit Aadhaar"
+                maxlength="12" inputmode="numeric"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,12)"
+                onkeydown="if(event.key==='Enter') loadPrintFarmerProfile()"
+                onfocus="this.style.borderColor='#1862ab'; this.style.boxShadow='0 0 0 3px rgba(24,98,171,0.12)'"
+                onblur="this.style.borderColor='#dde3ea'; this.style.boxShadow='none'"
+                style="flex:1; padding:0.5rem 0.85rem; border:1.5px solid #dde3ea; border-right:none;
+                       border-radius:8px 0 0 8px; font-size:0.88rem; color:#2c3e50; outline:none;
+                       font-family:'Courier New',monospace; letter-spacing:1px;">
+              <button onclick="loadPrintFarmerProfile()"
+                      style="padding:0.5rem 1.2rem; background:linear-gradient(135deg,#f39c12,#e67e22);
+                             color:#fff; font-weight:700; font-size:0.85rem; border:none;
+                             border-radius:0 8px 8px 0; cursor:pointer; white-space:nowrap;
+                             box-shadow:2px 0 8px rgba(243,156,18,0.3); transition:all 0.2s;"
+                      onmouseover="this.style.background='linear-gradient(135deg,#e67e22,#d35400)'"
+                      onmouseout="this.style.background='linear-gradient(135deg,#f39c12,#e67e22)'">
+                <i class="fas fa-search me-1"></i>Search
+              </button>
+            </div>
+            <div style="font-size:0.7rem; color:#95a5a6; margin-top:0.3rem;">
+              All profiles for this Aadhaar will be merged into one card
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Status + Card output -->
+    <div id="printFpStatus" style="margin-top:1rem;"></div>
+    <div id="printFpCardContainer" style="margin-top:1rem; padding-bottom:2rem;"></div>
+  </div>
+
+</div> <!-- ✅ closes printFarmerProfilePanel -->
+
 <!-- ══════════════════════════════════════════════════════════
      MANUAL & WORKFLOW — POPUP MODAL
      PLACE OUTSIDE farmerProfileSection
@@ -4615,6 +4784,20 @@ function submitRejectDistribution() {
             <strong>Search Farmer</strong> దగ్గర ఆధార్ కార్డు చివరి నాలుగు
             అంకెలు ద్వారా చూడవచ్చు.
         </p>
+          <hr>
+
+         <!-- Step 6 -->
+    <div class="mb-4">
+        <h6 class="fw-bold text-primary d-flex align-items-center">
+            <span class="badge bg-primary me-2">5</span>
+            FERTILIZER DISTRIBUTION
+        </h6>
+         <p>
+            FERTILIZER DISTRIBUTION లో 1b కి బదులుగా ఈ పంట VAA లాగిన్ లో లాండ్ సుమ్మరి రిపోర్ట్ ని డౌన్లోడ్ చేసుకొని Occupant Name l	Father Name l	Survey No l	Khata No l	Occupant Extent l	Data Source l
+ఈ కొలుమ్న్స్ వరకు ఉంచి మిగితవి డిలీట్ చేసేయండి. డాటా సోర్స్ కాలమ్ లో ఫిల్టర్ పెట్టి W ఉన్న అనగా వెబ్ లాండ్ ఉంచి మిగితవి డిలీట్ చేసేయండి. Occupant Name ని Farmer Name గా Khata No ని Khatha గా Occupant Extent ని Extent గా మార్చి డాటా సోర్స్ కాలమ్ ని డిలీట్ చేసేయండి.అలా చేసిన ఫైల్ ని అప్లోడు చేయండి. 
+            <strong>Search Farmer</strong> దగ్గర ఆధార్ కార్డు చివరి నాలుగు
+            అంకెలు ద్వారా చూడవచ్చు.
+        </p>
 
         <div class="alert alert-info mb-0">
             <i class="fas fa-info-circle me-2"></i>
@@ -4622,6 +4805,8 @@ function submitRejectDistribution() {
             ఒకవేళ ఇద్దరు రైతులకి ఆధార్ కార్డు చివరి నాలుగు అంకెలు ఒకేలా ఉంటే,
             ఇద్దరివి కలిపి ఒకరికే చూపెడుతుంది.
             అలా ఉన్నప్పుడు <strong>ఖాతా నెంబర్</strong> ను పరిశీలించగలరు.
+
+            
         </div>
     </div>
 
@@ -11197,12 +11382,13 @@ async function saveFarmerProfile() {
     for (const row of cropRows) {
         const crop = row.querySelector('.fp-crop-select')?.value?.trim();
         const ext = parseFloat(row.querySelector('.fp-crop-extent')?.value) || 0;
+        const surveyNos = getFpCropSurveyNos(row);
 
         if (!crop && !ext) continue;
         if (!crop) return alert('Select crop name for all added crop rows.');
         if (ext <= 0) return alert(`Enter valid extent for crop: ${crop}`);
 
-        crops.push({ crop, extent: ext, year: selectedYear, season: selectedSeason });
+        crops.push({ crop, extent: ext, year: selectedYear, season: selectedSeason, surveyNos });
         cropExtentSum += ext;
     }
 
@@ -11344,31 +11530,101 @@ function addFpCropRow() {
     const cropList  = Object.keys(fertilizerDosage);   // ✅ fixed: Proxy ownKeys needs getOwnPropertyDescriptor trap; read source directly
     const idx       = container.querySelectorAll('.fp-crop-row').length + 1;
 
+    const khatha     = document.getElementById('fpKhatha')?.value?.trim() || '';
+    const surveyOpts = getSurveyNumbersForKhatha(khatha);
+    const totalSurveyExtent = surveyOpts.reduce((s, o) => s + (o.extent || 0), 0);
+
     const row = document.createElement('div');
-    row.className = 'fp-crop-row d-flex gap-2 align-items-end mb-2 flex-wrap';
+    row.className = 'fp-crop-row mb-2';
     row.innerHTML = `
-        <div style="flex:2; min-width:140px">
-            <label class="form-label form-label-sm mb-1 text-muted">Crop ${idx}</label>
-            <select class="form-select form-select-sm fp-crop-select" onchange="onFpCropOrExtentChange()">
-                <option value="">-- Select Crop --</option>
-                ${cropList.map(c =>
-                    `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
-                ).join('')}
-            </select>
-        </div>
-        <div style="flex:1; min-width:90px">
-            <label class="form-label form-label-sm mb-1 text-muted">Extent (ac)</label>
-            <input type="number" class="form-control form-control-sm fp-crop-extent"
-                   placeholder="Acres" min="0.01" step="0.01"
-                   oninput="onFpCropOrExtentChange()">
-        </div>
-        <div class="pb-1">
-            <button class="btn btn-sm btn-outline-danger" onclick="removeFpCropRow(this)" title="Remove Crop">
-                <i class="fas fa-trash"></i>
-            </button>
+        <div style="background:#f8fbff; border:1px solid #e0e6ed; border-radius:10px; padding:0.55rem 0.75rem;">
+          <div style="font-size:0.7rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.45rem;">
+            Crop ${idx}
+          </div>
+          <div class="d-flex gap-2 align-items-end flex-wrap">
+            <!-- Survey Number -->
+            <div style="flex:2; min-width:150px;">
+              <label class="form-label form-label-sm mb-1 text-muted" style="font-size:0.7rem;">Survey No.</label>
+              ${surveyOpts.length ? `
+              <select class="form-select form-select-sm fp-crop-survey"
+                      onchange="onFpCropSurveyChange(this)"
+                      data-total-extent="${totalSurveyExtent}">
+                  <option value="">-- Survey No. --</option>
+                  <option value="__ALL__">All (${totalSurveyExtent.toFixed(2)} ac)</option>
+                  ${surveyOpts.map(o =>
+                      `<option value="${o.surveyNo}" data-extent="${o.extent}">${o.surveyNo} (${o.extent.toFixed(2)} ac)</option>`
+                  ).join('')}
+              </select>
+              ` : `
+              <input type="text" class="form-control form-control-sm fp-crop-survey-text"
+                     placeholder="e.g. 21,33,37">
+              `}
+            </div>
+            <!-- Crop -->
+            <div style="flex:2.5; min-width:150px;">
+              <label class="form-label form-label-sm mb-1 text-muted" style="font-size:0.7rem;">Crop</label>
+              <select class="form-select form-select-sm fp-crop-select" onchange="onFpCropOrExtentChange()">
+                  <option value="">-- Select Crop --</option>
+                  ${cropList.map(c =>
+                      `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
+                  ).join('')}
+              </select>
+            </div>
+            <!-- Extent -->
+            <div style="flex:1; min-width:90px;">
+              <label class="form-label form-label-sm mb-1 text-muted" style="font-size:0.7rem;">Extent (ac)</label>
+              <input type="number" class="form-control form-control-sm fp-crop-extent"
+                     placeholder="Acres" min="0.01" step="0.01"
+                     oninput="onFpCropOrExtentChange()">
+            </div>
+            <!-- Delete -->
+            <div style="padding-bottom:2px; flex-shrink:0;">
+              <button class="btn btn-sm btn-outline-danger" onclick="removeFpCropRow(this)" title="Remove Crop">
+                  <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+          ${!surveyOpts.length ? `<div style="font-size:0.68rem; color:#7f8c8d; margin-top:3px;"><i class="fas fa-info-circle me-1"></i>No survey numbers found for this Khatha — enter manually</div>` : ''}
         </div>
     `;
     container.appendChild(row);
+}
+
+// ✅ When a Survey Number is selected, auto-populate the Extent field.
+// "All Survey Numbers" -> sum of all survey extents for this Khatha.
+// A single survey number -> that survey's own extent.
+function onFpCropSurveyChange(select) {
+    const row    = select.closest('.fp-crop-row');
+    const extInp = row?.querySelector('.fp-crop-extent');
+    if (!extInp) return;
+
+    if (select.value === '__ALL__') {
+        const total = parseFloat(select.dataset.totalExtent || 0);
+        extInp.value = total > 0 ? total.toFixed(2) : '';
+    } else if (select.value) {
+        const opt = select.options[select.selectedIndex];
+        const extent = parseFloat(opt?.dataset.extent || 0);
+        extInp.value = extent > 0 ? extent.toFixed(2) : '';
+    } else {
+        extInp.value = '';
+    }
+
+    onFpCropOrExtentChange();
+}
+
+function getFpCropSurveyNos(row) {
+    const select = row.querySelector('.fp-crop-survey');
+    if (select) {
+        if (select.value === '__ALL__') {
+            return Array.from(select.options)
+                .filter(o => o.value && o.value !== '__ALL__')
+                .map(o => o.value)
+                .join(', ');
+        }
+        return select.value || '';
+    }
+    const textInp = row.querySelector('.fp-crop-survey-text');
+    return textInp ? textInp.value.trim() : '';
 }
 
 function removeFpCropRow(btn) {
@@ -11449,6 +11705,41 @@ function getKhathaOfficialExtent(khathaNo) {
         if (fertData[normalK]) return Number(fertData[normalK].extent || 0);
     }
     return 0;
+}
+
+// ✅ Returns array of {surveyNo, extent} for a given Khatha (from uploaded e-Panta reports).
+// Extents for the same survey number across multiple booking rows are summed.
+function getSurveyNumbersForKhatha(khatha) {
+    const k = String(khatha || '').trim();
+    if (!k) return [];
+    const surveyMap = {}; // surveyNo -> total extent
+
+    for (const reportKey of Object.keys(allReportsCache || {})) {
+        const report = allReportsCache[reportKey];
+        if (!report?.farmerDetails) continue;
+        for (const farmerKey of Object.keys(report.farmerDetails)) {
+            const bookings = report.farmerDetails[farmerKey];
+            if (!Array.isArray(bookings)) continue;
+            bookings.forEach(b => {
+                if (String(b.khathaNo || '').trim() === k && b.surveyNo) {
+                    const area = parseFloat(b.area) || 0;
+                    String(b.surveyNo).split(/[,\/]/).forEach(s => {
+                        const sv = s.trim();
+                        if (!sv) return;
+                        surveyMap[sv] = (surveyMap[sv] || 0) + area;
+                    });
+                }
+            });
+        }
+    }
+
+    return Object.entries(surveyMap)
+        .map(([surveyNo, extent]) => ({ surveyNo, extent }))
+        .sort((a, b) => {
+            const na = parseFloat(a.surveyNo), nb = parseFloat(b.surveyNo);
+            if (!isNaN(na) && !isNaN(nb)) return na - nb;
+            return a.surveyNo.localeCompare(b.surveyNo);
+        });
 }
 
 function populateFpKhathaDropdown() {
@@ -11587,6 +11878,32 @@ function selectFpKhatha(k) {
     if (dd)     dd.style.display = 'none';
     if (hint)   hint.textContent = '';
     onFpKhathaChange();
+    refreshFpCropRowSurveyOptions();
+}
+
+// ✅ Re-render crop rows so their Survey Number selector matches the newly selected Khatha
+function refreshFpCropRowSurveyOptions() {
+    const container = document.getElementById('fpCropRows');
+    if (!container) return;
+    const rows = container.querySelectorAll('.fp-crop-row');
+    if (!rows.length) return;
+
+    // Preserve existing crop/extent selections
+    const existing = Array.from(rows).map(row => ({
+        crop: row.querySelector('.fp-crop-select')?.value || '',
+        ext:  row.querySelector('.fp-crop-extent')?.value || ''
+    }));
+
+    container.innerHTML = '';
+    existing.forEach(() => addFpCropRow());
+
+    const newRows = container.querySelectorAll('.fp-crop-row');
+    newRows.forEach((row, i) => {
+        const cropSel = row.querySelector('.fp-crop-select');
+        const extInp  = row.querySelector('.fp-crop-extent');
+        if (cropSel) cropSel.value = existing[i].crop;
+        if (extInp)  extInp.value  = existing[i].ext;
+    });
 }
 
 function showFpKhathaDropdown() {
@@ -11989,7 +12306,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
     if (!tbody) return;
 
     if (!farmerProfiles || !Object.keys(farmerProfiles).length) {
-        tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted p-4">
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted p-4">
             <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>No profiles registered yet.</td></tr>`;
         if (countEl) countEl.textContent = '0 profiles';
         return;
@@ -12024,7 +12341,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
     if (countEl) countEl.textContent = `${allProfiles.length} profile${allProfiles.length !== 1 ? 's' : ''}`;
 
     if (!allProfiles.length) {
-        tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted p-3">No matching profiles found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted p-3">No matching profiles found.</td></tr>`;
         return;
     }
 
@@ -12045,6 +12362,22 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
             ? `<span class="badge bg-primary" style="font-size:0.7rem">Owner</span>`
             : `<span class="badge bg-secondary" style="font-size:0.7rem">Tenant</span>`;
 
+        // Collect unique survey numbers across all crops for this khatha entry
+        const surveyNoSet = new Set();
+        (p.crops || []).forEach(c => {
+            if (c.surveyNos) {
+                String(c.surveyNos).split(',').forEach(s => {
+                    const sv = s.trim();
+                    if (sv) surveyNoSet.add(sv);
+                });
+            }
+        });
+        const surveyNoDisplay = surveyNoSet.size
+            ? Array.from(surveyNoSet).map(s =>
+                `<span class="badge bg-info text-dark me-1 mb-1" style="font-size:0.72rem">${escapeHtml(s)}</span>`
+              ).join('')
+            : '<span class="text-muted small">—</span>';
+
         const cardNumberDisplay = p.cardNumber
             ? `<code class="d-block bg-light border border-primary rounded px-2 py-1"
                 style="letter-spacing:0.8px; font-size:0.82rem; color:#1562ab; font-weight:700; white-space:nowrap">
@@ -12064,6 +12397,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
                 ${escapeHtml(p.aadhaar || '—')}</code></td>
             <td>${escapeHtml(p.mobile || '—')}</td>
             <td><strong>${escapeHtml(p.khatha || '—')}</strong></td>
+            <td style="min-width:100px">${surveyNoDisplay}</td>
             <td class="text-center">${p.extent || '—'}</td>
             <td style="min-width:110px">${yearSeasonBadges}</td>
             <td>${cropBadges || '<span class="text-muted small">No crops</span>'}</td>
@@ -17814,6 +18148,316 @@ function exportGrievancesToExcel() {
     XLSX.writeFile(wb, fname);
 }
 
+// ══════════════════════════════════════════════════════════════
+//  PRINT FARMER PROFILE — FERTILIZER CARD
+// ══════════════════════════════════════════════════════════════
+
+function openPrintFarmerProfilePanel() {
+    const panel = document.getElementById('printFarmerProfilePanel');
+    if (panel) { panel.style.display = 'block'; document.body.style.overflow = 'hidden'; }
+    document.getElementById('printFpStatus').innerHTML = '';
+    document.getElementById('printFpCardContainer').innerHTML = '';
+    document.getElementById('printFpAadhaar').value = '';
+}
+
+function closePrintFarmerProfilePanel() {
+    const panel = document.getElementById('printFarmerProfilePanel');
+    if (panel) { panel.style.display = 'none'; document.body.style.overflow = ''; }
+}
+
+function loadPrintFarmerProfile() {
+    const aadhaarRaw = (document.getElementById('printFpAadhaar')?.value || '').trim();
+    const selYear    = (document.getElementById('printFpYear')?.value || '').trim();
+    const selSeason  = (document.getElementById('printFpSeason')?.value || '').trim();
+    const statusEl   = document.getElementById('printFpStatus');
+    const cardEl     = document.getElementById('printFpCardContainer');
+
+    statusEl.innerHTML = '';
+    cardEl.innerHTML   = '';
+
+    if (aadhaarRaw.length !== 12) {
+        statusEl.innerHTML = '<div class="alert alert-warning py-2"><i class="fas fa-exclamation-circle me-2"></i>Please enter a valid 12-digit Aadhaar number.</div>';
+        return;
+    }
+
+    const a = cleanAadhaar(aadhaarRaw);
+    let profiles = farmerProfiles[a];
+
+    if (!profiles || !profiles.length) {
+        statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>No profile found for Aadhaar <strong>${escapeHtml(a)}</strong>. Please create a profile first.</div>`;
+        return;
+    }
+
+    // Filter by year/season if selected
+    if (selYear || selSeason) {
+        profiles = profiles.filter(p => {
+            const cropsList = p.crops || [];
+            if (!cropsList.length) return false;
+            return cropsList.some(c => {
+                const yearMatch   = !selYear   || (c.year   || '') === selYear;
+                const seasonMatch = !selSeason || (c.season || '') === selSeason;
+                return yearMatch && seasonMatch;
+            });
+        });
+    }
+
+    if (!profiles.length) {
+        statusEl.innerHTML = `<div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle me-2"></i>No profiles found for the selected Year/Season combination. Try clearing the filters.</div>`;
+        return;
+    }
+
+    // ── Merge all profiles for this Aadhaar ──
+    const base = profiles[0];
+    const farmerName  = base.farmerName || base.name || '—';
+    const fatherName  = base.fatherName || '—';
+    const aadhaar     = base.aadhaar || a;
+    const mobile      = base.mobile || '—';
+    const cardNumber  = (profiles.map(p => p.cardNumber).find(Boolean)) || '—';
+    const farmerType  = base.farmerType || '—';
+
+    // Build merged rows: one row per (khatha, crop)
+    const rows = [];
+    let totalExtent = 0;
+    const cropExtentMap = {}; // crop → total extent (for summary)
+
+    profiles.forEach(profile => {
+        const khatha  = String(profile.khatha || '—');
+        const kExt    = Number(profile.extent || 0);
+        totalExtent  += kExt;
+        const pCrops  = (profile.crops || []).filter(c => {
+            if (!selYear && !selSeason) return true;
+            const ym = !selYear   || (c.year   || '') === selYear;
+            const sm = !selSeason || (c.season || '') === selSeason;
+            return ym && sm;
+        });
+
+        pCrops.forEach(cropEntry => {
+            const cropName  = (cropEntry.crop || '').toLowerCase().trim();
+            const cropLabel = cropEntry.cropLabel || cropName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const cropExt   = Number(cropEntry.extent || kExt || 0);
+            const surveyNos = cropEntry.surveyNos || profile.surveyNos || '—';
+            const seasonForCalc = cropEntry.season || selSeason || 'Kharif';
+
+            // Fertilizer calculation
+            const dosage    = fertilizerDosage[cropName];
+            const seasonDose = dosage?.seasons?.[seasonForCalc] || dosage?.seasons?.['Kharif'] || { N:0, P:0 };
+            const nKgTotal  = (seasonDose.N || 0) * cropExt;
+            const pKgTotal  = (seasonDose.P || 0) * cropExt;
+            const ureaTotal = getUreaBagsFromN(nKgTotal);
+            const dapTotal  = getDapBagsFromP(pKgTotal);
+
+            // Split calculation (Urea)
+            const ureaSplits = getDeterministicSplitEligibilities(ureaTotal, cropName, 'Urea');
+            const split1U = ureaSplits[0] !== undefined ? ureaSplits[0] : ureaTotal;
+            const split2U = ureaSplits[1] !== undefined ? ureaSplits[1] : 0;
+            const split3U = ureaSplits[2] !== undefined ? ureaSplits[2] : 0;
+
+            // Split calculation (DAP)
+            const dapSplits = getDeterministicSplitEligibilities(dapTotal, cropName, 'DAP');
+            const split1D = dapSplits[0] !== undefined ? dapSplits[0] : dapTotal;
+            const split2D = dapSplits[1] !== undefined ? dapSplits[1] : 0;
+            const split3D = dapSplits[2] !== undefined ? dapSplits[2] : 0;
+
+            // Accumulate crop-wise extent summary
+            if (!cropExtentMap[cropLabel]) cropExtentMap[cropLabel] = 0;
+            cropExtentMap[cropLabel] += cropExt;
+
+            rows.push({ khatha, surveyNos, cropLabel, cropName, cropExt, ureaTotal, dapTotal, split1U, split2U, split3U, split1D, split2D, split3D });
+        });
+    });
+
+    // ── Crop-wise extent summary string ──
+    const cropSummaryStr = Object.entries(cropExtentMap)
+        .map(([c, ext]) => `${c} (${ext.toFixed(2)} Ac)`)
+        .join(', ') || '—';
+
+    // ── Build the Fertilizer Card HTML ──
+    const yearSeasonLabel = (selYear || 'All Years') + (selSeason ? ' · ' + selSeason : ' · All Seasons');
+
+    const tableRows = rows.map((r, i) => `
+        <tr>
+            <td class="text-center text-muted" style="font-size:0.82rem;">${i+1}</td>
+            <td style="font-size:0.85rem; font-weight:600;">${escapeHtml(r.khatha)}<br>
+                <small class="text-muted fw-normal">${escapeHtml(r.surveyNos)}</small>
+            </td>
+            <td style="font-size:0.85rem;">${escapeHtml(r.cropLabel)}<br>
+                <small class="text-success fw-semibold">${r.cropExt.toFixed(2)} Ac</small>
+            </td>
+            <td class="text-center fw-bold" style="color:#1862ab;">${r.ureaTotal}</td>
+            <td class="text-center fw-bold" style="color:#27ae60;">${r.dapTotal}</td>
+            <td class="text-center">${r.split1U > 0 ? '<span class="badge bg-primary">'+r.split1U+'</span>' : '<span class="text-muted">—</span>'}</td>
+            <td class="text-center">${r.split2U > 0 ? '<span class="badge bg-success">'+r.split2U+'</span>' : '<span class="text-muted">—</span>'}</td>
+            <td class="text-center">${r.split3U > 0 ? '<span class="badge bg-warning text-dark">'+r.split3U+'</span>' : '<span class="text-muted">—</span>'}</td>
+            <td class="text-center">${r.split1D > 0 ? '<span class="badge bg-primary">'+r.split1D+'</span>' : '<span class="text-muted">—</span>'}</td>
+            <td class="text-center">${r.split2D > 0 ? '<span class="badge bg-success">'+r.split2D+'</span>' : '<span class="text-muted">—</span>'}</td>
+            <td class="text-center">${r.split3D > 0 ? '<span class="badge bg-warning text-dark">'+r.split3D+'</span>' : '<span class="text-muted">—</span>'}</td>
+        </tr>`).join('');
+
+    const totalUrea = rows.reduce((s, r) => s + r.ureaTotal, 0);
+    const totalDAP  = rows.reduce((s, r) => s + r.dapTotal, 0);
+    const totalS1   = rows.reduce((s, r) => s + r.split1U, 0);
+    const totalS2   = rows.reduce((s, r) => s + r.split2U, 0);
+    const totalS3   = rows.reduce((s, r) => s + r.split3U, 0);
+    const totalS1D  = rows.reduce((s, r) => s + r.split1D, 0);
+    const totalS2D  = rows.reduce((s, r) => s + r.split2D, 0);
+    const totalS3D  = rows.reduce((s, r) => s + r.split3D, 0);
+
+    cardEl.innerHTML = `
+    <div id="fertCardPrintArea" style="background:#fff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); overflow:hidden; max-width:960px; margin:0 auto;">
+      <!-- Card Header -->
+      <div style="background:linear-gradient(135deg,#1862ab,#124d86); color:#fff; padding:1.2rem 1.5rem; text-align:center;">
+        <div style="font-size:1.4rem; font-weight:800; letter-spacing:1px; margin-bottom:0.2rem;">
+          🌾 FERTILIZER CARD
+        </div>
+        <div style="font-size:0.9rem; opacity:0.85;">${escapeHtml(yearSeasonLabel)}</div>
+        ${cardNumber !== '—' ? `<div style="margin-top:0.4rem; font-size:0.82rem; background:rgba(255,255,255,0.15); display:inline-block; padding:2px 12px; border-radius:20px; letter-spacing:1px;">Card No: <strong>${escapeHtml(cardNumber)}</strong></div>` : ''}
+      </div>
+
+      <!-- Basic Details -->
+      <div style="padding:1rem 1.5rem; background:#f8fbff; border-bottom:2px solid #e0e6ed;">
+        <div class="row g-2">
+          <!-- Row 1: Year, Season, Aadhaar -->
+          <div class="col-md-3">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Crop Year</div>
+            <div style="font-size:1rem; font-weight:800; color:#1862ab; font-family:monospace;">${escapeHtml(selYear || 'All Years')}</div>
+          </div>
+          <div class="col-md-3">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Season</div>
+            <div style="font-size:1rem; font-weight:800; color:#27ae60;">${escapeHtml(selSeason || 'All Seasons')}</div>
+          </div>
+          <div class="col-md-6">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Aadhaar Number</div>
+            <div style="font-size:1.05rem; font-family:monospace; font-weight:800; letter-spacing:2px; color:#c0392b;">${escapeHtml(aadhaar)}</div>
+          </div>
+          <!-- Divider -->
+          <div class="col-12"><hr style="margin:0.4rem 0; border-color:#e0e6ed;"></div>
+          <!-- Row 2: Farmer Name, Father Name -->
+          <div class="col-md-4">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Farmer Name</div>
+            <div style="font-size:1rem; font-weight:700; color:#1862ab;">${escapeHtml(farmerName)}</div>
+          </div>
+          <div class="col-md-4">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Father Name</div>
+            <div style="font-size:0.95rem; font-weight:600;">${escapeHtml(fatherName)}</div>
+          </div>
+          <div class="col-md-4">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Mobile Number</div>
+            <div style="font-size:0.9rem; font-weight:600;">${escapeHtml(mobile)}</div>
+          </div>
+          <!-- Row 3: Card No, Type, Total Extent -->
+          <div class="col-md-4">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Farmer ID (Card No.)</div>
+            <div style="font-size:0.9rem; font-weight:700; color:#e67e22; font-family:monospace;">${escapeHtml(cardNumber)}</div>
+          </div>
+          <div class="col-md-4">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Farmer Type</div>
+            <div style="font-size:0.9rem; font-weight:600;">${farmerType === 'owner' ? '🏠 Owner' : farmerType === 'tenant' ? '🤝 Tenant' : escapeHtml(farmerType)}</div>
+          </div>
+          <div class="col-md-4">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Total Extent Cultivating</div>
+            <div style="font-size:0.9rem; font-weight:700; color:#27ae60;">${totalExtent.toFixed(2)} Acres</div>
+          </div>
+          <div class="col-12">
+            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Crops Cultivating (Crop-wise Extent)</div>
+            <div style="font-size:0.88rem; font-weight:600; color:#2c3e50;">${escapeHtml(cropSummaryStr)}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fertilizer Table -->
+      <div style="padding:1rem 1.5rem;">
+        <div style="font-size:0.78rem; color:#7f8c8d; margin-bottom:0.5rem;">
+          <i class="fas fa-info-circle me-1"></i>
+          Split values shown for both <strong>Urea</strong> and <strong>DAP</strong>.
+          Splits auto-calculated from crop-wise fertilizer schedule.
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle mb-0" style="font-size:0.87rem;">
+            <thead>
+              <tr style="background:linear-gradient(135deg,#1862ab,#124d86); color:#fff;">
+                <th class="text-center" style="width:40px;">#</th>
+                <th>Khatha No | Survey No (Extent)</th>
+                <th>Crop</th>
+                <th class="text-center" style="background:#1a3a6b;">Eligible Urea Bags</th>
+                <th class="text-center" style="background:#1a3a6b;">Eligible DAP Bags</th>
+                <th class="text-center" style="background:#155724; color:#d4edda;">Urea Split 1<br><small style="font-size:0.7rem;opacity:0.85;">(Basal)</small></th>
+                <th class="text-center" style="background:#155724; color:#d4edda;">Urea Split 2<br><small style="font-size:0.7rem;opacity:0.85;">(Top-dress)</small></th>
+                <th class="text-center" style="background:#155724; color:#d4edda;">Urea Split 3<br><small style="font-size:0.7rem;opacity:0.85;">(Final)</small></th>
+                <th class="text-center" style="background:#0d4d73; color:#d4f1ff;">DAP Split 1<br><small style="font-size:0.7rem;opacity:0.85;">(Basal)</small></th>
+                <th class="text-center" style="background:#0d4d73; color:#d4f1ff;">DAP Split 2<br><small style="font-size:0.7rem;opacity:0.85;">(Top-dress)</small></th>
+                <th class="text-center" style="background:#0d4d73; color:#d4f1ff;">DAP Split 3<br><small style="font-size:0.7rem;opacity:0.85;">(Final)</small></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows || '<tr><td colspan="11" class="text-center text-muted p-4">No crop records found.</td></tr>'}
+            </tbody>
+            <tfoot>
+              <tr style="background:#f8f9fa; font-weight:700; border-top:2px solid #1862ab;">
+                <td colspan="3" class="text-end pe-3" style="font-size:0.88rem;">TOTAL</td>
+                <td class="text-center" style="color:#1862ab; font-size:1rem;">${totalUrea}</td>
+                <td class="text-center" style="color:#27ae60; font-size:1rem;">${totalDAP}</td>
+                <td class="text-center"><span class="badge bg-primary fs-6">${totalS1}</span></td>
+                <td class="text-center"><span class="badge bg-success fs-6">${totalS2}</span></td>
+                <td class="text-center"><span class="badge bg-warning text-dark fs-6">${totalS3}</span></td>
+                <td class="text-center"><span class="badge bg-primary fs-6">${totalS1D}</span></td>
+                <td class="text-center"><span class="badge bg-success fs-6">${totalS2D}</span></td>
+                <td class="text-center"><span class="badge bg-warning text-dark fs-6">${totalS3D}</span></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Print Button Area -->
+      <div style="padding:0.8rem 1.5rem 1.2rem; text-align:center; border-top:1px solid #e0e6ed;" class="no-print">
+        <button class="btn btn-warning text-dark fw-bold px-4 me-2" onclick="printFertilizerCard()">
+          <i class="fas fa-print me-2"></i>Print Card
+        </button>
+        <button class="btn btn-outline-secondary" onclick="closePrintFarmerProfilePanel()">
+          <i class="fas fa-times me-2"></i>Close
+        </button>
+      </div>
+    </div>`;
+}
+
+function printFertilizerCard() {
+    const cardEl = document.getElementById('fertCardPrintArea');
+    if (!cardEl) { alert('No profile card to print. Please search for a farmer first.'); return; }
+
+    const farmerName = document.getElementById('printFpAadhaar')?.value || 'farmer';
+
+    const printWin = window.open('', '_blank', 'width=1000,height=700');
+    if (!printWin) { alert('Pop-up blocked. Please allow pop-ups for this site and try again.'); return; }
+
+    printWin.document.write(`<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<title>Fertilizer Card</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background:#fff; padding:20px; }
+  @media print {
+    body { padding:0; }
+    .no-print { display:none !important; }
+    @page { margin:1cm; }
+  }
+  .badge { padding:4px 8px; border-radius:4px; font-weight:700; }
+  .bg-primary { background:#1862ab !important; color:#fff !important; }
+  .bg-success { background:#27ae60 !important; color:#fff !important; }
+  .bg-warning { background:#f39c12 !important; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { border:1px solid #dee2e6; padding:6px 10px; }
+</style>
+</head><body>
+${cardEl.innerHTML}
+<scr'+'ipt>
+  document.querySelector('.no-print') && (document.querySelector('.no-print').style.display='none');
+  window.onload = function() { window.print(); };
+</scr'+'ipt>
+</body></html>`);
+    printWin.document.close();
+}
 </script>
 
     </body>
