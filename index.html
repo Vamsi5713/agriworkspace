@@ -17,6 +17,9 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
+    <!-- APFR Portal Proxy (Cloudflare Worker) -->
+    <script>window.APFR_PROXY_URL = 'https://winter-fog-ac4dagriworkspace.adminagriworkspace.workers.dev';</script>
+
     <!-- QRCode.js for anti-duplication QR on receipts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- jsQR for QR code scanning/reading -->
@@ -177,6 +180,10 @@
          *         ".read": "auth != null",
          *         ".write": "auth != null"
          *       }
+         *     },
+         *     "apfrRegistry": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null"
          *     }
          *   }
          * }
@@ -854,8 +861,6 @@
     animate();
 })();
 </script>
-
-</div><!-- /login-split-wrap -->
 
 <!-- Register Page — full-screen with own background, matches login page gradient -->
 <div class="hidden" id="registerPage" role="main"
@@ -1565,11 +1570,183 @@
         </div>
 
         <div class="mb-3 p-3 border rounded bg-light">
-            <label for="ureaFileInput" class="form-label fw-semibold">📊 Upload 1B Excel File(click help in dashboard for guidance)</label>
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <label for="ureaFileInput" class="form-label fw-semibold mb-0">📊 Upload 1B Excel File(click help in dashboard for guidance)</label>
+                <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="openKhathaAadhaarTool()" title="Open Khatha–Aadhaar Matcher in new tab">
+                    <i class="fas fa-link me-1"></i> Prepare 1B File (Add Aadhaar to Land Summary)
+                </button>
+            </div>
             <input type="file" id="ureaFileInput" class="form-control" accept=".xlsx,.xls">
             <div id="fileStatus" class="mt-2"></div>
             <div id="uploadInfo" class="small text-muted mt-1">Status: waiting for file upload...</div>
         </div>
+
+        <script>
+        function openKhathaAadhaarTool() {
+            var html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Khatha\u2013Aadhaar Matcher</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>
+<style>
+  :root {
+    --green:#1a6b3c;--green-light:#e8f5ee;--green-mid:#2d8c55;
+    --amber:#b45309;--amber-bg:#fffbeb;--red:#b91c1c;--red-bg:#fef2f2;
+    --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
+    --gray-400:#9ca3af;--gray-600:#4b5563;--gray-800:#1f2937;--radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--gray-50);color:var(--gray-800);min-height:100vh;padding:0 0 60px;}
+  header{background:var(--green);color:white;padding:22px 32px 18px;display:flex;align-items:center;gap:14px;}
+  header .icon{font-size:28px;}
+  header h1{font-size:1.3rem;font-weight:700;letter-spacing:-0.3px;}
+  header p{font-size:0.82rem;opacity:0.8;margin-top:2px;}
+  .container{max-width:860px;margin:0 auto;padding:28px 20px 0;}
+  .step-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px;}
+  @media(max-width:600px){.step-grid{grid-template-columns:1fr;}}
+  .card{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:20px;}
+  .card-label{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--green);margin-bottom:8px;}
+  .card h2{font-size:1rem;font-weight:600;margin-bottom:4px;}
+  .card p{font-size:0.83rem;color:var(--gray-600);margin-bottom:14px;line-height:1.5;}
+  .drop-zone{border:2px dashed var(--gray-200);border-radius:8px;padding:22px 16px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;}
+  .drop-zone:hover,.drop-zone.drag-over{border-color:var(--green-mid);background:var(--green-light);}
+  .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .drop-icon{font-size:26px;margin-bottom:6px;}
+  .drop-hint{font-size:0.8rem;color:var(--gray-600);}
+  .drop-hint strong{color:var(--green);}
+  .file-badge{display:inline-flex;align-items:center;gap:6px;background:var(--green-light);color:var(--green);border-radius:6px;padding:6px 12px;font-size:0.82rem;font-weight:600;margin-top:4px;}
+  .match-btn{width:100%;padding:14px;background:var(--green);color:white;border:none;border-radius:var(--radius);font-size:1rem;font-weight:700;cursor:pointer;transition:background .2s;margin-bottom:22px;}
+  .match-btn:hover:not(:disabled){background:var(--green-mid);}
+  .match-btn:disabled{background:var(--gray-400);cursor:not-allowed;}
+  .stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;}
+  .stat{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:16px;text-align:center;}
+  .stat .num{font-size:1.8rem;font-weight:800;line-height:1;}
+  .stat .lbl{font-size:0.75rem;color:var(--gray-600);margin-top:4px;}
+  .stat.matched .num{color:var(--green);}
+  .stat.unmatched .num{color:var(--amber);}
+  .stat.total .num{color:var(--gray-800);}
+  .section-title{font-size:0.9rem;font-weight:700;color:var(--gray-800);margin-bottom:10px;display:flex;align-items:center;}
+  .table-wrap{overflow-x:auto;border-radius:var(--radius);border:1.5px solid var(--gray-200);margin-bottom:22px;}
+  table{width:100%;border-collapse:collapse;font-size:0.82rem;background:white;}
+  thead tr{background:var(--green);color:white;}
+  th{padding:10px 12px;text-align:left;font-weight:600;white-space:nowrap;}
+  td{padding:9px 12px;border-bottom:1px solid var(--gray-100);}
+  tr:last-child td{border-bottom:none;}
+  tr:nth-child(even) td{background:var(--gray-50);}
+  .badge-ok{background:var(--green-light);color:var(--green);border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:700;}
+  .badge-miss{background:var(--amber-bg);color:var(--amber);border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:700;}
+  .aadhaar-cell{font-family:monospace;letter-spacing:0.5px;}
+  .dl-row{display:flex;gap:12px;flex-wrap:wrap;}
+  .dl-btn{flex:1;min-width:180px;padding:12px 20px;border-radius:var(--radius);border:2px solid var(--green);background:white;color:var(--green);font-weight:700;font-size:0.9rem;cursor:pointer;transition:background .15s,color .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .dl-btn:hover{background:var(--green);color:white;}
+  .dl-btn.primary{background:var(--green);color:white;}
+  .dl-btn.primary:hover{background:var(--green-mid);}
+  .toggle-link{font-size:0.82rem;color:var(--green);cursor:pointer;font-weight:600;text-decoration:underline;margin-left:10px;}
+  #unmatched-table{display:none;}
+  .msg{padding:14px 18px;border-radius:8px;font-size:0.85rem;margin-bottom:16px;}
+  .msg.info{background:var(--green-light);color:var(--green);}
+  .msg.warn{background:var(--amber-bg);color:var(--amber);}
+  .msg.err{background:var(--red-bg);color:var(--red);}
+  #results{display:none;}
+</style>
+</head>
+<body>
+<header>
+  <span class="icon">🌾</span>
+  <div><h1>Khatha\u2013Aadhaar Matcher</h1><p>Kharif 2026 &middot; Fertilizer Distribution &mdash; Prepare 1B File</p></div>
+</header>
+<div class="container">
+  <div class="step-grid">
+    <div class="card">
+      <div class="card-label">File 1</div>
+      <h2>Land Summary</h2>
+      <p>లాండ్ సుమ్మరి రిపోర్ట్ ని ఈ పంట లాగిన్ నుంచి ల్యాండ్ preparation నుంచి డౌన్లోడ్ చేసుకోండి. (has Khatha column)</p>
+      <div class="drop-zone" id="zone-land" ondragover="doDragOver(event,'zone-land')" ondragleave="doDragLeave('zone-land')" ondrop="doDrop(event,'land')">
+        <input type="file" accept=".xlsx,.xls" onchange="loadFile(event,'land')">
+        <div id="land-placeholder"><div class="drop-icon">📋</div><div class="drop-hint">Click or drag <strong>Land Summary</strong> file here</div></div>
+        <div id="land-badge" style="display:none"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">File 2</div>
+      <h2>Village 1B file with aadhar numbers</h2>
+      <p>1B ఫైల్ ని అప్లోడు చేయండి. అప్లోడు చేసే ముందు రెండు files లో khatha అనే కాలమ్ పేరు ఒకే విధం గా ఉండదవలెను. </p>
+      <div class="drop-zone" id="zone-fert" ondragover="doDragOver(event,'zone-fert')" ondragleave="doDragLeave('zone-fert')" ondrop="doDrop(event,'fert')">
+        <input type="file" accept=".xlsx,.xls" onchange="loadFile(event,'fert')">
+        <div id="fert-placeholder"><div class="drop-icon">🌱</div><div class="drop-hint">Click or drag <strong>1B Fertilizer Distribution</strong> file here</div></div>
+        <div id="fert-badge" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+  <button class="match-btn" id="matchBtn" onclick="runMatch()" disabled>🔗 Match Khatha &amp; Add Aadhaar Numbers</button>
+  <div id="results">
+    <div id="msgBox"></div>
+    <div class="stats-bar">
+      <div class="stat total"><div class="num" id="statTotal">\u2014</div><div class="lbl">Total Records</div></div>
+      <div class="stat matched"><div class="num" id="statMatched">\u2014</div><div class="lbl">Aadhaar Matched</div></div>
+      <div class="stat unmatched"><div class="num" id="statUnmatched">\u2014</div><div class="lbl">Not Found</div></div>
+    </div>
+    <div class="dl-row" style="margin-bottom:22px">
+      <button class="dl-btn primary" onclick="downloadFull()">&#x2B07; Download Full Updated File (.xlsx)</button>
+      <button class="dl-btn" onclick="downloadUnmatched()">&#x2B07; Download Unmatched Only (.xlsx)</button>
+    </div>
+    <div class="section-title">Preview \u2014 Matched Records (first 50)</div>
+    <div class="table-wrap" id="preview-table-wrap"></div>
+    <div class="unmatched-section" style="margin-bottom:22px;">
+      <div class="section-title">Unmatched Records <span id="unmatch-count"></span><span class="toggle-link" onclick="toggleUnmatched()">Show</span></div>
+      <div id="unmatched-table"></div>
+    </div>
+  </div>
+</div>
+<script>
+var landData=null,fertData=null,mergedData=null,unmatchedData=null,unmatchedVisible=false;
+function doDragOver(e,id){e.preventDefault();document.getElementById(id).classList.add('drag-over');}
+function doDragLeave(id){document.getElementById(id).classList.remove('drag-over');}
+function doDrop(e,which){e.preventDefault();var id=which==='land'?'zone-land':'zone-fert';document.getElementById(id).classList.remove('drag-over');var f=e.dataTransfer.files[0];if(f)parseFile(f,which);}
+function loadFile(e,which){var f=e.target.files[0];if(f)parseFile(f,which);}
+function parseFile(file,which){var r=new FileReader();r.onload=function(e){var wb=XLSX.read(e.target.result,{type:'array'});var ws=wb.Sheets[wb.SheetNames[0]];var rows=XLSX.utils.sheet_to_json(ws,{defval:''});if(which==='land'){landData=rows;showBadge('land',file.name,rows.length);}else{fertData=rows;showBadge('fert',file.name,rows.length);}checkReady();};r.readAsArrayBuffer(file);}
+function showBadge(which,name,count){document.getElementById(which+'-placeholder').style.display='none';var b=document.getElementById(which+'-badge');b.style.display='block';b.innerHTML='<div class="file-badge">&#x2705; '+name+' <span style="opacity:0.7;font-weight:400">('+count.toLocaleString()+' rows)</span></div>';}
+function checkReady(){document.getElementById('matchBtn').disabled=!(landData&&fertData);}
+function findKhathaCol(row){return Object.keys(row).find(function(k){return k.trim().toLowerCase()==='khatha';});}
+function findAadhaarCol(row){return Object.keys(row).find(function(k){return k.trim().toLowerCase()==='aadhaar'||k.trim().toLowerCase()==='aadhar';});}
+function normalizeKhatha(val){if(val===null||val===undefined||val==='')return '';return String(val).trim().replace(/\\.0+$/,'');}
+function formatAadhaar(val){if(!val||val==='')return '';var s=String(val).trim().replace(/\\.0+$/,'').replace(/\\D/g,'');return s.padStart(12,'0');}
+function runMatch(){
+  var lk=findKhathaCol(landData[0]),fk=findKhathaCol(fertData[0]),fa=findAadhaarCol(fertData[0]);
+  if(!lk||!fk||!fa){showMsg('Could not find required columns. Ensure both files have "Khatha" and the 1B file has "Aadhaar".','err');return;}
+  var lookup=new Map();
+  for(var i=0;i<fertData.length;i++){var k=normalizeKhatha(fertData[i][fk]);if(k&&!lookup.has(k))lookup.set(k,formatAadhaar(fertData[i][fa]));}
+  var merged=[],unmatched=[];
+  for(var j=0;j<landData.length;j++){var row=landData[j];var kv=normalizeKhatha(row[lk]);var aadh=lookup.get(kv)||'';var nr=Object.assign({Aadhaar:aadh},row);merged.push(nr);if(!aadh)unmatched.push(nr);}
+  mergedData=merged;unmatchedData=unmatched;
+  var total=merged.length,mc=merged.filter(function(r){return r.Aadhaar;}).length,uc=unmatched.length;
+  document.getElementById('statTotal').textContent=total.toLocaleString();
+  document.getElementById('statMatched').textContent=mc.toLocaleString();
+  document.getElementById('statUnmatched').textContent=uc.toLocaleString();
+  document.getElementById('unmatch-count').textContent='('+uc+')';
+  var pct=((mc/total)*100).toFixed(1);
+  showMsg(uc===0?'&#x2705; All '+total+' records matched successfully.':'&#x2705; '+mc+' of '+total+' records matched ('+pct+'%). '+uc+' Khatha numbers not found in 1B file.',uc===0?'info':'warn');
+  var prev=merged.filter(function(r){return r.Aadhaar;}).slice(0,50);
+  renderTable('preview-table-wrap',prev,true);
+  document.getElementById('unmatched-table').innerHTML='';
+  if(unmatchedData.length>0){var wrap=document.createElement('div');wrap.className='table-wrap';wrap.id='unmatched-inner';wrap.style.display='none';document.getElementById('unmatched-table').appendChild(wrap);renderTable('unmatched-inner',unmatchedData,false);}
+  document.getElementById('results').style.display='block';
+  document.getElementById('results').scrollIntoView({behavior:'smooth'});
+}
+function renderTable(cid,rows,showA){if(!rows.length)return;var keys=Object.keys(rows[0]).filter(function(k){return showA?true:k!=='Aadhaar';});var h='<table><thead><tr>';for(var i=0;i<keys.length;i++)h+='<th>'+keys[i]+'</th>';h+='<th>Status</th></tr></thead><tbody>';for(var j=0;j<rows.length;j++){var r=rows[j];h+='<tr>';for(var k=0;k<keys.length;k++){if(keys[k]==='Aadhaar')h+='<td class="aadhaar-cell">'+(r[keys[k]]||'\u2014')+'</td>';else h+='<td>'+(r[keys[k]]!=null?r[keys[k]]:'')+'</td>';}h+='<td>'+(r.Aadhaar?'<span class="badge-ok">Matched</span>':'<span class="badge-miss">Not Found</span>')+'</td></tr>';}h+='</tbody></table>';document.getElementById(cid).innerHTML=h;}
+function toggleUnmatched(){unmatchedVisible=!unmatchedVisible;var el=document.getElementById('unmatched-inner');var lk=document.querySelector('.toggle-link');if(el)el.style.display=unmatchedVisible?'block':'none';lk.textContent=unmatchedVisible?'Hide':'Show';}
+function downloadFull(){if(!mergedData)return;var ws=XLSX.utils.json_to_sheet(mergedData);var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Land Summary with Aadhaar');XLSX.writeFile(wb,'Land_Summary_with_Aadhaar_1B.xlsx');}
+function downloadUnmatched(){if(!unmatchedData||!unmatchedData.length){showMsg('No unmatched records to download.','info');return;}var ws=XLSX.utils.json_to_sheet(unmatchedData);var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Unmatched Records');XLSX.writeFile(wb,'Land_Summary_Unmatched.xlsx');}
+function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class="msg '+type+'">'+t+'</div>';}
+<\/script>
+</body></html>`;
+            var blob = new Blob([html], {type: 'text/html'});
+            var url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        }
+        </script>
 
 
         <!-- STEP 1: Select Crop Year & Season BEFORE searching Aadhaar -->
@@ -1816,7 +1993,7 @@
                     <i class="fas fa-eye"></i> View History
                 </button>
             </div>
-        </div></div></div>
+        </div>
     </div><!-- /card -->
 </div><!-- /ureaSection -->
 
@@ -4236,7 +4413,7 @@ function submitRejectDistribution() {
         <div class="row g-2">
           <div class="col-md-4">
             <label class="form-label fw-semibold text-success mb-1">Crop Year <span class="text-danger">*</span></label>
-            <select id="fpCropYear" class="form-select border-success">
+            <select id="fpCropYear" class="form-select border-success" onchange="onFpYearSeasonChange()">
               <option value="">-- Select Year --</option>
               <option value="2025-26">2025-26</option>
               <option value="2026-27">2026-27</option>
@@ -4245,7 +4422,7 @@ function submitRejectDistribution() {
           </div>
           <div class="col-md-4">
             <label class="form-label fw-semibold text-success mb-1">Season <span class="text-danger">*</span></label>
-            <select id="fpCropSeason" class="form-select border-success">
+            <select id="fpCropSeason" class="form-select border-success" onchange="onFpYearSeasonChange()">
               <option value="">-- Select Season --</option>
               <option value="Kharif">Kharif</option>
               <option value="Rabi">Rabi</option>
@@ -4292,19 +4469,18 @@ function submitRejectDistribution() {
           <input type="text" id="fpFather" class="form-control" placeholder="Father Name">
         </div>
         <div class="col-md-4">
-          <label class="form-label fw-semibold">
-            <i class="fas fa-id-card me-1 text-primary"></i>Card Number
-            <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">Dept. of Agriculture</span>
-          </label>
-          <input type="text" id="fpCardNumber" class="form-control"
-                 placeholder="Card No. provided by Dept. of Agriculture"
-                 style="font-family:monospace; letter-spacing:0.8px; text-transform:uppercase;"
-                 oninput="this.value = this.value.toUpperCase()">
-          <small class="text-muted" style="font-size:0.72rem;">
-            <i class="fas fa-info-circle me-1"></i>1 card per Aadhaar — same number for all khathas
-          </small>
-        </div>
-      </div>
+    <label class="form-label fw-semibold"> <i class="fas fa-id-card me-1 text-primary"></i>Card Number <span class="badge bg-primary ms-1" style="font-size:0.65rem;">Auto-Generated</span> </label>
+    <input type="text" id="fpCardNumber" class="form-control bg-light" placeholder="Generating automatically..." readonly style="font-family:monospace; letter-spacing:0.8px; color:#1862ab; font-weight:700; text-transform:uppercase;">
+    <small class="text-muted" style="font-size:0.72rem;"> <i class="fas fa-info-circle me-1"></i>One unique card per Aadhaar </small>
+</div>
+<div class="col-md-4">
+    <label class="form-label fw-semibold"> <i class="fas fa-fingerprint me-1 text-success"></i>Farmer ID (APFR) <span class="badge bg-success ms-1" style="font-size:0.62rem;">Auto-checked</span> </label>
+    <div class="input-group">
+        <input type="text" id="fpApfrNumber" class="form-control" placeholder="Auto-populated from APFR Registry..." style="font-family:monospace; font-weight:600; color:#27ae60;" title="Auto-filled from APFR Registry. If NA, click 🔄 to re-check or type manually.">
+        <button class="btn btn-outline-success btn-sm" type="button" onclick="lookupAPFRRegistryStatus(document.getElementById('fpAadhaar').value)" title="Re-check APFR Registry"> <i class="fas fa-sync-alt"></i> </button>
+    </div>
+    <small id="fpApfrStatus" class="text-muted" style="font-size:0.72rem;"> <i class="fas fa-search me-1"></i>Will check registry on Aadhaar entry... </small>
+</div>
 
       <!-- Row 2: Mobile, Khatha, Extent -->
       <div class="row g-2 mb-3">
@@ -4460,6 +4636,7 @@ function submitRejectDistribution() {
                       <tr>
                           <th style="width:45px">S.No</th>
                           <th>Card No.</th>
+                          <th>Farmer ID (APFR)</th>
                           <th>Farmer Name</th>
                           <th>Father Name</th>
                           <th>Aadhaar</th>
@@ -4885,26 +5062,138 @@ function openManualWorkflowModal() {
      ══════════════════════════════════════════════════════════ -->
 <script>
     const firebaseConfig = {
-    apiKey:            "AIzaSyD67V05oD0VRpRITR0z0R61NqIfuaiFih4",
-    authDomain:        "agri-work-space.firebaseapp.com",
-    databaseURL:       "https://agri-work-space-default-rtdb.firebaseio.com",
-    projectId:         "agri-work-space",
-    storageBucket:     "agri-work-space.firebasestorage.app",
-    messagingSenderId: "13945141436",
-    appId:             "1:13945141436:web:0eacfa11b7a0e864bb38b9",
-    measurementId:     "G-F7E4H3EVQY"
+ apiKey: "AIzaSyD67V05oD0VRpRITR0z0R61NqIfuaiFih4",
+ authDomain: "agri-work-space.firebaseapp.com",
+ databaseURL: "https://agri-work-space-default-rtdb.firebaseio.com",
+ projectId: "agri-work-space",
+ storageBucket: "agri-work-space.firebasestorage.app",
+ messagingSenderId: "13945141436",
+ appId: "1:13945141436:web:0eacfa11b7a0e864bb38b9",
+ measurementId: "G-F7E4H3EVQY"
 };
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-let uploadData      = {};
-let parsedData      = {};
-let pageStateStack  = [];
+// =========================================================================
+// 🚀 APFR INTERCEPTOR & FORM LISTENERS PIPELINE
+// =========================================================================
+document.addEventListener("DOMContentLoaded", function() {
+    const aadhaarInputNode = document.getElementById('fpAadhaar');
+    if (aadhaarInputNode) {
+        aadhaarInputNode.addEventListener('input', async function(e) {
+            let cleanVal = this.value.replace(/[^0-9]/g, '');
+            if (cleanVal.length === 12) {
+                const selectedYear = document.getElementById('fpCropYear')?.value || '2026-27';
+                const selectedSeason = document.getElementById('fpCropSeason')?.value || 'Kharif';
+                const userVillage = window.currentUserProfile?.village || localStorage.getItem('user_village') || 'Unknown';
+                
+                // 1. Show existing card number if already allocated — do NOT generate/burn a new counter slot here.
+                //    Counter is incremented only inside saveFarmerProfile() at actual save time.
+                const cardField = document.getElementById('fpCardNumber');
+                if (cardField) {
+                    const existingCard = await getExistingCardNumber(cleanVal);
+                    cardField.value = existingCard || '';
+                    cardField.placeholder = existingCard ? existingCard : 'Auto-assigned on Save';
+                }
+                
+                // 2. Direct automatic lookup sync for Farmer ID
+                const apfrField = document.getElementById('fpApfrNumber');
+                if (apfrField) {
+                    apfrField.value = ""; // Show active lookup indicator behavior
+                    let apfrResult = await checkAPFRStatus(cleanVal);
+                    
+                    // Wire real-time paste listener to capture manual updates instantly
+                    apfrField.oninput = async function() {
+                        let currentTypedVal = this.value.replace(/[^0-9]/g, '');
+                        if (currentTypedVal.length === 11 && typeof cascadeMultiProfileUpdates === "function") {
+                            const finalCardField = document.getElementById('fpCardNumber');
+                            const cardNoValue = finalCardField ? finalCardField.value : '';
+                            await cascadeMultiProfileUpdates(cleanVal, cardNoValue, currentTypedVal);
+                        }
+                    };
+
+                    if (apfrResult && apfrResult !== 'NA' && typeof cascadeMultiProfileUpdates === "function") {
+                        const finalCardField = document.getElementById('fpCardNumber');
+                        const cardNoValue = finalCardField ? finalCardField.value : '';
+                        await cascadeMultiProfileUpdates(cleanVal, cardNoValue, apfrResult);
+                    }
+                }
+            }
+        });
+    }
+});
+
+let uploadData = {};
+let parsedData = {};
+let pageStateStack = [];
 let allReportsCache = {};
-let ureaData        = { Urea: {}, DAP: {} };
-let ureaHistory     = [];
-let farmerProfiles  = {};
-let isDataLoaded    = false;
+let ureaData = { Urea: {}, DAP: {} };
+let ureaHistory = [];
+let farmerProfiles = {};
+let isDataLoaded = false;
+
+/**
+ * Automatically initializes and hooks generation context when editing 
+ * or selecting an already existing farmer profile.
+ */
+function editFarmerProfile(profileId) {
+    if (!window.farmerProfiles) return;
+    
+    let targetProfile = null;
+    
+    for (let key in window.farmerProfiles) {
+        let pGroup = window.farmerProfiles[key];
+        if (Array.isArray(pGroup)) {
+            let found = pGroup.find(p => p && (p.id === profileId || p.khatha === profileId || p.khatha == profileId));
+            if (found) { targetProfile = found; break; }
+        } else if (pGroup && (pGroup.id === profileId || pGroup.khatha === profileId || pGroup.khatha == profileId)) {
+            targetProfile = pGroup;
+            break;
+        }
+    }
+
+    // Direct mapping to form fields if found
+    if (targetProfile) {
+        if (document.getElementById('fpAadhaar')) document.getElementById('fpAadhaar').value = targetProfile.aadhaar || '';
+        if (document.getElementById('fpName')) document.getElementById('fpName').value = targetProfile.farmerName || '';
+        if (document.getElementById('fpFather')) document.getElementById('fpFather').value = targetProfile.fatherName || '';
+        if (document.getElementById('fpMobile')) document.getElementById('fpMobile').value = targetProfile.mobile || '';
+        if (document.getElementById('fpKhatha')) document.getElementById('fpKhatha').value = targetProfile.khatha || '';
+        if (document.getElementById('fpExtent')) document.getElementById('fpExtent').value = targetProfile.extent || '';
+        if (document.getElementById('fpFarmerType')) document.getElementById('fpFarmerType').value = targetProfile.farmerType || 'tenant';
+        if (document.getElementById('fpApfrNumber')) document.getElementById('fpApfrNumber').value = targetProfile.apfrNumber || 'NA';
+    }
+
+    // Run the automated generation checking pipeline
+    setTimeout(async () => {
+        const aadhaarInp = document.getElementById('fpAadhaar');
+        const currentAadhaar = aadhaarInp ? aadhaarInp.value.trim() : '';
+        
+        if (currentAadhaar && currentAadhaar.length === 12) {
+            const currentYear = document.getElementById('fpCropYear')?.value || '2026-27';
+            const currentSeason = document.getElementById('fpCropSeason')?.value || 'Kharif';
+            const userVillage = window.currentUserProfile?.village || localStorage.getItem('user_village') || 'Unknown';
+            
+            // Show existing card if allocated — do NOT burn a counter slot here.
+            // Counter increments only in saveFarmerProfile().
+            const cardField = document.getElementById('fpCardNumber');
+            if (cardField) {
+                const existingCard = await getExistingCardNumber(currentAadhaar);
+                cardField.value = existingCard || '';
+                cardField.placeholder = existingCard ? existingCard : 'Auto-assigned on Save';
+            }
+            
+            // Force verify APFR status and force overwrite if input value is invalid or equal to NA
+            const apfrField = document.getElementById('fpApfrNumber');
+            if (apfrField) {
+                if (!apfrField.value || apfrField.value === 'NA' || targetProfile?.apfrNumber === 'NA') {
+                    const dynamicId = await checkAPFRStatus(currentAadhaar);
+                    apfrField.value = dynamicId || 'NA';
+                }
+            }
+        }
+    }, 200);
+}
 
 const ADMIN_EMAIL = 'adminagriworkspace@gmail.com';
 function isAdmin() {
@@ -11226,22 +11515,57 @@ function reprintDistribution(serialNo) {
 
 // --- REGISTRATION ID SYSTEM ---
 
+// ── Village Code Lookup Map ──────────────────────────────────────────────────
+// Add entries here for villages that need a specific code (overrides algorithm).
+// Key: village name in UPPERCASE (spaces normalised), Value: 4-letter code
+// Village code map — 3-letter codes. Add villages here as needed.
+// Format: 'VILLAGENAME' (uppercase, no spaces): 'ABC'
+const VILLAGE_CODE_MAP = {
+    'KALAVAPAMULA': 'KLV',
+    // Examples:
+    // 'VIJAYAWADA':  'VJW',
+    // 'GUNTUR':      'GNT',
+};
+
 function getVillageCode(villageName) {
     if (!villageName) return 'VIL';
-    const words = villageName.trim().toUpperCase().split(/\s+/);
-    if (words.length === 1) {
-        const w = words[0];
-        const vowels = new Set(['A','E','I','O','U']);
-        let code = w[0];
-        for (let i = 1; i < w.length && code.length < 4; i++) {
-            if (!vowels.has(w[i])) code += w[i];
-        }
-        for (let i = 1; i < w.length && code.length < 4; i++) {
-            if (!code.includes(w[i])) code += w[i];
-        }
-        return code.slice(0, 4);
+    const normalised = villageName.trim().toUpperCase().replace(/\s+/g, ' ');
+    const key = normalised.replace(/\s+/g, '');
+
+    // 1. Exact lookup in the map
+    if (VILLAGE_CODE_MAP[key]) return VILLAGE_CODE_MAP[key];
+
+    const words = normalised.split(/\s+/);
+
+    if (words.length >= 3) {
+        // 3+ words: first letter of first 3 words e.g. "Nava Durga Puram" -> "NDP"
+        return words.map(w => w[0]).join('').slice(0, 3);
     }
-    return words.map(w => w[0]).join('').slice(0, 4);
+
+    if (words.length === 2) {
+        // 2 words: first letter + first consonant of word1 + first letter of word2
+        // e.g. "Kala Padu" -> "KLP"
+        const vowels = new Set(['A','E','I','O','U']);
+        const w0 = words[0], w1 = words[1];
+        let third = '';
+        for (let i = 1; i < w0.length; i++) {
+            if (!vowels.has(w0[i])) { third = w0[i]; break; }
+        }
+        if (!third) third = w0[1] || w1[1] || 'X';
+        return (w0[0] + third + w1[0]).slice(0, 3);
+    }
+
+    // Single word: skip vowels to get consonants e.g. "KALAVAPAMULA" -> "KLV"
+    const w = words[0];
+    const vowels = new Set(['A','E','I','O','U']);
+    let code = w[0];
+    for (let i = 1; i < w.length && code.length < 3; i++) {
+        if (!vowels.has(w[i])) code += w[i];
+    }
+    for (let i = 1; i < w.length && code.length < 3; i++) {
+        if (vowels.has(w[i])) code += w[i];
+    }
+    return code.slice(0, 3).padEnd(3, 'X');
 }
 
 function getSeasonCode(year, season) {
@@ -11256,72 +11580,373 @@ function getSeasonCode(year, season) {
     return `${yr}${seasonLetter}`; // e.g. "2026K"
 }
 
-function withTimeout(promise, ms = 5000, fallback = null) {
-    return Promise.race([
-        promise,
-        new Promise(resolve => setTimeout(() => resolve(fallback), ms))
-    ]);
+/**
+ * READ-ONLY lookup: returns an already-allocated card number for this Aadhaar
+ * from the local in-memory cache, or null if none has been saved yet.
+ * NEVER increments the Firebase counter — safe to call from UI event handlers.
+ */
+async function getExistingCardNumber(aadhaar) {
+    const cleanA = cleanAadhaar(aadhaar);
+    if (!cleanA || cleanA.length !== 12) return null;
+
+    // 1. Check local in-memory profiles first (fastest)
+    if (window.farmerProfiles) {
+        const profilesList = Array.isArray(window.farmerProfiles)
+            ? window.farmerProfiles
+            : Object.values(window.farmerProfiles).flat();
+        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && p.cardNumber);
+        if (existing?.cardNumber) return existing.cardNumber;
+    }
+
+    // 2. Fallback: check Firebase for this Aadhaar's saved profiles
+    try {
+        const user = firebase.auth().currentUser;
+        if (user) {
+            const snap = await database.ref(`users/${user.uid}/farmerProfiles`).orderByChild('aadhaar').equalTo(cleanA).once('value');
+            if (snap.exists()) {
+                let found = null;
+                snap.forEach(child => {
+                    const p = child.val();
+                    if (p && p.cardNumber && !found) found = p.cardNumber;
+                });
+                if (found) return found;
+            }
+        }
+    } catch (e) { /* silent — fall through to null */ }
+
+    return null; // No existing card — one will be assigned at save time
 }
 
-function generateRegistrationId(year, season, aadhaar) {
-    const user = firebase.auth().currentUser;
-    if (!user) return Promise.resolve(null);
+/**
+ * Automatically generates a Card Number for an Aadhaar.
+ * Format: [VillageCode]/[Year][SeasonCode]/[SerialNumber] (e.g. KLV/2026K/0001)
+ * Recycles IDs from registrationRecycled if available.
+ * ⚠️  This function INCREMENTS the Firebase counter — call ONLY from saveFarmerProfile().
+ */
+async function generateAutomaticCardNumber(aadhaar, village, year, season) {
+    const cleanA = cleanAadhaar(aadhaar);
+    if (!cleanA || cleanA.length !== 12) return null;
 
-    return database.ref('users/' + user.uid + '/profile').once('value').then(snap => {
-        const profile     = snap.val();
-        const village     = profile?.village || 'Unknown';
-        const villageCode = getVillageCode(village);
-        const seasonCode  = getSeasonCode(year, season);
-        const cleanA      = cleanAadhaar(aadhaar || '');
-        const prefix      = `${villageCode}/${seasonCode}/`;
+    // 1. Check if this identifier already has an assigned card number across any profile
+    if (window.farmerProfiles) {
+        const profilesList = Array.isArray(window.farmerProfiles) ? window.farmerProfiles : Object.values(window.farmerProfiles);
+        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && p.cardNumber);
+        if (existing?.cardNumber) return existing.cardNumber;
+    }
 
-        // ── Only reuse base ID if farmer already has a SAVED profile
-        //    with a different khatha (not new crops in current save) ──
-        let farmerBaseId = null;
-        if (cleanA && cleanA.length === 12 && farmerProfiles[cleanA]) {
-            farmerProfiles[cleanA].forEach(p => {
-                (p.crops || []).forEach(c => {
-                    if (
-                        c.registrationId &&
-                        c.registrationId.startsWith(prefix) &&
-                        !c.registrationId.includes('-')  // only base IDs, not sub-IDs
-                    ) {
-                        if (!farmerBaseId) farmerBaseId = c.registrationId;
-                    }
+    const vCode = getVillageCode(village);
+    const sCode = getSeasonCode(year, season); // e.g. "2026K"
+    const key   = `${vCode}_${sCode}`;
+    const prefix = `${vCode}/${sCode}/`; // e.g. "KLV/2026K/"
+
+    // 2. Try to get a recycled ID from Firebase first
+    try {
+        const recycledSnap = await database.ref(`registrationRecycled/${key}`).orderByValue().limitToFirst(1).once('value');
+        if (recycledSnap.exists()) {
+            const recycledObj = recycledSnap.val();
+            const recycledKey = Object.keys(recycledObj)[0];
+            const recycledId  = recycledObj[recycledKey];
+            
+            // Allocate and clear from the available pool
+            await database.ref(`registrationRecycled/${key}/${recycledKey}`).remove();
+            return recycledId;
+        }
+    } catch (e) { console.warn('Error reading recycled pool:', e); }
+
+    // 3. Fallback: transaction to safely increment sequence numbers
+    const counterKey = `registrationCounters/${key}`;
+    try {
+        const result = await database.ref(counterKey).transaction(curr => (curr || 0) + 1);
+        const seq = String(result.snapshot.val()).padStart(4, '0');
+        return `${prefix}${seq}`;
+    } catch (e) {
+        console.error('Counter sync issue:', e);
+        return `${prefix}${Math.floor(1000 + Math.random() * 8999)}`;
+    }
+}
+
+/**
+ * Checks APFR status for a given Aadhaar and returns Farmer ID (11 digits) or "NA".
+ *
+ * Resolution order:
+ *   1. In-memory farmerProfiles (current VAA)              — instant
+ *   2. Shared Firebase apfrRegistry/{aadhaar}              — fast, cross-VAA, populated by any VAA's manual entry
+ *   3. Cross-user farmerProfiles scan                      — catches records before apfrRegistry existed
+ *   4. Manual entry with auto-save to apfrRegistry         — enters once, all VAAs benefit instantly
+ *
+ * ⚙️  Add this to Firebase Security Rules:
+ *   "apfrRegistry": { ".read": "auth != null", ".write": "auth != null" }
+ */
+async function checkAPFRStatus(aadhaar) {
+    const cleanA = cleanAadhaar(aadhaar);
+    if (!cleanA || cleanA.length !== 12) return 'NA';
+
+    const statusSmall = document.getElementById('fpApfrStatus');
+    const apfrInp     = document.getElementById('fpApfrNumber');
+    if (apfrInp) apfrInp.readOnly = false;
+
+    const setStatus = (html) => { if (statusSmall) statusSmall.innerHTML = html; };
+    const setFound  = (id, source) => {
+        if (apfrInp) {
+            apfrInp.value = id;
+            apfrInp.style.borderColor = '#27ae60';
+            apfrInp.style.boxShadow   = '0 0 0 3px rgba(39,174,96,0.18)';
+        }
+        const src = source ? ` <span style="color:#7f8c8d;font-size:0.7rem;">(${source})</span>` : '';
+        setStatus(`<i class="fas fa-check-circle text-success me-1"></i>Farmer ID found ✅${src}`);
+    };
+
+    setStatus('<i class="fas fa-spinner fa-spin me-1"></i>Searching records...');
+
+    // ── 1. In-memory farmerProfiles (current VAA, instant) ──
+    if (window.farmerProfiles) {
+        const profilesList = Object.values(window.farmerProfiles).flat();
+        const hit = profilesList.find(p =>
+            p && cleanAadhaar(p.aadhaar) === cleanA &&
+            p.apfrNumber && p.apfrNumber !== 'NA' &&
+            String(p.apfrNumber).replace(/\D/g, '').length === 11
+        );
+        if (hit) { setFound(hit.apfrNumber, 'local profile'); return hit.apfrNumber; }
+    }
+
+    // ── 2. Shared apfrRegistry node (single O(1) lookup, populated by any VAA's manual entry) ──
+    try {
+        const regSnap = await database.ref(`apfrRegistry/${cleanA}`).once('value');
+        if (regSnap.exists()) {
+            const entry   = regSnap.val();
+            const rawId   = typeof entry === 'string' ? entry : (entry.farmerId || entry.farmerCode || entry.id || '');
+            const numId   = String(rawId).replace(/\D/g, '');
+            if (numId.length === 11) {
+                setFound(numId, 'shared registry');
+                cascadeMultiProfileUpdates(cleanA, '', numId).catch(() => {});
+                return numId;
+            }
+        }
+    } catch (e) {
+        // permission_denied = Firebase rule not set yet. Not fatal — fall through to portal fetch.
+        if (e && e.message && e.message.includes('permission_denied')) {
+            console.info('apfrRegistry: permission_denied — add Firebase rule (see comment above function). Falling back to portal fetch.');
+        } else {
+            console.warn('apfrRegistry lookup error:', e);
+        }
+    }
+
+    // ── 2b. APFR Portal via Firebase Cloud Function proxy ──
+    // The APFR portal blocks direct browser fetch (CORS). A Cloud Function calls it server-side.
+    // Deploy the proxy once with: firebase deploy --only functions
+    // See: https://firebase.google.com/docs/functions/get-started
+    // Cloud Function code (functions/index.js):
+    //
+    //   const {onRequest} = require("firebase-functions/v2/https");
+    //   const fetch = require("node-fetch");
+    //   exports.apfrProxy = onRequest({cors: true}, async (req, res) => {
+    //     const aadhaar = req.query.aadhaar || '';
+    //     if (!aadhaar || aadhaar.length !== 12) return res.status(400).json({error:'bad aadhaar'});
+    //     try {
+    //       // ── IMPORTANT: Replace the URL below with the real API endpoint ──
+    //       // Open Chrome DevTools → Network → XHR, then click Check on the portal.
+    //       // Copy the exact request URL from: https://apfr.agristack.gov.in/farmer-registry-ap/
+    //       const apiUrl = `https://apfr.agristack.gov.in/farmer-registry-ap/api/v1/checkEnrolmentStatus?aadhaarNumber=${aadhaar}`;
+    //       const r = await fetch(apiUrl, {headers:{Accept:'application/json'}});
+    //       const data = await r.json();
+    //       res.json(data);
+    //     } catch(e) { res.status(502).json({error: e.message}); }
+    //   });
+    //
+    // Once deployed, set window.APFR_PROXY_URL before this file loads:
+    //   Add to index.html: window.APFR_PROXY_URL = 'https://<region>-<project>.cloudfunctions.net/apfrProxy';
+    if (window.APFR_PROXY_URL) {
+        setStatus('<i class="fas fa-spinner fa-spin me-1"></i>Checking APFR portal...');
+        try {
+            // Pass Firebase ID token so the Cloud Function rejects unauthenticated callers
+            const idToken = await firebase.auth().currentUser?.getIdToken().catch(() => '');
+            const resp = await fetch(`${window.APFR_PROXY_URL}?aadhaar=${cleanA}`, {
+                headers: { 'Authorization': `Bearer ${idToken}` }
+            });
+            if (resp.ok) {
+                const json = await resp.json();
+                // Cloud Function returns { farmerId: '...' } mapped from data.centralId
+                const rawId = json.farmerId || '';
+                const numId = String(rawId).replace(/\D/g, '');
+                if (numId.length === 11) {
+                    setFound(numId, 'APFR portal');
+                    database.ref(`apfrRegistry/${cleanA}`).set({
+                        farmerId: numId, aadhaar: cleanA,
+                        promotedAt: new Date().toISOString(), source: 'portalProxy'
+                    }).catch(() => {});
+                    cascadeMultiProfileUpdates(cleanA, '', numId).catch(() => {});
+                    return numId;
+                }
+            }
+        } catch (e) {
+            console.info('APFR proxy fetch failed:', e.message);
+        }
+    }
+
+    // ── 3. Cross-user farmerProfiles scan (catches pre-apfrRegistry records) ──
+    setStatus('<i class="fas fa-spinner fa-spin me-1"></i>Scanning all VAA records...');
+    try {
+        const usersSnap = await database.ref('users').once('value');
+        if (usersSnap.exists()) {
+            let crossFound = null;
+            usersSnap.forEach(userNode => {
+                if (crossFound) return;
+                const fp = userNode.child('farmerProfiles').val();
+                if (!fp) return;
+                Object.values(fp).forEach(group => {
+                    if (crossFound) return;
+                    const arr = Array.isArray(group) ? group : Object.values(group || {});
+                    arr.forEach(p => {
+                        if (!crossFound && p && cleanAadhaar(p.aadhaar) === cleanA &&
+                            p.apfrNumber && p.apfrNumber !== 'NA' &&
+                            String(p.apfrNumber).replace(/\D/g, '').length === 11) {
+                            crossFound = String(p.apfrNumber).replace(/\D/g, '').slice(0, 11);
+                        }
+                    });
                 });
             });
+            if (crossFound) {
+                setFound(crossFound, 'other VAA record');
+                // Promote into shared registry so future lookups skip the full scan
+                database.ref(`apfrRegistry/${cleanA}`).set({
+                    farmerId: crossFound, aadhaar: cleanA,
+                    promotedAt: new Date().toISOString()
+                }).catch(() => {});
+                cascadeMultiProfileUpdates(cleanA, '', crossFound).catch(() => {});
+                return crossFound;
+            }
         }
+    } catch (e) { console.warn('Cross-user APFR scan error:', e); }
 
-        if (farmerBaseId) {
-            // Find highest existing sub-number for this farmer
-            let maxSub = 0;
-            farmerProfiles[cleanA].forEach(p => {
-                (p.crops || []).forEach(c => {
-                    if (c.registrationId?.startsWith(farmerBaseId + '-')) {
-                        const subNum = parseInt(c.registrationId.split('-')[1]) || 0;
-                        if (subNum > maxSub) maxSub = subNum;
-                    }
-                });
-            });
-            // If base ID is already used as a standalone, start sub from -01
-            const nextSub = String(maxSub + 1).padStart(2, '0');
-            return `${farmerBaseId}-${nextSub}`;
+    // ── 4. Manual entry — saves to shared apfrRegistry so every VAA benefits next lookup ──
+    const portalUrl  = `https://apfr.agristack.gov.in/farmer-registry-ap/#/checkEnrolmentStatus`;
+    const maskedA    = `${cleanA.slice(0,4)}XXXX${cleanA.slice(-4)}`;
+
+    setStatus(`
+        <span style="color:#e67e22;font-weight:600;font-size:0.76rem;">
+            <i class="fas fa-exclamation-circle me-1"></i>Not found in any VAA record.
+        </span>
+        <a href="${portalUrl}" target="_blank" rel="noopener"
+           onclick="navigator.clipboard&&navigator.clipboard.writeText('${cleanA}')"
+           style="font-size:0.75rem;font-weight:700;color:#1862ab;text-decoration:underline;margin-left:5px;">
+            Open APFR Portal 🔗
+        </a>
+        <span style="font-size:0.71rem;color:#7f8c8d;display:block;margin-top:2px;">
+            Aadhaar <strong>(${maskedA})</strong> copied to clipboard on click — paste on portal,
+            then type the 11-digit Farmer ID in the field above. It will be shared with all VAAs automatically.
+        </span>`);
+
+    if (apfrInp) {
+        if (!apfrInp.value || apfrInp.value === 'NA') apfrInp.value = '';
+        apfrInp.placeholder = 'Type 11-digit Farmer ID here';
+        apfrInp.style.borderColor = '#f39c12';
+        apfrInp.style.boxShadow   = '0 0 0 3px rgba(243,156,18,0.18)';
+
+        // Clone to remove any stale event listeners
+        const fresh = apfrInp.cloneNode(true);
+        // Guard: parentNode may be null if element was re-rendered since function started
+        const liveInp = document.getElementById('fpApfrNumber');
+        if (liveInp && liveInp.parentNode) {
+            liveInp.parentNode.replaceChild(fresh, liveInp);
+        } else if (apfrInp.parentNode) {
+            apfrInp.parentNode.replaceChild(fresh, apfrInp);
         }
+        fresh.focus();
 
-        // ── Generate fresh serial from Firebase counter ──
-        const counterKey = `registrationCounters/${villageCode}_${seasonCode}`;
-        return database.ref(counterKey).transaction(current => {
-            return (current || 0) + 1;
-        }).then(result => {
-            const serial = String(result.snapshot.val()).padStart(4, '0');
-            return `${prefix}${serial}`;
+        fresh.addEventListener('input', async function () {
+            const typed = this.value.replace(/\D/g, '');
+            this.value  = typed;
+            if (typed.length === 11) {
+                this.style.borderColor = '#27ae60';
+                this.style.boxShadow   = '0 0 0 3px rgba(39,174,96,0.18)';
+                setStatus('<i class="fas fa-check-circle text-success me-1"></i>Farmer ID saved ✅ — shared with all VAAs.');
+                // Write to shared registry — any VAA looking up this Aadhaar finds it instantly from now on
+                try {
+                    await database.ref(`apfrRegistry/${cleanA}`).set({
+                        farmerId: typed, aadhaar: cleanA,
+                        enteredBy: firebase.auth().currentUser?.uid || 'unknown',
+                        savedAt:   new Date().toISOString()
+                    });
+                } catch(e) { console.warn('apfrRegistry write failed:', e); }
+                const cardField = document.getElementById('fpCardNumber');
+                cascadeMultiProfileUpdates(cleanA, cardField?.value || '', typed).catch(() => {});
+            } else {
+                this.style.borderColor = '#f39c12';
+                this.style.boxShadow   = '0 0 0 3px rgba(243,156,18,0.18)';
+                if (typed.length > 0)
+                    setStatus(`<i class="fas fa-keyboard me-1" style="color:#e67e22;"></i><span style="color:#7f8c8d;">${typed.length}/11 digits entered…</span>`);
+            }
         });
-    });
+    }
+    return 'NA';
+}
+
+function manualCheckApfr() {
+    const a = cleanAadhaar(document.getElementById('fpAadhaar')?.value || '');
+    if (!a || a.length !== 12) return alert('Enter a valid 12-digit Aadhaar number first.');
+    checkAPFRStatus(a);
+}
+
+/**
+ * Sweeps all profiles and automatically cascades uniform card data 
+ * when edits or structural variations are executed.
+ */
+async function cascadeMultiProfileUpdates(aadhaar, newCardNumber, newApfrNumber) {
+    const cleanA = cleanAadhaar(aadhaar);
+    // Allow APFR-only updates even when newCardNumber is empty
+    if (!cleanA || (!newCardNumber && !newApfrNumber) || !firebase.auth().currentUser) return;
+
+    try {
+        const userRef = database.ref(`users/${firebase.auth().currentUser.uid}/farmerProfiles`);
+        const snapshot = await userRef.once('value');
+        if (snapshot.exists()) {
+            const profiles = snapshot.val();
+            let updatePayload = {};
+            
+            Object.keys(profiles).forEach(key => {
+                if (profiles[key] && cleanAadhaar(profiles[key].aadhaar) === cleanA) {
+                    if (newCardNumber) {
+                        updatePayload[`${key}/cardNumber`] = newCardNumber;
+                    }
+                    if (newApfrNumber && newApfrNumber !== 'NA') {
+                        updatePayload[`${key}/apfrNumber`] = newApfrNumber;
+                    }
+                }
+            });
+
+            if (Object.keys(updatePayload).length > 0) {
+                await userRef.update(updatePayload);
+                console.log(`Cascaded global configurations to structural records matching the input.`);
+            }
+        }
+    } catch (e) {
+        console.error("Multi-profile cascade sync failed:", e);
+    }
+}
+
+/**
+ * Subroutine to safely return a deleted Card Number back into the recycled pipeline pool.
+ */
+async function recycleDeletedCardNumber(profileData) {
+    if (!profileData || !profileData.cardNumber || !profileData.village) return;
+    
+    const cardNo = profileData.cardNumber;
+    const parts = cardNo.split('/');
+    if (parts.length !== 3) return;
+
+    const vCode = getVillageCode(profileData.village);
+    const key = `${vCode}_${parts[1]}`;
+
+    try {
+        await database.ref(`registrationRecycled/${key}`).push(cardNo);
+        console.log(`Recycled deleted Card Number: ${cardNo} back to active pool.`);
+    } catch (e) {
+        console.error("Error archiving to recycling index:", e);
+    }
 }
 
 function refreshUreaRegId() {
-    // Card Number is now used instead of Registration ID.
-    // Card Number is entered manually and synced from farmer profile.
+    // Replaced by auto-synced global field tracking routines.
 }
 
 
@@ -11329,6 +11954,28 @@ function refreshUreaRegId() {
 
 function getFarmerProfiles(aadhaar) {
     return farmerProfiles[cleanAadhaar(aadhaar)] || [];
+}
+
+/**
+ * Called when Year or Season dropdowns change.
+ * Auto-generates card number if Aadhaar is already entered and both year+season are selected.
+ */
+function onFpYearSeasonChange() {
+    const a      = cleanAadhaar(document.getElementById('fpAadhaar')?.value || '');
+    const year   = document.getElementById('fpCropYear')?.value  || '';
+    const season = document.getElementById('fpCropSeason')?.value || '';
+    const fpCardNumEl = document.getElementById('fpCardNumber');
+    if (!fpCardNumEl) return;
+    if (a.length === 12 && year && season) {
+        // Only show already-allocated card numbers — never burn a counter slot here.
+        // The actual counter increment happens only in saveFarmerProfile().
+        getExistingCardNumber(a).then(existingCard => {
+            if (fpCardNumEl) {
+                fpCardNumEl.value = existingCard || '';
+                fpCardNumEl.placeholder = existingCard ? existingCard : 'Auto-assigned on Save';
+            }
+        });
+    }
 }
 
 async function saveFarmerProfile() {
@@ -11342,6 +11989,7 @@ async function saveFarmerProfile() {
     const k = document.getElementById('fpKhatha')?.value.trim();
     const totalExt = parseFloat(document.getElementById('fpExtent')?.value || 0);
     const farmerType = document.getElementById('fpFarmerType')?.value || 'tenant';
+    const apfrNumber = document.getElementById('fpApfrNumber')?.value.trim() || 'NA';
 
     if (!/^[0-9]{10}$/.test(m)) return alert('⚠️ Mobile number must be exactly 10 digits.');
     if (!n) return alert('Enter farmer name.');
@@ -11403,6 +12051,12 @@ async function saveFarmerProfile() {
         return alert('Duplicate crops in same profile. Each crop should appear once per khatha.');
     }
 
+    // ── Generate Automatic Card Number if missing ──
+    const user = firebase.auth().currentUser;
+    const profileSnap = await database.ref(`users/${user.uid}/profile`).once('value');
+    const userVillage = profileSnap.val()?.village || 'Unknown';
+    const finalCardNumber = await generateAutomaticCardNumber(a, userVillage, selectedYear, selectedSeason);
+
     if (!farmerProfiles[a]) farmerProfiles[a] = [];
 
     const existingIdx = farmerProfiles[a].findIndex(p => String(p.khatha) === String(k));
@@ -11439,52 +12093,32 @@ async function saveFarmerProfile() {
         extent: totalExt,
         farmerType,
         crops,
+        cardNumber: finalCardNumber,
+        apfrNumber: apfrNumber,
         savedAt: new Date().toISOString()
     };
 
-    // ── Card Number: stored per-Aadhaar, same for all khathas ──
-    const cardNumEl = document.getElementById('fpCardNumber');
-    const newCardNumber = cardNumEl ? cardNumEl.value.trim().toUpperCase() : '';
-
-    // ── Card Number uniqueness check: block if card already belongs to a DIFFERENT Aadhaar ──
-    if (newCardNumber) {
-        const conflictEntry = Object.entries(farmerProfiles).find(([otherAadhaar, otherProfiles]) => {
-            if (cleanAadhaar(otherAadhaar) === cleanAadhaar(a)) return false;
-            return (Array.isArray(otherProfiles) ? otherProfiles : Object.values(otherProfiles))
-                .some(p => (p.cardNumber || '').trim().toUpperCase() === newCardNumber);
-        });
-
-        if (conflictEntry) {
-            const [conflictAadhaarKey, conflictProfiles] = conflictEntry;
-            const conflictFarmer = (Array.isArray(conflictProfiles) ? conflictProfiles : Object.values(conflictProfiles))[0];
-            return alert(
-                '⚠️ Card Number "' + newCardNumber + '" is already assigned to:\n\n' +
-                'Name: ' + (conflictFarmer?.farmerName || '—') + '\nAadhaar: ' + conflictAadhaarKey +
-                '\n\nEach card must belong to only one farmer. Use a different card number.'
-            );
+    // ── Local Sync Card Number & APFR to ALL profiles for this unique identifier ──
+    (farmerProfiles[a] || []).forEach(p => {
+        if (p) {
+            p.cardNumber = finalCardNumber;
+            p.apfrNumber = apfrNumber;
         }
-    }
-
-    // Carry forward existing card number if none entered
-    const existingCardNumber = (farmerProfiles[a] || []).reduce((found, p) => found || p.cardNumber || '', '');
-    if (newCardNumber) {
-        profileEntry.cardNumber = newCardNumber;
-        (farmerProfiles[a] || []).forEach(p => {
-            p.cardNumber = newCardNumber;
-        });
-    } else if (existingCardNumber) {
-        profileEntry.cardNumber = existingCardNumber;
-    }
+    });
 
     if (existingIdx !== -1) {
         profileEntry.savedAt = farmerProfiles[a][existingIdx].savedAt || new Date().toISOString();
         profileEntry.updatedAt = new Date().toISOString();
         farmerProfiles[a][existingIdx] = profileEntry;
-        alert(`✅ Profile updated for Aadhaar ${a} — Khatha ${k}.`);
+        alert(`✅ Profile updated successfully — Khatha ${k}.\nCard No: ${finalCardNumber}`);
     } else {
         farmerProfiles[a].push(profileEntry);
-        const cardMsg = profileEntry.cardNumber ? `\nCard No: ${profileEntry.cardNumber}` : '';
-        alert(`✅ Profile saved for Aadhaar ${a} — Khatha ${k}.${cardMsg}`);
+        alert(`✅ Profile saved successfully — Khatha ${k}.\nCard No: ${finalCardNumber}`);
+    }
+
+    // ── Cloud Database Update Cascading across records ──
+    if (typeof cascadeMultiProfileUpdates === "function") {
+        await cascadeMultiProfileUpdates(a, finalCardNumber, apfrNumber);
     }
 
     saveToCloud();
@@ -12076,7 +12710,7 @@ function onFpFarmerTypeChange() {
     }
 }
 
-function searchFpByAadhaar() {
+async function searchFpByAadhaar() {
     const a = cleanAadhaar(document.getElementById('fpAadhaar')?.value);
     const aadhaarCheck = validateAadhaar(a);
     if (!aadhaarCheck.valid) return alert(aadhaarCheck.msg);
@@ -12090,6 +12724,12 @@ function searchFpByAadhaar() {
     const fatherEl = document.getElementById('fpFather');
     const khathaEl = document.getElementById('fpKhatha');
     const extentEl = document.getElementById('fpExtent');
+
+    // ── Start APFR Check ──
+    checkAPFRStatus(a).then(id => {
+        const inp = document.getElementById('fpApfrNumber');
+        if (inp) inp.value = id;
+    });
 
     let autoFilled  = false;
     let foundKhatha = null;
@@ -12181,15 +12821,32 @@ function searchFpByAadhaar() {
         onFpKhathaChange();
     }
 
-    // STEP 6: Status message
-    const profiles    = farmerProfiles[a];
-    // Auto-fill card number from existing profiles
+    // STEP 6: Card ID Generation logic
     const fpCardNumEl = document.getElementById('fpCardNumber');
-    if (fpCardNumEl && profiles?.length) {
-        const existingCard = profiles.reduce((found, p) => found || p.cardNumber || '', '');
-        if (existingCard && !fpCardNumEl.value.trim()) fpCardNumEl.value = existingCard;
+    const profiles    = farmerProfiles[a];
+    const firstCrop   = (profiles && profiles[0]?.crops && profiles[0].crops[0]);
+    // First check if this aadhaar already has a card number saved
+    const existingCard = (profiles || []).reduce((found, p) => found || p.cardNumber || '', '');
+    if (existingCard && fpCardNumEl) {
+        fpCardNumEl.value = existingCard;
+    } else {
+        // Try to derive year/season from form or existing profile
+        const year   = firstCrop?.year   || document.getElementById('fpCropYear')?.value  || '';
+        const season = firstCrop?.season || document.getElementById('fpCropSeason')?.value || '';
+        if (year && season) {
+            // Read-only check only — counter increments only at save time
+            getExistingCardNumber(a).then(id => {
+                if (fpCardNumEl) {
+                    fpCardNumEl.value = id || '';
+                    fpCardNumEl.placeholder = id ? id : 'Auto-assigned on Save';
+                }
+            });
+        } else if (fpCardNumEl) {
+            fpCardNumEl.placeholder = 'Will generate when Year & Season selected';
+        }
     }
 
+    // STEP 7: Status message
     const profileInfo = profiles?.length
         ? `ℹ️ ${profiles.length} existing khatha profile(s) found. Select a Khatha to edit or add new.
            <ul class="mb-0 mt-1">${profiles.map(p =>
@@ -12235,12 +12892,42 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
     document.getElementById('fpKhatha').value = profile.khatha  || '';
     // Load Card Number (per-aadhaar field)
     const fpCardNumEl = document.getElementById('fpCardNumber');
+    const a = cleanAadhaar(profile.aadhaar || document.getElementById('fpAadhaar')?.value);
+
     if (fpCardNumEl) {
         // Find card number from any profile for this aadhaar
-        const a = cleanAadhaar(profile.aadhaar);
         const cardNum = profile.cardNumber ||
             (farmerProfiles[a] || []).reduce((found, p) => found || p.cardNumber || '', '') || '';
         fpCardNumEl.value = cardNum;
+
+        // ── Auto-generate if missing during edit ──
+        if (!cardNum && a.length === 12) {
+            const firstCrop = (profile.crops && profile.crops[0]) ||
+                              (farmerProfiles[a] && farmerProfiles[a][0]?.crops && farmerProfiles[a][0].crops[0]);
+            const year   = firstCrop?.year   || document.getElementById('fpCropYear')?.value;
+            const season = firstCrop?.season || document.getElementById('fpCropSeason')?.value;
+            if (year && season) {
+                // Read-only check only — counter increments only at save time
+                getExistingCardNumber(a).then(id => {
+                    if (fpCardNumEl) {
+                        fpCardNumEl.value = id || '';
+                        fpCardNumEl.placeholder = id ? id : 'Auto-assigned on Save';
+                    }
+                });
+            }
+        }
+    }
+
+    // ── Auto-fill APFR if missing during edit ──
+    const apfrInp = document.getElementById('fpApfrNumber');
+    if (apfrInp) {
+        const existingApfr = profile.apfrNumber ||
+                             (farmerProfiles[a] || []).reduce((found, p) => found || p.apfrNumber || '', '') || '';
+        if (existingApfr) {
+            apfrInp.value = existingApfr;
+        } else if (a.length === 12) {
+            checkAPFRStatus(a).then(id => { if (apfrInp) apfrInp.value = id; });
+        }
     }
     // Also set the visible text input
     const khathaInp = document.getElementById('fpKhathaSearchInput');
@@ -12383,11 +13070,19 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
                 style="letter-spacing:0.8px; font-size:0.82rem; color:#1562ab; font-weight:700; white-space:nowrap">
                 🪪 ${escapeHtml(p.cardNumber)}
                </code>`
-            : `<span class="text-muted small">—</span>`;
+            : `<span class="text-muted small">Generating...</span>`;
+
+        const apfrDisplay = p.apfrNumber
+            ? `<code class="d-block bg-light border border-success rounded px-2 py-1"
+                style="font-size:0.82rem; color:#27ae60; font-weight:600; white-space:nowrap">
+                ${escapeHtml(p.apfrNumber)}
+               </code>`
+            : `<span class="text-muted small">NA</span>`;
 
         return `<tr>
             <td class="text-center text-muted">${idx + 1}</td>
             <td style="font-size:0.78rem; min-width:130px">${cardNumberDisplay}</td>
+            <td style="font-size:0.78rem; min-width:130px">${apfrDisplay}</td>
             <td style="min-width:140px">
                 <div class="fw-semibold" style="word-break:break-word">${escapeHtml(p.farmerName || '—')}</div>
                 ${typeBadge}
@@ -12508,8 +13203,32 @@ function deleteFarmerProfile(aadhaar, khatha) {
     );
     if (!confirmed) return;
 
+    const cardNumberToRecycle = profile.cardNumber;
+    
+    // Fallbacks to determine the targeted operational timeline
+    const year   = (profile.crops && profile.crops[0]?.year)   || document.getElementById('fpCropYear')?.value || '';
+    const season = (profile.crops && profile.crops[0]?.season) || document.getElementById('fpCropSeason')?.value || '';
+
+    // Remove this specific Khatha profile row from the local array
     farmerProfiles[a] = farmerProfiles[a].filter(p => String(p.khatha) !== String(khatha));
-    if (farmerProfiles[a].length === 0) delete farmerProfiles[a];
+
+    // If no more profiles remain for this unique identifier, clear the key entirely
+    if (farmerProfiles[a].length === 0) {
+        delete farmerProfiles[a];
+    }
+
+    // ── Recycling Logic: Allocated immediately upon any profile deletion ──
+    if (cardNumberToRecycle && year && season) {
+        const villageName = window.currentUserProfile?.village || localStorage.getItem('user_village') || 'Unknown';
+        const vCode = getVillageCode(villageName);
+        const sCode = getSeasonCode(year, season); // e.g. "2026K"
+        const key   = `${vCode}_${sCode}`;
+        
+        // Push the string directly back into the dynamic recycling collection pool
+        database.ref(`registrationRecycled/${key}`).push(cardNumberToRecycle)
+            .then(() => console.log(`Card Number ${cardNumberToRecycle} successfully recycled to pool path: registrationRecycled/${key}`))
+            .catch(e => console.error('Error writing to recycling pool:', e));
+    }
 
     saveToCloud().then(() => {
         alert(`✅ Profile deleted — Khatha ${khatha}.`);
@@ -18214,6 +18933,10 @@ function loadPrintFarmerProfile() {
     const mobile      = base.mobile || '—';
     const cardNumber  = (profiles.map(p => p.cardNumber).find(Boolean)) || '—';
     const farmerType  = base.farmerType || '—';
+    const apfrNumber  = (profiles.map(p => p.apfrNumber).find(v => v && v !== 'NA')) || base.apfrNumber || '—';
+    const mandalName  = (currentUserProfile && currentUserProfile.mandal)  ? currentUserProfile.mandal  : '—';
+    const villageName = (currentUserProfile && currentUserProfile.village) ? currentUserProfile.village : '—';
+    const officerName = (currentUserProfile && currentUserProfile.name)    ? currentUserProfile.name    : '—';
 
     // Build merged rows: one row per (khatha, crop)
     const rows = [];
@@ -18302,116 +19025,215 @@ function loadPrintFarmerProfile() {
     const totalS2D  = rows.reduce((s, r) => s + r.split2D, 0);
     const totalS3D  = rows.reduce((s, r) => s + r.split3D, 0);
 
+    // ── Build distribution schedule rows (3 splits × 2 blank rows each) ──
+    const splitLabels = [
+        { num: 1, label: 'Split 1 — Basal',     uColor: '#155724', dColor: '#0d4d73', badge: 'bg-primary' },
+        { num: 2, label: 'Split 2 — Top-dress',  uColor: '#155724', dColor: '#0d4d73', badge: 'bg-success' },
+        { num: 3, label: 'Split 3 — Final',      uColor: '#155724', dColor: '#0d4d73', badge: 'bg-warning text-dark' }
+    ];
+    const splitTotals = [
+        { u: totalS1, d: totalS1D },
+        { u: totalS2, d: totalS2D },
+        { u: totalS3, d: totalS3D }
+    ];
+
+    const scheduleRows = splitLabels.map((sp, si) => {
+        const eligU = splitTotals[si].u;
+        const eligD = splitTotals[si].d;
+        const splitHeader = `
+            <tr style="background:linear-gradient(135deg,#1862ab,#124d86); color:#fff;">
+              <td colspan="8" style="font-size:0.85rem; font-weight:700; padding:7px 12px; letter-spacing:0.3px;">
+                🌿 ${sp.label}
+                &nbsp;|&nbsp; Eligible Urea: <span style="background:rgba(255,255,255,0.2); padding:1px 8px; border-radius:10px;">${eligU} bags</span>
+                &nbsp;|&nbsp; Eligible DAP: <span style="background:rgba(255,255,255,0.2); padding:1px 8px; border-radius:10px;">${eligD} bags</span>
+              </td>
+            </tr>
+            <tr style="background:#f0f4ff; font-size:0.75rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.4px;">
+              <th style="padding:6px 10px; border:1px solid #dee2e6; width:30px;">#</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6;">Availed Bags (Urea / DAP)</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6;">Availed Date</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6;">Availed At (Outlet)</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6; width:140px;">Signature of Retailer</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6; width:90px;">Remaining Bags</th>
+            </tr>`;
+        const blankRows = [1, 2].map(rowNum => `
+            <tr style="height:38px;">
+              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.78rem;">${rowNum}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
+            </tr>`).join('');
+        return splitHeader + blankRows;
+    }).join('');
+
     cardEl.innerHTML = `
-    <div id="fertCardPrintArea" style="background:#fff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); overflow:hidden; max-width:960px; margin:0 auto;">
-      <!-- Card Header -->
-      <div style="background:linear-gradient(135deg,#1862ab,#124d86); color:#fff; padding:1.2rem 1.5rem; text-align:center;">
-        <div style="font-size:1.4rem; font-weight:800; letter-spacing:1px; margin-bottom:0.2rem;">
-          🌾 FERTILIZER CARD
-        </div>
-        <div style="font-size:0.9rem; opacity:0.85;">${escapeHtml(yearSeasonLabel)}</div>
-        ${cardNumber !== '—' ? `<div style="margin-top:0.4rem; font-size:0.82rem; background:rgba(255,255,255,0.15); display:inline-block; padding:2px 12px; border-radius:20px; letter-spacing:1px;">Card No: <strong>${escapeHtml(cardNumber)}</strong></div>` : ''}
-      </div>
+    <div id="fertCardPrintArea" style="background:#fff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); overflow:hidden; max-width:980px; margin:0 auto; font-family:'Segoe UI',Arial,sans-serif;">
 
-      <!-- Basic Details -->
-      <div style="padding:1rem 1.5rem; background:#f8fbff; border-bottom:2px solid #e0e6ed;">
-        <div class="row g-2">
-          <!-- Row 1: Year, Season, Aadhaar -->
-          <div class="col-md-3">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Crop Year</div>
-            <div style="font-size:1rem; font-weight:800; color:#1862ab; font-family:monospace;">${escapeHtml(selYear || 'All Years')}</div>
+      <!-- ══ CARD HEADER ══ -->
+      <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%); color:#fff; padding:0.75rem 1.2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+        <div style="display:flex; align-items:center; gap:0.7rem;">
+          <div style="font-size:1.6rem; line-height:1;">🌾</div>
+          <div>
+            <div style="font-size:1.05rem; font-weight:800; letter-spacing:0.8px;">FERTILIZER CARD</div>
+            <div style="font-size:0.72rem; opacity:0.8; margin-top:1px;">e-Panta Agriculture Dashboard</div>
           </div>
-          <div class="col-md-3">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Season</div>
-            <div style="font-size:1rem; font-weight:800; color:#27ae60;">${escapeHtml(selSeason || 'All Seasons')}</div>
+        </div>
+        <div style="display:flex; gap:1.2rem; flex-wrap:wrap; align-items:center;">
+          <div style="text-align:center;">
+            <div style="font-size:0.6rem; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;">Year / Season</div>
+            <div style="font-size:0.85rem; font-weight:700;">${escapeHtml(yearSeasonLabel)}</div>
           </div>
-          <div class="col-md-6">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Aadhaar Number</div>
-            <div style="font-size:1.05rem; font-family:monospace; font-weight:800; letter-spacing:2px; color:#c0392b;">${escapeHtml(aadhaar)}</div>
+          <div style="text-align:center;">
+            <div style="font-size:0.6rem; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;">Mandal</div>
+            <div style="font-size:0.85rem; font-weight:700;">${escapeHtml(mandalName)}</div>
           </div>
-          <!-- Divider -->
-          <div class="col-12"><hr style="margin:0.4rem 0; border-color:#e0e6ed;"></div>
-          <!-- Row 2: Farmer Name, Father Name -->
-          <div class="col-md-4">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Farmer Name</div>
-            <div style="font-size:1rem; font-weight:700; color:#1862ab;">${escapeHtml(farmerName)}</div>
+          <div style="text-align:center;">
+            <div style="font-size:0.6rem; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;">Village</div>
+            <div style="font-size:0.85rem; font-weight:700; color:#a8d8a8;">${escapeHtml(villageName)}</div>
           </div>
-          <div class="col-md-4">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Father Name</div>
-            <div style="font-size:0.95rem; font-weight:600;">${escapeHtml(fatherName)}</div>
-          </div>
-          <div class="col-md-4">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Mobile Number</div>
-            <div style="font-size:0.9rem; font-weight:600;">${escapeHtml(mobile)}</div>
-          </div>
-          <!-- Row 3: Card No, Type, Total Extent -->
-          <div class="col-md-4">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Farmer ID (Card No.)</div>
-            <div style="font-size:0.9rem; font-weight:700; color:#e67e22; font-family:monospace;">${escapeHtml(cardNumber)}</div>
-          </div>
-          <div class="col-md-4">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Farmer Type</div>
-            <div style="font-size:0.9rem; font-weight:600;">${farmerType === 'owner' ? '🏠 Owner' : farmerType === 'tenant' ? '🤝 Tenant' : escapeHtml(farmerType)}</div>
-          </div>
-          <div class="col-md-4">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Total Extent Cultivating</div>
-            <div style="font-size:0.9rem; font-weight:700; color:#27ae60;">${totalExtent.toFixed(2)} Acres</div>
-          </div>
-          <div class="col-12">
-            <div style="font-size:0.7rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.5px;">Crops Cultivating (Crop-wise Extent)</div>
-            <div style="font-size:0.88rem; font-weight:600; color:#2c3e50;">${escapeHtml(cropSummaryStr)}</div>
-          </div>
+          ${cardNumber !== '—' ? `<div style="background:rgba(255,255,255,0.18); border-radius:20px; padding:3px 14px; font-size:0.78rem; font-weight:700; letter-spacing:0.8px;">Card No: ${escapeHtml(cardNumber)}</div>` : ''}
         </div>
       </div>
 
-      <!-- Fertilizer Table -->
-      <div style="padding:1rem 1.5rem;">
-        <div style="font-size:0.78rem; color:#7f8c8d; margin-bottom:0.5rem;">
-          <i class="fas fa-info-circle me-1"></i>
-          Split values shown for both <strong>Urea</strong> and <strong>DAP</strong>.
-          Splits auto-calculated from crop-wise fertilizer schedule.
-        </div>
-        <div class="table-responsive">
-          <table class="table table-bordered align-middle mb-0" style="font-size:0.87rem;">
-            <thead>
-              <tr style="background:linear-gradient(135deg,#1862ab,#124d86); color:#fff;">
-                <th class="text-center" style="width:40px;">#</th>
-                <th>Khatha No | Survey No (Extent)</th>
-                <th>Crop</th>
-                <th class="text-center" style="background:#1a3a6b;">Eligible Urea Bags</th>
-                <th class="text-center" style="background:#1a3a6b;">Eligible DAP Bags</th>
-                <th class="text-center" style="background:#155724; color:#d4edda;">Urea Split 1<br><small style="font-size:0.7rem;opacity:0.85;">(Basal)</small></th>
-                <th class="text-center" style="background:#155724; color:#d4edda;">Urea Split 2<br><small style="font-size:0.7rem;opacity:0.85;">(Top-dress)</small></th>
-                <th class="text-center" style="background:#155724; color:#d4edda;">Urea Split 3<br><small style="font-size:0.7rem;opacity:0.85;">(Final)</small></th>
-                <th class="text-center" style="background:#0d4d73; color:#d4f1ff;">DAP Split 1<br><small style="font-size:0.7rem;opacity:0.85;">(Basal)</small></th>
-                <th class="text-center" style="background:#0d4d73; color:#d4f1ff;">DAP Split 2<br><small style="font-size:0.7rem;opacity:0.85;">(Top-dress)</small></th>
-                <th class="text-center" style="background:#0d4d73; color:#d4f1ff;">DAP Split 3<br><small style="font-size:0.7rem;opacity:0.85;">(Final)</small></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRows || '<tr><td colspan="11" class="text-center text-muted p-4">No crop records found.</td></tr>'}
-            </tbody>
-            <tfoot>
-              <tr style="background:#f8f9fa; font-weight:700; border-top:2px solid #1862ab;">
-                <td colspan="3" class="text-end pe-3" style="font-size:0.88rem;">TOTAL</td>
-                <td class="text-center" style="color:#1862ab; font-size:1rem;">${totalUrea}</td>
-                <td class="text-center" style="color:#27ae60; font-size:1rem;">${totalDAP}</td>
-                <td class="text-center"><span class="badge bg-primary fs-6">${totalS1}</span></td>
-                <td class="text-center"><span class="badge bg-success fs-6">${totalS2}</span></td>
-                <td class="text-center"><span class="badge bg-warning text-dark fs-6">${totalS3}</span></td>
-                <td class="text-center"><span class="badge bg-primary fs-6">${totalS1D}</span></td>
-                <td class="text-center"><span class="badge bg-success fs-6">${totalS2D}</span></td>
-                <td class="text-center"><span class="badge bg-warning text-dark fs-6">${totalS3D}</span></td>
-              </tr>
-            </tfoot>
-          </table>
+      <!-- ══ FARMER INFO STRIP — HORIZONTAL ══ -->
+      <div style="background:linear-gradient(135deg,#f0f7ff,#e8f3ff); border-bottom:2px solid #c8d8ed; padding:0.6rem 1.2rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:0; align-items:stretch;">
+
+          <!-- Farmer Name -->
+          <div style="flex:2; min-width:140px; padding:0.4rem 0.8rem 0.4rem 0; border-right:1px solid #c8d8ed;">
+            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Farmer Name</div>
+            <div style="font-size:0.92rem; font-weight:800; color:#1862ab; line-height:1.2;">${escapeHtml(farmerName)}</div>
+          </div>
+
+          <!-- Father Name -->
+          <div style="flex:2; min-width:130px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
+            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Father / Husband Name</div>
+            <div style="font-size:0.88rem; font-weight:700; color:#2c3e50;">${escapeHtml(fatherName)}</div>
+          </div>
+
+          <!-- Aadhaar -->
+          <div style="flex:2; min-width:130px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
+            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Aadhaar Number</div>
+            <div style="font-size:0.88rem; font-family:monospace; font-weight:800; letter-spacing:2px; color:#c0392b;">${escapeHtml(aadhaar)}</div>
+          </div>
+
+          <!-- Mobile -->
+          <div style="flex:1.2; min-width:100px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
+            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Mobile</div>
+            <div style="font-size:0.88rem; font-weight:600; color:#2c3e50;">${escapeHtml(mobile)}</div>
+          </div>
+
+          <!-- APFR ID -->
+          <div style="flex:1.5; min-width:110px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
+            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">APFR Farmer ID</div>
+            <div style="font-size:0.82rem; font-weight:700; color:#8e44ad; font-family:monospace;">${escapeHtml(apfrNumber)}</div>
+          </div>
+
+          <!-- Farmer Type -->
+          <div style="flex:1; min-width:80px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
+            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Type</div>
+            <div style="font-size:0.82rem; font-weight:700;">${farmerType === 'owner' ? '🏠 Owner' : farmerType === 'tenant' ? '🤝 Tenant' : escapeHtml(farmerType)}</div>
+          </div>
+
+          <!-- Total Extent -->
+          <div style="flex:1.2; min-width:90px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
+            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Total Extent</div>
+            <div style="font-size:0.88rem; font-weight:800; color:#27ae60;">${totalExtent.toFixed(2)} Ac</div>
+          </div>
+
+          <!-- Crops -->
+          <div style="flex:2.5; min-width:140px; padding:0.4rem 0 0.4rem 0.8rem;">
+            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Crops Cultivating</div>
+            <div style="font-size:0.78rem; font-weight:600; color:#2c3e50; line-height:1.3;">${escapeHtml(cropSummaryStr)}</div>
+          </div>
+
         </div>
       </div>
 
-      <!-- Print Button Area -->
-      <div style="padding:0.8rem 1.5rem 1.2rem; text-align:center; border-top:1px solid #e0e6ed;" class="no-print">
+      <!-- ══ FERTILIZER ELIGIBILITY TABLE ══ -->
+      <div style="padding:0.6rem 1rem 0.5rem;">
+        <div style="font-size:0.7rem; font-weight:700; color:#1862ab; margin-bottom:0.4rem; text-transform:uppercase; letter-spacing:0.5px;">
+          Crop-wise Fertilizer Eligibility
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:0.76rem;">
+          <thead>
+            <tr style="background:linear-gradient(135deg,#1862ab,#124d86); color:#fff;">
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; width:28px;">#</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de;">Khatha / Survey No</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de;">Crop (Acres)</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#1a3a6b;">Urea (Bags)</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#1a3a6b;">DAP (Bags)</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#155724; color:#d4edda;">U-Split1</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#155724; color:#d4edda;">U-Split2</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#155724; color:#d4edda;">U-Split3</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#0d4d73; color:#d4f1ff;">D-Split1</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#0d4d73; color:#d4f1ff;">D-Split2</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#0d4d73; color:#d4f1ff;">D-Split3</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((r, i) => `
+            <tr style="background:${i%2===0?'#fff':'#f8fbff'};">
+              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.72rem;">${i+1}</td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.76rem; font-weight:600;">${escapeHtml(r.khatha)}<br><span style="font-size:0.68rem; color:#7f8c8d; font-weight:400;">${escapeHtml(r.surveyNos)}</span></td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.76rem;">${escapeHtml(r.cropLabel)} <span style="color:#27ae60; font-weight:700;">(${r.cropExt.toFixed(2)}ac)</span></td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#1862ab;">${r.ureaTotal}</td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#27ae60;">${r.dapTotal}</td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split1U>0?`<span style="background:#1862ab;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split1U}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split2U>0?`<span style="background:#27ae60;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split2U}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split3U>0?`<span style="background:#f39c12;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split3U}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split1D>0?`<span style="background:#1862ab;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split1D}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split2D>0?`<span style="background:#27ae60;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split2D}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split3D>0?`<span style="background:#f39c12;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split3D}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+            </tr>`).join('') || '<tr><td colspan="11" style="text-align:center;color:#aaa;padding:10px;">No crop records found.</td></tr>'}
+          </tbody>
+          <tfoot>
+            <tr style="background:#eaf0fb; font-weight:800; border-top:2px solid #1862ab;">
+              <td colspan="3" style="padding:5px 7px; border:1px solid #dee2e6; text-align:right; font-size:0.78rem;">TOTAL</td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center; color:#1862ab; font-size:0.88rem;">${totalUrea}</td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center; color:#27ae60; font-size:0.88rem;">${totalDAP}</td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#1862ab;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS1}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#27ae60;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS2}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#f39c12;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS3}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#1862ab;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS1D}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#27ae60;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS2D}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#f39c12;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS3D}</span></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- ══ DISTRIBUTION SCHEDULE ══ -->
+      <div style="padding:0.3rem 1rem 0.5rem;">
+        <div style="font-size:0.7rem; font-weight:700; color:#1862ab; margin-bottom:0.35rem; text-transform:uppercase; letter-spacing:0.5px;">
+          Fertilizer Distribution Schedule
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:0.74rem;">
+          ${scheduleRows}
+        </table>
+        <div style="margin-top:0.35rem; font-size:0.65rem; color:#7f8c8d;">
+          Each split provides 2 rows for recording distribution entries. Retailer must sign after each dispensal.
+        </div>
+      </div>
+
+      <!-- ══ OFFICER FOOTER ══ -->
+      <div style="background:#f8fbff; border-top:1.5px solid #e0e6ed; padding:0.5rem 1.2rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+        <div style="font-size:0.7rem; color:#7f8c8d;">
+          <span style="font-weight:700; color:#1862ab;">Village Officer:</span> ${escapeHtml(officerName)}
+          &nbsp;|&nbsp;
+          <span style="font-weight:700; color:#1862ab;">Village:</span> ${escapeHtml(villageName)}
+          &nbsp;|&nbsp;
+          <span style="font-weight:700; color:#1862ab;">Mandal:</span> ${escapeHtml(mandalName)}
+        </div>
+        <div style="font-size:0.65rem; color:#95a5a6;">Generated: ${new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})}</div>
+      </div>
+
+      <!-- ══ PRINT BUTTON (hidden when printing) ══ -->
+      <div style="padding:0.7rem 1.2rem; text-align:center; border-top:1px solid #e0e6ed;" class="no-print">
         <button class="btn btn-warning text-dark fw-bold px-4 me-2" onclick="printFertilizerCard()">
-          <i class="fas fa-print me-2"></i>Print Card
+          <i class="fas fa-print me-2"></i>Print / Save as PDF
         </button>
         <button class="btn btn-outline-secondary" onclick="closePrintFarmerProfilePanel()">
           <i class="fas fa-times me-2"></i>Close
@@ -18424,37 +19246,113 @@ function printFertilizerCard() {
     const cardEl = document.getElementById('fertCardPrintArea');
     if (!cardEl) { alert('No profile card to print. Please search for a farmer first.'); return; }
 
-    const farmerName = document.getElementById('printFpAadhaar')?.value || 'farmer';
+    // Build a meaningful title from the card data
+    const aadhaarVal  = (document.getElementById('printFpAadhaar')?.value || '').trim();
+    const yearVal     = (document.getElementById('printFpYear')?.value    || '').trim();
+    const seasonVal   = (document.getElementById('printFpSeason')?.value  || '').trim();
+    const mandalName  = (currentUserProfile && currentUserProfile.mandal)  ? currentUserProfile.mandal  : '';
+    const villageName = (currentUserProfile && currentUserProfile.village) ? currentUserProfile.village : '';
+    const docTitle    = ['Fertilizer Card', villageName, mandalName, yearVal, seasonVal, aadhaarVal]
+                          .filter(Boolean).join(' — ');
 
-    const printWin = window.open('', '_blank', 'width=1000,height=700');
-    if (!printWin) { alert('Pop-up blocked. Please allow pop-ups for this site and try again.'); return; }
+    const printWin = window.open('', '_blank', 'width=1050,height=780');
+    if (!printWin) {
+        alert('Pop-up blocked.\n\nPlease allow pop-ups for this site and try again.\n\nAlternatively, use your browser\'s "Save as PDF" option from the File menu after allowing pop-ups.');
+        return;
+    }
 
     printWin.document.write(`<!DOCTYPE html>
-<html><head>
+<html lang="en"><head>
 <meta charset="UTF-8">
-<title>Fertilizer Card</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${docTitle}</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
-  body { font-family: 'Segoe UI', Arial, sans-serif; background:#fff; padding:20px; }
-  @media print {
-    body { padding:0; }
-    .no-print { display:none !important; }
-    @page { margin:1cm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; margin: 0; padding: 0; }
+
+  /* ── Action bar (hidden when printing) ── */
+  #printActionBar {
+    position: sticky; top: 0; z-index: 100;
+    background: linear-gradient(135deg,#1862ab,#0d4d86);
+    color: #fff; padding: 9px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    box-shadow: 0 3px 12px rgba(24,98,171,0.4);
   }
-  .badge { padding:4px 8px; border-radius:4px; font-weight:700; }
-  .bg-primary { background:#1862ab !important; color:#fff !important; }
-  .bg-success { background:#27ae60 !important; color:#fff !important; }
-  .bg-warning { background:#f39c12 !important; }
-  table { border-collapse:collapse; width:100%; }
-  th, td { border:1px solid #dee2e6; padding:6px 10px; }
+  #printActionBar .bar-info { font-size: 0.82rem; font-weight: 700; }
+  #printActionBar .bar-sub  { font-size: 0.68rem; opacity: 0.8; margin-top: 1px; }
+  #printActionBar .bar-btns { display:flex; gap:8px; }
+
+  .btn-print-main {
+    background: #f39c12; color: #fff; border: none;
+    padding: 7px 18px; border-radius: 8px;
+    font-size: 0.82rem; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .btn-print-main:hover { background: #e67e22; }
+  .btn-pdf-save {
+    background: rgba(255,255,255,0.15); color: #fff;
+    border: 1px solid rgba(255,255,255,0.35);
+    padding: 7px 16px; border-radius: 8px;
+    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .btn-pdf-save:hover { background: rgba(255,255,255,0.25); }
+
+  #pdfTipBanner {
+    display: none; background: #fff8e1; border-left: 4px solid #f39c12;
+    padding: 8px 18px; font-size: 0.78rem; color: #5d4037; margin: 10px 18px 0;
+  }
+
+  #cardWrapper { padding: 16px; max-width: 990px; margin: 0 auto; }
+
+  /* ── Print media ── */
+  @media print {
+    #printActionBar, #pdfTipBanner { display: none !important; }
+    body { background: #fff; }
+    #cardWrapper { padding: 0; max-width: 100%; }
+    .no-print { display: none !important; }
+    @page {
+      size: A4 landscape;
+      margin: 0.8cm 0.7cm;
+    }
+    /* Force everything onto one page */
+    #fertCardPrintArea { page-break-inside: avoid; }
+    tr { page-break-inside: avoid; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  }
 </style>
-</head><body>
+</head>
+<body>
+
+<div id="printActionBar">
+  <div>
+    <div class="bar-info">🌾 Fertilizer Card — Ready to Print</div>
+    <div class="bar-sub">Mandal: <strong>${mandalName || '—'}</strong> &nbsp;|&nbsp; Village: <strong>${villageName || '—'}</strong></div>
+  </div>
+  <div class="bar-btns">
+    <button class="btn-pdf-save" onclick="showPdfTip()">📄 Save as PDF</button>
+    <button class="btn-print-main" onclick="window.print()">🖨️ Print</button>
+  </div>
+</div>
+
+<div id="pdfTipBanner">
+  <strong>💡 Save as PDF:</strong> In the print dialog, change <strong>Destination/Printer</strong> to <strong>"Save as PDF"</strong> or <strong>"Microsoft Print to PDF"</strong>, then click <strong>Save</strong>.
+</div>
+
+<div id="cardWrapper">
 ${cardEl.innerHTML}
-<scr'+'ipt>
-  document.querySelector('.no-print') && (document.querySelector('.no-print').style.display='none');
-  window.onload = function() { window.print(); };
-</scr'+'ipt>
+</div>
+
+<script>
+  document.querySelectorAll('.no-print').forEach(function(el){ el.style.display='none'; });
+  function showPdfTip() {
+    var b = document.getElementById('pdfTipBanner');
+    if (b) b.style.display = 'block';
+    setTimeout(function(){ window.print(); }, 500);
+  }
+<\/script>
 </body></html>`);
     printWin.document.close();
 }
