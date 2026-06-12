@@ -11597,12 +11597,19 @@ async function getExistingCardNumber(aadhaar) {
     const cleanA = cleanAadhaar(aadhaar);
     if (!cleanA || cleanA.length !== 12) return null;
 
+    // Only card numbers matching the current auto-generated format
+    // (e.g. KLV/2026K/0001) are considered valid/reusable. Any
+    // manually-entered card number from a previous version (different
+    // format) is ignored here so a fresh auto-generated number is
+    // assigned and overwrites the old one.
+    const NEW_FORMAT_RE = /^[A-Z]{3}\/\d{4}[A-Z]\/\d{4}$/;
+
     // 1. Check local in-memory profiles first (fastest)
     if (window.farmerProfiles) {
         const profilesList = Array.isArray(window.farmerProfiles)
             ? window.farmerProfiles
             : Object.values(window.farmerProfiles).flat();
-        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && p.cardNumber);
+        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && p.cardNumber && NEW_FORMAT_RE.test(String(p.cardNumber).toUpperCase()));
         if (existing?.cardNumber) return existing.cardNumber;
     }
 
@@ -11615,14 +11622,14 @@ async function getExistingCardNumber(aadhaar) {
                 let found = null;
                 snap.forEach(child => {
                     const p = child.val();
-                    if (p && p.cardNumber && !found) found = p.cardNumber;
+                    if (p && p.cardNumber && !found && NEW_FORMAT_RE.test(String(p.cardNumber).toUpperCase())) found = p.cardNumber;
                 });
                 if (found) return found;
             }
         }
     } catch (e) { /* silent — fall through to null */ }
 
-    return null; // No existing card — one will be assigned at save time
+    return null; // No existing (valid-format) card — one will be assigned at save time
 }
 
 /**
@@ -11635,10 +11642,11 @@ async function generateAutomaticCardNumber(aadhaar, village, year, season) {
     const cleanA = cleanAadhaar(aadhaar);
     if (!cleanA || cleanA.length !== 12) return null;
 
-    // 1. Check if this identifier already has an assigned card number across any profile
+    // 1. Check if this identifier already has an assigned card number (new format) across any profile
+    const NEW_FORMAT_RE = /^[A-Z]{3}\/\d{4}[A-Z]\/\d{4}$/;
     if (window.farmerProfiles) {
         const profilesList = Array.isArray(window.farmerProfiles) ? window.farmerProfiles : Object.values(window.farmerProfiles);
-        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && p.cardNumber);
+        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && p.cardNumber && NEW_FORMAT_RE.test(String(p.cardNumber).toUpperCase()));
         if (existing?.cardNumber) return existing.cardNumber;
     }
 
@@ -11791,40 +11799,7 @@ async function checkAPFRStatus(aadhaar) {
         }
     }
 
-    // ── 3. Cross-user farmerProfiles scan (catches pre-apfrRegistry records) ──
-    setStatus('<i class="fas fa-spinner fa-spin me-1"></i>Scanning all VAA records...');
-    try {
-        const usersSnap = await database.ref('users').once('value');
-        if (usersSnap.exists()) {
-            let crossFound = null;
-            usersSnap.forEach(userNode => {
-                if (crossFound) return;
-                const fp = userNode.child('farmerProfiles').val();
-                if (!fp) return;
-                Object.values(fp).forEach(group => {
-                    if (crossFound) return;
-                    const arr = Array.isArray(group) ? group : Object.values(group || {});
-                    arr.forEach(p => {
-                        if (!crossFound && p && cleanAadhaar(p.aadhaar) === cleanA &&
-                            p.apfrNumber && p.apfrNumber !== 'NA' &&
-                            String(p.apfrNumber).replace(/\D/g, '').length === 11) {
-                            crossFound = String(p.apfrNumber).replace(/\D/g, '').slice(0, 11);
-                        }
-                    });
-                });
-            });
-            if (crossFound) {
-                setFound(crossFound, 'other VAA record');
-                // Promote into shared registry so future lookups skip the full scan
-                database.ref(`apfrRegistry/${cleanA}`).set({
-                    farmerId: crossFound, aadhaar: cleanA,
-                    promotedAt: new Date().toISOString()
-                }).catch(() => {});
-                cascadeMultiProfileUpdates(cleanA, '', crossFound).catch(() => {});
-                return crossFound;
-            }
-        }
-    } catch (e) { console.warn('Cross-user APFR scan error:', e); }
+    // ── 3. Not found in farmer registry (APFR) — mark as NA, do not scan other VAA records ──
 
     // ── 4. Manual entry — saves to shared apfrRegistry so every VAA benefits next lookup ──
     const portalUrl  = `https://apfr.agristack.gov.in/farmer-registry-ap/#/checkEnrolmentStatus`;
@@ -12069,7 +12044,7 @@ async function saveFarmerProfile() {
 
     const existingIdx = farmerProfiles[a].findIndex(p => String(p.khatha) === String(k));
 
-    // ── Assign Registration IDs ──
+    // ── Preserve existing Registration IDs (if any) on matching crop entries ──
     if (existingIdx !== -1) {
         const existingCrops = farmerProfiles[a][existingIdx].crops || [];
         for (const cropEntry of crops) {
@@ -12078,17 +12053,7 @@ async function saveFarmerProfile() {
                 ec.season === cropEntry.season &&
                 ec.year === cropEntry.year
             );
-            cropEntry.registrationId = old?.registrationId
-                ? old.registrationId
-                : await generateRegistrationId(cropEntry.year, cropEntry.season, a);
-        }
-    } else {
-        for (const cropEntry of crops) {
-            cropEntry.registrationId = await generateRegistrationId(
-                cropEntry.year,
-                cropEntry.season,
-                a
-            );
+            if (old?.registrationId) cropEntry.registrationId = old.registrationId;
         }
     }
 
