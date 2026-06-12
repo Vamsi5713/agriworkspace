@@ -9003,15 +9003,17 @@ function getSplitFraction(crop, splitIndex, fertType) {
 function getDeterministicSplitEligibilities(totalEligible, crop, fert) {
     crop = (crop || '').toLowerCase().trim();
 
-    // SPECIAL CASE: Paddy -> 2 splits only
-    if (crop === 'paddy') {
-        const split1 = Math.ceil(totalEligible * 0.5);
-        const split2 = Math.max(0, totalEligible - split1);
-
-        return [split1, split2];
+    // SPECIAL CASE: Paddy Urea -> 3 equal splits (1/3 N at Basal, Tillering, Panicle Initiation)
+    // NOTE: DAP for paddy is 'Full' at basal — handled correctly by the general logic below.
+    if (crop === 'paddy' && (!fert || fert === 'Urea')) {
+        // Urea: 3 equal splits (ceil first, remainder in last)
+        const s0 = Math.ceil(totalEligible / 3);
+        const s1 = Math.ceil((totalEligible - s0) / 2);
+        const s2 = Math.max(0, totalEligible - s0 - s1);
+        return [s0, s1, s2];
     }
 
-    // DEFAULT LOGIC FOR OTHER CROPS
+    // DEFAULT LOGIC FOR ALL CROPS (uses fertilizer schedule fractions)
     const sch = fertilizerSchedule[crop];
 
     if (!sch || sch.length === 0) {
@@ -9075,20 +9077,19 @@ function populateSplitDropdown() {
 
     if (!crop) return;
 
-    // SPECIAL CASE: Paddy -> 2 splits only
+    // PADDY: Urea has 3 splits (Basal, Tillering, Panicle Initiation)
+    //         DAP/MOP → determined by schedule (P:'Full' at basal only = 1 split)
     if (crop === 'paddy') {
-        splitSel.innerHTML += `
-            <option value="0">
-                Split 1: Basal Dose
-            </option>
-        `;
-
-        splitSel.innerHTML += `
-            <option value="1">
-                Split 2: Top Dressing
-            </option>
-        `;
-
+        if (!fert || fert === 'Urea') {
+            splitSel.innerHTML += `
+                <option value="0">Split 1: Basal Dose</option>
+                <option value="1">Split 2: Tillering</option>
+                <option value="2">Split 3: Panicle Initiation</option>
+            `;
+        } else {
+            // DAP/MOP for paddy: full dose at basal only
+            splitSel.innerHTML += `<option value="0">Split 1: Basal Dose (Full)</option>`;
+        }
         return;
     }
 
@@ -9913,8 +9914,14 @@ if (fileInput) {
     });
 }
 
-function getUreaBagsFromN(nKg) { return Math.ceil(Number(nKg || 0) / (45 * 0.46)); }
-function getDapBagsFromP(pKg)  { return Math.ceil(Number(pKg || 0) / (50 * 0.46)); }
+function bagRound(x) {
+    x = Number(x) || 0;
+    const floor = Math.floor(x);
+    return (x - floor) <= 0.20 ? floor : Math.ceil(x);
+}
+
+function getUreaBagsFromN(nKg) { return bagRound(Number(nKg || 0) / (45 * 0.46)); }
+function getDapBagsFromP(pKg)  { return bagRound(Number(pKg || 0) / (50 * 0.46)); }
 
 function enforceBagLimit(input) {
     let v = Math.abs(Math.floor(Number(input.value) || 0));
@@ -10017,8 +10024,8 @@ function buildCropCumulativeSummary(aadhaar) {
 
             const UREA_N = 20.7; // kg N per 45-kg Urea bag (46% N)
             const DAP_P  = 23;   // kg P per 50-kg DAP  bag (46% P₂O₅)
-            const eligUrea = rec ? Math.ceil((Number(rec.N) || 0) * cropExtent / UREA_N) : 0;
-            const eligDAP  = rec ? Math.ceil((Number(rec.P) || 0) * cropExtent / DAP_P)  : 0;
+            const eligUrea = rec ? bagRound((Number(rec.N) || 0) * cropExtent / UREA_N) : 0;
+            const eligDAP  = rec ? bagRound((Number(rec.P) || 0) * cropExtent / DAP_P)  : 0;
 
             if (!cropMap[crop]) {
                 cropMap[crop] = {
@@ -10151,11 +10158,11 @@ function updateBagRecommendation() {
 
     const ureaBags = blocked
         ? 0
-        : Math.ceil((rec.N * extent) / 46 * 100 / 45);
+        : bagRound((rec.N * extent) / 46 * 100 / 45);
 
     const dapBags = blocked
         ? 0
-        : Math.ceil((rec.P * extent) / 46 * 100 / 50);
+        : bagRound((rec.P * extent) / 46 * 100 / 50);
 
     const fert = getSelectedFertilizer();
     const totalEligible = fert === 'Urea' ? ureaBags : dapBags;
@@ -10461,8 +10468,8 @@ function buildPrintCropSummaryHTML(aadhaar, currentKhatha, currentCrop, currentB
                 ? (cropRec[useSeason] || cropRec['Kharif'] || Object.values(cropRec)[0])
                 : null;
 
-            const eligUrea = rec ? Math.ceil((rec.N * cropExtent) / 46 * 100 / 45) : 0;
-            const eligDAP  = rec ? Math.ceil((rec.P * cropExtent) / 46 * 100 / 50) : 0;
+            const eligUrea = rec ? bagRound((rec.N * cropExtent) / 46 * 100 / 45) : 0;
+            const eligDAP  = rec ? bagRound((rec.P * cropExtent) / 46 * 100 / 50) : 0;
 
             if (!cropMap[crop]) cropMap[crop] = {
                 khathas: new Set(), extentMap: {}, eligUrea: 0, eligDAP: 0, givenUrea: 0, givenDAP: 0,
@@ -11006,6 +11013,7 @@ function recordDistribution() {
             fatherName:     fn,
             mobile:         m,
             bags:           Number(b),
+            eligibleBags:   Number(eligible),   // ← total eligible for this split
             fertilizerType: fert,
             crop:           crop,
             season:         s,
@@ -15497,21 +15505,38 @@ function loadRetailerDistributions() {
 
     query.once('value').then(snap => {
         const pending = [];
+        // Also build a map of already-distributed bags: key = aadhaar|fert|crop|season|year|splitIndex
+        const issuedMap = {};
+
         if (snap.exists()) {
             snap.forEach(child => {
                 const r = child.val();
                 const tk = child.key;
                 if (!r) return;
-                // Skip already completed records
-                if (r.status === 'Distributed' || r.retailerVerified) return;
+
+                // Tally already-distributed bags for this outlet
+                if ((r.status === 'Distributed' || r.retailerVerified) && r.status !== 'Rejected') {
+                    const key = [
+                        String(r.aadhaar || '').replace(/\D/g,''),
+                        r.fertilizerType || 'Urea',
+                        (r.crop || '').toLowerCase().trim(),
+                        r.season || '', r.year || '',
+                        String(r.splitIndex !== undefined ? r.splitIndex : '')
+                    ].join('|');
+                    issuedMap[key] = (issuedMap[key] || 0) + Number(r.bags || 0);
+                    return;
+                }
+
+                // Skip rejected
                 if (r.status === 'Rejected') return;
-                // Only include records strictly matching this outlet
+                // Only include strictly-pending records for this outlet
                 if ((r.outletId || '').trim() !== outletId.trim()) return;
                 pending.push({ ...r, printToken: tk, tokenKey: tk });
             });
         }
 
         window._rtPendingRecords = pending;
+        window._rtIssuedMap = issuedMap;   // store for use in cards
 
         if (!pending.length) {
             container.innerHTML = `
@@ -15530,6 +15555,22 @@ function loadRetailerDistributions() {
             const last4     = String(r.aadhaar || '').replace(/\D/g, '').slice(-4);
             const fc        = r.fertilizerType === 'Urea' ? '#f57c00' : r.fertilizerType === 'DAP' ? '#0277bd' : '#7b1fa2';
             const fb        = r.fertilizerType === 'Urea' ? '#fff8e1' : r.fertilizerType === 'DAP' ? '#e3f2fd' : '#f3e5f5';
+
+            // ── Compute already-issued bags for this farmer/fert/crop/season/year/split ──
+            const rAadhaar = String(r.aadhaar || '').replace(/\D/g,'');
+            const rFert    = r.fertilizerType || 'Urea';
+            const rSplit   = r.splitIndex !== undefined ? String(r.splitIndex) : '';
+            const issuedKey = [rAadhaar, rFert, (r.crop||'').toLowerCase().trim(), r.season||'', r.year||'', rSplit].join('|');
+            const alreadyIssued = (window._rtIssuedMap || {})[issuedKey] || 0;
+            const eligibleBags  = Number(r.eligibleBags || 0);
+            const remainingBags = eligibleBags > 0 ? Math.max(0, eligibleBags - alreadyIssued) : null;
+            const issuedBadge   = alreadyIssued > 0
+                ? `<div class="mt-2 p-2 rounded-2" style="background:#fff3e0;border:1px solid #ffcc80;">
+                     <div class="small fw-bold" style="color:#e65100;"><i class="fas fa-lock me-1"></i>Already Issued: <strong>${alreadyIssued} bag(s)</strong></div>
+                     ${remainingBags !== null ? `<div class="small fw-semibold text-success">Remaining Eligible: <strong>${remainingBags} bag(s)</strong></div>` : ''}
+                   </div>`
+                : (eligibleBags > 0 ? `<div class="mt-2"><span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-size:0.72rem;">✅ No prior issues — Eligible: ${eligibleBags} bags</span></div>` : '');
+
             return `
             <div id="rtPendRow_${i}" class="card border-0 shadow-sm" style="border-radius:16px;border-left:5px solid ${fc} !important;overflow:hidden;">
               <div class="card-body p-3">
@@ -15549,6 +15590,7 @@ function loadRetailerDistributions() {
                           </span>
                           <code class="small text-muted">••••${escapeHtml(last4)}</code>
                         </div>
+                        ${issuedBadge}
                       </div>
                     </div>
                   </div>
@@ -15559,7 +15601,7 @@ function loadRetailerDistributions() {
                         <span class="badge fw-bold px-2 py-1 mt-1" style="background:${fb};color:${fc};border:1px solid ${fc};font-size:0.82rem;">${escapeHtml(r.fertilizerType || 'Urea')}</span>
                       </div>
                       <div class="col-6">
-                        <div class="small text-muted">Bags</div>
+                        <div class="small text-muted">Bags This Request</div>
                         <div class="fw-bold text-primary mt-1" style="font-size:1.25rem;line-height:1;">${r.bags || 0} <span class="text-muted fw-normal" style="font-size:0.75rem;">bags</span></div>
                       </div>
                       <div class="col-6">
@@ -15577,6 +15619,7 @@ function loadRetailerDistributions() {
                       <div class="small text-muted mb-1">Token Number</div>
                       <code style="font-size:1rem;font-weight:800;letter-spacing:2px;color:#1562ab;background:#f0f6ff;border-radius:8px;padding:4px 10px;display:inline-block;">${escapeHtml(token)}</code>
                       <div class="text-muted small mt-1"><i class="fas fa-calendar-alt me-1"></i>${escapeHtml(r.date || '')}</div>
+                      ${r.splitName ? `<div class="small mt-1"><span class="badge bg-info text-dark">${escapeHtml(r.splitName)}</span></div>` : ''}
                     </div>
                     <div class="d-flex gap-2">
                       <button class="btn btn-success btn-sm fw-bold shadow-sm flex-grow-1" style="border-radius:10px;padding:.5rem .75rem;"
@@ -16247,7 +16290,34 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
     </div>`;
 
     const fcKey = a + '_' + (year || '').replace(/[^a-zA-Z0-9]/g,'') + '_' + (season || '');
-    database.ref('fertilizerCards/' + fcKey).once('value').then(snap => {
+    const voUidClean = String(voUid || '').trim();
+    Promise.all([
+        database.ref('fertilizerCards/' + fcKey).once('value'),
+        database.ref('ureaHistory').orderByChild('aadhaar').equalTo(a).once('value'),
+        voUidClean ? database.ref('users/' + voUidClean + '/ureaHistory').once('value') : Promise.resolve(null)
+    ]).then(([snap, histSnap, voHistSnap]) => {
+        // Refresh local ureaHistory cache with the latest records for this farmer
+        if (histSnap.exists()) {
+            histSnap.forEach(child => {
+                const v = child.val();
+                const existIdx = ureaHistory.findIndex(h => h._key === child.key);
+                if (existIdx >= 0) ureaHistory[existIdx] = { ...v, _key: child.key };
+                else ureaHistory.push({ ...v, _key: child.key });
+            });
+        }
+        // Merge in the Village Officer's per-user ureaHistory records for this farmer
+        // (recorded via the farmer profile / print flow, stored under users/{voUid}/ureaHistory)
+        if (voHistSnap && voHistSnap.exists()) {
+            const voArr = voHistSnap.val();
+            const voList = Array.isArray(voArr) ? voArr : Object.values(voArr || {});
+            voList.forEach((v, idx) => {
+                if (!v || String(v.aadhaar||'').replace(/\s/g,'') !== a) return;
+                const vKey = 'vo_' + voUidClean + '_' + idx;
+                const existIdx = ureaHistory.findIndex(h => h._key === vKey);
+                if (existIdx >= 0) ureaHistory[existIdx] = { ...v, _key: vKey };
+                else ureaHistory.push({ ...v, _key: vKey });
+            });
+        }
         if (!snap.exists()) {
             resultEl.innerHTML = _rtAuthErr(
                 'No fertilizer card found for this QR code.',
@@ -16301,36 +16371,44 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 ${allDone ? `<div class="alert alert-success py-1 mb-0 small">All bags for this split have been distributed.</div>` : `
                 <div style="display:flex; gap:0.8rem; flex-wrap:wrap; align-items:flex-end;">
                   ${(() => {
-                    // Check if all prior eligible splits have been started
-                    let locked = false;
-                    let lockedReason = '';
+                    // Check lock status independently per fertilizer — Urea progression
+                    // is not blocked by DAP status, and vice versa.
+                    let lockedU = false, lockedD = false;
+                    let lockedReasonU = '', lockedReasonD = '';
                     for (let prev = 0; prev < si; prev++) {
-                      if ((uElig[prev]||0) > 0 && _availed('Urea', prev) === 0) {
-                        locked = true;
-                        lockedReason = `Split ${prev+1} Urea (${uElig[prev]} bags) must be distributed first`;
-                        break;
+                      if (!lockedU && (uElig[prev]||0) > 0 && _availed('Urea', prev) === 0) {
+                        lockedU = true;
+                        lockedReasonU = `Split ${prev+1} Urea (${uElig[prev]} bags) must be distributed first`;
                       }
-                      if ((dElig[prev]||0) > 0 && _availed('DAP', prev) === 0) {
-                        locked = true;
-                        lockedReason = `Split ${prev+1} DAP (${dElig[prev]} bags) must be distributed first`;
-                        break;
+                      if (!lockedD && (dElig[prev]||0) > 0 && _availed('DAP', prev) === 0) {
+                        lockedD = true;
+                        lockedReasonD = `Split ${prev+1} DAP (${dElig[prev]} bags) must be distributed first`;
                       }
                     }
-                    if (locked) {
-                      return `<div class="alert alert-warning py-2 mb-0 w-100" style="font-size:0.78rem;">
-                        <i class="fas fa-lock me-1"></i> <strong>Locked:</strong> ${escapeHtml(lockedReason)}.
-                        <input type="hidden" id="fcBagsU_${si}" value="0">
-                        <input type="hidden" id="fcBagsD_${si}" value="0">
+
+                    const showU = remU > 0 && !lockedU;
+                    const showD = remD > 0 && !lockedD;
+                    let lockNoticesHtml = '';
+                    if (remU > 0 && lockedU) {
+                      lockNoticesHtml += `<div class="alert alert-warning py-2 mb-0" style="font-size:0.78rem; flex:1 1 auto;">
+                        <i class="fas fa-lock me-1"></i> <strong>Urea Locked:</strong> ${escapeHtml(lockedReasonU)}.
                       </div>`;
                     }
+                    if (remD > 0 && lockedD) {
+                      lockNoticesHtml += `<div class="alert alert-warning py-2 mb-0" style="font-size:0.78rem; flex:1 1 auto;">
+                        <i class="fas fa-lock me-1"></i> <strong>DAP Locked:</strong> ${escapeHtml(lockedReasonD)}.
+                      </div>`;
+                    }
+
                     return `
-                  ${remU > 0 ? `<div>
+                  ${lockNoticesHtml}
+                  ${showU ? `<div>
                     <label style="font-size:0.72rem; font-weight:600; color:#1862ab; display:block; margin-bottom:3px;">Urea Bags Now (max ${remU})</label>
                     <input type="number" id="fcBagsU_${si}" min="0" max="${remU}" value="0"
                       oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remU})"
                       style="width:90px; padding:5px 8px; border:1.5px solid #1862ab; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:center;">
                   </div>` : `<input type="hidden" id="fcBagsU_${si}" value="0">`}
-                  ${remD > 0 ? `<div>
+                  ${showD ? `<div>
                     <label style="font-size:0.72rem; font-weight:600; color:#27ae60; display:block; margin-bottom:3px;">DAP Bags Now (max ${remD})</label>
                     <input type="number" id="fcBagsD_${si}" min="0" max="${remD}" value="0"
                       oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remD})"
@@ -16402,14 +16480,18 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         const bagsU = parseInt(document.getElementById('fcBagsU_' + si)?.value || '0') || 0;
         const bagsD = parseInt(document.getElementById('fcBagsD_' + si)?.value || '0') || 0;
 
-        if (bagsU > 0 || bagsD > 0) {
-            // ── Split-order check: all previous eligible splits must have at least started ──
+        // ── Split-order check: prior eligible splits of the SAME fertilizer must have started ──
+        const splitNames = ['Split 1', 'Split 2', 'Split 3'];
+        if (bagsU > 0) {
             for (let prev = 0; prev < si; prev++) {
-                const splitNames = ['Split 1', 'Split 2', 'Split 3'];
                 if ((uEligArr[prev]||0) > 0 && _availed('Urea', prev) === 0) {
                     if (errEl) { errEl.textContent = `Cannot distribute ${splitNames[si]} Urea — ${splitNames[prev]} (${uEligArr[prev]} bags) has not been distributed yet.`; errEl.classList.remove('d-none'); }
                     return;
                 }
+            }
+        }
+        if (bagsD > 0) {
+            for (let prev = 0; prev < si; prev++) {
                 if ((dEligArr[prev]||0) > 0 && _availed('DAP', prev) === 0) {
                     if (errEl) { errEl.textContent = `Cannot distribute ${splitNames[si]} DAP — ${splitNames[prev]} (${dEligArr[prev]} bags) has not been distributed yet.`; errEl.classList.remove('d-none'); }
                     return;
@@ -17013,8 +17095,8 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
         const totalN  = N * area;
         const totalP  = P * area;
         const totalK  = K * area;
-        const ureaBags = Math.ceil(totalN / UREA_N_PER_BAG);
-        const dapBags  = Math.ceil(totalP / DAP_P_PER_BAG);
+        const ureaBags = bagRound(totalN / UREA_N_PER_BAG);
+        const dapBags  = bagRound(totalP / DAP_P_PER_BAG);
 
         totalN_kg += totalN;
         totalP_kg += totalP;
@@ -17031,8 +17113,8 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
         });
     });
 
-    const grandUreaBags = Math.ceil(totalN_kg / UREA_N_PER_BAG);
-    const grandDapBags  = Math.ceil(totalP_kg / DAP_P_PER_BAG);
+    const grandUreaBags = bagRound(totalN_kg / UREA_N_PER_BAG);
+    const grandDapBags  = bagRound(totalP_kg / DAP_P_PER_BAG);
 
     // ── 3b. Fertilizer Distribution Status (from ureaHistory) ────────────────
     // Match history records to the DISPLAY season/year (the current season being planned)
@@ -17211,7 +17293,7 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
                 <div class="fw-bold" style="font-size:1.8rem;color:#7b1fa2;">${fc(totalK_kg).toFixed(0)} <small class="fs-6 text-muted fw-normal">kg</small></div>
                 <div class="mt-2">
                     <div class="text-muted" style="font-size:10px;">MOP (60% K₂O). Bags = K_kg / (50 × 0.6)</div>
-                    <div class="fw-semibold small mt-1">${Math.ceil(fc(totalK_kg) / 30)} <small class="text-muted fw-normal">MOP bags (50 kg)</small></div>
+                    <div class="fw-semibold small mt-1">${bagRound(fc(totalK_kg) / 30)} <small class="text-muted fw-normal">MOP bags (50 kg)</small></div>
                 </div>
             </div>
         </div>
@@ -19309,25 +19391,39 @@ function loadPrintFarmerProfile() {
     const totalS3D  = rows.reduce((s, r) => s + r.split3D, 0);
 
     // ── Compute availed bags per split from ureaHistory ──
-    // These are bags already distributed (across all crops for this aadhaar/year/season)
     const useYear   = selYear   || '';
     const useSeason = selSeason || '';
+
+    // Returns array of transaction objects for a given fert + splitIdx
+    function _getTransactions(fert, splitIdx) {
+        if (!useYear || !useSeason) return [];
+        return ureaHistory.filter(h =>
+            String(h.aadhaar || '').replace(/\s/g,'') === a &&
+            String(h.fertilizerType || h.fert || 'Urea').trim() === fert &&
+            String(h.season || '').trim() === useSeason &&
+            String(h.year   || '').trim() === useYear &&
+            parseInt(h.splitIndex) === splitIdx &&
+            h.status !== 'Rejected'
+        );
+    }
     function _availedForSplit(fert, splitIdx) {
-        if (!useYear || !useSeason) return 0;
-        return ureaHistory
-            .filter(h =>
-                String(h.aadhaar || '').replace(/\s/g,'') === a &&
-                String(h.fertilizerType || h.fert || 'Urea').trim() === fert &&
-                String(h.season || '').trim() === useSeason &&
-                String(h.year   || '').trim() === useYear &&
-                parseInt(h.splitIndex) === splitIdx &&
-                h.status !== 'Rejected'
-            )
-            .reduce((s, h) => s + Number(h.bags || 0), 0);
+        return _getTransactions(fert, splitIdx).reduce((s, h) => s + Number(h.bags || 0), 0);
+    }
+    // Helper: format date from ISO or dd-mm-yyyy string
+    function _fmtDate(raw) {
+        if (!raw) return '—';
+        try {
+            // If it looks like an ISO date use Date parse
+            const d = new Date(raw);
+            if (!isNaN(d)) return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+        } catch(e) {}
+        return String(raw);
     }
     const availedS = [0,1,2].map(si => ({
-        u: _availedForSplit('Urea', si),
-        d: _availedForSplit('DAP',  si)
+        u:  _availedForSplit('Urea', si),
+        d:  _availedForSplit('DAP',  si),
+        txU: _getTransactions('Urea', si),   // per-transaction detail
+        txD: _getTransactions('DAP',  si)
     }));
 
     // ── QR payload for farmer card ──
@@ -19365,15 +19461,20 @@ function loadPrintFarmerProfile() {
     ];
 
     const scheduleRows = splitLabels.map((sp, si) => {
-        const eligU   = splitTotals[si].u;
-        const eligD   = splitTotals[si].d;
-        const availU  = availedS[si].u;
-        const availD  = availedS[si].d;
-        const remU    = Math.max(0, eligU - availU);
-        const remD    = Math.max(0, eligD - availD);
+        const eligU      = splitTotals[si].u;
+        const eligD      = splitTotals[si].d;
+        const availU     = availedS[si].u;
+        const availD     = availedS[si].d;
+        const txU        = availedS[si].txU;   // Urea transactions array
+        const txD        = availedS[si].txD;   // DAP transactions array
+        const remU       = Math.max(0, eligU - availU);
+        const remD       = Math.max(0, eligD - availD);
         const fullyDoneU = eligU > 0 && remU === 0;
         const fullyDoneD = eligD > 0 && remD === 0;
-        const headerBg  = fullyDoneU && fullyDoneD ? 'linear-gradient(135deg,#1b5e20,#145214)' : 'linear-gradient(135deg,#1862ab,#124d86)';
+        const headerBg   = fullyDoneU && fullyDoneD
+            ? 'linear-gradient(135deg,#1b5e20,#145214)'
+            : 'linear-gradient(135deg,#1862ab,#124d86)';
+
         const splitHeader = `
             <tr style="background:${headerBg}; color:#fff;">
               <td colspan="9" style="font-size:0.85rem; font-weight:700; padding:7px 12px; letter-spacing:0.3px;">
@@ -19386,30 +19487,76 @@ function loadPrintFarmerProfile() {
             <tr style="background:#f0f4ff; font-size:0.75rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.4px;">
               <th style="padding:6px 10px; border:1px solid #dee2e6; width:30px;">#</th>
               <th style="padding:6px 10px; border:1px solid #dee2e6;">Availed Bags (Urea / DAP)</th>
-              <th style="padding:6px 10px; border:1px solid #dee2e6;">Availed Date</th>
-              <th style="padding:6px 10px; border:1px solid #dee2e6;">Availed At (Outlet)</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6; min-width:90px;">Availed Date</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6; min-width:110px;">Availed At (Outlet)</th>
               <th style="padding:6px 10px; border:1px solid #dee2e6; width:100px; background:#e8f5e9; color:#155724;">Availed Till Now</th>
               <th style="padding:6px 10px; border:1px solid #dee2e6; width:100px; background:#fff3e0; color:#7c4700;">Distributed Till Now</th>
               <th style="padding:6px 10px; border:1px solid #dee2e6; width:130px;">Signature of Retailer</th>
               <th style="padding:6px 10px; border:1px solid #dee2e6; width:80px;">Remaining</th>
             </tr>`;
-        const dataRow = (availU > 0 || availD > 0) ? `
+
+        // Build one row per actual QR-scan transaction (merged Urea+DAP for same scan where possible)
+        // Merge by matching verifiedAt timestamp (same retailer scan = same event)
+        const allTx = [];
+        const usedDIdx = new Set();
+        txU.forEach((hu, ui) => {
+            // Find a matching DAP tx by same verifiedAt or date
+            const scanKey = hu.verifiedAt || hu.date || ui;
+            let matchedD = null;
+            txD.forEach((hd, di) => {
+                if (!usedDIdx.has(di)) {
+                    const dKey = hd.verifiedAt || hd.date || di;
+                    if (dKey === scanKey || (!matchedD && Math.abs(di - ui) === 0)) {
+                        matchedD = hd; usedDIdx.add(di);
+                    }
+                }
+            });
+            allTx.push({ hu, hd: matchedD });
+        });
+        // Any DAP transactions not paired with a Urea one
+        txD.forEach((hd, di) => {
+            if (!usedDIdx.has(di)) allTx.push({ hu: null, hd });
+        });
+
+        const txRows = allTx.map((pair, rowIdx) => {
+            const hu = pair.hu, hd = pair.hd;
+            const bagsU      = hu ? Number(hu.bags || 0) : 0;
+            const bagsD      = hd ? Number(hd.bags || 0) : 0;
+            // Date: prefer verifiedAt (retailer scan timestamp), fall back to date field
+            const rawDate    = (hu || hd).verifiedAt || (hu || hd).date || '';
+            const dispDate   = _fmtDate(rawDate);
+            // Outlet name from retailer scan
+            const outlet     = (hu || hd).outletName || (hu || hd).outletId || '';
+            // Store the token for async outlet-name enrichment if outletName is missing
+            const txToken    = (hu || hd).printToken || (hu || hd).tokenNumber || (hu || hd).authToken || '';
+            const outletDisplay = outlet || '—';
+            const cumU       = allTx.slice(0, rowIdx+1).reduce((s,p) => s + (p.hu ? Number(p.hu.bags||0) : 0), 0);
+            const cumD       = allTx.slice(0, rowIdx+1).reduce((s,p) => s + (p.hd ? Number(p.hd.bags||0) : 0), 0);
+            const rowRemU    = Math.max(0, eligU - cumU);
+            const rowRemD    = Math.max(0, eligD - cumD);
+            return `
             <tr style="background:#f0fff4; border-left:4px solid #27ae60;">
-              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.78rem;">—</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; font-size:0.78rem; font-weight:700; color:#1b5e20;">${rowIdx+1}</td>
               <td style="padding:6px 10px; border:1px solid #dee2e6; font-weight:700; color:#1b5e20; font-size:0.82rem;">
-                Urea: ${availU > 0 ? `<span style="background:#1862ab;color:#fff;padding:1px 7px;border-radius:4px;">${availU}</span>` : '<span style="color:#ccc">0</span>'}
-                &nbsp; DAP: ${availD > 0 ? `<span style="background:#27ae60;color:#fff;padding:1px 7px;border-radius:4px;">${availD}</span>` : '<span style="color:#ccc">0</span>'}
+                ${bagsU > 0 ? `Urea: <span style="background:#1862ab;color:#fff;padding:1px 7px;border-radius:4px;">${bagsU}</span>` : ''}
+                ${bagsU > 0 && bagsD > 0 ? '&nbsp;' : ''}
+                ${bagsD > 0 ? `DAP: <span style="background:#27ae60;color:#fff;padding:1px 7px;border-radius:4px;">${bagsD}</span>` : ''}
+                ${!bagsU && !bagsD ? '<span style="color:#ccc">—</span>' : ''}
               </td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.75rem; color:#555;">See records</td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.75rem; color:#555;">—</td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#e8f5e9; text-align:center; font-weight:800; color:#155724;">U:${availU} / D:${availD}</td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#fff3e0; text-align:center; font-weight:800; color:#7c4700;">U:${availU} / D:${availD}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.78rem; font-weight:700; color:#1862ab;">${dispDate}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.78rem; font-weight:700; color:#7c5700;" ${!outlet && txToken ? `data-outlet-token="${escapeHtml(txToken)}"` : ''}>🏪 ${escapeHtml(outletDisplay)}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#e8f5e9; text-align:center; font-weight:800; color:#155724;">U:${cumU} / D:${cumD}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#fff3e0; text-align:center; font-weight:800; color:#7c4700;">U:${cumU} / D:${cumD}</td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:${remU===0&&remD===0?'#c0392b':'#27ae60'};">U:${remU} / D:${remD}</td>
-            </tr>` : '';
-        const blankRows = [1, 2].map(rowNum => `
-            <tr style="height:36px;">
-              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.78rem;">${rowNum}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:${rowRemU===0&&rowRemD===0?'#c0392b':'#1862ab'};">U:${rowRemU} / D:${rowRemD}</td>
+            </tr>`;
+        }).join('');
+
+        // Always show at least 2 blank rows for future distributions
+        const blankCount = Math.max(2, 3 - allTx.length);
+        const blankRows = Array.from({length: blankCount}, (_, i) => `
+            <tr style="height:38px;">
+              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; color:#d1d5db; font-size:0.75rem;">${allTx.length + i + 1}</td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
@@ -19418,22 +19565,23 @@ function loadPrintFarmerProfile() {
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
             </tr>`).join('');
-        return splitHeader + dataRow + blankRows;
+
+        return splitHeader + txRows + blankRows;
     }).join('');
 
     cardEl.innerHTML = `
     <div id="fertCardPrintArea" style="background:#fff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); overflow:hidden; max-width:980px; margin:0 auto; font-family:'Segoe UI',Arial,sans-serif;">
 
       <!-- ══ CARD HEADER ══ -->
-      <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%); color:#fff; padding:0.75rem 1.2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
-        <div style="display:flex; align-items:center; gap:0.7rem;">
+      <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%); color:#fff; padding:0.75rem 1.2rem;">
+        <div style="display:flex; align-items:center; justify-content:center; gap:0.7rem; text-align:center;">
           <div style="font-size:1.6rem; line-height:1;">🌾</div>
           <div>
-            <div style="font-size:1.05rem; font-weight:800; letter-spacing:0.8px;">FERTILIZER CARD</div>
-            <div style="font-size:0.72rem; opacity:0.8; margin-top:1px;">e-Panta Agriculture Dashboard</div>
+            <div style="font-size:1.05rem; font-weight:800; letter-spacing:0.8px;">ఆంధ్ర ప్రదేశ్ రాష్ట్ర ప్రభుత్వం - వ్యవసాయ శాఖ</div>
+            <div style="font-size:0.85rem; font-weight:700; opacity:0.95; margin-top:1px;">ఎరువుల పంపిణీ కార్డు</div>
           </div>
         </div>
-        <div style="display:flex; gap:1.2rem; flex-wrap:wrap; align-items:center;">
+        <div style="display:flex; gap:1.2rem; flex-wrap:wrap; align-items:center; justify-content:center; margin-top:0.6rem;">
           <div style="text-align:center;">
             <div style="font-size:0.6rem; opacity:0.7; text-transform:uppercase; letter-spacing:0.5px;">Year / Season</div>
             <div style="font-size:0.85rem; font-weight:700;">${escapeHtml(yearSeasonLabel)}</div>
@@ -19538,7 +19686,7 @@ function loadPrintFarmerProfile() {
             ${rows.map((r, i) => `
             <tr style="background:${i%2===0?'#fff':'#f8fbff'};">
               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.72rem;">${i+1}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.76rem; font-weight:600;">${escapeHtml(r.khatha)}<br><span style="font-size:0.68rem; color:#7f8c8d; font-weight:400;">${escapeHtml(r.surveyNos)}</span></td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.82rem; font-weight:900; color:#0d4d86;">${escapeHtml(r.khatha)}<br><span style="font-size:0.72rem; color:#1862ab; font-weight:800; font-family:monospace; letter-spacing:0.3px;">${escapeHtml(r.surveyNos)}</span></td>
               <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.76rem;">${escapeHtml(r.cropLabel)} <span style="color:#27ae60; font-weight:700;">(${r.cropExt.toFixed(2)}ac)</span></td>
               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#1862ab;">${r.ureaTotal}</td>
               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#27ae60;">${r.dapTotal}</td>
@@ -19647,6 +19795,27 @@ function loadPrintFarmerProfile() {
             qrHolderEl.innerHTML = '<div style="font-size:0.55rem;color:#c0392b;text-align:center;">QR Error</div>';
         }
     }
+
+    // ── Fix 3: Async outlet-name enrichment ──────────────────────────────────
+    // If any availed-outlet cells are missing the outlet name (outletName not
+    // yet synced in ureaHistory), look them up directly from fertilizerDistributions.
+    const outletCells = document.querySelectorAll('[data-outlet-token]');
+    outletCells.forEach(cell => {
+        const tk = (cell.getAttribute('data-outlet-token') || '').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+        if (!tk || typeof database === 'undefined') return;
+        database.ref('fertilizerDistributions/' + tk).once('value').then(s => {
+            const rec = s.val();
+            if (rec && rec.outletName) {
+                cell.textContent = '🏪 ' + rec.outletName;
+                // Also patch ureaHistory so subsequent prints don't need another lookup
+                const h = ureaHistory.find(h2 =>
+                    (h2.printToken || h2.tokenNumber || h2.authToken || '') === tk);
+                if (h) h.outletName = rec.outletName;
+            } else if (rec && rec.outletId) {
+                cell.textContent = '🏪 ' + rec.outletId;
+            }
+        }).catch(() => {});
+    });
 }
 
 function printFertilizerCard() {
