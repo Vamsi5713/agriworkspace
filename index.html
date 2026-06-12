@@ -16172,6 +16172,15 @@ function onQrDetected(data) {
     const raw = String(data || '').trim();
     let parsed = null;
 
+    // ── Detect Farmer Card QR: FC|<aadhaar>|<year>|<season>|<voUid> ──
+    if (raw.startsWith('FC|')) {
+        const parts = raw.split('|');
+        if (parts.length >= 4) {
+            processFarmerCardQr(parts[1], parts[2], parts[3], parts[4] || '', resultEl);
+            return;
+        }
+    }
+
     // ── Try new compact pipe format: TOKEN|LAST4|BAGS|FERT|DATE ──
     // e.g. AB3K7Z2P|5678|3|Urea|2025-06-15
     if (/^[A-Z0-9]{8}\|/.test(raw)) {
@@ -16219,6 +16228,280 @@ function onQrDetected(data) {
             <small class="text-muted">Raw data: <code>${escapeHtml(raw.slice(0,60))}</code></small></div>
         </div>`;
     }
+}
+
+// ============================================================
+//  RETAILER: FARMER CARD QR — FC| format
+//  Reads eligibility snapshot from /fertilizerCards/{key}
+//  Shows split-wise form; validates & deducts via ureaHistory
+// ============================================================
+function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
+    const a = String(aadhaar || '').replace(/\s/g, '');
+    if (a.length !== 12) {
+        resultEl.innerHTML = _rtAuthErr('Invalid Farmer Card QR — Aadhaar missing or malformed.');
+        return;
+    }
+    resultEl.innerHTML = `<div class="alert alert-info py-2 d-flex align-items-center gap-2 mb-0">
+        <i class="fas fa-spinner fa-spin flex-shrink-0"></i>
+        <span>Loading farmer card for <strong>${escapeHtml(a.slice(0,4))}••••${escapeHtml(a.slice(-4))}</strong> — ${escapeHtml(year)} ${escapeHtml(season)}…</span>
+    </div>`;
+
+    const fcKey = a + '_' + (year || '').replace(/[^a-zA-Z0-9]/g,'') + '_' + (season || '');
+    database.ref('fertilizerCards/' + fcKey).once('value').then(snap => {
+        if (!snap.exists()) {
+            resultEl.innerHTML = _rtAuthErr(
+                'No fertilizer card found for this QR code.',
+                ['The Village Officer must open the farmer\'s card and search to generate the card first',
+                 'Aadhaar: ' + escapeHtml(a.slice(0,4)) + '••••' + escapeHtml(a.slice(-4)),
+                 'Year/Season: ' + escapeHtml(year) + ' / ' + escapeHtml(season)]
+            );
+            return;
+        }
+        const fc = snap.val();
+        const splits = fc.splits || {};
+        const uElig = [splits.Urea?.s0||0, splits.Urea?.s1||0, splits.Urea?.s2||0];
+        const dElig = [splits.DAP?.s0||0,  splits.DAP?.s1||0,  splits.DAP?.s2||0];
+
+        // Compute already availed from ureaHistory
+        function _availed(fert, splitIdx) {
+            return ureaHistory
+                .filter(h =>
+                    String(h.aadhaar||'').replace(/\s/g,'') === a &&
+                    String(h.fertilizerType||h.fert||'Urea').trim() === fert &&
+                    String(h.season||'').trim() === season &&
+                    String(h.year||'').trim() === year &&
+                    parseInt(h.splitIndex) === splitIdx &&
+                    h.status !== 'Rejected'
+                )
+                .reduce((s,h) => s + Number(h.bags||0), 0);
+        }
+
+        const splitNames = ['Split 1 — Basal', 'Split 2 — Top-dress', 'Split 3 — Final'];
+        const splitBadges = ['#1862ab','#27ae60','#f39c12'];
+        let splitRowsHtml = '';
+
+        for (let si = 0; si < 3; si++) {
+            const eU = uElig[si], eD = dElig[si];
+            if (eU === 0 && eD === 0) continue;
+            const avU = _availed('Urea', si), avD = _availed('DAP', si);
+            const remU = Math.max(0, eU - avU), remD = Math.max(0, eD - avD);
+            const doneU = eU > 0 && remU === 0, doneD = eD > 0 && remD === 0;
+            const allDone = (eU === 0 || doneU) && (eD === 0 || doneD);
+            splitRowsHtml += `
+            <div style="border:1.5px solid #dee2e6; border-radius:10px; margin-bottom:0.7rem; overflow:hidden;">
+              <div style="background:${allDone ? '#1b5e20' : splitBadges[si]}; color:#fff; padding:6px 12px; font-size:0.82rem; font-weight:700; display:flex; justify-content:space-between; align-items:center;">
+                <span>🌿 ${splitNames[si]}</span>
+                ${allDone ? '<span style="background:rgba(255,255,255,0.25);padding:1px 8px;border-radius:8px;font-size:0.72rem;">✅ Fully Distributed</span>' : ''}
+              </div>
+              <div style="padding:10px 12px; background:#f8fbff;">
+                <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:8px; font-size:0.8rem;">
+                  <div><strong>Urea Eligible:</strong> ${eU} bags &nbsp; <strong style="color:#e74c3c;">Availed:</strong> ${avU} &nbsp; <strong style="color:${remU===0?'#c0392b':'#27ae60'};">Remaining: ${remU}</strong></div>
+                  <div><strong>DAP Eligible:</strong> ${eD} bags &nbsp; <strong style="color:#e74c3c;">Availed:</strong> ${avD} &nbsp; <strong style="color:${remD===0?'#c0392b':'#27ae60'};">Remaining: ${remD}</strong></div>
+                </div>
+                ${allDone ? `<div class="alert alert-success py-1 mb-0 small">All bags for this split have been distributed.</div>` : `
+                <div style="display:flex; gap:0.8rem; flex-wrap:wrap; align-items:flex-end;">
+                  ${(() => {
+                    // Check if all prior eligible splits have been started
+                    let locked = false;
+                    let lockedReason = '';
+                    for (let prev = 0; prev < si; prev++) {
+                      if ((uElig[prev]||0) > 0 && _availed('Urea', prev) === 0) {
+                        locked = true;
+                        lockedReason = `Split ${prev+1} Urea (${uElig[prev]} bags) must be distributed first`;
+                        break;
+                      }
+                      if ((dElig[prev]||0) > 0 && _availed('DAP', prev) === 0) {
+                        locked = true;
+                        lockedReason = `Split ${prev+1} DAP (${dElig[prev]} bags) must be distributed first`;
+                        break;
+                      }
+                    }
+                    if (locked) {
+                      return `<div class="alert alert-warning py-2 mb-0 w-100" style="font-size:0.78rem;">
+                        <i class="fas fa-lock me-1"></i> <strong>Locked:</strong> ${escapeHtml(lockedReason)}.
+                        <input type="hidden" id="fcBagsU_${si}" value="0">
+                        <input type="hidden" id="fcBagsD_${si}" value="0">
+                      </div>`;
+                    }
+                    return `
+                  ${remU > 0 ? `<div>
+                    <label style="font-size:0.72rem; font-weight:600; color:#1862ab; display:block; margin-bottom:3px;">Urea Bags Now (max ${remU})</label>
+                    <input type="number" id="fcBagsU_${si}" min="0" max="${remU}" value="0"
+                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remU})"
+                      style="width:90px; padding:5px 8px; border:1.5px solid #1862ab; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:center;">
+                  </div>` : `<input type="hidden" id="fcBagsU_${si}" value="0">`}
+                  ${remD > 0 ? `<div>
+                    <label style="font-size:0.72rem; font-weight:600; color:#27ae60; display:block; margin-bottom:3px;">DAP Bags Now (max ${remD})</label>
+                    <input type="number" id="fcBagsD_${si}" min="0" max="${remD}" value="0"
+                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remD})"
+                      style="width:90px; padding:5px 8px; border:1.5px solid #27ae60; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:center;">
+                  </div>` : `<input type="hidden" id="fcBagsD_${si}" value="0">`}`;
+                  })()}
+                </div>`}
+              </div>
+            </div>`;
+        }
+
+        const totalRemU = [0,1,2].reduce((s,si) => s + Math.max(0, uElig[si] - _availed('Urea',si)), 0);
+        const totalRemD = [0,1,2].reduce((s,si) => s + Math.max(0, dElig[si] - _availed('DAP',si)),  0);
+
+        resultEl.innerHTML = `
+        <div style="border:2px solid #1862ab; border-radius:14px; overflow:hidden; margin-top:0.5rem;">
+          <div style="background:linear-gradient(135deg,#1862ab,#0d4d86); color:#fff; padding:10px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+              <div style="font-weight:800; font-size:0.95rem;">🌾 Fertilizer Card — Retailer Distribution</div>
+              <div style="font-size:0.75rem; opacity:0.85; margin-top:2px;">${escapeHtml(fc.farmerName||'—')} &nbsp;|&nbsp; Father: ${escapeHtml(fc.fatherName||'—')}</div>
+            </div>
+            <div style="text-align:right; font-size:0.72rem;">
+              <div style="font-weight:700;">${escapeHtml(year)} · ${escapeHtml(season)}</div>
+              <div style="opacity:0.8;">Aadhaar: ••••${escapeHtml(a.slice(-4))} &nbsp;|&nbsp; ${escapeHtml(fc.village||'—')}</div>
+            </div>
+          </div>
+          <div style="padding:12px 16px; background:#fff;">
+            ${totalRemU === 0 && totalRemD === 0
+              ? '<div class="alert alert-success fw-bold text-center">✅ All fertilizer bags have been fully distributed for this card.</div>'
+              : `<div style="font-size:0.75rem; color:#555; margin-bottom:0.7rem; font-weight:600;">Enter the number of bags being distributed now for each split below. Cannot exceed remaining eligible.</div>`
+            }
+            ${splitRowsHtml}
+            <div id="fcDistError_${fcKey}" class="text-danger small d-none mb-2"></div>
+            ${totalRemU > 0 || totalRemD > 0 ? `
+            <button onclick="submitFarmerCardDistribution('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}',[${uElig}],[${dElig}])"
+              style="background:linear-gradient(135deg,#27ae60,#1b5e20); color:#fff; border:none; padding:9px 24px; border-radius:10px; font-weight:700; font-size:0.88rem; cursor:pointer; width:100%; margin-top:4px;">
+              <i class="fas fa-check-circle me-2"></i>Confirm Distribution
+            </button>` : ''}
+          </div>
+        </div>`;
+    }).catch(err => {
+        resultEl.innerHTML = _rtAuthErr('Database error: ' + escapeHtml(err.message));
+    });
+}
+
+function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dEligArr) {
+    const a = String(aadhaar || '').replace(/\s/g, '');
+    const resultEl = document.getElementById('qrScanResult');
+    const errEl    = document.getElementById('fcDistError_' + fcKey);
+
+    // Validate — re-compute remaining live
+    function _availed(fert, splitIdx) {
+        return ureaHistory
+            .filter(h =>
+                String(h.aadhaar||'').replace(/\s/g,'') === a &&
+                String(h.fertilizerType||h.fert||'Urea').trim() === fert &&
+                String(h.season||'').trim() === season &&
+                String(h.year||'').trim() === year &&
+                parseInt(h.splitIndex) === splitIdx &&
+                h.status !== 'Rejected'
+            )
+            .reduce((s,h) => s + Number(h.bags||0), 0);
+    }
+
+    const entries = [];
+    let hasAny = false;
+
+    for (let si = 0; si < 3; si++) {
+        const bagsU = parseInt(document.getElementById('fcBagsU_' + si)?.value || '0') || 0;
+        const bagsD = parseInt(document.getElementById('fcBagsD_' + si)?.value || '0') || 0;
+
+        if (bagsU > 0 || bagsD > 0) {
+            // ── Split-order check: all previous eligible splits must have at least started ──
+            for (let prev = 0; prev < si; prev++) {
+                const splitNames = ['Split 1', 'Split 2', 'Split 3'];
+                if ((uEligArr[prev]||0) > 0 && _availed('Urea', prev) === 0) {
+                    if (errEl) { errEl.textContent = `Cannot distribute ${splitNames[si]} Urea — ${splitNames[prev]} (${uEligArr[prev]} bags) has not been distributed yet.`; errEl.classList.remove('d-none'); }
+                    return;
+                }
+                if ((dEligArr[prev]||0) > 0 && _availed('DAP', prev) === 0) {
+                    if (errEl) { errEl.textContent = `Cannot distribute ${splitNames[si]} DAP — ${splitNames[prev]} (${dEligArr[prev]} bags) has not been distributed yet.`; errEl.classList.remove('d-none'); }
+                    return;
+                }
+            }
+        }
+
+        if (bagsU > 0) {
+            const remU = Math.max(0, (uEligArr[si]||0) - _availed('Urea', si));
+            if (bagsU > remU) {
+                if (errEl) { errEl.textContent = `Split ${si+1} Urea: requested ${bagsU} bags but only ${remU} remaining.`; errEl.classList.remove('d-none'); }
+                return;
+            }
+            entries.push({ fert: 'Urea', splitIdx: si, bags: bagsU });
+            hasAny = true;
+        }
+        if (bagsD > 0) {
+            const remD = Math.max(0, (dEligArr[si]||0) - _availed('DAP', si));
+            if (bagsD > remD) {
+                if (errEl) { errEl.textContent = `Split ${si+1} DAP: requested ${bagsD} bags but only ${remD} remaining.`; errEl.classList.remove('d-none'); }
+                return;
+            }
+            entries.push({ fert: 'DAP', splitIdx: si, bags: bagsD });
+            hasAny = true;
+        }
+    }
+
+    if (!hasAny) {
+        if (errEl) { errEl.textContent = 'Please enter at least 1 bag in any split.'; errEl.classList.remove('d-none'); }
+        return;
+    }
+    if (errEl) errEl.classList.add('d-none');
+
+    const { outletId, outletName } = getRetailerInfo();
+    const retailerUid = firebase.auth().currentUser?.uid || '';
+    const now = Date.now();
+    const ops = [];
+
+    entries.forEach(entry => {
+        const recKey = database.ref('ureaHistory').push().key;
+        const rec = {
+            aadhaar: a,
+            year, season,
+            fertilizerType: entry.fert,
+            fert: entry.fert,
+            splitIndex: entry.splitIdx,
+            bags: entry.bags,
+            status: 'Distributed',
+            retailerVerified: true,
+            outletId: outletId || '',
+            outletName: outletName || '',
+            retailerUid,
+            distributedAt: now,
+            distributedVia: 'farmerCardQR',
+            fcKey
+        };
+        ops.push(database.ref('ureaHistory/' + recKey).set(rec));
+    });
+
+    // Update fertilizerCards timestamp
+    ops.push(database.ref('fertilizerCards/' + fcKey + '/lastDistributed').set(now));
+
+    if (resultEl) resultEl.innerHTML = `<div class="alert alert-info py-2 d-flex align-items-center gap-2"><i class="fas fa-spinner fa-spin"></i><span>Saving distribution…</span></div>`;
+
+    Promise.all(ops).then(() => {
+        // Refresh local ureaHistory cache
+        return database.ref('ureaHistory').orderByChild('aadhaar').equalTo(a).once('value');
+    }).then(snap => {
+        // Merge into local ureaHistory array
+        if (snap.exists()) {
+            snap.forEach(child => {
+                const v = child.val();
+                const existIdx = ureaHistory.findIndex(h => h._key === child.key);
+                if (existIdx >= 0) ureaHistory[existIdx] = { ...v, _key: child.key };
+                else ureaHistory.push({ ...v, _key: child.key });
+            });
+        }
+        const totalBags = entries.reduce((s,e) => s + e.bags, 0);
+        if (resultEl) resultEl.innerHTML = `
+        <div class="alert alert-success" style="border-radius:14px; border-left:4px solid #27ae60;">
+          <div class="fw-bold mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Distribution Recorded Successfully</div>
+          <div class="small">
+            ${entries.map(e => `Split ${e.splitIdx+1} — <strong>${e.fert}</strong>: ${e.bags} bag${e.bags>1?'s':''}`).join('<br>')}
+          </div>
+          <div class="small text-muted mt-1">Farmer: ${escapeHtml(aadhaar.slice(0,4))}••••${escapeHtml(aadhaar.slice(-4))} &nbsp;|&nbsp; ${escapeHtml(year)} · ${escapeHtml(season)}</div>
+          <button class="btn btn-outline-success btn-sm mt-2" onclick="processFarmerCardQr('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','', document.getElementById('qrScanResult'))">
+            <i class="fas fa-eye me-1"></i>View Updated Card
+          </button>
+        </div>`;
+    }).catch(err => {
+        if (resultEl) resultEl.innerHTML = _rtAuthErr('Save failed: ' + escapeHtml(err.message));
+    });
 }
 
 // ============================================================
@@ -19025,7 +19308,51 @@ function loadPrintFarmerProfile() {
     const totalS2D  = rows.reduce((s, r) => s + r.split2D, 0);
     const totalS3D  = rows.reduce((s, r) => s + r.split3D, 0);
 
-    // ── Build distribution schedule rows (3 splits × 2 blank rows each) ──
+    // ── Compute availed bags per split from ureaHistory ──
+    // These are bags already distributed (across all crops for this aadhaar/year/season)
+    const useYear   = selYear   || '';
+    const useSeason = selSeason || '';
+    function _availedForSplit(fert, splitIdx) {
+        if (!useYear || !useSeason) return 0;
+        return ureaHistory
+            .filter(h =>
+                String(h.aadhaar || '').replace(/\s/g,'') === a &&
+                String(h.fertilizerType || h.fert || 'Urea').trim() === fert &&
+                String(h.season || '').trim() === useSeason &&
+                String(h.year   || '').trim() === useYear &&
+                parseInt(h.splitIndex) === splitIdx &&
+                h.status !== 'Rejected'
+            )
+            .reduce((s, h) => s + Number(h.bags || 0), 0);
+    }
+    const availedS = [0,1,2].map(si => ({
+        u: _availedForSplit('Urea', si),
+        d: _availedForSplit('DAP',  si)
+    }));
+
+    // ── QR payload for farmer card ──
+    // Format: FC|<aadhaar>|<year>|<season>|<voUid>
+    const voUid     = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
+    const qrPayload = `FC|${a}|${useYear}|${useSeason}|${voUid}`;
+
+    // ── Write eligibility snapshot to Firebase so retailer can read it ──
+    if (useYear && useSeason && voUid) {
+        const fcKey = a + '_' + useYear.replace(/[^a-zA-Z0-9]/g,'') + '_' + useSeason;
+        const eligSnap = {
+            aadhaar: a, farmerName, fatherName, mobile,
+            mandal: mandalName, village: villageName, voUid,
+            year: useYear, season: useSeason,
+            splits: {
+                Urea: { s0: totalS1, s1: totalS2, s2: totalS3 },
+                DAP:  { s0: totalS1D, s1: totalS2D, s2: totalS3D }
+            },
+            updatedAt: Date.now()
+        };
+        database.ref('fertilizerCards/' + fcKey).set(eligSnap)
+            .catch(err => console.warn('fertilizerCards write failed:', err.message));
+    }
+
+    // ── Build distribution schedule rows (3 splits with Availed + Distributed Till Now) ──
     const splitLabels = [
         { num: 1, label: 'Split 1 — Basal',     uColor: '#155724', dColor: '#0d4d73', badge: 'bg-primary' },
         { num: 2, label: 'Split 2 — Top-dress',  uColor: '#155724', dColor: '#0d4d73', badge: 'bg-success' },
@@ -19038,14 +19365,22 @@ function loadPrintFarmerProfile() {
     ];
 
     const scheduleRows = splitLabels.map((sp, si) => {
-        const eligU = splitTotals[si].u;
-        const eligD = splitTotals[si].d;
+        const eligU   = splitTotals[si].u;
+        const eligD   = splitTotals[si].d;
+        const availU  = availedS[si].u;
+        const availD  = availedS[si].d;
+        const remU    = Math.max(0, eligU - availU);
+        const remD    = Math.max(0, eligD - availD);
+        const fullyDoneU = eligU > 0 && remU === 0;
+        const fullyDoneD = eligD > 0 && remD === 0;
+        const headerBg  = fullyDoneU && fullyDoneD ? 'linear-gradient(135deg,#1b5e20,#145214)' : 'linear-gradient(135deg,#1862ab,#124d86)';
         const splitHeader = `
-            <tr style="background:linear-gradient(135deg,#1862ab,#124d86); color:#fff;">
-              <td colspan="8" style="font-size:0.85rem; font-weight:700; padding:7px 12px; letter-spacing:0.3px;">
+            <tr style="background:${headerBg}; color:#fff;">
+              <td colspan="9" style="font-size:0.85rem; font-weight:700; padding:7px 12px; letter-spacing:0.3px;">
                 🌿 ${sp.label}
                 &nbsp;|&nbsp; Eligible Urea: <span style="background:rgba(255,255,255,0.2); padding:1px 8px; border-radius:10px;">${eligU} bags</span>
                 &nbsp;|&nbsp; Eligible DAP: <span style="background:rgba(255,255,255,0.2); padding:1px 8px; border-radius:10px;">${eligD} bags</span>
+                ${(availU > 0 || availD > 0) ? `&nbsp;|&nbsp; <span style="background:rgba(255,220,0,0.3); padding:1px 8px; border-radius:10px; font-size:0.78rem;">✅ Availed U:${availU} D:${availD}</span>` : ''}
               </td>
             </tr>
             <tr style="background:#f0f4ff; font-size:0.75rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.4px;">
@@ -19053,19 +19388,37 @@ function loadPrintFarmerProfile() {
               <th style="padding:6px 10px; border:1px solid #dee2e6;">Availed Bags (Urea / DAP)</th>
               <th style="padding:6px 10px; border:1px solid #dee2e6;">Availed Date</th>
               <th style="padding:6px 10px; border:1px solid #dee2e6;">Availed At (Outlet)</th>
-              <th style="padding:6px 10px; border:1px solid #dee2e6; width:140px;">Signature of Retailer</th>
-              <th style="padding:6px 10px; border:1px solid #dee2e6; width:90px;">Remaining Bags</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6; width:100px; background:#e8f5e9; color:#155724;">Availed Till Now</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6; width:100px; background:#fff3e0; color:#7c4700;">Distributed Till Now</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6; width:130px;">Signature of Retailer</th>
+              <th style="padding:6px 10px; border:1px solid #dee2e6; width:80px;">Remaining</th>
             </tr>`;
+        const dataRow = (availU > 0 || availD > 0) ? `
+            <tr style="background:#f0fff4; border-left:4px solid #27ae60;">
+              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.78rem;">—</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; font-weight:700; color:#1b5e20; font-size:0.82rem;">
+                Urea: ${availU > 0 ? `<span style="background:#1862ab;color:#fff;padding:1px 7px;border-radius:4px;">${availU}</span>` : '<span style="color:#ccc">0</span>'}
+                &nbsp; DAP: ${availD > 0 ? `<span style="background:#27ae60;color:#fff;padding:1px 7px;border-radius:4px;">${availD}</span>` : '<span style="color:#ccc">0</span>'}
+              </td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.75rem; color:#555;">See records</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.75rem; color:#555;">—</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#e8f5e9; text-align:center; font-weight:800; color:#155724;">U:${availU} / D:${availD}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#fff3e0; text-align:center; font-weight:800; color:#7c4700;">U:${availU} / D:${availD}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:${remU===0&&remD===0?'#c0392b':'#27ae60'};">U:${remU} / D:${remD}</td>
+            </tr>` : '';
         const blankRows = [1, 2].map(rowNum => `
-            <tr style="height:38px;">
+            <tr style="height:36px;">
               <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.78rem;">${rowNum}</td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#f9fff9;"></td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#fffdf5;"></td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
             </tr>`).join('');
-        return splitHeader + blankRows;
+        return splitHeader + dataRow + blankRows;
     }).join('');
 
     cardEl.innerHTML = `
@@ -19097,9 +19450,16 @@ function loadPrintFarmerProfile() {
         </div>
       </div>
 
-      <!-- ══ FARMER INFO STRIP — HORIZONTAL ══ -->
+      <!-- ══ FARMER INFO STRIP — HORIZONTAL with QR ══ -->
       <div style="background:linear-gradient(135deg,#f0f7ff,#e8f3ff); border-bottom:2px solid #c8d8ed; padding:0.6rem 1.2rem;">
-        <div style="display:flex; flex-wrap:wrap; gap:0; align-items:stretch;">
+        <div style="display:flex; gap:0.8rem; align-items:stretch;">
+        <!-- QR Code panel (right side of info strip) -->
+        <div id="fcQrHolder_${a}" style="flex:0 0 110px; display:flex; flex-direction:column; align-items:center; justify-content:center; border:2px solid #1862ab; border-radius:10px; background:#fff; padding:6px; box-sizing:border-box; order:99;">
+          <div style="font-size:0.55rem; color:#1862ab; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; text-align:center;">📷 Retailer Scan</div>
+          <div id="fcQrCode_${a}" data-qr="${qrPayload.replace(/"/g,'&quot;')}" style="width:90px; height:90px; display:flex; align-items:center; justify-content:center;"></div>
+          <div style="font-size:0.5rem; color:#7f8c8d; margin-top:3px; text-align:center; line-height:1.3;">${escapeHtml(useYear)} · ${escapeHtml(useSeason)}</div>
+        </div>
+        <div style="flex:1; display:flex; flex-wrap:wrap; gap:0; align-items:stretch;">
 
           <!-- Farmer Name -->
           <div style="flex:2; min-width:140px; padding:0.4rem 0.8rem 0.4rem 0; border-right:1px solid #c8d8ed;">
@@ -19149,7 +19509,8 @@ function loadPrintFarmerProfile() {
             <div style="font-size:0.78rem; font-weight:600; color:#2c3e50; line-height:1.3;">${escapeHtml(cropSummaryStr)}</div>
           </div>
 
-        </div>
+        </div><!-- end inner info cells wrapper -->
+        </div><!-- end outer flex (info + QR) -->
       </div>
 
       <!-- ══ FERTILIZER ELIGIBILITY TABLE ══ -->
@@ -19218,6 +19579,35 @@ function loadPrintFarmerProfile() {
         </div>
       </div>
 
+      <!-- ══ SIGNATURE ROW — Farmer | VAA | MAO ══ -->
+      <div style="border-top:1.5px solid #e0e6ed; margin:0 1rem; padding:0.6rem 0 0.5rem;">
+        <div style="font-size:0.62rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.4rem;">Authorisation Signatures</div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:1rem;">
+
+          <!-- Farmer Signature -->
+          <div style="flex:1; text-align:center;">
+            <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
+            <div style="font-size:0.72rem; font-weight:700; color:#1b5e20;">🧑‍🌾 Farmer Signature</div>
+            <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(farmerName)}</div>
+          </div>
+
+          <!-- Village Agriculture Assistant -->
+          <div style="flex:1; text-align:center;">
+            <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
+            <div style="font-size:0.72rem; font-weight:700; color:#1562ab;">📋 Village Agriculture Assistant</div>
+            <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(officerName)} &nbsp;|&nbsp; ${escapeHtml(villageName)}</div>
+          </div>
+
+          <!-- Mandal Agriculture Officer -->
+          <div style="flex:1; text-align:center;">
+            <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
+            <div style="font-size:0.72rem; font-weight:700; color:#6a1a1a;">🏛️ Mandal Agriculture Officer</div>
+            <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(mandalName)} Mandal</div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- ══ OFFICER FOOTER ══ -->
       <div style="background:#f8fbff; border-top:1.5px solid #e0e6ed; padding:0.5rem 1.2rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
         <div style="font-size:0.7rem; color:#7f8c8d;">
@@ -19240,6 +19630,23 @@ function loadPrintFarmerProfile() {
         </button>
       </div>
     </div>`;
+
+    // ── Generate QR code into the holder after DOM is set ──
+    const qrHolderEl = document.getElementById('fcQrCode_' + a);
+    if (qrHolderEl && typeof QRCode !== 'undefined') {
+        try {
+            new QRCode(qrHolderEl, {
+                text: qrPayload,
+                width: 90,
+                height: 90,
+                colorDark: '#1862ab',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        } catch(e) {
+            qrHolderEl.innerHTML = '<div style="font-size:0.55rem;color:#c0392b;text-align:center;">QR Error</div>';
+        }
+    }
 }
 
 function printFertilizerCard() {
@@ -19268,6 +19675,7 @@ function printFertilizerCard() {
 <title>${docTitle}</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
 <style>
   * { box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; margin: 0; padding: 0; }
@@ -19352,6 +19760,22 @@ ${cardEl.innerHTML}
     if (b) b.style.display = 'block';
     setTimeout(function(){ window.print(); }, 500);
   }
+  // ── Re-render QR codes inside print window ──
+  (function reRenderQrCodes() {
+    if (typeof QRCode === 'undefined') return;
+    var holders = document.querySelectorAll('[id^="fcQrCode_"]');
+    holders.forEach(function(el) {
+      if (el && el.children.length === 0) {
+        var payload = el.getAttribute('data-qr');
+        if (!payload) return;
+        try {
+          new QRCode(el, { text: payload, width: 90, height: 90,
+            colorDark: '#1862ab', colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M });
+        } catch(e) {}
+      }
+    });
+  })();
 <\/script>
 </body></html>`);
     printWin.document.close();
