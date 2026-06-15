@@ -16379,12 +16379,12 @@ function loadRetailerDistributions() {
     }
 
     // Query by outletId — requires .indexOn: ["outletId"] in Firebase rules for best performance.
-    // If index is missing Firebase still returns results but logs a warning.
     const query = database.ref('fertilizerDistributions').orderByChild('outletId').equalTo(outletId);
 
-    query.once('value').then(snap => {
+    query.once('value').then(async snap => {
         const pending = [];
-        // Also build a map of already-distributed bags: key = aadhaar|fert|crop|season|year|splitIndex
+        // Build a map of already-distributed bags: key = aadhaar|fert|splitIndex
+        // This covers distributions at THIS outlet
         const issuedMap = {};
 
         if (snap.exists()) {
@@ -16412,6 +16412,34 @@ function loadRetailerDistributions() {
                 if ((r.outletId || '').trim() !== outletId.trim()) return;
                 pending.push({ ...r, printToken: tk, tokenKey: tk });
             });
+        }
+
+        // ── Cross-outlet check: for each pending farmer, also query all their
+        //    distributions across ALL outlets to catch previously distributed splits ──
+        if (pending.length > 0) {
+            const uniqueAadhaars = [...new Set(pending.map(r => String(r.aadhaar || '').replace(/\D/g,'')).filter(Boolean))];
+            await Promise.all(uniqueAadhaars.map(aadhaar =>
+                database.ref('fertilizerDistributions')
+                    .orderByChild('aadhaar').equalTo(aadhaar)
+                    .once('value')
+                    .then(aSnap => {
+                        if (!aSnap.exists()) return;
+                        aSnap.forEach(child => {
+                            const r = child.val();
+                            if (!r) return;
+                            if (r.status === 'Rejected' || r.status === 'Cancelled') return;
+                            if (!((r.status === 'Distributed' || r.retailerVerified))) return;
+                            const key = [
+                                String(r.aadhaar || '').replace(/\D/g,''),
+                                r.fertilizerType || 'Urea',
+                                (r.crop || '').toLowerCase().trim(),
+                                r.season || '', r.year || '',
+                                String(r.splitIndex !== undefined ? r.splitIndex : '')
+                            ].join('|');
+                            issuedMap[key] = (issuedMap[key] || 0) + Number(r.bags || 0);
+                        });
+                    }).catch(() => {})
+            ));
         }
 
         window._rtPendingRecords = pending;
@@ -16443,16 +16471,34 @@ function loadRetailerDistributions() {
             const alreadyIssued = (window._rtIssuedMap || {})[issuedKey] || 0;
             const eligibleBags  = Number(r.eligibleBags || 0);
             const remainingBags = eligibleBags > 0 ? Math.max(0, eligibleBags - alreadyIssued) : null;
-            const issuedBadge   = alreadyIssued > 0
+            const fullyDistributed = eligibleBags > 0 && alreadyIssued >= eligibleBags;
+
+            const issuedBadge = fullyDistributed
+                ? `<div class="mt-2 p-2 rounded-2" style="background:#fce4ec;border:1px solid #f48fb1;">
+                     <div class="small fw-bold" style="color:#b71c1c;"><i class="fas fa-ban me-1"></i>Already Fully Distributed (${alreadyIssued} / ${eligibleBags} bags)</div>
+                     <div class="small text-muted mt-1">This split has been distributed previously. No action needed.</div>
+                   </div>`
+                : alreadyIssued > 0
                 ? `<div class="mt-2 p-2 rounded-2" style="background:#fff3e0;border:1px solid #ffcc80;">
                      <div class="small fw-bold" style="color:#e65100;"><i class="fas fa-lock me-1"></i>Already Issued: <strong>${alreadyIssued} bag(s)</strong></div>
                      ${remainingBags !== null ? `<div class="small fw-semibold text-success">Remaining Eligible: <strong>${remainingBags} bag(s)</strong></div>` : ''}
                    </div>`
                 : (eligibleBags > 0 ? `<div class="mt-2"><span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-size:0.72rem;">✅ No prior issues — Eligible: ${eligibleBags} bags</span></div>` : '');
 
+            // Disable Distribute button if already fully distributed
+            const distributeBtn = fullyDistributed
+                ? `<button class="btn btn-secondary btn-sm fw-bold flex-grow-1" style="border-radius:10px;padding:.5rem .75rem;" disabled title="Already fully distributed">
+                    <i class="fas fa-ban me-1"></i>Already Done
+                   </button>`
+                : `<button class="btn btn-success btn-sm fw-bold shadow-sm flex-grow-1" style="border-radius:10px;padding:.5rem .75rem;"
+                      data-rt-idx="${i}" data-rt-action="distribute">
+                    <i class="fas fa-check-circle me-1"></i>Distribute
+                   </button>`;
+
             return `
-            <div id="rtPendRow_${i}" class="card border-0 shadow-sm" style="border-radius:16px;border-left:5px solid ${fc} !important;overflow:hidden;">
+            <div id="rtPendRow_${i}" class="card border-0 shadow-sm" style="border-radius:16px;border-left:5px solid ${fullyDistributed ? '#e53935' : fc} !important;overflow:hidden;${fullyDistributed ? 'opacity:0.75;' : ''}">
               <div class="card-body p-3">
+                ${fullyDistributed ? `<div class="alert alert-danger py-1 px-2 mb-2 small fw-bold"><i class="fas fa-ban me-1"></i>BLOCKED — Bags already distributed for this split</div>` : ''}
                 <div class="row g-3 align-items-center">
                   <div class="col-12 col-md-4">
                     <div class="d-flex align-items-start gap-3">
@@ -16501,12 +16547,9 @@ function loadRetailerDistributions() {
                       ${r.splitName ? `<div class="small mt-1"><span class="badge bg-info text-dark">${escapeHtml(r.splitName)}</span></div>` : ''}
                     </div>
                     <div class="d-flex gap-2">
-                      <button class="btn btn-success btn-sm fw-bold shadow-sm flex-grow-1" style="border-radius:10px;padding:.5rem .75rem;"
-                          data-rt-idx="${i}" data-rt-action="distribute">
-                        <i class="fas fa-check-circle me-1"></i>Distribute
-                      </button>
+                      ${distributeBtn}
                       <button class="btn btn-outline-danger btn-sm fw-bold flex-grow-1" style="border-radius:10px;padding:.5rem .75rem;"
-                          data-rt-idx="${i}" data-rt-action="reject">
+                          data-rt-idx="${i}" data-rt-action="reject" ${fullyDistributed ? 'disabled' : ''}>
                         <i class="fas fa-times-circle me-1"></i>Reject
                       </button>
                     </div>
@@ -16516,15 +16559,27 @@ function loadRetailerDistributions() {
             </div>`;
         }).join('');
 
+        const blockedCount = pending.filter(r => {
+            const rAadhaar = String(r.aadhaar || '').replace(/\D/g,'');
+            const key = [rAadhaar, r.fertilizerType||'Urea', (r.crop||'').toLowerCase().trim(), r.season||'', r.year||'', String(r.splitIndex !== undefined ? r.splitIndex : '')].join('|');
+            const issued = (issuedMap[key] || 0);
+            return Number(r.eligibleBags||0) > 0 && issued >= Number(r.eligibleBags||0);
+        }).length;
+
         container.innerHTML = `
         <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
           <p class="text-muted small mb-0 d-flex align-items-center gap-2">
             <i class="fas fa-info-circle text-primary"></i>
             Scan QR or enter token above, or act directly from the list below.
           </p>
-          <span class="badge bg-warning text-dark px-3 py-2" style="border-radius:20px;font-size:.85rem;">
-            <i class="fas fa-clock me-1"></i>${pending.length} Pending
-          </span>
+          <div class="d-flex gap-2 flex-wrap">
+            <span class="badge bg-warning text-dark px-3 py-2" style="border-radius:20px;font-size:.85rem;">
+              <i class="fas fa-clock me-1"></i>${pending.length - blockedCount} Pending
+            </span>
+            ${blockedCount > 0 ? `<span class="badge bg-danger px-3 py-2" style="border-radius:20px;font-size:.85rem;">
+              <i class="fas fa-ban me-1"></i>${blockedCount} Already Distributed
+            </span>` : ''}
+          </div>
         </div>
         <div id="rtPendingList" class="d-flex flex-column gap-3">${cards}</div>`;
 
