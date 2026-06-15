@@ -4115,7 +4115,20 @@ function submitRejectDistribution() {
         &mdash; no need to upload separately for each fertilizer type.
       </p>
 
-      <div class="mb-3 p-3 border rounded bg-light">
+      <!-- Current file status banner -->
+      <div id="oneBCurrentFileBar" class="d-none mb-3 p-2 rounded border d-flex align-items-center justify-content-between gap-2"
+           style="background:#e8f5e9; border-color:#a5d6a7;">
+          <div>
+              <i class="fas fa-file-excel text-success me-1"></i>
+              <span id="oneBCurrentFileName" class="fw-semibold small text-success">1B file loaded</span>
+              <span id="oneBCurrentKhathaCount" class="ms-2 text-muted small"></span>
+          </div>
+          <button type="button" class="btn btn-sm btn-danger" onclick="delete1BFile()" title="Delete uploaded 1B data from cloud and allow re-upload">
+              <i class="fas fa-trash me-1"></i> Delete File
+          </button>
+      </div>
+
+      <div id="oneBUploadBox" class="mb-3 p-3 border rounded bg-light">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
             <label for="ureaFileInput" class="form-label fw-semibold mb-0">📊 Upload 1B Excel File (click help in dashboard for guidance)</label>
             <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="openKhathaAadhaarTool()" title="Open Khatha–Aadhaar Matcher in new tab">
@@ -4443,17 +4456,21 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
           <small id="fpKhathaHint" class="text-muted" style="font-size:0.76rem;">Type a number to filter available Khathas</small>
         </div>
         <div class="col-md-4">
-  <label class="form-label fw-semibold">Total Khatha Extent (Acres)</label>
+  <label class="form-label fw-semibold">
+    <i class="fas fa-seedling me-1 text-success"></i>Extent Cultivating (Acres) *
+  </label>
   <input
-    type="text"
+    type="number"
     id="fpExtent"
     class="form-control"
-    placeholder="Auto-filled on Khatha selection"
-    readonly
-    style="background:#f8f9fa; font-weight:600;"
+    placeholder="Enter actual extent being cultivated"
+    step="0.01"
+    min="0.01"
+    style="font-weight:600;"
+    oninput="onFpCropOrExtentChange()"
   >
-  <small class="text-muted">
-    Auto-populated from selected Khatha
+  <small id="fpExtentHint" class="text-muted">
+    Enter the extent <strong>this farmer is actually cultivating</strong> (not the full Khatha extent)
   </small>
 </div>
 
@@ -4523,6 +4540,9 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
               <button class="btn btn-sm btn-success" onclick="exportAllFarmerProfiles()">
                   <i class="fas fa-file-excel me-1"></i> Export Excel
               </button>
+              <button class="btn btn-sm btn-warning text-dark fw-semibold" onclick="rearrangeCardNumbers()" title="Reset all card numbers from 0001 in order">
+                  <i class="fas fa-sort-numeric-up me-1"></i> Rearrange Card Nos
+              </button>
               <button class="btn btn-sm btn-outline-light" 
                   onclick="document.getElementById('fpAllProfilesPanel').style.display='none'; document.body.style.overflow=''">
                   ✕ Close
@@ -4591,7 +4611,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
                           <th>Mobile</th>
                           <th>Khatha</th>
                           <th>Survey No</th>
-                          <th>Extent (Ac)</th>
+                          <th>Extent Cultivating (Ac)</th>
                           <th>Year · Season</th>
                           <th>Crops</th>
                           <th style="width:90px" class="text-center">Action</th>
@@ -4616,7 +4636,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
                           <th style="cursor:pointer" onclick="sortFpCardWise('apfrNumber')">APFR ID <i class="fas fa-sort ms-1"></i></th>
                           <th style="cursor:pointer" onclick="sortFpCardWise('mobile')">Mobile Number <i class="fas fa-sort ms-1"></i></th>
                           <th style="cursor:pointer" onclick="sortFpCardWise('khathaNumbers')">Khatha Number(s) <i class="fas fa-sort ms-1"></i></th>
-                          <th style="cursor:pointer" onclick="sortFpCardWise('totalExtent')">Extent <i class="fas fa-sort ms-1"></i></th>
+                          <th style="cursor:pointer" onclick="sortFpCardWise('totalExtent')">Extent Cultivating <i class="fas fa-sort ms-1"></i></th>
                           <th style="cursor:pointer" onclick="sortFpCardWise('cropsText')">Crops <i class="fas fa-sort ms-1"></i></th>
                           <th style="cursor:pointer" onclick="sortFpCardWise('bagsEligible')"><span id="fpHdrEligible">Bags Eligible</span> <i class="fas fa-sort ms-1"></i></th>
                           <th style="cursor:pointer" onclick="sortFpCardWise('bagsAvailed')"><span id="fpHdrAvailed">Bags Availed</span> <i class="fas fa-sort ms-1"></i></th>
@@ -5039,6 +5059,8 @@ function openManualWorkflowModal() {
 
     modal.show();
 }
+
+
 </script>
 
 <!-- ================= FIREBASE & JAVASCRIPT CORE ================= -->
@@ -5571,6 +5593,7 @@ function _applyCloudSnapshot(snapshot) {
 function _refreshDependentUI() {
     if (typeof refreshKhathaDropdown     === 'function') refreshKhathaDropdown();
     if (typeof refreshUploadInfo         === 'function') refreshUploadInfo();
+    if (typeof update1BFileStatusBar     === 'function') update1BFileStatusBar();
 
     const fpSection = document.getElementById('farmerProfileSection');
     if (fpSection && fpSection.style.display !== 'none' && fpSection.style.display !== '') {
@@ -6068,6 +6091,174 @@ function saveFertilizerToCloud(fert) {
             showModernPopup('Upload Failed', err.message, 'error');
             return false;
         });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DELETE 1B UPLOADED FILE — wipes from memory + cloud
+// ══════════════════════════════════════════════════════════════
+async function delete1BFile() {
+    const fert = (typeof getSelectedFertilizer === 'function') ? getSelectedFertilizer() : 'Urea';
+    const khathaCount = ureaData[fert] ? Object.keys(ureaData[fert]).length : 0;
+
+    const confirmed = confirm(
+        `⚠️ DELETE 1B UPLOADED FILE\n\n` +
+        `This will permanently remove the uploaded 1B data (${khathaCount} Khathas) from cloud storage.\n\n` +
+        `• Farmer profile form Khatha dropdown will be cleared\n` +
+        `• Existing saved Farmer Profiles are NOT affected\n` +
+        `• You can upload a new 1B file immediately after\n\n` +
+        `Are you sure?`
+    );
+    if (!confirmed) return;
+
+    const user = firebase.auth().currentUser;
+
+    // 1. Wipe all fertilizer 1B data from memory
+    ureaData = {};
+    uploadedFertilizers = {};
+
+    // 2. Wipe from Firebase cloud
+    try {
+        if (user) {
+            await database.ref('users/' + user.uid + '/ureaData').remove();
+        }
+    } catch (e) {
+        console.error('Error deleting 1B data from cloud:', e);
+        alert('⚠️ Local data cleared but cloud delete failed: ' + e.message);
+    }
+
+    // 3. Reset the file input so user can pick a new file
+    const fi = document.getElementById('ureaFileInput');
+    if (fi) fi.value = '';
+
+    // 4. Refresh UI
+    update1BFileStatusBar();
+    if (typeof refreshUploadInfo === 'function') refreshUploadInfo();
+    if (typeof refreshKhathaDropdown === 'function') refreshKhathaDropdown();
+    if (typeof populateFpKhathaDropdown === 'function') populateFpKhathaDropdown();
+
+    showModernPopup('Deleted', '1B file data deleted from cloud. You can now upload a new file.', 'success');
+}
+
+// ── Show/hide the current-file status bar based on ureaData content ──
+function update1BFileStatusBar() {
+    const bar = document.getElementById('oneBCurrentFileBar');
+    const box = document.getElementById('oneBUploadBox');
+    const nameEl = document.getElementById('oneBCurrentFileName');
+    const countEl = document.getElementById('oneBCurrentKhathaCount');
+    if (!bar || !box) return;
+
+    // Collect total khathas across all fertilizers
+    let totalKhathas = 0;
+    const fertNames = [];
+    Object.entries(ureaData || {}).forEach(([fert, data]) => {
+        const count = data ? Object.keys(data).length : 0;
+        if (count > 0) { totalKhathas += count; fertNames.push(fert); }
+    });
+
+    if (totalKhathas > 0) {
+        // File exists — show bar, hide upload box
+        bar.classList.remove('d-none');
+        box.classList.add('d-none');
+        if (nameEl) nameEl.textContent = `1B file loaded (${fertNames.join(', ')})`;
+        if (countEl) countEl.textContent = `${totalKhathas} Khathas`;
+    } else {
+        // No file — hide bar, show upload box
+        bar.classList.add('d-none');
+        box.classList.remove('d-none');
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  REARRANGE CARD NUMBERS — re-serial from 0001 continuously
+//  One Aadhaar = one card. Sorted by first savedAt then by name.
+// ══════════════════════════════════════════════════════════════
+async function rearrangeCardNumbers() {
+    if (!farmerProfiles || !Object.keys(farmerProfiles).length) {
+        return alert('No farmer profiles found to rearrange.');
+    }
+
+    const user = firebase.auth().currentUser;
+    if (!user) return alert('Please log in first.');
+
+    // Get village/year/season from first profile for prefix
+    let vCode = 'VIL', sCode = '2026K';
+    try {
+        const profileSnap = await database.ref(`users/${user.uid}/profile`).once('value');
+        const userVillage = profileSnap.val()?.village || 'Village';
+        vCode = (typeof getVillageCode === 'function') ? getVillageCode(userVillage) : userVillage.slice(0,3).toUpperCase();
+    } catch(e) {}
+    // Detect year/season from profiles
+    const allProfs = Object.values(farmerProfiles).flat();
+    if (allProfs.length) {
+        const firstCrop = allProfs[0]?.crops?.[0];
+        if (firstCrop) {
+            sCode = (typeof getSeasonCode === 'function')
+                ? getSeasonCode(firstCrop.year || '2026-27', firstCrop.season || 'Kharif')
+                : '2026K';
+        }
+    }
+
+    const confirmed = confirm(
+        `🔢 REARRANGE CARD NUMBERS\n\n` +
+        `This will reassign card numbers from ${vCode}/${sCode}/0001 in order.\n\n` +
+        `• One card number per Aadhaar (all profiles for same Aadhaar share one card)\n` +
+        `• Sorted by registration date (oldest first)\n` +
+        `• This updates all profiles and resets the Firebase counter\n\n` +
+        `Are you sure?`
+    );
+    if (!confirmed) return;
+
+    // Build unique-aadhaar list sorted by earliest savedAt
+    const aadhaarList = Object.entries(farmerProfiles)
+        .map(([aadhaar, profiles]) => {
+            const profs = Array.isArray(profiles) ? profiles : Object.values(profiles);
+            const earliest = profs.reduce((min, p) => {
+                const t = p.savedAt ? new Date(p.savedAt).getTime() : Infinity;
+                return t < min ? t : min;
+            }, Infinity);
+            const name = profs[0]?.farmerName || '';
+            return { aadhaar, earliest, name };
+        })
+        .sort((a, b) => {
+            if (a.earliest !== b.earliest) return a.earliest - b.earliest;
+            return a.name.localeCompare(b.name);
+        });
+
+    const prefix = `${vCode}/${sCode}/`;
+    const updates = {};
+    let seq = 1;
+
+    aadhaarList.forEach(({ aadhaar, name }) => {
+        const newCard = `${prefix}${String(seq).padStart(4, '0')}`;
+        seq++;
+
+        const profs = Array.isArray(farmerProfiles[aadhaar])
+            ? farmerProfiles[aadhaar]
+            : Object.values(farmerProfiles[aadhaar]);
+
+        profs.forEach((p, idx) => {
+            p.cardNumber = newCard;
+            updates[`users/${user.uid}/farmerProfiles/${aadhaar}/${idx}/cardNumber`] = newCard;
+        });
+    });
+
+    // Reset the Firebase counter to the new highest value
+    const counterKey = `registrationCounters/${vCode}_${sCode}`;
+    updates[counterKey] = seq - 1;
+
+    try {
+        await database.ref().update(updates);
+        showModernPopup('Done', `✅ Card numbers rearranged from ${prefix}0001 to ${prefix}${String(seq-1).padStart(4,'0')}.`, 'success');
+        if (typeof renderFpCardWiseTable === 'function') {
+            const search = document.getElementById('fpAllProfilesSearch')?.value || '';
+            const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
+            const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+            renderFpCardWiseTable(search, season, year);
+        }
+        if (typeof filterAllFarmerProfiles === 'function') filterAllFarmerProfiles();
+    } catch(e) {
+        alert('❌ Failed to save rearranged cards: ' + e.message);
+    }
 }
 
 function saveToCloud() {
@@ -10167,6 +10358,10 @@ if (fileInput) {
                     refreshUploadInfo();
                     refreshKhathaDropdown();
                     updateBagRecommendation();
+                    // ✅ FIX: Refresh farmer-profile khatha dropdown immediately after new 1B upload
+                    if (typeof populateFpKhathaDropdown === 'function') populateFpKhathaDropdown();
+                    // ✅ Show current-file status bar / hide upload box
+                    if (typeof update1BFileStatusBar === 'function') update1BFileStatusBar();
                 }).catch(err => {
                     updateUploadStatus('danger', `❌ File parsed but cloud save failed: ${err.message}`);
                     refreshUploadInfo();
@@ -10180,9 +10375,11 @@ if (fileInput) {
 }
 
 function bagRound(x) {
-    x = Number(x) || 0;
-    const floor = Math.floor(x);
-    return (x - floor) <= 0.20 ? floor : Math.ceil(x);
+    return Math.round(Number(x) || 0);
+}
+
+function extentFloor(x) {
+    return Number(x) || 0;
 }
 
 function getUreaBagsFromN(nKg) { return bagRound(Number(nKg || 0) / (45 * 0.46)); }
@@ -10289,8 +10486,9 @@ function buildCropCumulativeSummary(aadhaar) {
 
             const UREA_N = 20.7; // kg N per 45-kg Urea bag (46% N)
             const DAP_P  = 23;   // kg P per 50-kg DAP  bag (46% P₂O₅)
-            const eligUrea = rec ? bagRound((Number(rec.N) || 0) * cropExtent / UREA_N) : 0;
-            const eligDAP  = rec ? bagRound((Number(rec.P) || 0) * cropExtent / DAP_P)  : 0;
+            const effExt = cropExtent;
+            const eligUrea = rec ? bagRound((Number(rec.N) || 0) * effExt / UREA_N) : 0;
+            const eligDAP  = rec ? bagRound((Number(rec.P) || 0) * effExt / DAP_P)  : 0;
 
             if (!cropMap[crop]) {
                 cropMap[crop] = {
@@ -10421,13 +10619,15 @@ function updateBagRecommendation() {
         );
     }
 
+    const effectiveExtent = extent;
+
     const ureaBags = blocked
         ? 0
-        : bagRound((rec.N * extent) / 46 * 100 / 45);
+        : bagRound((rec.N * effectiveExtent) / 46 * 100 / 45);
 
     const dapBags = blocked
         ? 0
-        : bagRound((rec.P * extent) / 46 * 100 / 50);
+        : bagRound((rec.P * effectiveExtent) / 46 * 100 / 50);
 
     const fert = getSelectedFertilizer();
     const totalEligible = fert === 'Urea' ? ureaBags : dapBags;
@@ -10733,8 +10933,9 @@ function buildPrintCropSummaryHTML(aadhaar, currentKhatha, currentCrop, currentB
                 ? (cropRec[useSeason] || cropRec['Kharif'] || Object.values(cropRec)[0])
                 : null;
 
-            const eligUrea = rec ? bagRound((rec.N * cropExtent) / 46 * 100 / 45) : 0;
-            const eligDAP  = rec ? bagRound((rec.P * cropExtent) / 46 * 100 / 50) : 0;
+            const effExt = cropExtent;
+            const eligUrea = rec ? bagRound((rec.N * effExt) / 46 * 100 / 45) : 0;
+            const eligDAP  = rec ? bagRound((rec.P * effExt) / 46 * 100 / 50) : 0;
 
             if (!cropMap[crop]) cropMap[crop] = {
                 khathas: new Set(), extentMap: {}, eligUrea: 0, eligDAP: 0, givenUrea: 0, givenDAP: 0,
@@ -12144,10 +12345,29 @@ async function generateAutomaticCardNumber(aadhaar, village, year, season) {
     // 1. Check if this identifier already has an assigned card number (new format) across any profile
     const NEW_FORMAT_RE = /^[A-Z]{3}\/\d{4}[A-Z]\/\d{4}$/;
     if (window.farmerProfiles) {
-        const profilesList = Array.isArray(window.farmerProfiles) ? window.farmerProfiles : Object.values(window.farmerProfiles);
+        // farmerProfiles is a dict of aadhaar -> [profile, profile, ...], so we must .flat() the values
+        const profilesList = Array.isArray(window.farmerProfiles)
+            ? window.farmerProfiles
+            : Object.values(window.farmerProfiles).flat();
         const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && p.cardNumber && NEW_FORMAT_RE.test(String(p.cardNumber).toUpperCase()));
         if (existing?.cardNumber) return existing.cardNumber;
     }
+
+    // 1b. Also check Firebase directly for this Aadhaar's card number (cross-profile safety net)
+    try {
+        const user = firebase.auth().currentUser;
+        if (user) {
+            const snap = await database.ref(`users/${user.uid}/farmerProfiles/${cleanA}`).once('value');
+            if (snap.exists()) {
+                let found = null;
+                snap.forEach(child => {
+                    const p = child.val();
+                    if (p && p.cardNumber && !found && NEW_FORMAT_RE.test(String(p.cardNumber).toUpperCase())) found = p.cardNumber;
+                });
+                if (found) return found;
+            }
+        }
+    } catch (e) { /* silent */ }
 
     const vCode = getVillageCode(village);
     const sCode = getSeasonCode(year, season); // e.g. "2026K"
@@ -12443,7 +12663,7 @@ async function saveFarmerProfile() {
     if (!n) return alert('Enter farmer name.');
     if (!fn) return alert('Enter father name.');
     if (!k || k === '--Select Khatha--') return alert('Select Khatha.');
-    if (!totalExt || totalExt <= 0) return alert('Extent must be greater than 0.');
+    if (!totalExt || totalExt <= 0) return alert('⚠️ Please enter the extent this farmer is cultivating (must be > 0).');
 
     // ── Khatha extent validation: block if exceeds remaining balance ──
     const officialExt = getKhathaOfficialExtent(k);
@@ -12455,12 +12675,12 @@ async function saveFarmerProfile() {
         const allowedExt = parseFloat((remainingBalance + 0.005).toFixed(2));
         if (enteredExt > allowedExt) {
             return alert(
-                `⚠️ Extent exceeds the remaining balance for Khatha ${k}.\n\n` +
+                `⚠️ Cultivating extent exceeds the remaining balance for Khatha ${k}.\n\n` +
                 `Khatha Official Extent : ${officialExt.toFixed(2)} ac\n` +
                 `Already Allocated (others) : ${allocatedByOthers.toFixed(2)} ac\n` +
                 `Remaining Balance : ${remainingBalance.toFixed(2)} ac\n\n` +
                 `You entered : ${totalExt.toFixed(2)} ac\n\n` +
-                `Please enter an extent ≤ ${remainingBalance.toFixed(2)} ac.`
+                `Please enter the cultivating extent ≤ ${remainingBalance.toFixed(2)} ac.`
             );
         }
     }
@@ -12491,7 +12711,7 @@ async function saveFarmerProfile() {
     if (!crops.length) return alert('Add at least one crop.');
 
     if (parseFloat(cropExtentSum.toFixed(2)) > parseFloat((totalExt + 0.005).toFixed(2))) {
-        return alert(`Total crop extents (${cropExtentSum.toFixed(2)} ac) exceed Khatha extent (${totalExt.toFixed(2)} ac).`);
+        return alert(`Total crop extents (${cropExtentSum.toFixed(2)} ac) exceed the cultivating extent entered (${totalExt.toFixed(2)} ac).`);
     }
 
     const cropNames = crops.map(c => c.crop);
@@ -13170,30 +13390,33 @@ function onFpKhathaChange() {
     ext._remainingExtent = remainingExt;
     ext._allocatedByOthers = allocatedByOthers;
 
-    // Show remaining balance (not full extent) so user can't exceed it
-    ext.value = remainingExt > 0 ? remainingExt.toFixed(2) : (officialExt > 0 ? '0.00' : '');
-    ext.max   = remainingExt;
+    // Show remaining balance as a suggestion — VO can edit down to actual cultivating extent
+    ext.value    = remainingExt > 0 ? remainingExt.toFixed(2) : (officialExt > 0 ? '0.00' : '');
+    ext.max      = remainingExt;
+    ext.readOnly = false;
 
     // Show allocation info banner near the extent field
-    const hintEl = document.getElementById('fpKhathaHint');
+    const hintEl = document.getElementById('fpExtentHint');
     if (hintEl && officialExt > 0) {
         if (allocatedByOthers > 0) {
             hintEl.innerHTML = `
                 <span class="text-danger fw-semibold">
                     <i class="fas fa-exclamation-triangle me-1"></i>
-                    Khatha Extent: <strong>${officialExt.toFixed(2)} ac</strong> &nbsp;|&nbsp;
-                    Already Allocated: <strong>${allocatedByOthers.toFixed(2)} ac</strong> &nbsp;|&nbsp;
-                    Remaining Balance: <strong>${remainingExt.toFixed(2)} ac</strong>
-                </span>`;
+                    Khatha Official: <strong>${officialExt.toFixed(2)} ac</strong> &nbsp;|&nbsp;
+                    Allocated to others: <strong>${allocatedByOthers.toFixed(2)} ac</strong> &nbsp;|&nbsp;
+                    Max available: <strong>${remainingExt.toFixed(2)} ac</strong>
+                </span><br>
+                <span class="text-primary"><i class="fas fa-edit me-1"></i><strong>Edit the value above</strong> to enter this farmer's actual cultivating extent ≤ ${remainingExt.toFixed(2)} ac</span>`;
         } else {
             hintEl.innerHTML = `
                 <span class="text-success fw-semibold">
                     <i class="fas fa-check-circle me-1"></i>
-                    Khatha Extent: <strong>${officialExt.toFixed(2)} ac</strong> &nbsp;|&nbsp; Fully available
-                </span>`;
+                    Khatha Official: <strong>${officialExt.toFixed(2)} ac</strong> — fully available
+                </span><br>
+                <span class="text-primary"><i class="fas fa-edit me-1"></i><strong>Edit the value above</strong> to enter this farmer's actual cultivating extent</span>`;
         }
     } else if (hintEl) {
-        hintEl.textContent = 'Type a number to filter available Khathas';
+        hintEl.innerHTML = `Enter the extent <strong>this farmer is actually cultivating</strong> (not the full Khatha extent)`;
     }
 
     onFpCropOrExtentChange();
@@ -13540,7 +13763,8 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
     if (khathaInp) khathaInp.value = profile.khatha ? 'Khatha ' + profile.khatha : '';
     // Disable text input for owners (auto-filled)
     if (khathaInp) khathaInp.disabled = (profile.farmerType === 'owner');
-    document.getElementById('fpExtent').readOnly = true;
+    // Keep extent editable so VO can update the actual cultivating extent
+    document.getElementById('fpExtent').readOnly = false;
 
     document.getElementById('fpCropRows').innerHTML = '';
     const crops = profile.crops || [];
@@ -13719,7 +13943,12 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
             <td>${escapeHtml(p.mobile || '—')}</td>
             <td><strong>${escapeHtml(p.khatha || '—')}</strong></td>
             <td style="min-width:100px">${surveyNoDisplay}</td>
-            <td class="text-center">${p.extent || '—'}</td>
+            <td class="text-center fw-semibold" style="color:#27ae60;">${
+                (() => {
+                    const cropSum = (p.crops || []).reduce((s, c) => s + Number(c.extent || 0), 0);
+                    return cropSum > 0 ? cropSum.toFixed(2) : (p.extent || '—');
+                })()
+            }</td>
             <td style="min-width:110px">${yearSeasonBadges}</td>
             <td>${cropBadges || '<span class="text-muted small">No crops</span>'}</td>
             <td class="text-center">
@@ -13955,14 +14184,17 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '') {
     const rows = Object.entries(groups).map(([key, profs]) => {
         const first = profs[0];
 
-        // Khatha numbers with extent: e.g. 10(2.0), 12(1.5)
+        // Khatha numbers with CULTIVATING extent (sum of crop extents per khatha, not khatha official extent)
         const khathaParts = [];
         let totalExtent = 0;
         profs.forEach(p => {
-            const ext = Number(p.extent || 0);
-            totalExtent += ext;
+            // Sum crop extents for this profile (actual cultivating extent)
+            const cropExtForProfile = (p.crops || []).reduce((s, c) => s + Number(c.extent || 0), 0);
+            // Fallback to p.extent only if no crops recorded (edge case)
+            const cultivatingExt = cropExtForProfile > 0 ? cropExtForProfile : Number(p.extent || 0);
+            totalExtent += cultivatingExt;
             const kStr = (p.khatha || '—');
-            khathaParts.push(`${kStr}(${ext.toFixed(2)})`);
+            khathaParts.push(`${kStr}(${cultivatingExt.toFixed(2)})`);
         });
 
         // Crops cumulative (sum extent per crop name across all profiles)
@@ -13983,7 +14215,8 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '') {
         profs.forEach(p => {
             (p.crops || []).forEach(c => {
                 const cropName  = (c.crop || '').toLowerCase().trim();
-                const cropExt   = Number(c.extent || p.extent || 0);
+                const rawExt    = Number(c.extent || p.extent || 0);
+                const cropExt   = rawExt;
                 const season    = c.season || 'Kharif';
                 const dosage    = fertilizerDosage[cropName];
                 if (!dosage) return;
@@ -21448,6 +21681,7 @@ async function loadPrintFarmerProfile() {
     const totalS2D  = rows.reduce((s, r) => s + r.split2D, 0);
     const totalS3D  = rows.reduce((s, r) => s + r.split3D, 0);
 
+
     // ── Compute availed bags per split from ureaHistory ──
     // If the VO left the Year/Season dropdowns on "All Years"/"All Seasons", derive from
     // the actual crop entries that were included in this card (most recent wins).
@@ -21461,6 +21695,38 @@ async function loadPrintFarmerProfile() {
                 if (!useSeason && cropEntry.season) useSeason = String(cropEntry.season).trim();
                 if (useYear && useSeason) break outer;
             }
+        }
+    }
+
+    // ── Load Firebase override BEFORE building availedS / splitTotals ──
+    // This must be awaited here so _ov* variables are correct before card HTML is built.
+    let _ovS1 = totalS1, _ovS2 = totalS2, _ovS3 = totalS3;
+    let _ovS1D = totalS1D, _ovS2D = totalS2D, _ovS3D = totalS3D;
+    let _ovUreaTotal = totalUrea, _ovDapTotal = totalDAP;
+    let _hasOverride = false;
+    let _ovEditCount = 0;
+    if (useYear && useSeason) {
+        const voUidCheck = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
+        if (voUidCheck) {
+            const fcKeyCheck = a + '_' + useYear.replace(/[^a-zA-Z0-9]/g,'') + '_' + useSeason;
+            try {
+                const ovSnap = await database.ref('fertilizerCards/' + fcKeyCheck).once('value');
+                const ovData = ovSnap.val();
+                _ovEditCount = Number(ovData?.editCount || 0);
+                if (ovData && ovData.eligibleOverride) {
+                    _hasOverride = true;
+                    const ovU = (ovData.splits && ovData.splits.Urea) || {};
+                    const ovD = (ovData.splits && ovData.splits.DAP)  || {};
+                    _ovS1  = Number(ovU.s0 !== undefined ? ovU.s0 : totalS1);
+                    _ovS2  = Number(ovU.s1 !== undefined ? ovU.s1 : totalS2);
+                    _ovS3  = Number(ovU.s2 !== undefined ? ovU.s2 : totalS3);
+                    _ovS1D = Number(ovD.s0 !== undefined ? ovD.s0 : totalS1D);
+                    _ovS2D = Number(ovD.s1 !== undefined ? ovD.s1 : totalS2D);
+                    _ovS3D = Number(ovD.s2 !== undefined ? ovD.s2 : totalS3D);
+                    _ovUreaTotal = _ovS1 + _ovS2 + _ovS3;
+                    _ovDapTotal  = _ovS1D + _ovS2D + _ovS3D;
+                }
+            } catch(e) { /* ignore — use computed values */ }
         }
     }
 
@@ -21648,14 +21914,17 @@ async function loadPrintFarmerProfile() {
     const qrPayload = `FC|${a}|${useYear}|${useSeason}|${voUid}`;
 
     // ── Write eligibility snapshot to Firebase so retailer can read it ──
+    // IMPORTANT: We use .update() (not .set()) so a VO-saved eligible-bags
+    // override (splits / eligibleOverride) is NEVER overwritten by a card reload.
+    // The splits field is only written here when there is NO existing override;
+    // if an override exists, splits were already saved by saveEditedEligibleBags()
+    // and we must leave them alone.
     if (useYear && useSeason && voUid) {
         const fcKey = a + '_' + useYear.replace(/[^a-zA-Z0-9]/g,'') + '_' + useSeason;
 
-        // Build merged khatha, extent, serialNo and all crops for this year/season
         const fcKhathas = [...new Set(profiles.map(p => String(p.khatha||'').trim()).filter(Boolean))].join(', ');
         const fcExtent  = totalExtent > 0 ? totalExtent.toFixed(2) : '';
         const fcCardNo  = cardNumber !== '—' ? cardNumber : '';
-        // Collect all crop names for this year/season (comma-separated, capitalised)
         const fcCrops = [...new Set(
             profiles.flatMap(p => (p.crops || [])
                 .filter(c => (!useYear || (c.year||'') === useYear) && (!useSeason || (c.season||'') === useSeason))
@@ -21663,10 +21932,12 @@ async function loadPrintFarmerProfile() {
                 .filter(Boolean)
             )
         )].map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ');
-        // First serial number from VO history (for card display)
         const fcSerialNo = rows.length > 0 ? (rows[0].serialNo || '') : '';
 
-        const eligSnap = {
+        // Always update farmer-info fields (safe to overwrite).
+        // Only write computed splits if NO override is active (_hasOverride was set
+        // by the early await block above, using the same fcKey).
+        const farmerInfoUpdate = {
             aadhaar: a, farmerName, fatherName, mobile,
             mandal: mandalName, village: villageName, voUid,
             year: useYear, season: useSeason,
@@ -21676,13 +21947,18 @@ async function loadPrintFarmerProfile() {
             crop:       fcCrops,
             crops:      fcCrops,
             serialNo:   fcSerialNo,
-            splits: {
-                Urea: { s0: totalS1, s1: totalS2, s2: totalS3 },
-                DAP:  { s0: totalS1D, s1: totalS2D, s2: totalS3D }
-            },
-            updatedAt: Date.now()
+            updatedAt:  Date.now()
         };
-        database.ref('fertilizerCards/' + fcKey).set(eligSnap)
+
+        if (!_hasOverride) {
+            // No VO override — write computed splits so retailer sees fresh values.
+            farmerInfoUpdate.splits = {
+                Urea: { s0: totalS1,  s1: totalS2,  s2: totalS3  },
+                DAP:  { s0: totalS1D, s1: totalS2D, s2: totalS3D }
+            };
+        }
+        // .update() merges — never touches fields we don't include (e.g. eligibleOverride, splits when overridden)
+        database.ref('fertilizerCards/' + fcKey).update(farmerInfoUpdate)
             .catch(err => console.warn('fertilizerCards write failed:', err.message));
     }
 
@@ -21694,10 +21970,11 @@ async function loadPrintFarmerProfile() {
         { num: 2, label: 'Split 2 — Top-dress',  uColor: '#155724', dColor: '#0d4d73', badge: 'bg-success' },
         { num: 3, label: 'Split 3 — Final',      uColor: '#155724', dColor: '#0d4d73', badge: 'bg-warning text-dark' }
     ];
+    // Use override values if VO has previously edited eligible bags
     const splitTotals = [
-        { u: totalS1, d: totalS1D },
-        { u: totalS2, d: totalS2D },
-        { u: totalS3, d: totalS3D }
+        { u: _ovS1,  d: _ovS1D  },
+        { u: _ovS2,  d: _ovS2D  },
+        { u: _ovS3,  d: _ovS3D  }
     ];
 
     const scheduleRows = splitLabels.map((sp, si) => {
@@ -21820,7 +22097,6 @@ async function loadPrintFarmerProfile() {
     cardEl.innerHTML = `
     <div id="fertCardPrintArea" style="background:#fff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); overflow:hidden; max-width:980px; margin:0 auto; font-family:'Segoe UI',Arial,sans-serif;">
 
-      <!-- ══ CARD HEADER ══ -->
       <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%); color:#fff; padding:0.75rem 1.2rem;">
         <div style="display:flex; align-items:center; justify-content:center; gap:0.7rem; text-align:center;">
           <div style="font-size:1.6rem; line-height:1;">🌾</div>
@@ -21846,10 +22122,8 @@ async function loadPrintFarmerProfile() {
         </div>
       </div>
 
-      <!-- ══ FARMER INFO STRIP — HORIZONTAL with QR ══ -->
       <div style="background:linear-gradient(135deg,#f0f7ff,#e8f3ff); border-bottom:2px solid #c8d8ed; padding:0.6rem 1.2rem;">
         <div style="display:flex; gap:0.8rem; align-items:stretch;">
-        <!-- QR Code panel (right side of info strip) -->
         <div id="fcQrHolder_${a}" style="flex:0 0 110px; display:flex; flex-direction:column; align-items:center; justify-content:center; border:2px solid #1862ab; border-radius:10px; background:#fff; padding:6px; box-sizing:border-box; order:99;">
           <div style="font-size:0.55rem; color:#1862ab; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; text-align:center;">📷 Retailer Scan</div>
           <div id="fcQrCode_${a}" data-qr="${qrPayload.replace(/"/g,'&quot;')}" style="width:90px; height:90px; display:flex; align-items:center; justify-content:center;"></div>
@@ -21857,59 +22131,63 @@ async function loadPrintFarmerProfile() {
         </div>
         <div style="flex:1; display:flex; flex-wrap:wrap; gap:0; align-items:stretch;">
 
-          <!-- Farmer Name -->
           <div style="flex:2; min-width:140px; padding:0.4rem 0.8rem 0.4rem 0; border-right:1px solid #c8d8ed;">
             <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Farmer Name</div>
             <div style="font-size:0.92rem; font-weight:800; color:#1862ab; line-height:1.2;">${escapeHtml(farmerName)}</div>
           </div>
 
-          <!-- Father Name -->
           <div style="flex:2; min-width:130px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
             <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Father / Husband Name</div>
             <div style="font-size:0.88rem; font-weight:700; color:#2c3e50;">${escapeHtml(fatherName)}</div>
           </div>
 
-          <!-- Aadhaar -->
           <div style="flex:2; min-width:130px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
             <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Aadhaar Number</div>
             <div style="font-size:0.88rem; font-family:monospace; font-weight:800; letter-spacing:2px; color:#c0392b;">${escapeHtml(aadhaar)}</div>
           </div>
 
-          <!-- Mobile -->
           <div style="flex:1.2; min-width:100px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
             <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Mobile</div>
             <div style="font-size:0.88rem; font-weight:600; color:#2c3e50;">${escapeHtml(mobile)}</div>
           </div>
 
-          <!-- APFR ID -->
           <div style="flex:1.5; min-width:110px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
             <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">APFR Farmer ID</div>
             <div style="font-size:0.82rem; font-weight:700; color:#8e44ad; font-family:monospace;">${escapeHtml(apfrNumber)}</div>
           </div>
 
-          <!-- Farmer Type -->
           <div style="flex:1; min-width:80px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
             <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Type</div>
             <div style="font-size:0.82rem; font-weight:700;">${farmerType === 'owner' ? '🏠 Owner' : farmerType === 'tenant' ? '🤝 Tenant' : escapeHtml(farmerType)}</div>
           </div>
 
-          <!-- Cultivating Extent -->
           <div style="flex:1.2; min-width:90px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
             <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Cultivating Extent</div>
             <div style="font-size:0.88rem; font-weight:800; color:#27ae60;">${totalExtent.toFixed(2)} Ac</div>
           </div>
 
-          <!-- Crops -->
           <div style="flex:2.5; min-width:140px; padding:0.4rem 0 0.4rem 0.8rem;">
             <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Crops Cultivating</div>
             <div style="font-size:0.78rem; font-weight:600; color:#2c3e50; line-height:1.3;">${escapeHtml(cropSummaryStr)}</div>
           </div>
 
-        </div><!-- end inner info cells wrapper -->
-        </div><!-- end outer flex (info + QR) -->
+        </div></div></div>
+
+     <div class="no-print" style="padding:0.4rem 1rem 0; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; background:#fffbe6; border-top:2px dashed #f39c12;">
+        <span style="font-size:0.72rem; color:#7c5700; font-weight:600;"><i class="fas fa-info-circle me-1" style="color:#f39c12;"></i>System calculates bags from fertilizer dosage &amp; extent. Use the button below to manually correct eligible bags if needed.</span>
+        <span id="editEligBagsCount_${a}" style="font-size:0.7rem; font-weight:700; padding:2px 9px; border-radius:10px; white-space:nowrap; ${_ovEditCount >= 3 ? 'background:#fdecea; color:#c0392b;' : _ovEditCount > 0 ? 'background:#fff3cd; color:#8a6500;' : 'background:#eef3fb; color:#5d7a99;'}">
+          <i class="fas fa-history me-1"></i>Edits used: ${_ovEditCount}/3
+        </span>
+        <button type="button" 
+                onclick="try { window.openEditEligibleBagsModal('${a}','${useYear}','${useSeason}',${_ovUreaTotal||0},${_ovDapTotal||0},${_ovS1||0},${_ovS2||0},${_ovS3||0},${_ovS1D||0},${_ovS2D||0},${_ovS3D||0},${_ovEditCount||0},${totalUrea||0},${totalDAP||0}); } catch(e) { alert('Button error: ' + e.message); console.error(e); }"
+                id="editEligBagsBtn_${a}"
+                ${_ovEditCount >= 3 ? 'disabled' : ''}
+                style="background:${_ovEditCount >= 3 ? '#ccc' : 'linear-gradient(135deg,#f39c12,#e67e22)'}; color:#fff; border:none; border-radius:8px; padding:5px 14px; font-size:0.76rem; font-weight:700; cursor:${_ovEditCount >= 3 ? 'not-allowed' : 'pointer'}; display:flex; align-items:center; gap:5px; white-space:nowrap;">
+          <i class="fas fa-edit"></i>&nbsp;<span id="editEligBagsBtnLabel_${a}">${_ovEditCount >= 3 ? 'Edit Limit Reached' : 'Edit Eligible Bags'}</span>
+        </button>
       </div>
 
-      <!-- ══ FERTILIZER ELIGIBILITY TABLE ══ -->
+
       <div style="padding:0.6rem 1rem 0.5rem;">
         <div style="font-size:0.7rem; font-weight:700; color:#1862ab; margin-bottom:0.4rem; text-transform:uppercase; letter-spacing:0.5px;">
           Crop-wise Fertilizer Eligibility
@@ -21930,39 +22208,90 @@ async function loadPrintFarmerProfile() {
               <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#0d4d73; color:#d4f1ff;">D-Split3</th>
             </tr>
           </thead>
-          <tbody>
-            ${rows.map((r, i) => `
-            <tr style="background:${i%2===0?'#fff':'#f8fbff'};">
-              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.72rem;">${i+1}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.82rem; font-weight:900; color:#0d4d86; line-height:1.4;">${r.khatha}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.76rem;">${escapeHtml(r.cropLabel)} <span style="color:#27ae60; font-weight:700;">(${r.cropExt.toFixed(2)}ac)</span></td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#1862ab;">${r.ureaTotal}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#27ae60;">${r.dapTotal}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split1U>0?`<span style="background:#1862ab;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split1U}</span>`:'<span style="color:#ccc;">—</span>'}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split2U>0?`<span style="background:#27ae60;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split2U}</span>`:'<span style="color:#ccc;">—</span>'}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split3U>0?`<span style="background:#f39c12;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split3U}</span>`:'<span style="color:#ccc;">—</span>'}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split1D>0?`<span style="background:#1862ab;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split1D}</span>`:'<span style="color:#ccc;">—</span>'}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split2D>0?`<span style="background:#27ae60;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split2D}</span>`:'<span style="color:#ccc;">—</span>'}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split3D>0?`<span style="background:#f39c12;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split3D}</span>`:'<span style="color:#ccc;">—</span>'}</td>
-            </tr>`).join('') || '<tr><td colspan="11" style="text-align:center;color:#aaa;padding:10px;">No crop records found.</td></tr>'}
-          </tbody>
+         <tbody>
+           ${rows.map((r, i) => {
+             // Colours each khatha line: cherry-red khatha, peacock-blue survey(s), green extent(s)
+             // Handles both single-line "636- 11(2.00)" and multi-survey "1229- 453-3(0.54) | 453-1B(0.61)"
+             // Also handles multi-khatha (lines joined by <br>)
+             const colorKhathaLine = (line) => {
+               // Each line looks like: <strong>KHATHA</strong>- SV1(ext) | SV2(ext) ...
+               // OR plain: KHATHA- SV1(ext) | SV2(ext) ...
+               return line.replace(
+                 /(<strong>)([^<]+)(<\/strong>)(.*)/,
+                 (m, open, kh, close, rest) => {
+                   // khatha part (inside <strong>)
+                   const khathaHtml = `${open}<span style="color:#9B111E;font-weight:900;">${kh}</span>${close}`;
+                   // rest: "- 453-3(0.54) | 453-1B(0.61) | ..."
+                   // colour each survey token and its extent
+                   const restStyled = rest.replace(
+                     /([^(|]+)(\([^)]*\))?/g,
+                     (mm, sv, ext) => {
+                       const svTrim = sv.trim();
+                       if (!svTrim) return mm;
+                       const svHtml = sv.replace(svTrim, `<span style="color:#005F6B;font-weight:800;">${svTrim}</span>`);
+                       const extHtml = ext ? `<span style="color:#1a7a3c;font-weight:700;">${ext}</span>` : '';
+                       return svHtml + extHtml;
+                     }
+                   );
+                   return khathaHtml + restStyled;
+                 }
+               ).replace(
+                 // Fallback for lines WITHOUT <strong> tags: plain "636- 11(2.00)"
+                 /^(?!.*<strong>)([^<\-]+)(-\s*)(.+)$/,
+                 (m, kh, hyp, rest) => {
+                   const khathaHtml = `<span style="color:#9B111E;font-weight:900;">${kh}</span>${hyp}`;
+                   const restStyled = rest.replace(
+                     /([^(|]+)(\([^)]*\))?/g,
+                     (mm, sv, ext) => {
+                       const svTrim = sv.trim();
+                       if (!svTrim) return mm;
+                       const svHtml = sv.replace(svTrim, `<span style="color:#005F6B;font-weight:800;">${svTrim}</span>`);
+                       const extHtml = ext ? `<span style="color:#1a7a3c;font-weight:700;">${ext}</span>` : '';
+                       return svHtml + extHtml;
+                     }
+                   );
+                   return khathaHtml + restStyled;
+                 }
+               );
+             };
+             // Split by <br> so each khatha line is coloured independently
+             const styledKhatha = (r.khatha || '')
+               .split('<br>')
+               .map(line => colorKhathaLine(line))
+               .join('<br>');
+
+             return `
+             <tr style="background:${i%2===0?'#fff':'#f8fbff'};">
+               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.72rem;">${i+1}</td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.82rem; font-weight:900; line-height:1.4;">${styledKhatha}</td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.76rem;">${escapeHtml(r.cropLabel)} <span style="color:#27ae60; font-weight:700;">(${r.cropExt.toFixed(2)}ac)</span></td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#1862ab;">${r.ureaTotal}</td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#27ae60;">${r.dapTotal}</td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split1U>0?`<span style="background:#1862ab;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split1U}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split2U>0?`<span style="background:#27ae60;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split2U}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split3U>0?`<span style="background:#f39c12;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split3U}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split1D>0?`<span style="background:#1862ab;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split1D}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split2D>0?`<span style="background:#27ae60;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split2D}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center;">${r.split3D>0?`<span style="background:#f39c12;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;font-size:0.72rem;">${r.split3D}</span>`:'<span style="color:#ccc;">—</span>'}</td>
+             </tr>`;
+           }).join('') || '<tr><td colspan="11" style="text-align:center;color:#aaa;padding:10px;">No crop records found.</td></tr>'}
+ </tbody>
           <tfoot>
             <tr style="background:#eaf0fb; font-weight:800; border-top:2px solid #1862ab;">
               <td colspan="3" style="padding:5px 7px; border:1px solid #dee2e6; text-align:right; font-size:0.78rem;">TOTAL</td>
-              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center; color:#1862ab; font-size:0.88rem;">${totalUrea}</td>
-              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center; color:#27ae60; font-size:0.88rem;">${totalDAP}</td>
-              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#1862ab;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS1}</span></td>
-              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#27ae60;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS2}</span></td>
-              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#f39c12;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS3}</span></td>
-              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#1862ab;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS1D}</span></td>
-              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#27ae60;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS2D}</span></td>
-              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#f39c12;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${totalS3D}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center; color:#1862ab; font-size:0.88rem;">${_ovUreaTotal}${_hasOverride ? ' <span style="font-size:0.6rem;color:#e67e22;vertical-align:middle;" title="Eligible bags overridden by VO">&#9999;</span>' : ''}</td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center; color:#27ae60; font-size:0.88rem;">${_ovDapTotal}${_hasOverride ? ' <span style="font-size:0.6rem;color:#e67e22;vertical-align:middle;" title="Eligible bags overridden by VO">&#9999;</span>' : ''}</td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#1862ab;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${_ovS1}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#27ae60;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${_ovS2}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#f39c12;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${_ovS3}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#1862ab;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${_ovS1D}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#27ae60;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${_ovS2D}</span></td>
+              <td style="padding:5px 7px; border:1px solid #dee2e6; text-align:center;"><span style="background:#f39c12;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.75rem;">${_ovS3D}</span></td>
             </tr>
           </tfoot>
         </table>
       </div>
 
-      <!-- ══ DISTRIBUTION SCHEDULE ══ -->
       <div style="padding:0.3rem 1rem 0.5rem;">
         <div style="font-size:0.7rem; font-weight:700; color:#1862ab; margin-bottom:0.35rem; text-transform:uppercase; letter-spacing:0.5px;">
           Fertilizer Distribution Schedule
@@ -21972,8 +22301,8 @@ async function loadPrintFarmerProfile() {
         (()=>{
           const totalAvailedU = availedS.reduce((s,x) => s + x.u, 0);
           const totalAvailedD = availedS.reduce((s,x) => s + x.d, 0);
-          const totalEligU = totalS1 + totalS2 + totalS3;
-          const totalEligD = totalS1D + totalS2D + totalS3D;
+          const totalEligU = _ovS1 + _ovS2 + _ovS3;
+          const totalEligD = _ovS1D + _ovS2D + _ovS3D;
           const totalRemU  = Math.max(0, totalEligU - totalAvailedU);
           const totalRemD  = Math.max(0, totalEligD - totalAvailedD);
           if (totalAvailedU === 0 && totalAvailedD === 0) return '';
@@ -22062,26 +22391,22 @@ async function loadPrintFarmerProfile() {
         </div>
       </div>
 
-      <!-- ══ SIGNATURE ROW — Farmer | VAA | MAO ══ -->
       <div style="border-top:1.5px solid #e0e6ed; margin:0 1rem; padding:0.6rem 0 0.5rem;">
         <div style="font-size:0.62rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.4rem;">Authorisation Signatures</div>
         <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:1rem;">
 
-          <!-- Farmer Signature -->
           <div style="flex:1; text-align:center;">
             <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
             <div style="font-size:0.72rem; font-weight:700; color:#1b5e20;">🧑‍🌾 Farmer Signature</div>
             <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(farmerName)}</div>
           </div>
 
-          <!-- Village Agriculture Assistant -->
           <div style="flex:1; text-align:center;">
             <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
             <div style="font-size:0.72rem; font-weight:700; color:#1562ab;">📋 Village Agriculture Assistant</div>
             <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(officerName)} &nbsp;|&nbsp; ${escapeHtml(villageName)}</div>
           </div>
 
-          <!-- Mandal Agriculture Officer -->
           <div style="flex:1; text-align:center;">
             <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
             <div style="font-size:0.72rem; font-weight:700; color:#6a1a1a;">🏛️ Mandal Agriculture Officer</div>
@@ -22091,7 +22416,6 @@ async function loadPrintFarmerProfile() {
         </div>
       </div>
 
-      <!-- ══ OFFICER FOOTER ══ -->
       <div style="background:#f8fbff; border-top:1.5px solid #e0e6ed; padding:0.5rem 1.2rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
         <div style="font-size:0.7rem; color:#7f8c8d;">
           <span style="font-weight:700; color:#1862ab;">Village Officer:</span> ${escapeHtml(officerName)}
@@ -22103,7 +22427,6 @@ async function loadPrintFarmerProfile() {
         <div style="font-size:0.65rem; color:#95a5a6;">Generated: ${new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})}</div>
       </div>
 
-      <!-- ══ PRINT BUTTON (hidden when printing) ══ -->
       <div style="padding:0.7rem 1.2rem; text-align:center; border-top:1px solid #e0e6ed;" class="no-print">
         <button class="btn btn-warning text-dark fw-bold px-4 me-2" onclick="printFertilizerCard()">
           <i class="fas fa-print me-2"></i>Print / Save as PDF
@@ -22113,6 +22436,16 @@ async function loadPrintFarmerProfile() {
         </button>
       </div>
     </div>`;
+
+    // ── Update Edit Eligible Bags button to reflect override status ──
+    (function() {
+        const btnLabel = document.getElementById('editEligBagsBtnLabel_' + a);
+        const btn      = document.getElementById('editEligBagsBtn_' + a);
+        if (btnLabel && _hasOverride && _ovEditCount < 3) {
+            btnLabel.textContent = '✏️ Eligible Bags (Overridden)';
+            if (btn) btn.style.background = 'linear-gradient(135deg,#e67e22,#ca6f1e)';
+        }
+    })();
 
     // ── Generate QR code into the holder after DOM is set ──
     const qrHolderEl = document.getElementById('fcQrCode_' + a);
@@ -22253,12 +22586,12 @@ function printFertilizerCard() {
      * We use zoom (Chrome/Edge) with transform fallback (Firefox).
      */
     #fertCardPrintArea {
-      zoom: 0.72;
+      zoom: 0.68;
       /* Firefox fallback */
-      transform: scale(0.72);
+      transform: scale(0.68);
       transform-origin: top left;
-      width: 138.9% !important;  /* 100/0.72 — counteracts the scale so layout doesn't collapse */
-      max-width: 138.9% !important;
+      width: 147.1% !important;  /* 100/0.68 — counteracts the scale so layout doesn't collapse */
+      max-width: 147.1% !important;
       border-radius: 0 !important;
       box-shadow: none !important;
       page-break-inside: avoid !important;
@@ -22320,8 +22653,8 @@ ${cardEl.innerHTML}
   (function scaleCardToFit() {
     var card = document.getElementById('fertCardPrintArea');
     if (!card) return;
-    var A4_W = 794;   // px equivalent of A4 portrait printable width
-    var A4_H = 1050;  // px equivalent of A4 portrait printable height (with small margin)
+    var A4_W = 770;   // px equivalent of A4 portrait printable width (with 10mm margins)
+    var A4_H = 1020;  // px equivalent of A4 portrait printable height (safe single-page fit)
     var cardW = card.scrollWidth;
     var cardH = card.scrollHeight;
     var scaleX = A4_W / cardW;
@@ -22624,6 +22957,747 @@ function calculateProfileAvailedBags(aadhaar, cropYear, season, totalEligibleBag
         if (balanceDisplay) balanceDisplay.innerText = balanceBags;
     });
 }
+</script>
+
+<div id="editEligibleBagsModal" style="display:none; position:fixed; inset:0; z-index:1060; background:rgba(0,0,0,0.65); align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:20px; box-shadow:0 25px 50px rgba(0,0,0,0.3); max-width:560px; width:95%; margin:20px; padding:0; overflow:hidden; font-family:'Poppins',sans-serif;">
+
+    <div style="background:linear-gradient(135deg,#f39c12,#e67e22); color:#fff; padding:1rem 1.4rem; display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <div style="font-size:1rem; font-weight:800;"><i class="fas fa-edit me-2"></i>Edit Eligible Bags</div>
+        <div style="font-size:0.72rem; opacity:0.88; margin-top:2px;">Manually override DAP / Urea eligible bags per split. The QR card on Firebase will be updated.</div>
+      </div>
+      <button onclick="closeEditEligibleBagsModal()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; border-radius:8px; width:32px; height:32px; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
+    </div>
+
+    <div style="background:#fff8e1; border-left:4px solid #f39c12; margin:1rem 1.4rem 0; padding:0.5rem 0.8rem; border-radius:0 6px 6px 0; font-size:0.76rem; color:#7c5700;">
+      <strong>💡 Recommendation:</strong> DAP: 1 bag/acre. For <strong id="eebExtentDisplay">—</strong> acres → <strong id="eebRecommendedDAP">—</strong> bags (floor). Adjust if needed.
+    </div>
+
+    <div id="eebEditLimitMsg" style="display:none; margin:0.6rem 1.4rem 0; padding:0.45rem 0.8rem; border-radius:6px; border:1px solid; font-size:0.74rem; font-weight:600;"></div>
+
+    <div style="padding:1rem 1.4rem;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
+
+        <div style="background:#f0f7ff; border-radius:10px; padding:0.8rem;">
+          <div style="font-size:0.72rem; font-weight:800; color:#1862ab; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.6rem;"><i class="fas fa-flask me-1"></i>UREA (Bags)</div>
+          <div style="margin-bottom:0.4rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Total Urea <span id="lblSysUrea" style="color:#e74c3c; font-weight:800; font-size:0.65rem; margin-left:5px;"></span></label>
+            <input type="number" id="eebUreaTotal" min="0" step="1" style="width:100%; border:1.5px solid #1862ab; border-radius:6px; padding:4px 8px; font-size:0.82rem; font-weight:700; color:#1862ab;" oninput="eebAutoSplitUrea()">
+          </div>
+          <div style="margin-bottom:0.4rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 1 (Basal)</label>
+            <input type="number" id="eebUreaS1" min="0" step="1" style="width:100%; border:1.5px solid #b0c4de; border-radius:6px; padding:4px 8px; font-size:0.82rem;">
+          </div>
+          <div style="margin-bottom:0.4rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 2 (Top-dress)</label>
+            <input type="number" id="eebUreaS2" min="0" step="1" style="width:100%; border:1.5px solid #b0c4de; border-radius:6px; padding:4px 8px; font-size:0.82rem;">
+          </div>
+          <div>
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 3 (Final)</label>
+            <input type="number" id="eebUreaS3" min="0" step="1" style="width:100%; border:1.5px solid #b0c4de; border-radius:6px; padding:4px 8px; font-size:0.82rem;">
+          </div>
+        </div>
+
+        <div style="background:#f0fff4; border-radius:10px; padding:0.8rem;">
+          <div style="font-size:0.72rem; font-weight:800; color:#27ae60; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.6rem;"><i class="fas fa-seedling me-1"></i>DAP (Bags)</div>
+          <div style="margin-bottom:0.4rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Total DAP <span id="lblSysDap" style="color:#e74c3c; font-weight:800; font-size:0.65rem; margin-left:5px;"></span></label>
+            <input type="number" id="eebDapTotal" min="0" step="1" style="width:100%; border:1.5px solid #27ae60; border-radius:6px; padding:4px 8px; font-size:0.82rem; font-weight:700; color:#27ae60;" oninput="eebAutoSplitDap()">
+          </div>
+          <div style="margin-bottom:0.4rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 1 (Basal)</label>
+            <input type="number" id="eebDapS1" min="0" step="1" style="width:100%; border:1.5px solid #b0ddb0; border-radius:6px; padding:4px 8px; font-size:0.82rem;">
+          </div>
+          <div style="margin-bottom:0.4rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 2 (Top-dress)</label>
+            <input type="number" id="eebDapS2" min="0" step="1" style="width:100%; border:1.5px solid #b0ddb0; border-radius:6px; padding:4px 8px; font-size:0.82rem;">
+          </div>
+          <div>
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 3 (Final)</label>
+            <input type="number" id="eebDapS3" min="0" step="1" style="width:100%; border:1.5px solid #b0ddb0; border-radius:6px; padding:4px 8px; font-size:0.82rem;">
+          </div>
+        </div>
+      </div>
+
+      <div id="eebValidationMsg" style="display:none; background:#fef2f2; border:1px solid #fca5a5; border-radius:6px; padding:0.5rem 0.8rem; font-size:0.74rem; color:#c0392b; margin-top:0.7rem;"></div>
+    </div>
+
+    <div style="padding:0.8rem 1.4rem 1.1rem; display:flex; gap:0.6rem; justify-content:space-between; align-items:center; border-top:1px solid #e0e6ed; flex-wrap:wrap;">
+      <button onclick="resetEligibleBagsOverride()" id="eebResetBtn" title="Remove manual override — revert to system-calculated values"
+              style="background:#fff8f0; border:1.5px solid #f39c12; color:#a04000; border-radius:8px; padding:7px 14px; font-size:0.76rem; font-weight:600; cursor:pointer;">
+        <i class="fas fa-undo me-1"></i>Reset to System Calculated
+      </button>
+      <div style="display:flex; gap:0.6rem;">
+        <button onclick="closeEditEligibleBagsModal()" style="background:#f8f9fa; border:1.5px solid #dee2e6; color:#495057; border-radius:8px; padding:7px 18px; font-size:0.82rem; font-weight:600; cursor:pointer;">Cancel</button>
+        <button onclick="saveEditedEligibleBags()" id="eebSaveBtn" style="background:linear-gradient(135deg,#27ae60,#1e8449); color:#fff; border:none; border-radius:8px; padding:7px 22px; font-size:0.82rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+          <i class="fas fa-save"></i> Save &amp; Update QR
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// Force move modal to body and ensure it works
+(function fixEditEligibleBagsModal() {
+    const modal = document.getElementById('editEligibleBagsModal');
+    if (!modal) return;
+    
+    // Move modal to body to avoid any parent container restrictions
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+        console.log('Modal moved to body');
+    }
+    
+    // Override the open function completely
+    window.openEditEligibleBagsModal = function(aadhaar, year, season, ureaTotal, dapTotal, u1, u2, u3, d1, d2, d3, editCount, sysUreaTotal, sysDapTotal) {
+        console.log("Opening Edit Eligible Bags Modal");
+        
+        const modalEl = document.getElementById('editEligibleBagsModal');
+        if (!modalEl) {
+            alert("Modal not found");
+            return;
+        }
+        
+        // Ensure modal is at body level
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+        
+        // Store data
+        window._eebState = {
+            aadhaar: String(aadhaar),
+            year: String(year),
+            season: String(season),
+            origUreaTotal: Number(ureaTotal) || 0,
+            origDapTotal: Number(dapTotal) || 0,
+            u1: Number(u1) || 0,
+            u2: Number(u2) || 0,
+            u3: Number(u3) || 0,
+            d1: Number(d1) || 0,
+            d2: Number(d2) || 0,
+            d3: Number(d3) || 0,
+            extent: 0,
+            editCount: Number(editCount) || 0,
+            sysUreaTotal: Number(sysUreaTotal) || Number(ureaTotal) || 0,
+            sysDapTotal: Number(sysDapTotal) || Number(dapTotal) || 0
+        };
+        
+        // Set input values
+        const inputs = {
+            'eebUreaTotal': window._eebState.origUreaTotal,
+            'eebDapTotal': window._eebState.origDapTotal,
+            'eebUreaS1': window._eebState.u1,
+            'eebUreaS2': window._eebState.u2,
+            'eebUreaS3': window._eebState.u3,
+            'eebDapS1': window._eebState.d1,
+            'eebDapS2': window._eebState.d2,
+            'eebDapS3': window._eebState.d3
+        };
+        
+        for (const [id, val] of Object.entries(inputs)) {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        }
+        
+        // Set max values
+        const ureaTotalEl = document.getElementById('eebUreaTotal');
+        const dapTotalEl = document.getElementById('eebDapTotal');
+        if (ureaTotalEl) ureaTotalEl.max = window._eebState.sysUreaTotal;
+        if (dapTotalEl) dapTotalEl.max = window._eebState.sysDapTotal;
+        
+        // Update labels
+        const lblSysUrea = document.getElementById('lblSysUrea');
+        const lblSysDap = document.getElementById('lblSysDap');
+        if (lblSysUrea) lblSysUrea.innerText = `(Max: ${window._eebState.sysUreaTotal})`;
+        if (lblSysDap) lblSysDap.innerText = `(Max: ${window._eebState.sysDapTotal})`;
+        
+        // Edit limit UI
+        const limitReached = window._eebState.editCount >= 3;
+        const limitMsg = document.getElementById('eebEditLimitMsg');
+        if (limitMsg) {
+            limitMsg.style.display = 'block';
+            if (limitReached) {
+                limitMsg.innerHTML = '<i class="fas fa-ban me-1"></i><strong>Edit limit reached.</strong>';
+            } else {
+                const remaining = 3 - window._eebState.editCount;
+                limitMsg.innerHTML = `<i class="fas fa-history me-1"></i>Edits used: ${window._eebState.editCount}/3 (${remaining} remaining)`;
+            }
+        }
+        
+        // Enable/disable buttons
+        const saveBtn = document.getElementById('eebSaveBtn');
+        const resetBtn = document.getElementById('eebResetBtn');
+        if (saveBtn) saveBtn.disabled = limitReached;
+        if (resetBtn) resetBtn.disabled = limitReached;
+        
+        // Clean up any existing backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+        document.body.classList.remove('modal-open');
+        
+        // SHOW MODAL - Apply styles directly
+        modalEl.style.cssText = `
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 9999999 !important;
+            background: rgba(0,0,0,0.8) !important;
+            backdrop-filter: blur(4px) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        `;
+        
+        // Ensure inner content is visible
+        const innerDiv = modalEl.querySelector('div:first-child');
+        if (innerDiv) {
+            innerDiv.style.cssText = `
+                position: relative !important;
+                z-index: 10000000 !important;
+                background: white !important;
+                border-radius: 20px !important;
+                max-width: 560px !important;
+                width: 95% !important;
+                margin: 20px !important;
+                box-shadow: 0 25px 50px rgba(0,0,0,0.3) !important;
+                max-height: 90vh !important;
+                overflow-y: auto !important;
+            `;
+        }
+        
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+        
+        // Add click outside to close
+        const closeHandler = function(e) {
+            if (e.target === modalEl) {
+                window.closeEditEligibleBagsModal();
+            }
+        };
+        modalEl.removeEventListener('click', modalEl._clickHandler);
+        modalEl.addEventListener('click', closeHandler);
+        modalEl._clickHandler = closeHandler;
+        
+        console.log("Modal displayed - should be visible now");
+    };
+    
+    window.closeEditEligibleBagsModal = function() {
+        const modalEl = document.getElementById('editEligibleBagsModal');
+        if (modalEl) {
+            modalEl.style.display = 'none';
+            if (modalEl._clickHandler) {
+                modalEl.removeEventListener('click', modalEl._clickHandler);
+            }
+        }
+        document.body.style.overflow = '';
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+        document.body.classList.remove('modal-open');
+    };
+    
+    console.log('Modal fix applied - modal moved to body');
+})();
+</script>
+<style>
+/* Force Edit Eligible Bags Modal to be on top - CRITICAL FIX */
+#editEligibleBagsModal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 999999 !important;
+    background: rgba(0,0,0,0.75) !important;
+    backdrop-filter: blur(4px) !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#editEligibleBagsModal[style*="display: flex"] {
+    display: flex !important;
+}
+
+#editEligibleBagsModal > div:first-child {
+    position: relative !important;
+    z-index: 1000000 !important;
+    background: #fff !important;
+    border-radius: 20px !important;
+    max-width: 560px !important;
+    width: 95% !important;
+    margin: 20px !important;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.3) !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+}
+
+/* Ensure Bootstrap modals don't interfere */
+.modal-backdrop {
+    z-index: 999990 !important;
+}
+
+.modal-open {
+    overflow: auto !important;
+    padding-right: 0 !important;
+}
+</style>
+
+<script>
+// ── Edit Eligible Bags Modal state ──
+window._eebState = { 
+    aadhaar: '', year: '', season: '', origUreaTotal: 0, origDapTotal: 0, 
+    origS: { u1:0,u2:0,u3:0, d1:0,d2:0,d3:0 }, extent: 0, editCount: 0, sysUreaTotal: 0, sysDapTotal: 0 
+};
+const EEB_MAX_EDITS = 3;
+
+// ============================================================
+// EDIT ELIGIBLE BAGS MODAL - COMPLETE FIX
+// ============================================================
+
+window.openEditEligibleBagsModal = function(aadhaar, year, season, ureaTotal, dapTotal, u1, u2, u3, d1, d2, d3, editCount, sysUreaTotal, sysDapTotal) {
+    
+    console.log("Opening Edit Eligible Bags Modal", {aadhaar, year, season});
+    
+    const modalEl = document.getElementById('editEligibleBagsModal');
+    if (!modalEl) { 
+        console.error("Modal element not found");
+        alert("Error: Modal not found. Please refresh the page.");
+        return; 
+    }
+
+    // Remove any existing modal-backdrops
+    document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+
+    // Store state globally
+    window._eebState = { 
+        aadhaar: String(aadhaar),
+        year: String(year),
+        season: String(season),
+        origUreaTotal: Number(ureaTotal) || 0,
+        origDapTotal: Number(dapTotal) || 0,
+        u1: Number(u1) || 0,
+        u2: Number(u2) || 0,
+        u3: Number(u3) || 0,
+        d1: Number(d1) || 0,
+        d2: Number(d2) || 0,
+        d3: Number(d3) || 0,
+        extent: 0,
+        editCount: Number(editCount) || 0,
+        sysUreaTotal: Number(sysUreaTotal) || Number(ureaTotal) || 0,
+        sysDapTotal: Number(sysDapTotal) || Number(dapTotal) || 0
+    };
+
+    // Calculate extent from farmer card
+    const cardDiv = document.getElementById('fertCardPrintArea');
+    if (cardDiv) {
+        const allDivs = cardDiv.querySelectorAll('div');
+        for (let i = 0; i < allDivs.length; i++) {
+            const text = allDivs[i].textContent || '';
+            if (text.includes('Cultivating Extent') && allDivs[i + 1]) {
+                const match = allDivs[i + 1].textContent.match(/(\d+(?:\.\d+)?)/);
+                if (match) window._eebState.extent = parseFloat(match[1]);
+                break;
+            }
+        }
+    }
+
+    // Set all input values
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if(el) {
+            el.value = val;
+            if (id === 'eebUreaTotal') {
+                el.max = window._eebState.sysUreaTotal;
+                if (val > window._eebState.sysUreaTotal) el.value = window._eebState.sysUreaTotal;
+            }
+            if (id === 'eebDapTotal') {
+                el.max = window._eebState.sysDapTotal;
+                if (val > window._eebState.sysDapTotal) el.value = window._eebState.sysDapTotal;
+            }
+        }
+    };
+    
+    setVal('eebUreaTotal', window._eebState.origUreaTotal);
+    setVal('eebDapTotal', window._eebState.origDapTotal);
+    setVal('eebUreaS1', window._eebState.u1);
+    setVal('eebUreaS2', window._eebState.u2);
+    setVal('eebUreaS3', window._eebState.u3);
+    setVal('eebDapS1', window._eebState.d1);
+    setVal('eebDapS2', window._eebState.d2);
+    setVal('eebDapS3', window._eebState.d3);
+
+    // Update labels
+    const sysUreaSpan = document.getElementById('lblSysUrea');
+    const sysDapSpan = document.getElementById('lblSysDap');
+    if(sysUreaSpan) sysUreaSpan.innerText = `(Max: ${window._eebState.sysUreaTotal})`;
+    if(sysDapSpan) sysDapSpan.innerText = `(Max: ${window._eebState.sysDapTotal})`;
+
+    // Extent display
+    const extentSpan = document.getElementById('eebExtentDisplay');
+    const recDapSpan = document.getElementById('eebRecommendedDAP');
+    if(extentSpan) extentSpan.textContent = window._eebState.extent > 0 ? window._eebState.extent.toFixed(2) : '—';
+    if(recDapSpan) recDapSpan.textContent = window._eebState.extent > 0 ? Math.floor(window._eebState.extent) : '—';
+
+    // Edit limit UI
+    const remaining = Math.max(0, 3 - window._eebState.editCount);
+    const limitReached = window._eebState.editCount >= 3;
+    const limitMsg = document.getElementById('eebEditLimitMsg');
+    
+    if (limitMsg) {
+        limitMsg.style.display = 'block';
+        if (limitReached) {
+            limitMsg.style.background = '#fdecea';
+            limitMsg.style.borderColor = '#f5b7b1';
+            limitMsg.style.color = '#c0392b';
+            limitMsg.innerHTML = `<i class="fas fa-ban me-1"></i><strong>Edit limit reached.</strong> This card's eligible bags can no longer be edited.`;
+        } else {
+            limitMsg.style.background = '#eef3fb';
+            limitMsg.style.borderColor = '#b0c4de';
+            limitMsg.style.color = '#34495e';
+            limitMsg.innerHTML = `<i class="fas fa-history me-1"></i>Edits used: <strong>${window._eebState.editCount}/3</strong> &nbsp;(${remaining} edit${remaining === 1 ? '' : 's'} remaining)`;
+        }
+    }
+
+    // Enable/disable buttons
+    const saveBtn = document.getElementById('eebSaveBtn');
+    const resetBtn = document.getElementById('eebResetBtn');
+    if (saveBtn) { 
+        saveBtn.disabled = limitReached; 
+        saveBtn.style.opacity = limitReached ? '0.5' : '1';
+        saveBtn.style.cursor = limitReached ? 'not-allowed' : 'pointer';
+    }
+    if (resetBtn) { 
+        resetBtn.disabled = limitReached; 
+        resetBtn.style.opacity = limitReached ? '0.5' : '1';
+        resetBtn.style.cursor = limitReached ? 'not-allowed' : 'pointer';
+    }
+
+    // Hide validation message
+    const valMsg = document.getElementById('eebValidationMsg');
+    if(valMsg) valMsg.style.display = 'none';
+
+    // FORCE SHOW MODAL - Direct DOM manipulation with highest priority
+    modalEl.style.display = 'flex';
+    modalEl.style.visibility = 'visible';
+    modalEl.style.opacity = '1';
+    modalEl.style.position = 'fixed';
+    modalEl.style.top = '0';
+    modalEl.style.left = '0';
+    modalEl.style.right = '0';
+    modalEl.style.bottom = '0';
+    modalEl.style.width = '100%';
+    modalEl.style.height = '100%';
+    modalEl.style.zIndex = '999999';
+    modalEl.style.background = 'rgba(0,0,0,0.75)';
+    modalEl.style.backdropFilter = 'blur(4px)';
+    modalEl.style.alignItems = 'center';
+    modalEl.style.justifyContent = 'center';
+    
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'relative';
+    
+    // Add click outside to close
+    const outsideCloseHandler = function(e) {
+        if (e.target === modalEl) {
+            window.closeEditEligibleBagsModal();
+        }
+    };
+    modalEl.removeEventListener('click', modalEl._outsideClickHandler);
+    modalEl.addEventListener('click', outsideCloseHandler);
+    modalEl._outsideClickHandler = outsideCloseHandler;
+    
+    console.log("Modal should now be visible", modalEl.style.display);
+    console.log("Modal zIndex:", window.getComputedStyle(modalEl).zIndex);
+    
+    // Flash a visible indicator for debugging (remove after testing)
+    setTimeout(() => {
+        const innerDiv = modalEl.querySelector('div');
+        if (innerDiv && innerDiv.style.border) {
+            innerDiv.style.border = '3px solid red';
+            setTimeout(() => { innerDiv.style.border = ''; }, 500);
+        }
+    }, 100);
+};
+
+window.eebAutoSplitUrea = function() {
+    const el = document.getElementById('eebUreaTotal');
+    if (!el) return;
+    const max = parseInt(el.max, 10);
+    let val = parseInt(el.value, 10) || 0;
+    if (!isNaN(max) && val > max) {
+        val = max;
+        el.value = max;
+    }
+    const s1 = Math.ceil(val / 2);
+    const s2 = Math.max(0, val - s1);
+    const s3 = 0;
+    document.getElementById('eebUreaS1').value = s1;
+    document.getElementById('eebUreaS2').value = s2;
+    document.getElementById('eebUreaS3').value = s3;
+};
+
+window.eebAutoSplitDap = function() {
+    const el = document.getElementById('eebDapTotal');
+    if (!el) return;
+    const max = parseInt(el.max, 10);
+    let val = parseInt(el.value, 10) || 0;
+    if (!isNaN(max) && val > max) {
+        val = max;
+        el.value = max;
+    }
+    document.getElementById('eebDapS1').value = val;
+    document.getElementById('eebDapS2').value = 0;
+    document.getElementById('eebDapS3').value = 0;
+};
+
+window.saveEditedEligibleBags = async function() {
+    if (!window._eebState) {
+        alert("No data to save. Please close and reopen the modal.");
+        return;
+    }
+    if (window._eebState.editCount >= 3) {
+        alert("Edit limit reached. Cannot save further changes.");
+        return;
+    }
+
+    const uTotal = parseInt(document.getElementById('eebUreaTotal')?.value) || 0;
+    const u1 = parseInt(document.getElementById('eebUreaS1')?.value) || 0;
+    const u2 = parseInt(document.getElementById('eebUreaS2')?.value) || 0;
+    const u3 = parseInt(document.getElementById('eebUreaS3')?.value) || 0;
+    const dTotal = parseInt(document.getElementById('eebDapTotal')?.value) || 0;
+    const d1 = parseInt(document.getElementById('eebDapS1')?.value) || 0;
+    const d2 = parseInt(document.getElementById('eebDapS2')?.value) || 0;
+    const d3 = parseInt(document.getElementById('eebDapS3')?.value) || 0;
+    const msgEl = document.getElementById('eebValidationMsg');
+
+    const errors = [];
+    if (u1 + u2 + u3 !== uTotal) {
+        errors.push(`Urea splits (${u1}+${u2}+${u3}=${u1+u2+u3}) must equal total (${uTotal}).`);
+    }
+    if (d1 + d2 + d3 !== dTotal) {
+        errors.push(`DAP splits (${d1}+${d2}+${d3}=${d1+d2+d3}) must equal total (${dTotal}).`);
+    }
+    if (uTotal > window._eebState.sysUreaTotal) {
+        errors.push(`Urea cannot exceed the system limit of ${window._eebState.sysUreaTotal}.`);
+    }
+    if (dTotal > window._eebState.sysDapTotal) {
+        errors.push(`DAP cannot exceed the system limit of ${window._eebState.sysDapTotal}.`);
+    }
+
+    if (errors.length) {
+        if (msgEl) {
+            msgEl.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> ' + errors.join(' ');
+            msgEl.style.display = 'block';
+        }
+        return;
+    }
+    if (msgEl) msgEl.style.display = 'none';
+
+    const saveBtn = document.getElementById('eebSaveBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+
+    try {
+        const { aadhaar, year, season } = window._eebState;
+        const user = firebase.auth().currentUser;
+        if (!user) throw new Error('Not logged in');
+
+        const fcKey = aadhaar + '_' + year.replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
+        const newEditCount = window._eebState.editCount + 1;
+        
+        await database.ref('fertilizerCards/' + fcKey).update({
+            splits: {
+                Urea: { s0: u1, s1: u2, s2: u3 },
+                DAP:  { s0: d1, s1: d2, s2: d3 }
+            },
+            totalUrea: uTotal,
+            totalDAP: dTotal,
+            eligibleOverride: true,
+            overriddenAt: Date.now(),
+            overriddenByVO: user.uid,
+            editCount: newEditCount
+        });
+
+        window.closeEditEligibleBagsModal();
+        if (typeof loadPrintFarmerProfile === 'function') {
+            await loadPrintFarmerProfile();
+        }
+        alert('✅ Eligible bags updated! QR card updated in Firebase.');
+    } catch(err) {
+        if (msgEl) {
+            msgEl.innerHTML = '<i class="fas fa-times-circle me-1"></i> Error saving: ' + (err.message || err);
+            msgEl.style.display = 'block';
+        } else {
+            alert('Error saving: ' + (err.message || err));
+        }
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save &amp; Update QR';
+    }
+};
+
+window.resetEligibleBagsOverride = async function() {
+    if (!window._eebState) return;
+    if (window._eebState.editCount >= 3) {
+        alert("Edit limit reached. Cannot reset.");
+        return;
+    }
+    if (!confirm('Remove the manual override and revert to system-calculated eligible bags?')) return;
+
+    const { aadhaar, year, season } = window._eebState;
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    const fcKey = aadhaar + '_' + year.replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
+    const newEditCount = window._eebState.editCount + 1;
+    
+    try {
+        await database.ref('fertilizerCards/' + fcKey).update({
+            eligibleOverride: null,
+            overriddenAt: null,
+            overriddenByVO: null,
+            editCount: newEditCount
+        });
+        window.closeEditEligibleBagsModal();
+        if (typeof loadPrintFarmerProfile === 'function') {
+            await loadPrintFarmerProfile();
+        }
+        alert('🔄 Override removed — system-calculated values restored.');
+    } catch(err) {
+        alert('❌ Error removing override: ' + (err.message || err));
+    }
+};
+
+window.eebAutoSplitUrea = function() {
+    const el = document.getElementById('eebUreaTotal');
+    const max = parseInt(el.max, 10);
+    if (!isNaN(max) && parseInt(el.value, 10) > max) el.value = max;
+
+    const total = parseInt(el.value) || 0;
+    const s1 = Math.ceil(total / 2);
+    const s2 = Math.max(0, total - s1);
+    document.getElementById('eebUreaS1').value = s1;
+    document.getElementById('eebUreaS2').value = s2;
+    document.getElementById('eebUreaS3').value = 0;
+};
+
+window.eebAutoSplitDap = function() {
+    const el = document.getElementById('eebDapTotal');
+    const max = parseInt(el.max, 10);
+    if (!isNaN(max) && parseInt(el.value, 10) > max) el.value = max;
+
+    const total = parseInt(el.value) || 0;
+    document.getElementById('eebDapS1').value = total;
+    document.getElementById('eebDapS2').value = 0;
+    document.getElementById('eebDapS3').value = 0;
+};
+
+window.saveEditedEligibleBags = async function() {
+    if (window._eebState.editCount >= EEB_MAX_EDITS) return;
+
+    const uTotal = parseInt(document.getElementById('eebUreaTotal').value) || 0;
+    const u1     = parseInt(document.getElementById('eebUreaS1').value)    || 0;
+    const u2     = parseInt(document.getElementById('eebUreaS2').value)    || 0;
+    const u3     = parseInt(document.getElementById('eebUreaS3').value)    || 0;
+    const dTotal = parseInt(document.getElementById('eebDapTotal').value)  || 0;
+    const d1     = parseInt(document.getElementById('eebDapS1').value)     || 0;
+    const d2     = parseInt(document.getElementById('eebDapS2').value)     || 0;
+    const d3     = parseInt(document.getElementById('eebDapS3').value)     || 0;
+    const msgEl  = document.getElementById('eebValidationMsg');
+
+    const ureaErrors = [], dapErrors = [];
+    if (u1 + u2 + u3 !== uTotal) ureaErrors.push(`Urea splits (${u1}+${u2}+${u3}=${u1+u2+u3}) must equal total (${uTotal}).`);
+    if (d1 + d2 + d3 !== dTotal) dapErrors.push(`DAP splits (${d1}+${d2}+${d3}=${d1+d2+d3}) must equal total (${dTotal}).`);
+    if (uTotal > window._eebState.sysUreaTotal) ureaErrors.push(`Urea cannot exceed the system limit of ${window._eebState.sysUreaTotal}.`);
+    if (dTotal > window._eebState.sysDapTotal) dapErrors.push(`DAP cannot exceed the system limit of ${window._eebState.sysDapTotal}.`);
+
+    const allErrors = [...ureaErrors, ...dapErrors];
+    if (allErrors.length) {
+        msgEl.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>' + allErrors.join(' ');
+        msgEl.style.display = 'block';
+        return;
+    }
+    msgEl.style.display = 'none';
+
+    const saveBtn = document.getElementById('eebSaveBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+
+    try {
+        const { aadhaar, year, season } = window._eebState;
+        const voUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
+        if (!voUid) throw new Error('Not logged in');
+
+        const fcKey = aadhaar + '_' + year.replace(/[^a-zA-Z0-9]/g,'') + '_' + season;
+        const overrideSplits = {
+            Urea: { s0: u1, s1: u2, s2: u3 },
+            DAP:  { s0: d1, s1: d2, s2: d3 }
+        };
+
+        const newEditCount = window._eebState.editCount + 1;
+        await database.ref('fertilizerCards/' + fcKey).update({
+            splits: overrideSplits,
+            totalUrea: uTotal,
+            totalDAP:  dTotal,
+            eligibleOverride: true,
+            overriddenAt:  Date.now(),
+            overriddenByVO: voUid,
+            editCount: newEditCount
+        });
+
+        window.closeEditEligibleBagsModal();
+        await loadPrintFarmerProfile();
+        alert('✅ Eligible bags updated! QR card updated in Firebase.');
+    } catch(err) {
+        msgEl.innerHTML = '<i class="fas fa-times-circle me-1"></i>Error saving: ' + (err.message || err);
+        msgEl.style.display = 'block';
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save &amp; Update QR';
+    }
+};
+
+window.resetEligibleBagsOverride = async function() {
+    if (window._eebState.editCount >= EEB_MAX_EDITS) return;
+    if (!confirm('Remove the manual override and revert to system-calculated eligible bags?')) return;
+
+    const { aadhaar, year, season } = window._eebState;
+    const voUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
+    if (!voUid) return;
+
+    const fcKey = aadhaar + '_' + year.replace(/[^a-zA-Z0-9]/g,'') + '_' + season;
+    const newEditCount = window._eebState.editCount + 1;
+    try {
+        await database.ref('fertilizerCards/' + fcKey).update({
+            eligibleOverride: null,
+            overriddenAt:     null,
+            overriddenByVO:   null,
+            editCount:        newEditCount
+        });
+        window.closeEditEligibleBagsModal();
+        await loadPrintFarmerProfile();
+        _eebShowToast('🔄 Override removed — system-calculated values restored. (Edit ' + newEditCount + '/' + EEB_MAX_EDITS + ')', 'success');
+    } catch(err) {
+        _eebShowToast('❌ Error removing override: ' + (err.message || err), 'error');
+    }
+};
+
+// Single backdrop-click listener (close on outside click)
+document.getElementById('editEligibleBagsModal').addEventListener('click', function(e) {
+    if (e.target === this) window.closeEditEligibleBagsModal();
+});
+
+
 </script>
 
     </body>
