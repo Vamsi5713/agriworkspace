@@ -108,25 +108,39 @@
          *           ".write": "auth != null"
          *         },
          *         "voUreaHistory": {
-         *           ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')",
-         *           ".write": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')"
+         *           ".read": "auth != null",
+         *           ".write": "auth != null"
          *         },
          *         "farmerProfiles": {
          *           ".read": "auth != null",
-         *           ".write": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')"
+         *           ".write": "auth != null"
          *         },
          *         "reports": {
+         *           ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')",
+         *           ".write": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')"
+         *         },
+         *         "allReports": {
          *           ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')",
          *           ".write": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')"
          *         },
          *         "profile": {
          *           ".read": "auth != null",
          *           ".write": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')"
+         *         },
+         *         "retailerStock": {
+         *           ".read": "auth != null",
+         *           ".write": "auth != null"
          *         }
          *       }
          *     },
+         *     "ureaHistory": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null",
+         *       ".indexOn": ["aadhaar"]
+         *     },
          *     "pendingUsers": {
          *       ".read": "auth != null && auth.token.email == 'adminagriworkspace@gmail.com'",
+         *       ".indexOn": ["status"],
          *       "$pendingId": {
          *         ".write": true,
          *         ".read": "auth != null && auth.token.email == 'adminagriworkspace@gmail.com'"
@@ -152,16 +166,26 @@
          *     },
          *     "registrationCounters": {
          *       ".read": "auth != null",
-         *       ".write": "auth != null"
+         *       "$village_season_key": {
+         *         ".write": "auth != null && (!data.exists() || newData.val() == data.val() + 1)"
+         *       }
          *     },
          *     "registrationRecycled": {
          *       ".read": "auth != null",
-         *       ".write": "auth != null"
+         *       "$village_season_key": {
+         *         ".write": "auth != null",
+         *         ".indexOn": [".value"]
+         *       }
          *     },
          *     "fertilizerDistributions": {
          *       ".read": "auth != null",
          *       ".write": "auth != null",
          *       ".indexOn": ["outletId", "status", "aadhaar"]
+         *     },
+         *     "fertilizerCards": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null",
+         *       ".indexOn": ["aadhaar", "voUid"]
          *     },
          *     "voOutlets": {
          *       ".read": "auth != null",
@@ -180,9 +204,29 @@
          *     "deleteRequests": {
          *       ".read": "auth != null",
          *       ".write": "auth != null",
+         *       ".indexOn": ["status", "voMandal", "voUid"],
          *       "$reqId": {
          *         ".read": "auth != null",
          *         ".write": "auth != null"
+         *       }
+         *     },
+         *     "accountResetRequests": {
+         *       ".read": "auth != null && auth.token.email == 'adminagriworkspace@gmail.com'",
+         *       "$resetId": {
+         *         ".write": true,
+         *         ".read": "auth != null && auth.token.email == 'adminagriworkspace@gmail.com'"
+         *       }
+         *     },
+         *     "fertilizerRequests": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null",
+         *       ".indexOn": ["mandal", "retailerId", "status"]
+         *     },
+         *     "grievances": {
+         *       "$uid": {
+         *         ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')",
+         *         ".write": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')",
+         *         ".indexOn": ["timestamp"]
          *       }
          *     },
          *     "apfrRegistry": {
@@ -194,6 +238,26 @@
          *
          * ════════════════════════════════════════════════════════════════
          *  KEY NOTES:
+         *  — ureaHistory (root-level): global index on aadhaar for fast
+         *    cross-VAA distribution lookups.
+         *  — voUreaHistory & farmerProfiles: now open read/write for all
+         *    authenticated users so cross-VAA profile access works.
+         *  — allReports: new node under $uid for storing e-Panta reports
+         *    per VAA (owner + admin access only).
+         *  — retailerStock: new node under $uid for retailer stock tracking.
+         *  — fertilizerCards: new root-level node with aadhaar + voUid index
+         *    for fast card lookup across VAAs.
+         *  — registrationCounters: write restricted to atomic increment
+         *    only (newData == data + 1) to prevent counter manipulation.
+         *  — registrationRecycled: per-key .indexOn [".value"] for
+         *    efficient recycled number lookups.
+         *  — deleteRequests: .indexOn on status, voMandal, voUid for
+         *    fast admin-side delete request filtering.
+         *  — accountResetRequests: admin-only read; open write so users
+         *    can submit reset requests before authentication.
+         *  — fertilizerRequests: mandal + retailerId + status indexes for
+         *    efficient fertilizer request queue queries.
+         *  — grievances: per-user node with timestamp index; owner + admin.
          *  — distributionUpdates: Retailer writes distribute/reject actions;
          *    VO reads them in real-time. Without this rule all retailer
          *    actions get permission_denied.
@@ -5131,13 +5195,10 @@ function editFarmerProfile(profileId) {
                 cardField.placeholder = existingCard ? existingCard : 'Auto-assigned on Save';
             }
             
-            // Force verify APFR status and force overwrite if input value is invalid or equal to NA
+            // Always verify APFR status — checkAPFRStatus will set readonly NA if not found
             const apfrField = document.getElementById('fpApfrNumber');
             if (apfrField) {
-                if (!apfrField.value || apfrField.value === 'NA' || targetProfile?.apfrNumber === 'NA') {
-                    const dynamicId = await checkAPFRStatus(currentAadhaar);
-                    apfrField.value = dynamicId || 'NA';
-                }
+                await checkAPFRStatus(currentAadhaar);
             }
         }
     }, 200);
@@ -5179,7 +5240,10 @@ function fixUreaDataFromFirebase(raw) {
                 bagsEligible: kObj.bagsEligible || 0,
                 farmers: Array.isArray(kObj.farmers)
                     ? kObj.farmers
-                    : (kObj.farmers ? Object.values(kObj.farmers) : [])
+                    : (kObj.farmers ? Object.values(kObj.farmers) : []),
+                surveys: Array.isArray(kObj.surveys)
+                    ? kObj.surveys
+                    : (kObj.surveys ? Object.values(kObj.surveys) : [])
             };
         });
     });
@@ -9960,6 +10024,9 @@ if (fileInput) {
                     let currentFather  = null;
                     let currentAadhaar = null;
 
+                    // Track survey rows per khatha: khatha -> { surveyNo -> extent }
+                    const khathaSurveyMap = {};
+
                     rawAoA.forEach(cols => {
                         if (!cols || !cols.length) return;
 
@@ -10003,8 +10070,40 @@ if (fileInput) {
                             currentFarmer  = String(cols[2] || '').trim();
                             currentFather  = String(cols[3] || '').trim();
                             currentAadhaar = possibleAadhaar.length >= 12 ? possibleAadhaar.slice(-12) : '';
+
+                            // col[4] = SurveyNo for the first row of a new khatha
+                            const surveyVal = String(cols[4] || '').trim();
+                            const extVal    = parseFloat(cols[6] || cols[5] || 0) || 0;
+                            if (surveyVal && currentKhatha) {
+                                if (!khathaSurveyMap[currentKhatha]) khathaSurveyMap[currentKhatha] = {};
+                                surveyVal.split(/[,\/]/).forEach(sv => {
+                                    sv = sv.trim();
+                                    if (sv) khathaSurveyMap[currentKhatha][sv] = (khathaSurveyMap[currentKhatha][sv] || 0) + extVal;
+                                });
+                            }
+                        } else if (currentKhatha) {
+                            // Survey sub-row for current khatha: col[4]=SurveyNo, col[6]=Extent
+                            const surveyVal = String(cols[4] || '').trim();
+                            const extVal    = parseFloat(cols[6] || 0) || 0;
+                            if (surveyVal && /\d/.test(surveyVal)) {
+                                if (!khathaSurveyMap[currentKhatha]) khathaSurveyMap[currentKhatha] = {};
+                                surveyVal.split(/[,\/]/).forEach(sv => {
+                                    sv = sv.trim();
+                                    if (sv) khathaSurveyMap[currentKhatha][sv] = (khathaSurveyMap[currentKhatha][sv] || 0) + extVal;
+                                });
+                            }
                         }
-                        // (other rows are survey sub-rows; we only need the total from the total row)
+                    });
+
+                    // Attach collected survey numbers to each khatha in parsed
+                    Object.keys(khathaSurveyMap).forEach(kh => {
+                        if (!parsed[kh]) return;
+                        parsed[kh].surveys = Object.entries(khathaSurveyMap[kh])
+                            .map(([surveyNo, extent]) => ({ surveyNo, extent }))
+                            .sort((a, b) => {
+                                const na = parseFloat(a.surveyNo), nb = parseFloat(b.surveyNo);
+                                return (!isNaN(na) && !isNaN(nb)) ? na - nb : a.surveyNo.localeCompare(b.surveyNo);
+                            });
                     });
 
                     // Flush last khatha if file ends without a total row
@@ -10024,9 +10123,21 @@ if (fileInput) {
                     parsed = rows.reduce((acc, r) => {
                         const k = String(r["Khatha"] || r["KhathaNo"] || r["Khatha Number"] || "").trim();
                         if (!k) return acc;
-                        if (!acc[k]) acc[k] = { khatha: k, extent: 0, bagsEligible: Number(r["Bags Eligible"] || 0), farmers: [] };
+                        if (!acc[k]) acc[k] = { khatha: k, extent: 0, bagsEligible: Number(r["Bags Eligible"] || 0), farmers: [], surveys: [] };
                         acc[k].extent += Number(r["Extent"] || 0) || 0;
                         acc[k].farmers.push(r);
+                        // Capture survey numbers from named columns
+                        const sv = String(r["Survey Number"] || r["SurveyNo"] || r["SurveyNumber"] || r["Survey No"] || r["survey_no"] || r["Survey"] || '').trim();
+                        const svExt = parseFloat(r["Extent"] || 0) || 0;
+                        if (sv) {
+                            sv.split(/[,\/]/).forEach(s => {
+                                s = s.trim();
+                                if (!s) return;
+                                const existing = acc[k].surveys.find(x => x.surveyNo === s);
+                                if (existing) existing.extent += svExt;
+                                else acc[k].surveys.push({ surveyNo: s, extent: svExt });
+                            });
+                        }
                         return acc;
                     }, {});
                 }
@@ -12187,15 +12298,23 @@ async function checkAPFRStatus(aadhaar) {
         }
     }
 
-    // ── 3. Not found in farmer registry (APFR) — mark as NA, do not scan other VAA records ──
+    // ── 3. Not found in farmer registry (APFR) — mark as NA (readonly) ──
+    if (apfrInp) {
+        apfrInp.value    = 'NA';
+        apfrInp.readOnly = true;
+        apfrInp.style.borderColor = '#e74c3c';
+        apfrInp.style.boxShadow   = '0 0 0 3px rgba(231,76,60,0.15)';
+        apfrInp.style.color       = '#e74c3c';
+        apfrInp.style.fontWeight  = '700';
+    }
 
     // ── 4. Manual entry — saves to shared apfrRegistry so every VAA benefits next lookup ──
     const portalUrl  = `https://apfr.agristack.gov.in/farmer-registry-ap/#/checkEnrolmentStatus`;
     const maskedA    = `${cleanA.slice(0,4)}XXXX${cleanA.slice(-4)}`;
 
     setStatus(`
-        <span style="color:#e67e22;font-weight:600;font-size:0.76rem;">
-            <i class="fas fa-exclamation-circle me-1"></i>Not found in any VAA record.
+        <span style="color:#e74c3c;font-weight:600;font-size:0.76rem;">
+            <i class="fas fa-times-circle me-1"></i>Not found in APFR Registry — marked as NA.
         </span>
         <a href="${portalUrl}" target="_blank" rel="noopener"
            onclick="navigator.clipboard&&navigator.clipboard.writeText('${cleanA}')"
@@ -12203,53 +12322,10 @@ async function checkAPFRStatus(aadhaar) {
             Open APFR Portal 🔗
         </a>
         <span style="font-size:0.71rem;color:#7f8c8d;display:block;margin-top:2px;">
-            Aadhaar <strong>(${maskedA})</strong> copied to clipboard on click — paste on portal,
-            then type the 11-digit Farmer ID in the field above. It will be shared with all VAAs automatically.
+            Aadhaar <strong>(${maskedA})</strong> copied to clipboard on click — paste on portal to verify.
+            If found, click 🔄 to re-check and update the Farmer ID.
         </span>`);
 
-    if (apfrInp) {
-        apfrInp.readOnly = false;
-        if (!apfrInp.value || apfrInp.value === 'NA') apfrInp.value = '';
-        apfrInp.placeholder = 'Type 11-digit Farmer ID here';
-        apfrInp.style.borderColor = '#f39c12';
-        apfrInp.style.boxShadow   = '0 0 0 3px rgba(243,156,18,0.18)';
-
-        // Clone to remove any stale event listeners
-        const fresh = apfrInp.cloneNode(true);
-        // Guard: parentNode may be null if element was re-rendered since function started
-        const liveInp = document.getElementById('fpApfrNumber');
-        if (liveInp && liveInp.parentNode) {
-            liveInp.parentNode.replaceChild(fresh, liveInp);
-        } else if (apfrInp.parentNode) {
-            apfrInp.parentNode.replaceChild(fresh, apfrInp);
-        }
-        fresh.focus();
-
-        fresh.addEventListener('input', async function () {
-            const typed = this.value.replace(/\D/g, '');
-            this.value  = typed;
-            if (typed.length === 11) {
-                this.style.borderColor = '#27ae60';
-                this.style.boxShadow   = '0 0 0 3px rgba(39,174,96,0.18)';
-                setStatus('<i class="fas fa-check-circle text-success me-1"></i>Farmer ID saved ✅ — shared with all VAAs.');
-                // Write to shared registry — any VAA looking up this Aadhaar finds it instantly from now on
-                try {
-                    await database.ref(`apfrRegistry/${cleanA}`).set({
-                        farmerId: typed, aadhaar: cleanA,
-                        enteredBy: firebase.auth().currentUser?.uid || 'unknown',
-                        savedAt:   new Date().toISOString()
-                    });
-                } catch(e) { console.warn('apfrRegistry write failed:', e); }
-                const cardField = document.getElementById('fpCardNumber');
-                cascadeMultiProfileUpdates(cleanA, cardField?.value || '', typed).catch(() => {});
-            } else {
-                this.style.borderColor = '#f39c12';
-                this.style.boxShadow   = '0 0 0 3px rgba(243,156,18,0.18)';
-                if (typed.length > 0)
-                    setStatus(`<i class="fas fa-keyboard me-1" style="color:#e67e22;"></i><span style="color:#7f8c8d;">${typed.length}/11 digits entered…</span>`);
-            }
-        });
-    }
     return 'NA';
 }
 
@@ -12600,7 +12676,7 @@ function addFpCropRow() {
               </button>
             </div>
           </div>
-          ${!surveyOpts.length ? `<div style="font-size:0.68rem; color:#7f8c8d; margin-top:3px;"><i class="fas fa-info-circle me-1"></i>No survey numbers found for this Khatha — enter manually</div>` : ''}
+          ${!surveyOpts.length ? `<div style="font-size:0.68rem; color:#7f8c8d; margin-top:3px;"><i class="fas fa-info-circle me-1"></i>No survey numbers found for this Khatha — enter manually or re-upload 1B file</div>` : ''}
         </div>
     `;
     container.appendChild(row);
@@ -12813,13 +12889,17 @@ function getKhathaOfficialExtent(khathaNo) {
     return 0;
 }
 
-// ✅ Returns array of {surveyNo, extent} for a given Khatha (from uploaded e-Panta reports).
-// Extents for the same survey number across multiple booking rows are summed.
+// ✅ Returns array of {surveyNo, extent} for a given Khatha.
+// Sources (in priority order):
+//   1. allReportsCache  — e-Panta booking data (surveyNo field)
+//   2. ureaData surveys — surveys[] stored at 1B upload time (new uploads)
+//   3. ureaData farmers — raw row data from flat/simple format uploads (older data)
 function getSurveyNumbersForKhatha(khatha) {
     const k = String(khatha || '').trim();
     if (!k) return [];
     const surveyMap = {}; // surveyNo -> total extent
 
+    // Source 1: allReportsCache (e-Panta reports with per-booking surveyNo)
     for (const reportKey of Object.keys(allReportsCache || {})) {
         const report = allReportsCache[reportKey];
         if (!report?.farmerDetails) continue;
@@ -12835,6 +12915,42 @@ function getSurveyNumbersForKhatha(khatha) {
                         surveyMap[sv] = (surveyMap[sv] || 0) + area;
                     });
                 }
+            });
+        }
+    }
+
+    // Source 2: ureaData surveys[] — populated by new 1B uploads after fix
+    if (!Object.keys(surveyMap).length) {
+        for (const fertData of Object.values(ureaData || {})) {
+            const khathaEntry = fertData && fertData[k];
+            if (khathaEntry && Array.isArray(khathaEntry.surveys) && khathaEntry.surveys.length) {
+                khathaEntry.surveys.forEach(s => {
+                    const sv = String(s.surveyNo || '').trim();
+                    if (!sv) return;
+                    surveyMap[sv] = (surveyMap[sv] || 0) + (parseFloat(s.extent) || 0);
+                });
+            }
+        }
+    }
+
+    // Source 3: ureaData farmers[] rows — mine survey columns from older flat-format data
+    if (!Object.keys(surveyMap).length) {
+        const surveyColKeys = ['Survey Number','SurveyNo','SurveyNumber','Survey No','survey_no','Survey','surveyNo'];
+        const extColKeys    = ['Extent','extent','Area','area'];
+        for (const fertData of Object.values(ureaData || {})) {
+            const khathaEntry = fertData && fertData[k];
+            if (!khathaEntry || !Array.isArray(khathaEntry.farmers)) continue;
+            khathaEntry.farmers.forEach(row => {
+                if (!row || typeof row !== 'object') return;
+                let sv = '';
+                for (const key of surveyColKeys) { if (row[key]) { sv = String(row[key]).trim(); break; } }
+                if (!sv) return;
+                let ext = 0;
+                for (const key of extColKeys) { if (row[key] != null) { ext = parseFloat(row[key]) || 0; break; } }
+                sv.split(/[,\/]/).forEach(s => {
+                    s = s.trim();
+                    if (s) surveyMap[s] = (surveyMap[s] || 0) + ext;
+                });
             });
         }
     }
@@ -13302,6 +13418,13 @@ async function searchFpByAadhaar() {
         const khathaInp = document.getElementById('fpKhathaSearchInput');
         if (khathaInp) { khathaInp.value = 'Khatha ' + foundKhatha; khathaInp.disabled = true; }
         onFpKhathaChange();
+
+        // Re-render crop rows now that khatha is set — so survey numbers populate correctly
+        const cropRowsContainer = document.getElementById('fpCropRows');
+        if (cropRowsContainer) {
+            cropRowsContainer.innerHTML = '';
+            addFpCropRow();
+        }
     }
 
     // STEP 6: Card ID Generation logic
