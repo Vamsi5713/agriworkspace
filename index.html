@@ -21324,15 +21324,19 @@ async function loadPrintFarmerProfile() {
     const villageName = (currentUserProfile && currentUserProfile.village) ? currentUserProfile.village : '—';
     const officerName = (currentUserProfile && currentUserProfile.name)    ? currentUserProfile.name    : '—';
 
-    // Build merged rows: one row per (khatha, crop)
-    const rows = [];
-    let totalExtent = 0;
-    const cropExtentMap = {}; // crop → total extent (for summary)
+    // Build crop-wise aggregates across ALL khathas (overall cultivating extent per crop)
+    // — fixes: (1) crop extents under one khatha no longer exceed that khatha's
+    //   registered extent, (2) "Total Extent" reflects the farmer's actual
+    //   cultivating extent (sum of crop extents) rather than khatha extent,
+    //   (3) bags eligibility is computed once per crop on the OVERALL extent
+    //   across khathas instead of khatha-wise (avoids per-khatha rounding
+    //   inflating the total bags).
+    const cropAgg = {}; // cropName → { cropLabel, ext, khathaMap: Map(khatha → Set(surveyNos)), seasonForCalc }
+    let totalExtent = 0; // farmer's total cultivating extent (sum of crop extents)
 
     profiles.forEach(profile => {
         const khatha  = String(profile.khatha || '—');
         const kExt    = Number(profile.extent || 0);
-        totalExtent  += kExt;
         const pCrops  = (profile.crops || []).filter(c => {
             if (!selYear && !selSeason) return true;
             const ym = !selYear   || (c.year   || '') === selYear;
@@ -21340,45 +21344,92 @@ async function loadPrintFarmerProfile() {
             return ym && sm;
         });
 
+        // Sum of crop extents declared under this khatha (used to cap against the
+        // khatha's registered extent so we never show more than what's available)
+        const declaredSum = pCrops.reduce((s, c) => s + Number(c.extent || 0), 0);
+
         pCrops.forEach(cropEntry => {
             const cropName  = (cropEntry.crop || '').toLowerCase().trim();
             const cropLabel = cropEntry.cropLabel || cropName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            const cropExt   = Number(cropEntry.extent || kExt || 0);
-            const surveyNos = cropEntry.surveyNos || profile.surveyNos || '—';
+            const surveyNos = cropEntry.surveyNos || profile.surveyNos || '';
             const seasonForCalc = cropEntry.season || selSeason || 'Kharif';
 
-            // Fertilizer calculation
-            const dosage    = fertilizerDosage[cropName];
-            const seasonDose = dosage?.seasons?.[seasonForCalc] || dosage?.seasons?.['Kharif'] || { N:0, P:0 };
-            const nKgTotal  = (seasonDose.N || 0) * cropExt;
-            const pKgTotal  = (seasonDose.P || 0) * cropExt;
-            const ureaTotal = getUreaBagsFromN(nKgTotal);
-            const dapTotal  = getDapBagsFromP(pKgTotal);
+            let cropExt = Number(cropEntry.extent || 0);
+            // Legacy fallback: a single un-split crop entry without its own extent
+            if (!cropExt && pCrops.length === 1) cropExt = kExt;
+            // Never let the sum of crop extents under a khatha exceed its registered extent
+            if (kExt > 0 && declaredSum > kExt) {
+                cropExt = cropExt * (kExt / declaredSum);
+            }
 
-            // Split calculation (Urea)
-            const ureaSplits = getDeterministicSplitEligibilities(ureaTotal, cropName, 'Urea');
-            const split1U = ureaSplits[0] !== undefined ? ureaSplits[0] : ureaTotal;
-            const split2U = ureaSplits[1] !== undefined ? ureaSplits[1] : 0;
-            const split3U = ureaSplits[2] !== undefined ? ureaSplits[2] : 0;
+            totalExtent += cropExt;
 
-            // Split calculation (DAP)
-            const dapSplits = getDeterministicSplitEligibilities(dapTotal, cropName, 'DAP');
-            const split1D = dapSplits[0] !== undefined ? dapSplits[0] : dapTotal;
-            const split2D = dapSplits[1] !== undefined ? dapSplits[1] : 0;
-            const split3D = dapSplits[2] !== undefined ? dapSplits[2] : 0;
-
-            // Accumulate crop-wise extent summary
-            if (!cropExtentMap[cropLabel]) cropExtentMap[cropLabel] = 0;
-            cropExtentMap[cropLabel] += cropExt;
-
-            rows.push({ khatha, surveyNos, cropLabel, cropName, cropExt, ureaTotal, dapTotal, split1U, split2U, split3U, split1D, split2D, split3D });
+            if (!cropAgg[cropName]) {
+                cropAgg[cropName] = { cropLabel, ext: 0, khathaMap: new Map(), seasonForCalc };
+            }
+            cropAgg[cropName].ext += cropExt;
+            if (khatha) {
+                if (!cropAgg[cropName].khathaMap.has(khatha)) cropAgg[cropName].khathaMap.set(khatha, new Set());
+                // Split comma-separated survey numbers so each gets listed individually
+                String(surveyNos).split(',').map(s => s.trim()).filter(Boolean)
+                    .forEach(sv => cropAgg[cropName].khathaMap.get(khatha).add(sv));
+            }
         });
     });
 
     // ── Crop-wise extent summary string ──
-    const cropSummaryStr = Object.entries(cropExtentMap)
-        .map(([c, ext]) => `${c} (${ext.toFixed(2)} Ac)`)
+    const cropSummaryStr = Object.values(cropAgg)
+        .map(c => `${c.cropLabel} (${c.ext.toFixed(2)} Ac)`)
         .join(', ') || '—';
+
+    // ── Build merged rows: one row per CROP, with bags eligibility computed
+    //    on the overall (cross-khatha) cultivating extent for that crop ──
+    const rows = Object.entries(cropAgg).map(([cropName, agg]) => {
+        const cropExt   = agg.ext;
+        const cropLabel = agg.cropLabel;
+
+        // Khatha-wise survey numbers with per-survey extent: "<khatha>- <sv1>(<ext1>) | <sv2>(<ext2>)" per khatha, one per line
+        const khathaEntries = [...agg.khathaMap.entries()];
+        const khatha = khathaEntries.length
+            ? khathaEntries.map(([kh, svSet]) => {
+                  const svList = [...svSet];
+                  if (!svList.length) return `<strong>${escapeHtml(kh)}</strong>`;
+                  // Look up the official per-survey extent for this khatha (from 1B data)
+                  const svExtMap = {};
+                  getSurveyNumbersForKhatha(kh).forEach(s => { svExtMap[String(s.surveyNo).trim()] = Number(s.extent || 0); });
+                  const svStr = svList.map(sv => {
+                      const svExt = svExtMap[sv];
+                      return svExt !== undefined ? `${sv}(${svExt.toFixed(2)})` : sv;
+                  }).join(' | ');
+                  return `<strong>${escapeHtml(kh)}</strong>- ${escapeHtml(svStr)}`;
+              }).join('<br>')
+            : '—';
+        const surveyNos = khathaEntries.length
+            ? [...new Set(khathaEntries.flatMap(([, svSet]) => [...svSet]))].join(', ') || '—'
+            : '—';
+
+        // Fertilizer calculation (on overall extent)
+        const dosage    = fertilizerDosage[cropName];
+        const seasonDose = dosage?.seasons?.[agg.seasonForCalc] || dosage?.seasons?.['Kharif'] || { N:0, P:0 };
+        const nKgTotal  = (seasonDose.N || 0) * cropExt;
+        const pKgTotal  = (seasonDose.P || 0) * cropExt;
+        const ureaTotal = getUreaBagsFromN(nKgTotal);
+        const dapTotal  = getDapBagsFromP(pKgTotal);
+
+        // Split calculation (Urea)
+        const ureaSplits = getDeterministicSplitEligibilities(ureaTotal, cropName, 'Urea');
+        const split1U = ureaSplits[0] !== undefined ? ureaSplits[0] : ureaTotal;
+        const split2U = ureaSplits[1] !== undefined ? ureaSplits[1] : 0;
+        const split3U = ureaSplits[2] !== undefined ? ureaSplits[2] : 0;
+
+        // Split calculation (DAP)
+        const dapSplits = getDeterministicSplitEligibilities(dapTotal, cropName, 'DAP');
+        const split1D = dapSplits[0] !== undefined ? dapSplits[0] : dapTotal;
+        const split2D = dapSplits[1] !== undefined ? dapSplits[1] : 0;
+        const split3D = dapSplits[2] !== undefined ? dapSplits[2] : 0;
+
+        return { khatha, surveyNos, cropLabel, cropName, cropExt, ureaTotal, dapTotal, split1U, split2U, split3U, split1D, split2D, split3D };
+    });
 
     // ── Build the Fertilizer Card HTML ──
     // yearSeasonLabel: derive from first crop entry if dropdowns are empty
@@ -21387,24 +21438,6 @@ async function loadPrintFarmerProfile() {
     const _cardSeason = selSeason || (_firstCrop?.season || '');
     const yearSeasonLabel = _cardYear + (_cardSeason ? ' · ' + _cardSeason : ' · All Seasons');
 
-    const tableRows = rows.map((r, i) => `
-        <tr>
-            <td class="text-center text-muted" style="font-size:0.82rem;">${i+1}</td>
-            <td style="font-size:0.85rem; font-weight:600;">${escapeHtml(r.khatha)}<br>
-                <small class="text-muted fw-normal">${escapeHtml(r.surveyNos)}</small>
-            </td>
-            <td style="font-size:0.85rem;">${escapeHtml(r.cropLabel)}<br>
-                <small class="text-success fw-semibold">${r.cropExt.toFixed(2)} Ac</small>
-            </td>
-            <td class="text-center fw-bold" style="color:#1862ab;">${r.ureaTotal}</td>
-            <td class="text-center fw-bold" style="color:#27ae60;">${r.dapTotal}</td>
-            <td class="text-center">${r.split1U > 0 ? '<span class="badge bg-primary">'+r.split1U+'</span>' : '<span class="text-muted">—</span>'}</td>
-            <td class="text-center">${r.split2U > 0 ? '<span class="badge bg-success">'+r.split2U+'</span>' : '<span class="text-muted">—</span>'}</td>
-            <td class="text-center">${r.split3U > 0 ? '<span class="badge bg-warning text-dark">'+r.split3U+'</span>' : '<span class="text-muted">—</span>'}</td>
-            <td class="text-center">${r.split1D > 0 ? '<span class="badge bg-primary">'+r.split1D+'</span>' : '<span class="text-muted">—</span>'}</td>
-            <td class="text-center">${r.split2D > 0 ? '<span class="badge bg-success">'+r.split2D+'</span>' : '<span class="text-muted">—</span>'}</td>
-            <td class="text-center">${r.split3D > 0 ? '<span class="badge bg-warning text-dark">'+r.split3D+'</span>' : '<span class="text-muted">—</span>'}</td>
-        </tr>`).join('');
 
     const totalUrea = rows.reduce((s, r) => s + r.ureaTotal, 0);
     const totalDAP  = rows.reduce((s, r) => s + r.dapTotal, 0);
@@ -21860,9 +21893,9 @@ async function loadPrintFarmerProfile() {
             <div style="font-size:0.82rem; font-weight:700;">${farmerType === 'owner' ? '🏠 Owner' : farmerType === 'tenant' ? '🤝 Tenant' : escapeHtml(farmerType)}</div>
           </div>
 
-          <!-- Total Extent -->
+          <!-- Cultivating Extent -->
           <div style="flex:1.2; min-width:90px; padding:0.4rem 0.8rem; border-right:1px solid #c8d8ed;">
-            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Total Extent</div>
+            <div style="font-size:0.58rem; color:#7f8c8d; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:2px;">Cultivating Extent</div>
             <div style="font-size:0.88rem; font-weight:800; color:#27ae60;">${totalExtent.toFixed(2)} Ac</div>
           </div>
 
@@ -21901,7 +21934,7 @@ async function loadPrintFarmerProfile() {
             ${rows.map((r, i) => `
             <tr style="background:${i%2===0?'#fff':'#f8fbff'};">
               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; color:#9ca3af; font-size:0.72rem;">${i+1}</td>
-              <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.82rem; font-weight:900; color:#0d4d86;">${escapeHtml(r.khatha)}<br><span style="font-size:0.72rem; color:#1862ab; font-weight:800; font-family:monospace; letter-spacing:0.3px;">${escapeHtml(r.surveyNos)}</span></td>
+              <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.82rem; font-weight:900; color:#0d4d86; line-height:1.4;">${r.khatha}</td>
               <td style="padding:4px 6px; border:1px solid #dee2e6; font-size:0.76rem;">${escapeHtml(r.cropLabel)} <span style="color:#27ae60; font-weight:700;">(${r.cropExt.toFixed(2)}ac)</span></td>
               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#1862ab;">${r.ureaTotal}</td>
               <td style="padding:4px 6px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:#27ae60;">${r.dapTotal}</td>
