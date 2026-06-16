@@ -12742,6 +12742,11 @@ async function saveFarmerProfile() {
         }
     }
 
+    // ── Capture owner name for tenant profiles (shown in fpOwnerName span) ──
+    const savedOwnerName = farmerType === 'tenant'
+        ? (document.getElementById('fpOwnerName')?.textContent?.trim() || '')
+        : n; // owner's own name
+
     const profileEntry = {
         aadhaar: a,
         farmerName: n,
@@ -12753,6 +12758,7 @@ async function saveFarmerProfile() {
         crops,
         cardNumber: finalCardNumber,
         apfrNumber: apfrNumber,
+        ownerName: savedOwnerName,
         savedAt: new Date().toISOString()
     };
 
@@ -17373,90 +17379,141 @@ function loadRetailerHistory() {
         </table></div>`;
     }).catch(e => container.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`);
 }
-function deleteDistribution(recordKey) {
-    if (!confirm("Are you sure you want to delete this distribution?\n\nThis action cannot be undone and is only allowed within 1 hour of distribution.")) {
+async function deleteDistribution(recordKey) {
+    if (!confirm("\u26A0\uFE0F Delete this distribution?\n\nThe bags will be RESTORED to the farmer's eligible account so they can avail again.\n\nOnly allowed within 1 hour of issuance.")) {
         return;
     }
 
     const recordRef = database.ref(`fertilizerDistributions/${recordKey}`);
 
-    recordRef.once('value').then(snap => {
+    try {
+        const snap = await recordRef.once('value');
         const record = snap.val();
-        if (!record) {
-            alert("Record not found.");
-            return;
-        }
+        if (!record) { alert("Record not found."); return; }
 
         const actionDate = record.verifiedAt || record.distributedAt || record.createdAt;
         const ONE_HOUR_MS = 60 * 60 * 1000;
-        
-        // Final security check in case the user left the browser open for hours before clicking
         if (actionDate && (Date.now() - new Date(actionDate).getTime() > ONE_HOUR_MS)) {
-            alert("⏰ Time expired!\n\nDistributions can only be deleted within 1 hour of issuance.");
-            loadRetailerHistory(); // Refresh to remove the button
+            alert("\u23F0 Time expired!\n\nDistributions can only be deleted within 1 hour of issuance.");
+            loadRetailerHistory();
             return;
         }
 
         const ops = [];
+        const voUid    = record.voUid || '';
+        const a        = String(record.aadhaar || '').replace(/\s/g, '');
+        const fert     = record.fertilizerType || record.fert || 'Urea';
+        const splitIdx = record.splitIndex !== undefined ? Number(record.splitIndex) : 0;
+        const bags     = Number(record.bags || record.bagsDistributing || 0);
+        const year     = record.cropYear || record.year || '';
+        const season   = record.season || '';
+        const splitKey = 's' + splitIdx;
 
-        // ── Mark the fertilizerDistributions record as Cancelled ──
+        // 1. Mark fertilizerDistributions record as Cancelled
         ops.push(recordRef.update({
             status: 'Cancelled',
             retailerVerified: false,
             deletedAt: new Date().toISOString(),
-            deletedByRetailer: true
+            deletedByRetailer: true,
+            retailerDeletionNote: 'Deleted by Retailer \u2014 bags restored to farmer'
         }));
 
-        // ── For farmerCardQR distributions: also revert the availed bags in farmerProfiles ──
-        const isFarmerCardQR = record.distributedVia === 'farmerCardQR' || record.retailerDistributedViaFarmerCard === true;
-        if (isFarmerCardQR && record.voUid && record.aadhaar && record.fertilizerType !== undefined) {
-            const voUid    = record.voUid;
-            const a        = String(record.aadhaar || '').replace(/\s/g,'');
-            const fert     = record.fertilizerType || record.fert || 'Urea';
-            const splitIdx = record.splitIndex !== undefined ? record.splitIndex : 0;
-            const bags     = Number(record.bags || 0);
-            const year     = record.year || '';
-            const season   = record.season || '';
-            const splitKey = 's' + splitIdx;
+        // 2. Cancel matching ureaHistory record (ALL distribution types) — root node used by VO card
+        ops.push(database.ref('ureaHistory/' + recordKey).update({
+            status: 'Cancelled',
+            deletedAt: new Date().toISOString(),
+            deletedByRetailer: true
+        }).catch(() => {}));
 
-            // Reduce split-level availed
-            const profilePath = `users/${voUid}/farmerProfiles/${a}/splits/${fert}/${splitKey}`;
+        // 2b. Also cancel in-memory ureaHistory so VO card reflects restoration instantly
+        const memIdx = ureaHistory.findIndex(h => h._key === recordKey);
+        if (memIdx >= 0) ureaHistory[memIdx].status = 'Cancelled';
+
+        // 3. Restore availed bags in farmerProfiles for ALL distribution types
+        if (voUid && a && bags > 0) {
+            // 3a. Reduce split-level availed counter
+            const profileSplitPath = `users/${voUid}/farmerProfiles/${a}/splits/${fert}/${splitKey}/availed`;
             ops.push(
-                database.ref(profilePath + '/availed').once('value').then(avSnap => {
+                database.ref(profileSplitPath).once('value').then(avSnap => {
                     const prev = Number(avSnap.val()) || 0;
-                    const next = Math.max(0, prev - bags);
-                    return database.ref(profilePath + '/availed').set(next);
+                    return database.ref(profileSplitPath).set(Math.max(0, prev - bags));
                 })
             );
-            // Reduce top-level availed counter
-            const topPath = `users/${voUid}/farmerProfiles/${a}/availed/${year}_${season}_${fert}_s${splitIdx}`;
+
+            // 3b. Reduce top-level availed counter
+            const topAvailPath = `users/${voUid}/farmerProfiles/${a}/availed/${year}_${season}_${fert}_s${splitIdx}`;
             ops.push(
-                database.ref(topPath).once('value').then(avSnap2 => {
+                database.ref(topAvailPath).once('value').then(avSnap2 => {
                     const prev2 = Number(avSnap2.val()) || 0;
-                    const next2 = Math.max(0, prev2 - bags);
-                    return database.ref(topPath).set(next2);
+                    return database.ref(topAvailPath).set(Math.max(0, prev2 - bags));
                 })
             );
-            // Also mark the matching ureaHistory record as cancelled (same push key = recordKey)
-            ops.push(database.ref('ureaHistory/' + recordKey).update({
-                status: 'Cancelled', deletedAt: new Date().toISOString(), deletedByRetailer: true
-            }).catch(() => {}));
+
+            // 3c. Cancel matching availedTransactions entry so farmer card reflects restored bags
+            const txLogPath = `users/${voUid}/farmerProfiles/${a}/availedTransactions`;
+            ops.push(
+                database.ref(txLogPath).once('value').then(txSnap => {
+                    if (!txSnap.exists()) return;
+                    const cancelOps = [];
+                    const recDate = record.date || (record.verifiedAt ? record.verifiedAt.substring(0, 10) : '') || '';
+                    txSnap.forEach(child => {
+                        const tx = child.val();
+                        if (!tx || tx.status === 'Cancelled') return;
+                        const txDate = tx.date || (tx.verifiedAt ? tx.verifiedAt.substring(0, 10) : '') || '';
+                        const keyMatch  = child.key === recordKey || child.key === ('availedTx_' + recordKey);
+                        const contentMatch =
+                            (tx.fert || 'Urea') === fert &&
+                            Number(tx.splitIndex) === splitIdx &&
+                            Number(tx.bags || 0) === bags &&
+                            (!recDate || !txDate || txDate === recDate);
+                        if (keyMatch || contentMatch) {
+                            cancelOps.push(
+                                database.ref(txLogPath + '/' + child.key).update({
+                                    status: 'Cancelled',
+                                    deletedAt: new Date().toISOString(),
+                                    deletedByRetailer: true
+                                })
+                            );
+                        }
+                    });
+                    return Promise.all(cancelOps);
+                }).catch(() => {})
+            );
+
+            // 3d. Notify VO via distributionUpdates so farmer card auto-refreshes on VO side
+            if (voUid) {
+                const actionKey = database.ref('distributionUpdates/' + voUid).push().key;
+                if (actionKey) {
+                    ops.push(database.ref(`distributionUpdates/${voUid}/${actionKey}`).set({
+                        type:        'retailerDelete',
+                        voUid:       voUid,
+                        aadhaar:     a,
+                        farmerName:  record.farmerName || '',
+                        fert:        fert,
+                        splitIndex:  splitIdx,
+                        bags:        bags,
+                        year:        year,
+                        season:      season,
+                        recordKey:   recordKey,
+                        deletedAt:   new Date().toISOString(),
+                        retailerUid: (firebase.auth().currentUser || {}).uid || '',
+                        outletName:  record.outletName || record.outletId || '',
+                        message:     bags + ' ' + fert + ' bag(s) restored to farmer after retailer deletion'
+                    }));
+                }
+            }
         }
 
-        return Promise.all(ops);
-    }).then(() => {
-        alert("✅ Distribution deleted successfully.");
-        loadRetailerHistory(); // Reload table data
-    }).catch(err => {
+        await Promise.all(ops);
+        alert('\u2705 Distribution deleted!\n\n' + bags + ' ' + fert + ' bag(s) have been RESTORED to the farmer\'s eligible account.\nThe farmer can now avail these bags again from any outlet.');
+        loadRetailerHistory();
+
+    } catch(err) {
         console.error("Error deleting distribution:", err);
-        alert("❌ Failed to delete. Please try again.\n" + err.message);
-    });
+        alert("\u274C Failed to delete. Please try again.\n" + err.message);
+    }
 }
 
-
-// ============================================================
-//  RETAILER: EXPORT DISTRIBUTION HISTORY TO EXCEL
-// ============================================================
 function exportRetailerHistoryExcel() {
     const records = window._rtHistoryRecords;
     if (!records || !records.length) {
@@ -17966,6 +18023,8 @@ function onQrDetected(data) {
 // ============================================================
 function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
     const a = String(aadhaar || '').replace(/\s/g, '');
+    // Store params on resultEl so delete-then-refresh can re-call this function
+    if (resultEl) resultEl.dataset.lastQr = `FC|${a}|${year}|${season}|${voUid}`;
     if (a.length !== 12) {
         resultEl.innerHTML = _rtAuthErr('Invalid Farmer Card QR — Aadhaar missing or malformed.');
         return;
@@ -18154,7 +18213,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 const actionMs = date ? new Date(date).getTime() : 0;
                 const canDelete = actionMs > 0 && (Date.now() - actionMs) <= ONE_HOUR_MS;
                 const deleteBtn = canDelete
-                    ? `<button onclick="deleteDistribution('${r._tokenKey}');window._fcQrIssuedRecords=(window._fcQrIssuedRecords||[]).filter(x=>x._tokenKey!=='${r._tokenKey}');loadRetailerHistory();"
+                    ? `<button onclick="(async()=>{await deleteDistribution('${r._tokenKey}');window._fcQrIssuedRecords=(window._fcQrIssuedRecords||[]).filter(x=>x._tokenKey!=='${r._tokenKey}');loadRetailerHistory();const resEl=document.getElementById('rtQrScanResult');if(resEl&&resEl.dataset.lastQr){const p=resEl.dataset.lastQr.split('|');if(p[0]==='FC'&&p[1]&&p[2]&&p[3]&&p[4])processFarmerCardQr(p[1],p[2],p[3],p[4],resEl);}})()"
                          style="border:none;background:#fff0f0;color:#c0392b;border-radius:6px;padding:2px 8px;font-size:0.7rem;cursor:pointer;" title="Delete within 1 hour">
                          <i class="fas fa-trash-alt me-1"></i>Delete
                        </button>`
@@ -21557,6 +21616,25 @@ async function loadPrintFarmerProfile() {
     const villageName = (currentUserProfile && currentUserProfile.village) ? currentUserProfile.village : '—';
     const officerName = (currentUserProfile && currentUserProfile.name)    ? currentUserProfile.name    : '—';
 
+    // ── Build owner-name lookup per khatha (for tenant farmer cards) ──
+    // Priority: 1) ownerName stored directly on profile, 2) a separate owner-type profile for that khatha
+    const _ownerByKhatha = {};
+    Object.values(farmerProfiles || {}).forEach(pGroup => {
+        const list = Array.isArray(pGroup) ? pGroup : (pGroup ? [pGroup] : []);
+        list.forEach(fp => {
+            if (!fp || !fp.khatha) return;
+            const kh = String(fp.khatha).trim();
+            // If a stored ownerName exists on any profile for this khatha, use it
+            if (fp.ownerName && fp.ownerName !== '—') {
+                _ownerByKhatha[kh] = fp.ownerName;
+            }
+            // Also index owner-type profiles (existing behaviour)
+            if (fp.farmerType === 'owner') {
+                _ownerByKhatha[kh] = fp.farmerName || fp.ownerName || _ownerByKhatha[kh] || '—';
+            }
+        });
+    });
+
     // Build crop-wise aggregates across ALL khathas (overall cultivating extent per crop)
     // — fixes: (1) crop extents under one khatha no longer exceed that khatha's
     //   registered extent, (2) "Total Extent" reflects the farmer's actual
@@ -21661,7 +21739,18 @@ async function loadPrintFarmerProfile() {
         const split2D = dapSplits[1] !== undefined ? dapSplits[1] : 0;
         const split3D = dapSplits[2] !== undefined ? dapSplits[2] : 0;
 
-        return { khatha, surveyNos, cropLabel, cropName, cropExt, ureaTotal, dapTotal, split1U, split2U, split3U, split1D, split2D, split3D };
+        // Owner name: use stored ownerName on profile first, then lookup, then own name if owner
+        const khathaOwnerNames = khathaEntries.map(([kh]) => {
+            if (farmerType === 'owner') return farmerName; // farmer IS the owner
+            // Find the matching profile for this khatha to get its stored ownerName
+            const matchedProfile = profiles.find(p => String(p.khatha||'').trim() === String(kh).trim());
+            if (matchedProfile?.ownerName && matchedProfile.ownerName !== '—') return matchedProfile.ownerName;
+            return _ownerByKhatha[String(kh).trim()] || '—';
+        });
+        // De-duplicate and join (most cards have one khatha)
+        const ownerNameDisplay = [...new Set(khathaOwnerNames)].join(', ') || '—';
+
+        return { khatha, surveyNos, cropLabel, cropName, cropExt, ureaTotal, dapTotal, split1U, split2U, split3U, split1D, split2D, split3D, ownerName: ownerNameDisplay };
     });
 
     // ── Build the Fertilizer Card HTML ──
@@ -22292,6 +22381,49 @@ async function loadPrintFarmerProfile() {
         </table>
       </div>
 
+      ${/* ── Khatha-wise Owner Name Panel ── */
+      (()=>{
+        // Collect unique khathas in profile order, with their owner name
+        const khathaOwnerList = [];
+        const seenKh = new Set();
+        profiles.forEach(profile => {
+          const kh = String(profile.khatha || '').trim();
+          if (!kh || seenKh.has(kh)) return;
+          seenKh.add(kh);
+          let oName = '—';
+          if (profile.farmerType === 'owner') {
+            // Owner farmer: their own name IS the owner name
+            oName = profile.farmerName || farmerName || '—';
+          } else if (profile.ownerName && profile.ownerName !== '—') {
+            // Tenant with stored ownerName (saved during profile creation)
+            oName = profile.ownerName;
+          } else {
+            // Fallback: look for an owner-type profile registered for this khatha
+            oName = _ownerByKhatha[kh] || '—';
+          }
+          khathaOwnerList.push({ kh, oName });
+        });
+        if (!khathaOwnerList.length) return '';
+        const items = khathaOwnerList.map((item, idx) => `
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 12px;background:${idx%2===0?'#f5f0ff':'#ede8ff'};border-radius:8px;">
+            <span style="min-width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;font-weight:800;font-size:0.78rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${idx+1}</span>
+            <span style="font-size:0.82rem;font-weight:800;color:#9B111E;letter-spacing:0.2px;min-width:70px;">Khatha ${escapeHtml(item.kh)}</span>
+            <span style="color:#6b21a8;font-size:0.78rem;font-weight:400;margin:0 4px;">→</span>
+            <span style="font-size:0.85rem;font-weight:800;color:#1e3a5f;letter-spacing:0.3px;">${escapeHtml(item.oName)}</span>
+            <span style="font-size:0.65rem;color:#7c3aed;font-weight:600;background:#ede9fe;padding:1px 7px;border-radius:10px;margin-left:4px;">పట్టాదారు</span>
+          </div>`).join('');
+        return `
+        <div style="margin:0 1rem 0.5rem;border:2px solid #7c3aed;border-radius:12px;overflow:hidden;">
+          <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;padding:7px 14px;display:flex;align-items:center;gap:8px;">
+            <i class="fas fa-id-card" style="font-size:0.85rem;opacity:0.9;"></i>
+            <span style="font-size:0.78rem;font-weight:800;letter-spacing:0.4px;">KHATHA-WISE LAND OWNER (పట్టాదారు వివరాలు)</span>
+          </div>
+          <div style="padding:8px 10px;background:#faf5ff;display:flex;flex-wrap:wrap;gap:8px;">
+            ${items}
+          </div>
+        </div>`;
+      })()}
+
       <div style="padding:0.3rem 1rem 0.5rem;">
         <div style="font-size:0.7rem; font-weight:700; color:#1862ab; margin-bottom:0.35rem; text-transform:uppercase; letter-spacing:0.5px;">
           Fertilizer Distribution Schedule
@@ -22834,7 +22966,7 @@ async function voDeleteDistribution(recordKey, bags) {
     const confirmed = confirm(
         "\u26A0\uFE0F VO DELETE & RESTORE\n\n" +
         "Are you sure you want to DELETE this distribution?\n\n" +
-        "\u2705 " + bags + " bag(s) will be RESTORED to the farmer's account.\n\n" +
+        "\u2705 " + bags + " bag(s) will be RESTORED to the farmer's account so they can avail again.\n\n" +
         "This action is logged and cannot be undone."
     );
     if (!confirmed) return;
@@ -22845,44 +22977,25 @@ async function voDeleteDistribution(recordKey, bags) {
         if (!record) { alert('Record not found.'); return; }
 
         const ops = [];
-
-        // 1. Mark distribution as Cancelled with VO metadata
-        ops.push(database.ref('fertilizerDistributions/' + recordKey).update({
-            status: 'Cancelled',
-            retailerVerified: false,
-            deletedAt: new Date().toISOString(),
-            deletedByVO: true,
-            voDeletionNote: 'Deleted by VO via Print Farmer Profile — bags restored'
-        }));
-
-        // 2. Restore bags in farmerProfiles (split-level availed)
-        const voUid    = record.voUid;
+        const voUid    = record.voUid || (firebase.auth().currentUser ? firebase.auth().currentUser.uid : '');
         const a        = String(record.aadhaar || '').replace(/\s/g, '');
         const fert     = record.fertilizerType || record.fert || 'Urea';
-        const splitIdx = record.splitIndex !== undefined ? record.splitIndex : 0;
+        const splitIdx = record.splitIndex !== undefined ? Number(record.splitIndex) : 0;
         const bagCount = Number(record.bags || record.bagsDistributing || 0);
         const year     = record.cropYear || record.year || '';
         const season   = record.season || '';
         const splitKey = 's' + splitIdx;
 
-        if (voUid && a) {
-            const splitPath = `users/${voUid}/farmerProfiles/${a}/splits/${fert}/${splitKey}/availed`;
-            ops.push(
-                database.ref(splitPath).once('value').then(avSnap => {
-                    const prev = Number(avSnap.val()) || 0;
-                    return database.ref(splitPath).set(Math.max(0, prev - bagCount));
-                })
-            );
-            const topPath = `users/${voUid}/farmerProfiles/${a}/availed/${year}_${season}_${fert}_s${splitIdx}`;
-            ops.push(
-                database.ref(topPath).once('value').then(avSnap2 => {
-                    const prev2 = Number(avSnap2.val()) || 0;
-                    return database.ref(topPath).set(Math.max(0, prev2 - bagCount));
-                })
-            );
-        }
+        // 1. Mark distribution as Cancelled
+        ops.push(database.ref('fertilizerDistributions/' + recordKey).update({
+            status: 'Cancelled',
+            retailerVerified: false,
+            deletedAt: new Date().toISOString(),
+            deletedByVO: true,
+            voDeletionNote: 'Deleted by VO via Print Farmer Profile \u2014 bags restored'
+        }));
 
-        // 3. Cancel matching ureaHistory record
+        // 2. Cancel matching ureaHistory record
         ops.push(
             database.ref('ureaHistory/' + recordKey).update({
                 status: 'Cancelled',
@@ -22891,9 +23004,64 @@ async function voDeleteDistribution(recordKey, bags) {
             }).catch(() => {})
         );
 
+        if (voUid && a && bagCount > 0) {
+            // 3. Restore split-level availed bags
+            const splitPath = `users/${voUid}/farmerProfiles/${a}/splits/${fert}/${splitKey}/availed`;
+            ops.push(
+                database.ref(splitPath).once('value').then(avSnap => {
+                    const prev = Number(avSnap.val()) || 0;
+                    return database.ref(splitPath).set(Math.max(0, prev - bagCount));
+                })
+            );
+
+            // 4. Restore top-level availed counter
+            const topPath = `users/${voUid}/farmerProfiles/${a}/availed/${year}_${season}_${fert}_s${splitIdx}`;
+            ops.push(
+                database.ref(topPath).once('value').then(avSnap2 => {
+                    const prev2 = Number(avSnap2.val()) || 0;
+                    return database.ref(topPath).set(Math.max(0, prev2 - bagCount));
+                })
+            );
+
+            // 5. Cancel matching availedTransactions entry so farmer card updates
+            const txLogPath = `users/${voUid}/farmerProfiles/${a}/availedTransactions`;
+            ops.push(
+                database.ref(txLogPath).once('value').then(txSnap => {
+                    if (!txSnap.exists()) return;
+                    const cancelOps = [];
+                    const recDate = record.date || (record.verifiedAt ? record.verifiedAt.substring(0, 10) : '') || '';
+                    txSnap.forEach(child => {
+                        const tx = child.val();
+                        if (!tx || tx.status === 'Cancelled') return;
+                        const txDate = tx.date || (tx.verifiedAt ? tx.verifiedAt.substring(0, 10) : '') || '';
+                        const keyMatch     = child.key === recordKey || child.key === ('availedTx_' + recordKey);
+                        const contentMatch =
+                            (tx.fert || 'Urea') === fert &&
+                            Number(tx.splitIndex) === splitIdx &&
+                            Number(tx.bags || 0) === bagCount &&
+                            (!recDate || !txDate || txDate === recDate);
+                        if (keyMatch || contentMatch) {
+                            cancelOps.push(
+                                database.ref(txLogPath + '/' + child.key).update({
+                                    status: 'Cancelled',
+                                    deletedAt: new Date().toISOString(),
+                                    deletedByVO: true
+                                })
+                            );
+                        }
+                    });
+                    return Promise.all(cancelOps);
+                }).catch(() => {})
+            );
+        }
+
         await Promise.all(ops);
-        alert('\u2705 Distribution deleted successfully!\n' + bagCount + ' bag(s) have been restored to the farmer.');
-        loadDistributionDetailsForVO(); // Refresh table
+        alert('\u2705 Distribution deleted successfully!\n' + bagCount + ' bag(s) have been restored to the farmer.\nThe farmer card will update automatically.');
+        loadDistributionDetailsForVO();
+        // Also refresh the print farmer profile if it is open
+        if (typeof loadPrintFarmerProfile === 'function') {
+            loadPrintFarmerProfile().catch(() => {});
+        }
     } catch(err) {
         console.error('VO delete error:', err);
         alert('\u274C Failed to delete. Please try again.\n' + err.message);
