@@ -79,7 +79,7 @@
          * {
          *   "rules": {
          *     "users": {
-         *       ".read": "auth != null",
+         *       ".read": "auth != null && (root.child('users').child(auth.uid).child('profile/role').val() == 'admin' || root.child('users').child(auth.uid).child('profile/role').val() == 'mandal_officer' || root.child('users').child(auth.uid).child('profile/role').val() == 'divisional_officer' || auth.token.email == 'adminagriworkspace@gmail.com')",
          *       "$uid": {
          *         ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')",
          *         ".write": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')",
@@ -167,7 +167,7 @@
          *     "registrationCounters": {
          *       ".read": "auth != null",
          *       "$village_season_key": {
-         *         ".write": "auth != null && (!data.exists() || newData.val() == data.val() + 1)"
+         *         ".write": "auth != null"
          *       }
          *     },
          *     "registrationRecycled": {
@@ -185,7 +185,23 @@
          *     "fertilizerCards": {
          *       ".read": "auth != null",
          *       ".write": "auth != null",
-         *       ".indexOn": ["aadhaar", "voUid"]
+         *       ".indexOn": ["aadhaar", "voUid"],
+         *       "$cardId": {
+         *         ".read": "auth != null",
+         *         ".write": "auth != null",
+         *         "editCount": {
+         *           ".read": "auth != null",
+         *           ".write": "auth != null && (newData.val() == null || newData.isNumber())"
+         *         },
+         *         "eligibleOverride": {
+         *           ".read": "auth != null",
+         *           ".write": "auth != null"
+         *         },
+         *         "splits": {
+         *           ".read": "auth != null",
+         *           ".write": "auth != null"
+         *         }
+         *       }
          *     },
          *     "voOutlets": {
          *       ".read": "auth != null",
@@ -223,6 +239,7 @@
          *       ".indexOn": ["mandal", "retailerId", "status"]
          *     },
          *     "grievances": {
+         *       ".read": "auth != null && (root.child('users').child(auth.uid).child('profile/role').val() == 'admin' || root.child('users').child(auth.uid).child('profile/role').val() == 'mandal_officer' || auth.token.email == 'adminagriworkspace@gmail.com')",
          *       "$uid": {
          *         ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')",
          *         ".write": "auth != null && (auth.uid == $uid || auth.token.email == 'adminagriworkspace@gmail.com')",
@@ -238,17 +255,21 @@
          *
          * ════════════════════════════════════════════════════════════════
          *  KEY NOTES:
+         *  — users (root): read restricted to admin, mandal_officer,
+         *    divisional_officer roles and superadmin email only.
+         *    Per-$uid read/write remains for own profile access.
          *  — ureaHistory (root-level): global index on aadhaar for fast
          *    cross-VAA distribution lookups.
-         *  — voUreaHistory & farmerProfiles: now open read/write for all
+         *  — voUreaHistory & farmerProfiles: open read/write for all
          *    authenticated users so cross-VAA profile access works.
          *  — allReports: new node under $uid for storing e-Panta reports
          *    per VAA (owner + admin access only).
          *  — retailerStock: new node under $uid for retailer stock tracking.
-         *  — fertilizerCards: new root-level node with aadhaar + voUid index
-         *    for fast card lookup across VAAs.
-         *  — registrationCounters: write restricted to atomic increment
-         *    only (newData == data + 1) to prevent counter manipulation.
+         *  — fertilizerCards: now includes $cardId sub-rules with granular
+         *    write validation on editCount (must be null or number) and
+         *    explicit read/write on eligibleOverride and splits sub-nodes.
+         *  — registrationCounters: write now open to all auth users
+         *    (atomic increment restriction removed for flexibility).
          *  — registrationRecycled: per-key .indexOn [".value"] for
          *    efficient recycled number lookups.
          *  — deleteRequests: .indexOn on status, voMandal, voUid for
@@ -257,19 +278,17 @@
          *    can submit reset requests before authentication.
          *  — fertilizerRequests: mandal + retailerId + status indexes for
          *    efficient fertilizer request queue queries.
-         *  — grievances: per-user node with timestamp index; owner + admin.
+         *  — grievances: root-level read restricted to admin/mandal_officer
+         *    roles; per-$uid read/write for owner + admin.
          *  — distributionUpdates: Retailer writes distribute/reject actions;
-         *    VO reads them in real-time. Without this rule all retailer
-         *    actions get permission_denied.
+         *    VO reads them in real-time.
          *  — pendingUsers: write is open (true) at the per-record level so
-         *    unauthenticated new users can submit registration requests before
-         *    they have an account. Only admin can read the list.
+         *    unauthenticated new users can submit registration requests.
+         *    Only admin can read the list.
          *  — approvedUsers / rejectedUsers: admin-only write; used to track
          *    final approval/rejection state separately from pendingUsers.
-         *  — fertilizerDistributions uses .indexOn for outletId, status & aadhaar
-         *    to avoid slow query warnings in Firebase console. Without "aadhaar"
-         *    the orderByChild("aadhaar") query in loadPrintFarmerProfile downloads
-         *    the entire collection to the client before filtering.
+         *  — fertilizerDistributions uses .indexOn for outletId, status &
+         *    aadhaar to avoid slow query warnings in Firebase console.
          * ════════════════════════════════════════════════════════════════
          */
 
