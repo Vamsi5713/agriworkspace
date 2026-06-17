@@ -18002,14 +18002,12 @@ async function deleteDistribution(recordKey) {
         const season   = record.season || '';
         const splitKey = 's' + splitIdx;
 
-        // Resolve voUid — the farmerCardQR flow does NOT write voUid into fertilizerDistributions,
-        // so fall back to reading it from fertilizerCards/{farmerCardKey} which always has it.
+        // Resolve voUid
         let voUid = record.voUid || '';
         if (!voUid && record.farmerCardKey) {
             const fcSnap = await database.ref('fertilizerCards/' + record.farmerCardKey + '/voUid').once('value');
             voUid = fcSnap.val() || '';
         }
-        // Last resort: derive fcKey from aadhaar+year+season and look up voUid there
         if (!voUid && a && year && season) {
             const derivedFcKey = a + '_' + String(year).replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
             const fcSnap2 = await database.ref('fertilizerCards/' + derivedFcKey + '/voUid').once('value');
@@ -18027,18 +18025,18 @@ async function deleteDistribution(recordKey) {
             retailerDeletionNote: 'Deleted by Retailer \u2014 bags restored to farmer'
         }));
 
-        // 2. Cancel matching ureaHistory record (ALL distribution types) — root node used by VO card
+        // 2. Cancel matching ureaHistory record
         ops.push(database.ref('ureaHistory/' + recordKey).update({
             status: 'Cancelled',
             deletedAt: new Date().toISOString(),
             deletedByRetailer: true
         }).catch(() => {}));
 
-        // 2b. Also cancel in-memory ureaHistory so VO card reflects restoration instantly
+        // 2b. Cancel in-memory ureaHistory
         const memIdx = ureaHistory.findIndex(h => h._key === recordKey);
         if (memIdx >= 0) ureaHistory[memIdx].status = 'Cancelled';
 
-        // 3. Restore availed bags in farmerProfiles for ALL distribution types
+        // 3. Restore availed bags in farmerProfiles
         if (voUid && a && bags > 0) {
             // 3a. Reduce split-level availed counter
             const profileSplitPath = `users/${voUid}/farmerProfiles/${a}/splits/${fert}/${splitKey}/availed`;
@@ -18058,7 +18056,7 @@ async function deleteDistribution(recordKey) {
                 })
             );
 
-            // 3c. Cancel matching availedTransactions entry so farmer card reflects restored bags
+            // 3c. Cancel matching availedTransactions
             const txLogPath = `users/${voUid}/farmerProfiles/${a}/availedTransactions`;
             ops.push(
                 database.ref(txLogPath).once('value').then(txSnap => {
@@ -18089,12 +18087,7 @@ async function deleteDistribution(recordKey) {
                 }).catch(() => {})
             );
 
-            // 3c2. submitFarmerCardDistribution() writes the SAME distribution event to BOTH
-            //      the global /ureaHistory node (cancelled above, step 2) AND
-            //      users/{voUid}/ureaHistory under a DIFFERENT push key. Without this,
-            //      that second copy is never marked Cancelled, so the VO's farmer-card
-            //      merge logic re-adds it as a phantom still-active record and the bags
-            //      never actually return to the farmer's eligible/remaining count.
+            // 3d. Cancel matching records in users/{voUid}/ureaHistory
             ops.push(
                 database.ref(`users/${voUid}/ureaHistory`).once('value').then(voHistSnap => {
                     if (!voHistSnap.exists()) return;
@@ -18127,7 +18120,7 @@ async function deleteDistribution(recordKey) {
                 }).catch(() => {})
             );
 
-            // 3d. Notify VO via distributionUpdates so farmer card auto-refreshes on VO side
+            // 3e. Notify VO via distributionUpdates
             if (voUid) {
                 const actionKey = database.ref('distributionUpdates/' + voUid).push().key;
                 if (actionKey) {
@@ -18150,10 +18143,32 @@ async function deleteDistribution(recordKey) {
                 }
             }
 
-            // 3e. If a VO had manually corrected "Availed Bags" for this card/split
-            //     (Edit Availed Bags override), reduce that correction by the same
-            //     amount so it stays in sync with the restored bags instead of going
-            //     stale on the farmer's card and the retailer's QR scan.
+            // 3f. Update fertilizerDistributions for this farmer to mark as VO-corrected
+            try {
+                const fdSnap = await database.ref('fertilizerDistributions')
+                    .orderByChild('aadhaar')
+                    .equalTo(a)
+                    .once('value');
+                if (fdSnap.exists()) {
+                    fdSnap.forEach(child => {
+                        const r = child.val();
+                        if (!r) return;
+                        if ((r.year || '') !== year || (r.season || '') !== season) return;
+                        const rFert = r.fertilizerType || r.fert || 'Urea';
+                        const rSplit = r.splitIndex !== undefined ? Number(r.splitIndex) : 0;
+                        if (rFert === fert && rSplit === splitIdx) {
+                            ops.push(
+                                database.ref('fertilizerDistributions/' + child.key).update({
+                                    availedDeletedByRetailer: true,
+                                    availedDeletedAt: new Date().toISOString()
+                                })
+                            );
+                        }
+                    });
+                }
+            } catch(e) { /* ignore */ }
+
+            // 3g. If a VO had manually corrected "Availed Bags" for this card/split, reduce it
             if (year && season) {
                 const fcKeyForOv = a + '_' + String(year).replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
                 const ovPath = `fertilizerCards/${fcKeyForOv}/availedOverride/${fert}/${splitKey}`;
@@ -18169,11 +18184,7 @@ async function deleteDistribution(recordKey) {
 
         await Promise.all(ops);
 
-        // BUGFIX: Immediately mark ALL matching ureaHistory records as Cancelled in memory.
-        // This covers both the direct _key match and content-fingerprint duplicates (VO-history
-        // copy, farmerCardQR path). Without this, processFarmerCardQr called from the inline
-        // Delete button can re-merge a stale 'Distributed' record from Firebase before the server
-        // write propagates, causing availed bags to appear non-zero on rescan.
+        // Mark ALL matching ureaHistory records as Cancelled in memory
         ureaHistory.forEach((h, idx) => {
             const hKey  = h._key || '';
             const hA    = String(h.aadhaar || '').replace(/\s/g, '');
@@ -18822,7 +18833,21 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             if (availedOverride) {
                 const ovFert = availedOverride[fert] || {};
                 const ovVal  = ovFert['s' + splitIdx];
-                if (ovVal !== undefined && ovVal !== null) return Number(ovVal) || 0;
+                if (ovVal !== undefined && ovVal !== null) {
+                    // BUG FIX: availedOverride must never go below the count of genuine
+                    // retailer distributions that are still active in fertilizerDistributions.
+                    // If the VO correction was set to 0 but 3 bags were actually issued via
+                    // retailer QR scan, the real issued count (fromFdForOverride) takes priority
+                    // so that Remaining is never inflated above what is truly left.
+                    const fdRecsForOv = window._fcQrIssuedRecords || [];
+                    const fromFdForOverride = fdRecsForOv
+                        .filter(r =>
+                            (r.fertilizerType || r.fert || 'Urea') === fert &&
+                            Number(r.splitIndex !== undefined ? r.splitIndex : 0) === splitIdx
+                        )
+                        .reduce((s, r) => s + Number(r.bags || 0), 0);
+                    return Math.max(Number(ovVal) || 0, fromFdForOverride);
+                }
             }
             // Count from local ureaHistory cache
             const fromHistory = ureaHistory
@@ -19171,26 +19196,26 @@ function askConfirmFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr
     const sel  = document.getElementById('fcFertSelect_' + fcKey);
     const fert = sel ? sel.value : 'Urea';
 
-    // Collect entries for the SELECTED fertilizer only
-    function _availed(f, splitIdx) {
-        const fromHistory = ureaHistory
-            .filter(h =>
-                String(h.aadhaar||'').replace(/\s/g,'') === a &&
-                String(h.fertilizerType||h.fert||'Urea').trim() === f &&
-                String(h.season||'').trim() === season &&
-                String(h.year||'').trim() === year &&
-                parseInt(h.splitIndex) === splitIdx &&
-                h.status !== 'Rejected' && h.status !== 'Cancelled'
-            )
-            .reduce((s,h) => s + Number(h.bags||0), 0);
-        const fdRecs = window._fcQrIssuedRecords || [];
-        const fromFd = fdRecs
-            .filter(r =>
-                (r.fertilizerType || r.fert || 'Urea') === f &&
-                Number(r.splitIndex !== undefined ? r.splitIndex : 0) === splitIdx
-            )
-            .reduce((s,r) => s + Number(r.bags||0), 0);
-        return Math.max(fromHistory, fromFd);
+    // Read remaining directly from the DOM input max attributes — these were computed
+    // correctly by processFarmerCardQr (which uses the authoritative _availed with
+    // availedOverride support). Re-implementing _availed here risks double-counting
+    // VO history records or ignoring manual overrides.
+    function _remFromDom(f, splitIdx) {
+        const inputId = f === 'Urea' ? ('fcBagsU_' + splitIdx) : ('fcBagsD_' + splitIdx);
+        const el = document.getElementById(inputId);
+        if (!el) return 0;
+        const maxAttr = el.getAttribute('max');
+        return maxAttr !== null ? (parseInt(maxAttr) || 0) : 0;
+    }
+
+    // For sequential-split lock checks we still need to know if a prior split had
+    // eligible bags that are NOT yet distributed (remaining == eligible > 0).
+    function _splitFullyDistributed(f, splitIdx) {
+        const eligArr2 = f === 'Urea' ? uEligArr : dEligArr;
+        const elig = eligArr2[splitIdx] || 0;
+        if (elig === 0) return true; // nothing eligible → not a blocker
+        const rem = _remFromDom(f, splitIdx);
+        return rem === 0; // remaining == 0 means fully distributed
     }
 
     const eligArr = fert === 'Urea' ? uEligArr : dEligArr;
@@ -19205,12 +19230,12 @@ function askConfirmFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr
 
         // Sequential split check
         for (let prev = 0; prev < si; prev++) {
-            if ((eligArr[prev]||0) > 0 && _availed(fert, prev) === 0) {
+            if (!_splitFullyDistributed(fert, prev)) {
                 if (errEl) { errEl.textContent = `Cannot distribute ${splitNames[si]} ${fert} — ${splitNames[prev]} (${eligArr[prev]} bags) has not been distributed yet.`; errEl.classList.remove('d-none'); }
                 return;
             }
         }
-        const rem = Math.max(0, (eligArr[si]||0) - _availed(fert, si));
+        const rem = _remFromDom(fert, si);
         if (bags > rem) {
             if (errEl) { errEl.textContent = `${splitNames[si]} ${fert}: requested ${bags} bags but only ${rem} remaining.`; errEl.classList.remove('d-none'); }
             return;
@@ -19295,26 +19320,21 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         entries = precomputedEntries.map(e => ({ fert: e.fert, splitIdx: e.splitIdx, bags: e.bags }));
         hasAny = entries.length > 0;
     } else {
-    // Validate — re-compute remaining live
-    function _availed(fert, splitIdx) {
-        const fromHistory = ureaHistory
-            .filter(h =>
-                String(h.aadhaar||'').replace(/\s/g,'') === a &&
-                String(h.fertilizerType||h.fert||'Urea').trim() === fert &&
-                String(h.season||'').trim() === season &&
-                String(h.year||'').trim() === year &&
-                parseInt(h.splitIndex) === splitIdx &&
-                h.status !== 'Rejected' && h.status !== 'Cancelled'
-            )
-            .reduce((s,h) => s + Number(h.bags||0), 0);
-        const fdRecs = window._fcQrIssuedRecords || [];
-        const fromFd = fdRecs
-            .filter(r =>
-                (r.fertilizerType || r.fert || 'Urea') === fert &&
-                Number(r.splitIndex !== undefined ? r.splitIndex : 0) === splitIdx
-            )
-            .reduce((s,r) => s + Number(r.bags||0), 0);
-        return Math.max(fromHistory, fromFd);
+    // Validate using DOM max attributes — these were correctly computed by processFarmerCardQr
+    // (with availedOverride support). Re-implementing _availed here risks double-counting VO
+    // history records or ignoring manual overrides, causing false "0 remaining" errors.
+    function _remFromDom2(fert, splitIdx) {
+        const inputId = fert === 'Urea' ? ('fcBagsU_' + splitIdx) : ('fcBagsD_' + splitIdx);
+        const el = document.getElementById(inputId);
+        if (!el) return 0;
+        const maxAttr = el.getAttribute('max');
+        return maxAttr !== null ? (parseInt(maxAttr) || 0) : 0;
+    }
+    function _splitDone2(fert, splitIdx) {
+        const eligArr2 = fert === 'Urea' ? uEligArr : dEligArr;
+        const elig = eligArr2[splitIdx] || 0;
+        if (elig === 0) return true;
+        return _remFromDom2(fert, splitIdx) === 0;
     }
 
     const entries2 = [];
@@ -19326,7 +19346,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         const splitNames = ['Split 1', 'Split 2', 'Split 3'];
         if (bagsU > 0) {
             for (let prev = 0; prev < si; prev++) {
-                if ((uEligArr[prev]||0) > 0 && _availed('Urea', prev) === 0) {
+                if (!_splitDone2('Urea', prev)) {
                     if (errEl) { errEl.textContent = `Cannot distribute ${splitNames[si]} Urea — ${splitNames[prev]} (${uEligArr[prev]} bags) has not been distributed yet.`; errEl.classList.remove('d-none'); }
                     return;
                 }
@@ -19334,7 +19354,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         }
         if (bagsD > 0) {
             for (let prev = 0; prev < si; prev++) {
-                if ((dEligArr[prev]||0) > 0 && _availed('DAP', prev) === 0) {
+                if (!_splitDone2('DAP', prev)) {
                     if (errEl) { errEl.textContent = `Cannot distribute ${splitNames[si]} DAP — ${splitNames[prev]} (${dEligArr[prev]} bags) has not been distributed yet.`; errEl.classList.remove('d-none'); }
                     return;
                 }
@@ -19342,7 +19362,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         }
 
         if (bagsU > 0) {
-            const remU = Math.max(0, (uEligArr[si]||0) - _availed('Urea', si));
+            const remU = _remFromDom2('Urea', si);
             if (bagsU > remU) {
                 if (errEl) { errEl.textContent = `Split ${si+1} Urea: requested ${bagsU} bags but only ${remU} remaining.`; errEl.classList.remove('d-none'); }
                 return;
@@ -19351,7 +19371,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
             hasAny = true;
         }
         if (bagsD > 0) {
-            const remD = Math.max(0, (dEligArr[si]||0) - _availed('DAP', si));
+            const remD = _remFromDom2('DAP', si);
             if (bagsD > remD) {
                 if (errEl) { errEl.textContent = `Split ${si+1} DAP: requested ${bagsD} bags but only ${remD} remaining.`; errEl.classList.remove('d-none'); }
                 return;
@@ -24496,6 +24516,46 @@ window.saveEditedAvailedBags = async function() {
             availedOverriddenByVO: user.uid,
             availedEditCount: newEditCount
         });
+
+        // ── NEW: Update /fertilizerDistributions records for this farmer to reflect VO correction ──
+        try {
+            const fdSnap = await database.ref('fertilizerDistributions')
+                .orderByChild('aadhaar')
+                .equalTo(aadhaar)
+                .once('value');
+            if (fdSnap.exists()) {
+                const updateOps = [];
+                fdSnap.forEach(child => {
+                    const r = child.val();
+                    if (!r) return;
+                    if ((r.year || '') !== year || (r.season || '') !== season) return;
+                    const rFert = r.fertilizerType || r.fert || 'Urea';
+                    const rSplit = r.splitIndex !== undefined ? Number(r.splitIndex) : 0;
+                    let newAvailed = 0;
+                    if (rFert === 'Urea') {
+                        if (rSplit === 0) newAvailed = u1;
+                        else if (rSplit === 1) newAvailed = u2;
+                        else if (rSplit === 2) newAvailed = u3;
+                    } else if (rFert === 'DAP') {
+                        if (rSplit === 0) newAvailed = d1;
+                        else if (rSplit === 1) newAvailed = d2;
+                        else if (rSplit === 2) newAvailed = d3;
+                    }
+                    updateOps.push(
+                        database.ref('fertilizerDistributions/' + child.key).update({
+                            voCorrectedAvailed: newAvailed,
+                            voCorrectedAt: Date.now(),
+                            voCorrectedBy: user.uid,
+                            voCorrectedSplit: rSplit,
+                            voCorrectedFert: rFert
+                        })
+                    );
+                });
+                await Promise.all(updateOps);
+            }
+        } catch(e) {
+            console.warn('Could not update fertilizerDistributions:', e.message);
+        }
 
         window.closeEditAvailedBagsModal();
         if (typeof loadPrintFarmerProfile === 'function') await loadPrintFarmerProfile();
