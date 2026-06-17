@@ -9402,7 +9402,7 @@ function getTotalBagsTakenByAadhaarAndCrop(aadhaar, fert, crop, season, year) {
             String(h.crop   || '').trim().toLowerCase() === String(crop   || '').trim().toLowerCase() &&
             String(h.season || '').trim() === String(season || '').trim() &&
             String(h.year   || '').trim() === String(year   || '').trim() &&
-            h.status !== 'Rejected'   // ← Rejected bags are freed back to farmer
+            h.status !== 'Rejected' && h.status !== 'Cancelled'   // ← Rejected/Cancelled bags are freed back to farmer
         )
         .reduce((sum, h) => sum + Number(h.bags || 0), 0);
 }
@@ -9571,7 +9571,7 @@ function getTotalBagsTakenByAadhaarCropAndSplit(aadhaar, fert, crop, season, yea
             String(h.season || '').trim() === String(season || '').trim() &&
             String(h.year   || '').trim() === String(year   || '').trim() &&
             parseInt(h.splitIndex) === parseInt(splitIdx) &&
-            h.status !== 'Rejected'   // ← Rejected bags are freed back to farmer
+            h.status !== 'Rejected' && h.status !== 'Cancelled'   // ← Rejected/Cancelled bags are freed back to farmer
         )
         .reduce((sum, h) => sum + Number(h.bags || 0), 0);
 }
@@ -9584,7 +9584,7 @@ function getTotalBagsTakenByKhatha(khatha, fert, season, year) {
             String(h.fertilizerType || h.fert || 'Urea').trim() === String(fert).trim() &&
             String(h.season || '').trim() === String(season || '').trim() &&
             String(h.year   || '').trim() === String(year   || '').trim() &&
-            h.status !== 'Rejected'   // ← Rejected bags are freed back to farmer
+            h.status !== 'Rejected' && h.status !== 'Cancelled'   // ← Rejected/Cancelled bags are freed back to farmer
         )
         .reduce((sum, h) => sum + Number(h.bags || 0), 0);
 }
@@ -14840,7 +14840,7 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '') {
                 .filter(h =>
                     String(h.aadhaar || '').replace(/\D/g, '') === aClean &&
                     String(h.fertilizerType || h.fert || 'Urea').trim() === selectedFert &&
-                    h.status !== 'Rejected'
+                    h.status !== 'Rejected' && h.status !== 'Cancelled'
                 )
                 .reduce((sum, h) => sum + Number(h.bags || 0), 0);
         }
@@ -17994,8 +17994,6 @@ async function deleteDistribution(recordKey) {
             return;
         }
 
-        const ops = [];
-        const voUid    = record.voUid || '';
         const a        = String(record.aadhaar || '').replace(/\s/g, '');
         const fert     = record.fertilizerType || record.fert || 'Urea';
         const splitIdx = record.splitIndex !== undefined ? Number(record.splitIndex) : 0;
@@ -18003,6 +18001,22 @@ async function deleteDistribution(recordKey) {
         const year     = record.cropYear || record.year || '';
         const season   = record.season || '';
         const splitKey = 's' + splitIdx;
+
+        // Resolve voUid — the farmerCardQR flow does NOT write voUid into fertilizerDistributions,
+        // so fall back to reading it from fertilizerCards/{farmerCardKey} which always has it.
+        let voUid = record.voUid || '';
+        if (!voUid && record.farmerCardKey) {
+            const fcSnap = await database.ref('fertilizerCards/' + record.farmerCardKey + '/voUid').once('value');
+            voUid = fcSnap.val() || '';
+        }
+        // Last resort: derive fcKey from aadhaar+year+season and look up voUid there
+        if (!voUid && a && year && season) {
+            const derivedFcKey = a + '_' + String(year).replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
+            const fcSnap2 = await database.ref('fertilizerCards/' + derivedFcKey + '/voUid').once('value');
+            voUid = fcSnap2.val() || '';
+        }
+
+        const ops = [];
 
         // 1. Mark fertilizerDistributions record as Cancelled
         ops.push(recordRef.update({
@@ -18075,6 +18089,44 @@ async function deleteDistribution(recordKey) {
                 }).catch(() => {})
             );
 
+            // 3c2. submitFarmerCardDistribution() writes the SAME distribution event to BOTH
+            //      the global /ureaHistory node (cancelled above, step 2) AND
+            //      users/{voUid}/ureaHistory under a DIFFERENT push key. Without this,
+            //      that second copy is never marked Cancelled, so the VO's farmer-card
+            //      merge logic re-adds it as a phantom still-active record and the bags
+            //      never actually return to the farmer's eligible/remaining count.
+            ops.push(
+                database.ref(`users/${voUid}/ureaHistory`).once('value').then(voHistSnap => {
+                    if (!voHistSnap.exists()) return;
+                    const cancelOps = [];
+                    const recDate = record.date || (record.verifiedAt ? record.verifiedAt.substring(0, 10) : '') || '';
+                    voHistSnap.forEach(child => {
+                        const v = child.val();
+                        if (!v || v.status === 'Cancelled') return;
+                        if (String(v.aadhaar || '').replace(/\s/g, '') !== a) return;
+                        const vDate = v.date || (v.verifiedAt ? v.verifiedAt.substring(0, 10) : '') || '';
+                        const contentMatch =
+                            (v.fertilizerType || v.fert || 'Urea') === fert &&
+                            Number(v.splitIndex) === splitIdx &&
+                            Number(v.bags || 0) === bags &&
+                            String(v.year || '') === String(year) &&
+                            String(v.season || '') === String(season) &&
+                            (!recDate || !vDate || vDate === recDate);
+                        if (contentMatch) {
+                            cancelOps.push(
+                                database.ref(`users/${voUid}/ureaHistory/${child.key}`).update({
+                                    status: 'Cancelled',
+                                    retailerVerified: false,
+                                    deletedAt: new Date().toISOString(),
+                                    deletedByRetailer: true
+                                })
+                            );
+                        }
+                    });
+                    return Promise.all(cancelOps);
+                }).catch(() => {})
+            );
+
             // 3d. Notify VO via distributionUpdates so farmer card auto-refreshes on VO side
             if (voUid) {
                 const actionKey = database.ref('distributionUpdates/' + voUid).push().key;
@@ -18097,9 +18149,47 @@ async function deleteDistribution(recordKey) {
                     }));
                 }
             }
+
+            // 3e. If a VO had manually corrected "Availed Bags" for this card/split
+            //     (Edit Availed Bags override), reduce that correction by the same
+            //     amount so it stays in sync with the restored bags instead of going
+            //     stale on the farmer's card and the retailer's QR scan.
+            if (year && season) {
+                const fcKeyForOv = a + '_' + String(year).replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
+                const ovPath = `fertilizerCards/${fcKeyForOv}/availedOverride/${fert}/${splitKey}`;
+                ops.push(
+                    database.ref(ovPath).once('value').then(ovSnap => {
+                        if (!ovSnap.exists()) return;
+                        const prevOv = Number(ovSnap.val()) || 0;
+                        return database.ref(ovPath).set(Math.max(0, prevOv - bags));
+                    }).catch(() => {})
+                );
+            }
         }
 
         await Promise.all(ops);
+
+        // BUGFIX: Immediately mark ALL matching ureaHistory records as Cancelled in memory.
+        // This covers both the direct _key match and content-fingerprint duplicates (VO-history
+        // copy, farmerCardQR path). Without this, processFarmerCardQr called from the inline
+        // Delete button can re-merge a stale 'Distributed' record from Firebase before the server
+        // write propagates, causing availed bags to appear non-zero on rescan.
+        ureaHistory.forEach((h, idx) => {
+            const hKey  = h._key || '';
+            const hA    = String(h.aadhaar || '').replace(/\s/g, '');
+            const hFert = String(h.fertilizerType || h.fert || 'Urea').trim();
+            const keyMatch     = hKey === recordKey;
+            const contentMatch = hA === a && hFert === fert &&
+                                 parseInt(h.splitIndex) === splitIdx &&
+                                 Number(h.bags || 0) === bags &&
+                                 String(h.year   || '') === String(year) &&
+                                 String(h.season || '') === String(season) &&
+                                 h.status !== 'Cancelled';
+            if (keyMatch || contentMatch) {
+                ureaHistory[idx] = { ...ureaHistory[idx], status: 'Cancelled',
+                    deletedAt: new Date().toISOString(), deletedByRetailer: true };
+            }
+        });
         alert('\u2705 Distribution deleted!\n\n' + bags + ' ' + fert + ' bag(s) have been RESTORED to the farmer\'s eligible account.\nThe farmer can now avail these bags again from any outlet.');
         loadRetailerHistory();
 
@@ -18655,18 +18745,56 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             histSnap.forEach(child => {
                 const v = child.val();
                 const existIdx = ureaHistory.findIndex(h => h._key === child.key);
-                if (existIdx >= 0) ureaHistory[existIdx] = { ...v, _key: child.key };
-                else ureaHistory.push({ ...v, _key: child.key });
+                if (existIdx >= 0) {
+                    // BUGFIX: If the in-memory record is already Cancelled (e.g. retailer just
+                    // deleted it and Firebase hasn't fully propagated yet), do NOT overwrite it
+                    // with a stale 'Distributed' status from the server. Preserve the Cancelled
+                    // status so _availed() correctly excludes this record in the re-scan.
+                    const inMemStatus = ureaHistory[existIdx].status;
+                    if (inMemStatus === 'Cancelled' && (v.status === 'Distributed' || !v.status)) {
+                        // Keep in-memory Cancelled but update non-status fields
+                        ureaHistory[existIdx] = { ...v, _key: child.key, status: 'Cancelled',
+                            deletedByRetailer: ureaHistory[existIdx].deletedByRetailer || v.deletedByRetailer };
+                    } else {
+                        ureaHistory[existIdx] = { ...v, _key: child.key };
+                    }
+                } else {
+                    ureaHistory.push({ ...v, _key: child.key });
+                }
             });
         }
         // Merge in the Village Officer's per-user ureaHistory records for this farmer
         // (recorded via the farmer profile / print flow, stored under users/{voUid}/ureaHistory)
+        //
+        // IMPORTANT — duplicate-counting fix:
+        // submitFarmerCardDistribution() writes the SAME distribution event to BOTH the
+        // global /ureaHistory node AND users/{voUid}/ureaHistory (with a different push key).
+        // Earlier this merge added both copies as distinct entries, so _availed() summed
+        // them together (e.g. a real 2-bag distribution showed as "Availed: 4"). We now
+        // skip the VO-scoped copy whenever a content-matching record (same farmer, fert,
+        // split, bag count, year/season, and the same verified/distributed timestamp) is
+        // already present from the global ureaHistory merge above.
         if (voHistSnap && voHistSnap.exists()) {
             const voArr = voHistSnap.val();
             const voList = Array.isArray(voArr) ? voArr : Object.values(voArr || {});
             voList.forEach((v, idx) => {
                 if (!v || String(v.aadhaar||'').replace(/\s/g,'') !== a) return;
                 const vKey = 'vo_' + voUidClean + '_' + idx;
+                const isDuplicateOfGlobalRecord = ureaHistory.some(h =>
+                    h._key !== vKey &&
+                    String(h.aadhaar||'').replace(/\s/g,'') === a &&
+                    String(h.fertilizerType||h.fert||'Urea').trim() === String(v.fertilizerType||v.fert||'Urea').trim() &&
+                    parseInt(h.splitIndex) === parseInt(v.splitIndex) &&
+                    Number(h.bags||0) === Number(v.bags||0) &&
+                    String(h.year||'') === String(v.year||'') &&
+                    String(h.season||'') === String(v.season||'') &&
+                    (
+                        (h.verifiedAt && v.verifiedAt && h.verifiedAt === v.verifiedAt) ||
+                        (h.distributedAt && v.distributedAt && h.distributedAt === v.distributedAt) ||
+                        (h.fcKey && v.fcKey && h.fcKey === v.fcKey && h.date === v.date)
+                    )
+                );
+                if (isDuplicateOfGlobalRecord) return; // already counted via the global /ureaHistory copy
                 const existIdx = ureaHistory.findIndex(h => h._key === vKey);
                 if (existIdx >= 0) ureaHistory[existIdx] = { ...v, _key: vKey };
                 else ureaHistory.push({ ...v, _key: vKey });
@@ -18685,9 +18813,17 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         const splits = fc.splits || {};
         const uElig = [splits.Urea?.s0||0, splits.Urea?.s1||0, splits.Urea?.s2||0];
         const dElig = [splits.DAP?.s0||0,  splits.DAP?.s1||0,  splits.DAP?.s2||0];
+        // VO's manual "Edit Availed Bags" correction (if any) — must take priority over the
+        // raw transaction-log total so the retailer's QR scan matches what the VO sees.
+        const availedOverride = fc.availedOverride || null;
 
         // Compute already availed from ureaHistory + fertilizerDistributions (fdIssuedRecords)
         function _availed(fert, splitIdx) {
+            if (availedOverride) {
+                const ovFert = availedOverride[fert] || {};
+                const ovVal  = ovFert['s' + splitIdx];
+                if (ovVal !== undefined && ovVal !== null) return Number(ovVal) || 0;
+            }
             // Count from local ureaHistory cache
             const fromHistory = ureaHistory
                 .filter(h =>
@@ -18700,7 +18836,9 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 )
                 .reduce((s,h) => s + Number(h.bags||0), 0);
 
-            // Also count from freshly-fetched fertilizerDistributions (most authoritative source)
+            // Also count from freshly-fetched fertilizerDistributions (most authoritative source).
+            // fdIssuedRecords was just loaded from Firebase in this same processFarmerCardQr call,
+            // so it already excludes Cancelled/deleted records (filter: status===Distributed && !==Cancelled).
             const fdRecs = window._fcQrIssuedRecords || [];
             const fromFd = fdRecs
                 .filter(r =>
@@ -18709,9 +18847,36 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 )
                 .reduce((s,r) => s + Number(r.bags||0), 0);
 
-            // Return max of the two to avoid double-counting if both have the same record
-            // Use the higher value since both sources may have overlapping records
-            return Math.max(fromHistory, fromFd);
+            // BUGFIX for delete-then-rescan race condition:
+            // Previously Math.max(fromHistory, fromFd) was used, but this causes stale availed
+            // counts when a retailer deletes a distribution and immediately rescans — the Firebase
+            // propagation may lag, so fromHistory still contains the just-deleted bags, making
+            // _availed() return the wrong (too-high) value even though fromFd is correctly 0.
+            //
+            // Strategy: fertilizerDistributions is the single source of truth for retailer QR
+            // distributions (farmerCardQR path). Count fromFd first. For any ureaHistory records
+            // that are NOT already represented in fdRecs (e.g. older VO-path records without a
+            // corresponding fertilizerDistributions entry), add those on top — but skip records
+            // that originated from the retailer QR path, since their absence from fdRecs means
+            // they were deleted.
+            const fdKeys = new Set(fdRecs.map(r => r._tokenKey).filter(Boolean));
+            const fromHistoryOnly = ureaHistory
+                .filter(h =>
+                    String(h.aadhaar||'').replace(/\s/g,'') === a &&
+                    String(h.fertilizerType||h.fert||'Urea').trim() === fert &&
+                    String(h.season||'').trim() === season &&
+                    String(h.year||'').trim() === year &&
+                    parseInt(h.splitIndex) === splitIdx &&
+                    h.status !== 'Rejected' && h.status !== 'Cancelled' &&
+                    // Exclude records that are already counted in fdRecs
+                    !fdKeys.has(h._key) &&
+                    // Exclude retailer QR distributions: if active they'd be in fdRecs;
+                    // absence means they were deleted — do not count them via ureaHistory
+                    !(h.distributedVia === 'farmerCardQR' || h.retailerDistributedViaFarmerCard || h.distributedByRetailer)
+                )
+                .reduce((s,h) => s + Number(h.bags||0), 0);
+
+            return fromFd + fromHistoryOnly;
         }
 
         const splitNames = ['Split 1 — Basal', 'Split 2 — Top-dress', 'Split 3 — Final'];
@@ -18794,9 +18959,80 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         // ── Build Already-Issued Bags panel from fertilizerDistributions ──
         const fdRecs = window._fcQrIssuedRecords || [];
         let alreadyIssuedHtml = '';
+
+        // ── VO Correction notice banner ──
+        // If the VO has used "Edit Availed Bags", show a prominent notice on the QR scan panel
+        // so the retailer understands the corrected availed totals and remaining eligible bags.
+        let voCorrectionBannerHtml = '';
+        if (availedOverride) {
+            const ovU = availedOverride.Urea || {};
+            const ovD = availedOverride.DAP  || {};
+            // Compute raw (pre-correction) totals from fdRecs
+            const rawU = [0,1,2].map(si =>
+                fdRecs.filter(r => (r.fertilizerType||r.fert||'Urea')==='Urea' && Number(r.splitIndex||0)===si)
+                      .reduce((s,r) => s + Number(r.bags||0), 0)
+            );
+            const rawD = [0,1,2].map(si =>
+                fdRecs.filter(r => (r.fertilizerType||r.fert||'')==='DAP' && Number(r.splitIndex||0)===si)
+                      .reduce((s,r) => s + Number(r.bags||0), 0)
+            );
+            const corrRows = [0,1,2].map(si => {
+                const splitName = ['Split 1 (Basal)','Split 2 (Top-dress)','Split 3 (Final)'][si];
+                const corrU = ovU['s'+si] !== undefined && ovU['s'+si] !== null ? Number(ovU['s'+si]) : null;
+                const corrD = ovD['s'+si] !== undefined && ovD['s'+si] !== null ? Number(ovD['s'+si]) : null;
+                const hasU = corrU !== null && corrU !== rawU[si];
+                const hasD = corrD !== null && corrD !== rawD[si];
+                if (!hasU && !hasD) return '';
+                return `<tr style="font-size:0.75rem;">
+                    <td style="padding:3px 6px;font-weight:600;">${splitName}</td>
+                    ${hasU
+                        ? `<td style="padding:3px 6px;text-align:center;">
+                             <span style="text-decoration:line-through;color:#e74c3c;">${rawU[si]}</span>
+                             <span style="color:#27ae60;font-weight:700;margin-left:4px;">→ ${corrU}</span>
+                           </td>`
+                        : '<td style="padding:3px 6px;text-align:center;color:#999;">—</td>'}
+                    ${hasD
+                        ? `<td style="padding:3px 6px;text-align:center;">
+                             <span style="text-decoration:line-through;color:#e74c3c;">${rawD[si]}</span>
+                             <span style="color:#27ae60;font-weight:700;margin-left:4px;">→ ${corrD}</span>
+                           </td>`
+                        : '<td style="padding:3px 6px;text-align:center;color:#999;">—</td>'}
+                </tr>`;
+            }).filter(Boolean).join('');
+
+            if (corrRows) {
+                voCorrectionBannerHtml = `
+                <div style="background:#e8f8ee;border:2px solid #27ae60;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+                    <div style="font-weight:800;font-size:0.83rem;color:#1a7a45;margin-bottom:6px;">
+                        <i class="fas fa-user-edit me-1"></i> Village Officer Correction Applied
+                        <span style="font-weight:400;font-size:0.72rem;color:#2e7d52;margin-left:6px;">(Availed bags corrected by VO — distribution card updated)</span>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="font-size:0.7rem;color:#555;border-bottom:1px solid #a8ddb5;">
+                            <th style="padding:3px 6px;">Split</th>
+                            <th style="padding:3px 6px;text-align:center;">Urea Availed</th>
+                            <th style="padding:3px 6px;text-align:center;">DAP Availed</th>
+                        </tr></thead>
+                        <tbody>${corrRows}</tbody>
+                    </table>
+                    <div style="margin-top:6px;font-size:0.72rem;color:#2e7d52;">
+                        <i class="fas fa-info-circle me-1"></i>
+                        The remaining eligible bags shown below reflect this VO correction.
+                        Distribute only the corrected remaining quantity.
+                    </div>
+                </div>`;
+            }
+        }
+
         if (fdRecs.length > 0) {
-            const totalFdU = fdRecs.filter(r => (r.fertilizerType||r.fert||'Urea') === 'Urea').reduce((s,r) => s + Number(r.bags||0), 0);
-            const totalFdD = fdRecs.filter(r => (r.fertilizerType||r.fert||'') === 'DAP').reduce((s,r) => s + Number(r.bags||0), 0);
+            // When availedOverride is active, display the VO-corrected totals (from _availed())
+            // instead of the raw fdRecs sum, so the panel is consistent with the remaining count.
+            const totalFdU = availedOverride
+                ? [0,1,2].reduce((s,si) => s + _availed('Urea', si), 0)
+                : fdRecs.filter(r => (r.fertilizerType||r.fert||'Urea') === 'Urea').reduce((s,r) => s + Number(r.bags||0), 0);
+            const totalFdD = availedOverride
+                ? [0,1,2].reduce((s,si) => s + _availed('DAP', si), 0)
+                : fdRecs.filter(r => (r.fertilizerType||r.fert||'') === 'DAP').reduce((s,r) => s + Number(r.bags||0), 0);
             const fdRows = fdRecs.map(r => {
                 const fert = r.fertilizerType || r.fert || 'Urea';
                 const fc2  = fert === 'Urea' ? '#f57c00' : fert === 'DAP' ? '#0277bd' : '#7b1fa2';
@@ -18813,9 +19049,22 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                          <i class="fas fa-trash-alt me-1"></i>Delete
                        </button>`
                     : '';
+                // When VO correction is active, show original bags with strikethrough and corrected value
+                const splitIdx = Number(r.splitIndex || 0);
+                const rawBags  = Number(r.bags || 0);
+                let bagsDisplay = `${rawBags}`;
+                if (availedOverride) {
+                    const ovFert  = availedOverride[fert] || {};
+                    const corrVal = ovFert['s' + splitIdx];
+                    if (corrVal !== undefined && corrVal !== null && Number(corrVal) !== rawBags) {
+                        bagsDisplay = `<span style="text-decoration:line-through;color:#e74c3c;font-size:0.72rem;">${rawBags}</span>
+                                       <span style="color:#27ae60;font-weight:800;margin-left:3px;">${Number(corrVal)}</span>
+                                       <span style="font-size:0.65rem;color:#888;display:block;">VO corrected</span>`;
+                    }
+                }
                 return `<tr style="font-size:0.75rem;">
                     <td><span style="background:${fc2};color:#fff;padding:1px 7px;border-radius:6px;font-weight:700;">${escapeHtml(fert)}</span></td>
-                    <td class="text-center fw-bold">${Number(r.bags||0)}</td>
+                    <td class="text-center fw-bold">${bagsDisplay}</td>
                     <td>${escapeHtml(splitLabel)}</td>
                     <td class="text-muted">${outlet}</td>
                     <td class="text-muted" style="font-size:0.7rem;">${timeStr}</td>
@@ -18826,7 +19075,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             <div style="background:#fff3e0;border:1.5px solid #ffcc80;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
                 <div style="font-weight:700;font-size:0.82rem;color:#e65100;margin-bottom:6px;">
                     <i class="fas fa-history me-1"></i> Already Issued Bags (via Retailer) — ${escapeHtml(year)} · ${escapeHtml(season)}
-                    <span class="ms-2" style="font-size:0.7rem;font-weight:400;color:#b07c00;">(From Distribution Records)</span>
+                    <span class="ms-2" style="font-size:0.7rem;font-weight:400;color:#b07c00;">${availedOverride ? '(VO-corrected totals shown)' : '(From Distribution Records)'}</span>
                 </div>
                 <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;">
@@ -18842,9 +19091,9 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 </table>
                 </div>
                 <div style="margin-top:6px;font-size:0.73rem;color:#b07c00;">
-                    ${totalFdU > 0 ? `<strong>Total Urea Issued: ${totalFdU} bags</strong>` : ''}
+                    ${totalFdU > 0 ? `<strong>Total Urea Availed: ${totalFdU} bags</strong>` : ''}
                     ${totalFdU > 0 && totalFdD > 0 ? ' &nbsp;|&nbsp; ' : ''}
-                    ${totalFdD > 0 ? `<strong>Total DAP Issued: ${totalFdD} bags</strong>` : ''}
+                    ${totalFdD > 0 ? `<strong>Total DAP Availed: ${totalFdD} bags</strong>` : ''}
                     &nbsp;·&nbsp; <i class="fas fa-clock me-1"></i>Distributions within 1 hour can be deleted.
                 </div>
             </div>`;
@@ -18863,6 +19112,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             </div>
           </div>
           <div style="padding:12px 16px; background:#fff;">
+            ${voCorrectionBannerHtml}
             ${alreadyIssuedHtml}
             ${totalRemU === 0 && totalRemD === 0
               ? '<div class="alert alert-success fw-bold text-center">✅ All fertilizer bags have been fully distributed for this card.</div>'
@@ -19181,7 +19431,8 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
                 distributedVia:   'farmerCardQR',
                 fcKey,
                 village,
-                mandal
+                mandal,
+                voUid:            voUidForHist   // write voUid so cancellation/restore can find it
             };
             ops.push(database.ref('ureaHistory/' + recKey).set(rec));
 
@@ -19194,6 +19445,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
                 ...rec,
                 tokenKey:             fdKey,
                 farmerCardKey:        fcKey,
+                voUid:                voUidForHist,   // always write voUid so deleteDistribution can restore availed bags
                 distributedByRetailer: true,
                 distributedVia:       'farmerCardQR',
                 crop:                 cropForHist,
@@ -22389,6 +22641,16 @@ async function loadPrintFarmerProfile() {
     let _ovUreaTotal = totalUrea, _ovDapTotal = totalDAP;
     let _hasOverride = false;
     let _ovEditCount = 0;
+    // ── Availed-bags manual-correction override ──
+    // Fixes cases where the actual QR-scan/distribution records were double-written or
+    // mis-logged (e.g. retailer's QR shows "2 bags on 16th June" but the splits view
+    // computed 4 bags availed). A VO can manually correct the Availed total per split
+    // via the "Edit Availed Bags" option without altering the underlying transaction log.
+    let _avOvS1 = null, _avOvS2 = null, _avOvS3 = null;
+    let _avOvS1D = null, _avOvS2D = null, _avOvS3D = null;
+    let _hasAvailedOverride = false;
+    let _avOvEditCount = 0;
+    let _avOvAt = 0;
     if (useYear && useSeason) {
         const voUidCheck = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
         if (voUidCheck) {
@@ -22410,6 +22672,19 @@ async function loadPrintFarmerProfile() {
                     _ovUreaTotal = _ovS1 + _ovS2 + _ovS3;
                     _ovDapTotal  = _ovS1D + _ovS2D + _ovS3D;
                 }
+                _avOvEditCount = Number(ovData?.availedEditCount || 0);
+                if (ovData && ovData.availedOverride) {
+                    _hasAvailedOverride = true;
+                    const avU = ovData.availedOverride.Urea || {};
+                    const avD = ovData.availedOverride.DAP  || {};
+                    _avOvS1  = avU.s0 !== undefined ? Number(avU.s0) : null;
+                    _avOvS2  = avU.s1 !== undefined ? Number(avU.s1) : null;
+                    _avOvS3  = avU.s2 !== undefined ? Number(avU.s2) : null;
+                    _avOvS1D = avD.s0 !== undefined ? Number(avD.s0) : null;
+                    _avOvS2D = avD.s1 !== undefined ? Number(avD.s1) : null;
+                    _avOvS3D = avD.s2 !== undefined ? Number(avD.s2) : null;
+                    _avOvAt  = Number(ovData.availedOverriddenAt || 0);
+                }
             } catch(e) { /* ignore — use computed values */ }
         }
     }
@@ -22424,7 +22699,7 @@ async function loadPrintFarmerProfile() {
             String(h.season || '').trim() === useSeason &&
             String(h.year   || '').trim() === useYear &&
             parseInt(h.splitIndex) === splitIdx &&
-            h.status !== 'Rejected'
+            h.status !== 'Rejected' && h.status !== 'Cancelled'
         );
     }
 
@@ -22440,13 +22715,18 @@ async function loadPrintFarmerProfile() {
                 txSnap.forEach(child => {
                     const tx = child.val();
                     if (!tx) return;
+                    // Skip entries that have since been cancelled/rejected (e.g. by a
+                    // retailer or VO deletion) — they must never be counted as availed.
+                    if (tx.status === 'Cancelled' || tx.status === 'Rejected') return;
                     if (String(tx.year||'') !== useYear || String(tx.season||'') !== useSeason) return;
                     const txKey = 'availedTx_' + child.key;
                     // Dedup: match by _key OR by content fingerprint
                     const alreadyIn = ureaHistory.some(h =>
                         h._key === txKey ||
                         (String(h.aadhaar||'').replace(/\s/g,'') === a &&
-                         h.retailerVerified &&
+                         // A cancelled global record still means "already accounted for" —
+                         // it must suppress this duplicate, not just an active one.
+                         (h.retailerVerified || h.status === 'Cancelled') &&
                          (h.fertilizerType||h.fert||'Urea') === (tx.fert||'Urea') &&
                          String(h.splitIndex) === String(tx.splitIndex !== undefined ? tx.splitIndex : 0) &&
                          String(h.bags||0) === String(tx.bags||0) &&
@@ -22467,7 +22747,7 @@ async function loadPrintFarmerProfile() {
                             outletName:       tx.outletName || '',
                             year:             tx.year || useYear,
                             season:           tx.season || useSeason,
-                            status:           'Distributed',
+                            status:           tx.status || 'Distributed',
                             retailerVerified: true,
                             distributedVia:   'farmerCardQR'
                         });
@@ -22483,12 +22763,22 @@ async function loadPrintFarmerProfile() {
                 voHistSnap.forEach(child => {
                     const rec = child.val();
                     if (!rec || !rec.retailerVerified) return;
+                    // Skip per-VO copies that have themselves already been cancelled/rejected
+                    // (e.g. by the newer delete-fix below) — they must never be counted.
+                    if (rec.status === 'Cancelled' || rec.status === 'Rejected') return;
                     if (String(rec.aadhaar||'').replace(/\s/g,'') !== a) return;
                     if ((rec.year||'') !== useYear || (rec.season||'') !== useSeason) return;
                     const alreadyIn = ureaHistory.some(h => {
                         if (h._key === child.key) return true;
                         const hAad = String(h.aadhaar||'').replace(/\s/g,'');
-                        if (hAad !== a || !h.retailerVerified) return false;
+                        if (hAad !== a) return false;
+                        // A cancelled global record still represents "this event has
+                        // already been accounted for" — it must suppress the duplicate
+                        // per-VO copy, not just an active (retailerVerified) one. Older
+                        // deletions only cancelled the global copy, leaving the per-VO
+                        // copy stuck as 'Distributed'; without this check that orphaned
+                        // copy would reappear here as a phantom still-active distribution.
+                        if (!h.retailerVerified && h.status !== 'Cancelled') return false;
                         if (h.printToken && rec.printToken && h.printToken === rec.printToken) return true;
                         return (
                             (h.fertilizerType||h.fert||'Urea') === (rec.fertilizerType||rec.fert||'Urea') &&
@@ -22570,6 +22860,39 @@ async function loadPrintFarmerProfile() {
                 });
             }
         } catch(e) { console.warn('fertilizerDistributions fetch failed:', e.message); }
+
+        // ── Reconciliation pass: cancel phantom Source-1 entries after all sources loaded ──
+        // Problem: Sources 1 (availedTransactions), 2 (voUreaHistory), 3 (fertilizerDistributions)
+        // are loaded sequentially.  When Source 1 runs, the cancelled global /ureaHistory record
+        // isn't in-memory yet, so the dedup check misses it and pushes the availedTransactions
+        // entry as a live 'Distributed' record. Source 3 then correctly adds the Cancelled version
+        // — but Source 1's already-pushed copy is never updated.
+        //
+        // Fix: now that all sources are loaded, find every Cancelled record and mark any
+        // content-matching non-cancelled record (from availedTransactions or voUreaHistory) as
+        // Cancelled too, so _getTransactions() excludes it and availed bags reflect the deletion.
+        const cancelledRecords = ureaHistory.filter(h =>
+            h.status === 'Cancelled' &&
+            String(h.aadhaar || '').replace(/\s/g, '') === a &&
+            (h.year || '') === useYear && (h.season || '') === useSeason
+        );
+        if (cancelledRecords.length > 0) {
+            ureaHistory.forEach((h, idx) => {
+                if (h.status === 'Cancelled') return; // already cancelled
+                if (String(h.aadhaar || '').replace(/\s/g, '') !== a) return;
+                if ((h.year || '') !== useYear || (h.season || '') !== useSeason) return;
+                const isSuppressed = cancelledRecords.some(c =>
+                    (c.fertilizerType || c.fert || 'Urea') === (h.fertilizerType || h.fert || 'Urea') &&
+                    Number(c.splitIndex || 0) === Number(h.splitIndex || 0) &&
+                    Number(c.bags || 0) === Number(h.bags || 0) &&
+                    (!c.date || !h.date || c.date === h.date)
+                );
+                if (isSuppressed) {
+                    ureaHistory[idx] = { ...ureaHistory[idx], status: 'Cancelled',
+                        _suppressedByReconciliation: true };
+                }
+            });
+        }
     }
 
     function _availedForSplit(fert, splitIdx) {
@@ -22590,6 +22913,21 @@ async function loadPrintFarmerProfile() {
         d:  _availedForSplit('DAP',  si),
         txU: _getTransactions('Urea', si),   // per-transaction detail
         txD: _getTransactions('DAP',  si)
+    }));
+
+    // ── Apply VO manual correction (Edit Availed Bags) on top of actual-transaction totals ──
+    // rawU/rawD keep the real sum-of-transactions figure so the UI can show "(was X)" and
+    // render an auditable correction row when a VO has fixed a mis-counted split.
+    const _avOvArr = [
+        { u: _avOvS1,  d: _avOvS1D  },
+        { u: _avOvS2,  d: _avOvS2D  },
+        { u: _avOvS3,  d: _avOvS3D  }
+    ];
+    const finalAvailedS = [0,1,2].map(si => ({
+        u:    (_hasAvailedOverride && _avOvArr[si].u !== null) ? _avOvArr[si].u : availedS[si].u,
+        d:    (_hasAvailedOverride && _avOvArr[si].d !== null) ? _avOvArr[si].d : availedS[si].d,
+        rawU: availedS[si].u,
+        rawD: availedS[si].d
     }));
 
     // ── QR payload for farmer card ──
@@ -22664,8 +23002,11 @@ async function loadPrintFarmerProfile() {
     const scheduleRows = splitLabels.map((sp, si) => {
         const eligU      = splitTotals[si].u;
         const eligD      = splitTotals[si].d;
-        const availU     = availedS[si].u;
-        const availD     = availedS[si].d;
+        const availU     = finalAvailedS[si].u;
+        const availD     = finalAvailedS[si].d;
+        const rawAvailU  = finalAvailedS[si].rawU;   // actual sum from transaction log (pre-correction)
+        const rawAvailD  = finalAvailedS[si].rawD;
+        const isCorrected = (availU !== rawAvailU) || (availD !== rawAvailD);
         const txU        = availedS[si].txU;   // Urea transactions array
         const txD        = availedS[si].txD;   // DAP transactions array
         const remU       = Math.max(0, eligU - availU);
@@ -22683,6 +23024,7 @@ async function loadPrintFarmerProfile() {
                 &nbsp;|&nbsp; Eligible Urea: <span style="background:rgba(255,255,255,0.2); padding:1px 8px; border-radius:10px;">${eligU} bags</span>
                 &nbsp;|&nbsp; Eligible DAP: <span style="background:rgba(255,255,255,0.2); padding:1px 8px; border-radius:10px;">${eligD} bags</span>
                 ${(availU > 0 || availD > 0) ? `&nbsp;|&nbsp; <span style="background:rgba(255,220,0,0.3); padding:1px 8px; border-radius:10px; font-size:0.78rem;">✅ Availed U:${availU} D:${availD}</span>` : ''}
+                ${isCorrected ? `&nbsp;|&nbsp; <span style="background:rgba(243,156,18,0.4); padding:1px 8px; border-radius:10px; font-size:0.78rem;" title="Manually corrected by VO">✏️ Corrected (was U:${rawAvailU} D:${rawAvailD})</span>` : ''}
               </td>
             </tr>
             <tr style="background:#f0f4ff; font-size:0.75rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.4px;">
@@ -22761,6 +23103,31 @@ async function loadPrintFarmerProfile() {
             </tr>`;
         }).join('');
 
+        // ── If a VO manually corrected the Availed total for this split, append an
+        //    auditable correction row so the cumulative figures reconcile with availU/availD ──
+        let correctionRowHtml = '';
+        if (isCorrected) {
+            const deltaU = availU - rawAvailU;
+            const deltaD = availD - rawAvailD;
+            const dispCorrDate = _fmtDate(_avOvAt || Date.now());
+            correctionRowHtml = `
+            <tr style="background:#fdf6e3; border-left:4px solid #f39c12;">
+              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; font-size:0.78rem; font-weight:700; color:#8a6500;">⚙️</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; font-weight:700; color:#8a6500; font-size:0.82rem;">
+                ${deltaU !== 0 ? `Urea adj: <span style="background:${deltaU>0?'#e67e22':'#c0392b'};color:#fff;padding:1px 7px;border-radius:4px;">${deltaU>0?'+':''}${deltaU}</span>` : ''}
+                ${deltaU !== 0 && deltaD !== 0 ? '&nbsp;' : ''}
+                ${deltaD !== 0 ? `DAP adj: <span style="background:${deltaD>0?'#e67e22':'#c0392b'};color:#fff;padding:1px 7px;border-radius:4px;">${deltaD>0?'+':''}${deltaD}</span>` : ''}
+                <br><span style="font-size:0.65rem;color:#8a6500;font-weight:600;">⚙️ VO Manual Correction</span>
+              </td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.78rem; font-weight:700; color:#8a6500;">${dispCorrDate}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.78rem; font-weight:700; color:#8a6500;">⚙️ Office Correction</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#fdf6e3; text-align:center; font-weight:800; color:#8a6500;">U:${availU} / D:${availD}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#fdf6e3; text-align:center; font-weight:800; color:#8a6500;">U:${availU} / D:${availD}</td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
+              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:${remU===0&&remD===0?'#c0392b':'#1862ab'};">U:${remU} / D:${remD}</td>
+            </tr>`;
+        }
+
         // Always show at least 2 blank rows for future distributions
         const blankCount = Math.max(2, 3 - allTx.length);
         const blankRows = Array.from({length: blankCount}, (_, i) => `
@@ -22775,7 +23142,7 @@ async function loadPrintFarmerProfile() {
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
             </tr>`).join('');
 
-        return splitHeader + txRows + blankRows;
+        return splitHeader + txRows + correctionRowHtml + blankRows;
     }).join('');
 
     cardEl.innerHTML = `
@@ -22868,6 +23235,20 @@ async function loadPrintFarmerProfile() {
                 ${_ovEditCount >= 3 ? 'disabled' : ''}
                 style="background:${_ovEditCount >= 3 ? '#ccc' : 'linear-gradient(135deg,#f39c12,#e67e22)'}; color:#fff; border:none; border-radius:8px; padding:5px 14px; font-size:0.76rem; font-weight:700; cursor:${_ovEditCount >= 3 ? 'not-allowed' : 'pointer'}; display:flex; align-items:center; gap:5px; white-space:nowrap;">
           <i class="fas fa-edit"></i>&nbsp;<span id="editEligBagsBtnLabel_${a}">${_ovEditCount >= 3 ? 'Edit Limit Reached' : 'Edit Eligible Bags'}</span>
+        </button>
+      </div>
+
+     <div class="no-print" style="padding:0.4rem 1rem 0.5rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; background:#fdf3e7; border-top:1px dashed #e67e22;">
+        <span style="font-size:0.72rem; color:#7c5700; font-weight:600;"><i class="fas fa-qrcode me-1" style="color:#e67e22;"></i>If a retailer's QR scan/distribution record doesn't match the Availed total shown below (e.g. mis-logged or double-counted bags), correct it here.</span>
+        <span id="editAvailBagsCount_${a}" style="font-size:0.7rem; font-weight:700; padding:2px 9px; border-radius:10px; white-space:nowrap; ${_avOvEditCount >= 3 ? 'background:#fdecea; color:#c0392b;' : _avOvEditCount > 0 ? 'background:#fff3cd; color:#8a6500;' : 'background:#eef3fb; color:#5d7a99;'}">
+          <i class="fas fa-history me-1"></i>Edits used: ${_avOvEditCount}/3
+        </span>
+        <button type="button"
+                onclick="try { window.openEditAvailedBagsModal('${a}','${useYear}','${useSeason}',${finalAvailedS[0].u||0},${finalAvailedS[1].u||0},${finalAvailedS[2].u||0},${finalAvailedS[0].d||0},${finalAvailedS[1].d||0},${finalAvailedS[2].d||0},${finalAvailedS[0].rawU||0},${finalAvailedS[1].rawU||0},${finalAvailedS[2].rawU||0},${finalAvailedS[0].rawD||0},${finalAvailedS[1].rawD||0},${finalAvailedS[2].rawD||0},${splitTotals[0].u||0},${splitTotals[1].u||0},${splitTotals[2].u||0},${splitTotals[0].d||0},${splitTotals[1].d||0},${splitTotals[2].d||0},${_avOvEditCount||0}); } catch(e) { alert('Button error: ' + e.message); console.error(e); }"
+                id="editAvailBagsBtn_${a}"
+                ${_avOvEditCount >= 3 ? 'disabled' : ''}
+                style="background:${_avOvEditCount >= 3 ? '#ccc' : 'linear-gradient(135deg,#e67e22,#c0530d)'}; color:#fff; border:none; border-radius:8px; padding:5px 14px; font-size:0.76rem; font-weight:700; cursor:${_avOvEditCount >= 3 ? 'not-allowed' : 'pointer'}; display:flex; align-items:center; gap:5px; white-space:nowrap;">
+          <i class="fas fa-clipboard-check"></i>&nbsp;<span id="editAvailBagsBtnLabel_${a}">${_avOvEditCount >= 3 ? 'Edit Limit Reached' : 'Edit Availed Bags'}</span>
         </button>
       </div>
 
@@ -23172,6 +23553,16 @@ async function loadPrintFarmerProfile() {
         if (btnLabel && _hasOverride && _ovEditCount < 3) {
             btnLabel.textContent = '✏️ Eligible Bags (Overridden)';
             if (btn) btn.style.background = 'linear-gradient(135deg,#e67e22,#ca6f1e)';
+        }
+    })();
+
+    // ── Update Edit Availed Bags button to reflect correction status ──
+    (function() {
+        const btnLabel = document.getElementById('editAvailBagsBtnLabel_' + a);
+        const btn      = document.getElementById('editAvailBagsBtn_' + a);
+        if (btnLabel && _hasAvailedOverride && _avOvEditCount < 3) {
+            btnLabel.textContent = '✏️ Availed Bags (Corrected)';
+            if (btn) btn.style.background = 'linear-gradient(135deg,#c0392b,#922b21)';
         }
     })();
 
@@ -23649,6 +24040,60 @@ async function voDeleteDistribution(recordKey, bags) {
                     return Promise.all(cancelOps);
                 }).catch(() => {})
             );
+
+            // 5b. submitFarmerCardDistribution() writes the SAME distribution event to BOTH
+            //     the global /ureaHistory node (cancelled above, step 2) AND
+            //     users/{voUid}/ureaHistory under a DIFFERENT push key. Without this,
+            //     that second copy is never marked Cancelled and gets re-added as a
+            //     phantom still-active record, so the bags never actually return to
+            //     the farmer's eligible/remaining count.
+            ops.push(
+                database.ref(`users/${voUid}/ureaHistory`).once('value').then(voHistSnap => {
+                    if (!voHistSnap.exists()) return;
+                    const cancelOps = [];
+                    const recDate = record.date || (record.verifiedAt ? record.verifiedAt.substring(0, 10) : '') || '';
+                    voHistSnap.forEach(child => {
+                        const v = child.val();
+                        if (!v || v.status === 'Cancelled') return;
+                        if (String(v.aadhaar || '').replace(/\s/g, '') !== a) return;
+                        const vDate = v.date || (v.verifiedAt ? v.verifiedAt.substring(0, 10) : '') || '';
+                        const contentMatch =
+                            (v.fertilizerType || v.fert || 'Urea') === fert &&
+                            Number(v.splitIndex) === splitIdx &&
+                            Number(v.bags || 0) === bagCount &&
+                            String(v.year || '') === String(year) &&
+                            String(v.season || '') === String(season) &&
+                            (!recDate || !vDate || vDate === recDate);
+                        if (contentMatch) {
+                            cancelOps.push(
+                                database.ref(`users/${voUid}/ureaHistory/${child.key}`).update({
+                                    status: 'Cancelled',
+                                    retailerVerified: false,
+                                    deletedAt: new Date().toISOString(),
+                                    deletedByVO: true
+                                })
+                            );
+                        }
+                    });
+                    return Promise.all(cancelOps);
+                }).catch(() => {})
+            );
+
+            // 6. Keep an active "Edit Availed Bags" override (if any) in sync by
+            //    reducing it by the restored bag count, mirroring the raw-counter
+            //    restoration above, so it doesn't go stale on the card or the
+            //    retailer's QR scan.
+            if (year && season) {
+                const fcKeyForOv = a + '_' + String(year).replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
+                const ovPath = `fertilizerCards/${fcKeyForOv}/availedOverride/${fert}/${splitKey}`;
+                ops.push(
+                    database.ref(ovPath).once('value').then(ovSnap => {
+                        if (!ovSnap.exists()) return;
+                        const prevOv = Number(ovSnap.val()) || 0;
+                        return database.ref(ovPath).set(Math.max(0, prevOv - bagCount));
+                    }).catch(() => {})
+                );
+            }
         }
 
         await Promise.all(ops);
@@ -23801,6 +24246,304 @@ function calculateProfileAvailedBags(aadhaar, cropYear, season, totalEligibleBag
     </div>
   </div>
 </div>
+
+<div id="editAvailedBagsModal" style="display:none; position:fixed; inset:0; z-index:1060; background:rgba(0,0,0,0.65); align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:20px; box-shadow:0 25px 50px rgba(0,0,0,0.3); max-width:600px; width:95%; margin:20px; padding:0; overflow:hidden; font-family:'Poppins',sans-serif;">
+
+    <div style="background:linear-gradient(135deg,#e67e22,#c0392b); color:#fff; padding:1rem 1.4rem; display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <div style="font-size:1rem; font-weight:800;"><i class="fas fa-clipboard-check me-2"></i>Edit Availed Bags</div>
+        <div style="font-size:0.72rem; opacity:0.9; margin-top:2px;">Correct the Availed (distributed) bags per split when QR-scan/retailer records don't match reality. The original transaction log is kept — a correction entry is added for audit.</div>
+      </div>
+      <button onclick="closeEditAvailedBagsModal()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; border-radius:8px; width:32px; height:32px; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
+    </div>
+
+    <div style="background:#fff8e1; border-left:4px solid #f39c12; margin:1rem 1.4rem 0; padding:0.5rem 0.8rem; border-radius:0 6px 6px 0; font-size:0.76rem; color:#7c5700;">
+      <strong>📋 Actual recorded total</strong> (sum of real distribution/QR-scan records) — shown for reference next to each field below. Eligible cap per split is also shown.
+    </div>
+
+    <div id="eabEditLimitMsg" style="display:none; margin:0.6rem 1.4rem 0; padding:0.45rem 0.8rem; border-radius:6px; border:1px solid; font-size:0.74rem; font-weight:600;"></div>
+
+    <div style="padding:1rem 1.4rem;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
+
+        <div style="background:#fff3ea; border-radius:10px; padding:0.8rem;">
+          <div style="font-size:0.72rem; font-weight:800; color:#c0530d; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.6rem;"><i class="fas fa-flask me-1"></i>UREA Availed (Bags)</div>
+          <div style="margin-bottom:0.5rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 1 (Basal) <span id="eabRawUreaS1" style="color:#888; font-weight:600; font-size:0.64rem;"></span></label>
+            <input type="number" id="eabUreaS1" min="0" step="1" style="width:100%; border:1.5px solid #e67e22; border-radius:6px; padding:4px 8px; font-size:0.82rem; font-weight:700; color:#c0530d;">
+            <div style="font-size:0.62rem; color:#999; margin-top:1px;">Eligible cap: <span id="eabEligUreaS1">—</span></div>
+          </div>
+          <div style="margin-bottom:0.5rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 2 (Top-dress) <span id="eabRawUreaS2" style="color:#888; font-weight:600; font-size:0.64rem;"></span></label>
+            <input type="number" id="eabUreaS2" min="0" step="1" style="width:100%; border:1.5px solid #e67e22; border-radius:6px; padding:4px 8px; font-size:0.82rem; font-weight:700; color:#c0530d;">
+            <div style="font-size:0.62rem; color:#999; margin-top:1px;">Eligible cap: <span id="eabEligUreaS2">—</span></div>
+          </div>
+          <div>
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 3 (Final) <span id="eabRawUreaS3" style="color:#888; font-weight:600; font-size:0.64rem;"></span></label>
+            <input type="number" id="eabUreaS3" min="0" step="1" style="width:100%; border:1.5px solid #e67e22; border-radius:6px; padding:4px 8px; font-size:0.82rem; font-weight:700; color:#c0530d;">
+            <div style="font-size:0.62rem; color:#999; margin-top:1px;">Eligible cap: <span id="eabEligUreaS3">—</span></div>
+          </div>
+        </div>
+
+        <div style="background:#fdeeec; border-radius:10px; padding:0.8rem;">
+          <div style="font-size:0.72rem; font-weight:800; color:#922b21; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.6rem;"><i class="fas fa-seedling me-1"></i>DAP Availed (Bags)</div>
+          <div style="margin-bottom:0.5rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 1 (Basal) <span id="eabRawDapS1" style="color:#888; font-weight:600; font-size:0.64rem;"></span></label>
+            <input type="number" id="eabDapS1" min="0" step="1" style="width:100%; border:1.5px solid #c0392b; border-radius:6px; padding:4px 8px; font-size:0.82rem; font-weight:700; color:#922b21;">
+            <div style="font-size:0.62rem; color:#999; margin-top:1px;">Eligible cap: <span id="eabEligDapS1">—</span></div>
+          </div>
+          <div style="margin-bottom:0.5rem;">
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 2 (Top-dress) <span id="eabRawDapS2" style="color:#888; font-weight:600; font-size:0.64rem;"></span></label>
+            <input type="number" id="eabDapS2" min="0" step="1" style="width:100%; border:1.5px solid #c0392b; border-radius:6px; padding:4px 8px; font-size:0.82rem; font-weight:700; color:#922b21;">
+            <div style="font-size:0.62rem; color:#999; margin-top:1px;">Eligible cap: <span id="eabEligDapS2">—</span></div>
+          </div>
+          <div>
+            <label style="font-size:0.68rem; color:#555; font-weight:600;">Split 3 (Final) <span id="eabRawDapS3" style="color:#888; font-weight:600; font-size:0.64rem;"></span></label>
+            <input type="number" id="eabDapS3" min="0" step="1" style="width:100%; border:1.5px solid #c0392b; border-radius:6px; padding:4px 8px; font-size:0.82rem; font-weight:700; color:#922b21;">
+            <div style="font-size:0.62rem; color:#999; margin-top:1px;">Eligible cap: <span id="eabEligDapS3">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="eabValidationMsg" style="display:none; background:#fef2f2; border:1px solid #fca5a5; border-radius:6px; padding:0.5rem 0.8rem; font-size:0.74rem; color:#c0392b; margin-top:0.7rem;"></div>
+    </div>
+
+    <div style="padding:0.8rem 1.4rem 1.1rem; display:flex; gap:0.6rem; justify-content:space-between; align-items:center; border-top:1px solid #e0e6ed; flex-wrap:wrap;">
+      <button onclick="resetAvailedBagsOverride()" id="eabResetBtn" title="Remove manual correction — revert to actual recorded totals"
+              style="background:#fff8f0; border:1.5px solid #e67e22; color:#a04000; border-radius:8px; padding:7px 14px; font-size:0.76rem; font-weight:600; cursor:pointer;">
+        <i class="fas fa-undo me-1"></i>Reset to Actual Recorded
+      </button>
+      <div style="display:flex; gap:0.6rem;">
+        <button onclick="closeEditAvailedBagsModal()" style="background:#f8f9fa; border:1.5px solid #dee2e6; color:#495057; border-radius:8px; padding:7px 18px; font-size:0.82rem; font-weight:600; cursor:pointer;">Cancel</button>
+        <button onclick="saveEditedAvailedBags()" id="eabSaveBtn" style="background:linear-gradient(135deg,#e67e22,#c0392b); color:#fff; border:none; border-radius:8px; padding:7px 22px; font-size:0.82rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+          <i class="fas fa-save"></i> Save Correction
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  EDIT AVAILED BAGS MODAL (correction tool for mis-counted QR/distribution records)
+// ============================================================
+window._eabState = {
+    aadhaar: '', year: '', season: '',
+    u1:0, u2:0, u3:0, d1:0, d2:0, d3:0,           // current (possibly already-corrected) values to edit
+    rawU1:0, rawU2:0, rawU3:0, rawD1:0, rawD2:0, rawD3:0, // actual recorded totals (for reference / reset)
+    eligU1:0, eligU2:0, eligU3:0, eligD1:0, eligD2:0, eligD3:0,
+    editCount: 0
+};
+const EAB_MAX_EDITS = 3;
+
+(function fixEditAvailedBagsModal() {
+    const modal = document.getElementById('editAvailedBagsModal');
+    if (!modal) return;
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+})();
+
+window.openEditAvailedBagsModal = function(aadhaar, year, season, u1, u2, u3, d1, d2, d3, rawU1, rawU2, rawU3, rawD1, rawD2, rawD3, eligU1, eligU2, eligU3, eligD1, eligD2, eligD3, editCount) {
+    const modalEl = document.getElementById('editAvailedBagsModal');
+    if (!modalEl) {
+        alert("Error: Modal not found. Please refresh the page.");
+        return;
+    }
+
+    document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+
+    window._eabState = {
+        aadhaar: String(aadhaar), year: String(year), season: String(season),
+        u1: Number(u1)||0, u2: Number(u2)||0, u3: Number(u3)||0,
+        d1: Number(d1)||0, d2: Number(d2)||0, d3: Number(d3)||0,
+        rawU1: Number(rawU1)||0, rawU2: Number(rawU2)||0, rawU3: Number(rawU3)||0,
+        rawD1: Number(rawD1)||0, rawD2: Number(rawD2)||0, rawD3: Number(rawD3)||0,
+        eligU1: Number(eligU1)||0, eligU2: Number(eligU2)||0, eligU3: Number(eligU3)||0,
+        eligD1: Number(eligD1)||0, eligD2: Number(eligD2)||0, eligD3: Number(eligD3)||0,
+        editCount: Number(editCount)||0
+    };
+
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    setVal('eabUreaS1', window._eabState.u1);
+    setVal('eabUreaS2', window._eabState.u2);
+    setVal('eabUreaS3', window._eabState.u3);
+    setVal('eabDapS1', window._eabState.d1);
+    setVal('eabDapS2', window._eabState.d2);
+    setVal('eabDapS3', window._eabState.d3);
+
+    const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    setTxt('eabRawUreaS1', `(actual: ${window._eabState.rawU1})`);
+    setTxt('eabRawUreaS2', `(actual: ${window._eabState.rawU2})`);
+    setTxt('eabRawUreaS3', `(actual: ${window._eabState.rawU3})`);
+    setTxt('eabRawDapS1',  `(actual: ${window._eabState.rawD1})`);
+    setTxt('eabRawDapS2',  `(actual: ${window._eabState.rawD2})`);
+    setTxt('eabRawDapS3',  `(actual: ${window._eabState.rawD3})`);
+    setTxt('eabEligUreaS1', window._eabState.eligU1);
+    setTxt('eabEligUreaS2', window._eabState.eligU2);
+    setTxt('eabEligUreaS3', window._eabState.eligU3);
+    setTxt('eabEligDapS1',  window._eabState.eligD1);
+    setTxt('eabEligDapS2',  window._eabState.eligD2);
+    setTxt('eabEligDapS3',  window._eabState.eligD3);
+
+    const remaining = Math.max(0, EAB_MAX_EDITS - window._eabState.editCount);
+    const limitReached = window._eabState.editCount >= EAB_MAX_EDITS;
+    const limitMsg = document.getElementById('eabEditLimitMsg');
+    if (limitMsg) {
+        limitMsg.style.display = 'block';
+        if (limitReached) {
+            limitMsg.style.background = '#fdecea';
+            limitMsg.style.borderColor = '#f5b7b1';
+            limitMsg.style.color = '#c0392b';
+            limitMsg.innerHTML = `<i class="fas fa-ban me-1"></i><strong>Edit limit reached.</strong> This card's availed bags can no longer be corrected.`;
+        } else {
+            limitMsg.style.background = '#eef3fb';
+            limitMsg.style.borderColor = '#b0c4de';
+            limitMsg.style.color = '#34495e';
+            limitMsg.innerHTML = `<i class="fas fa-history me-1"></i>Edits used: <strong>${window._eabState.editCount}/${EAB_MAX_EDITS}</strong> &nbsp;(${remaining} edit${remaining === 1 ? '' : 's'} remaining)`;
+        }
+    }
+
+    const saveBtn = document.getElementById('eabSaveBtn');
+    const resetBtn = document.getElementById('eabResetBtn');
+    if (saveBtn) { saveBtn.disabled = limitReached; saveBtn.style.opacity = limitReached?'0.5':'1'; saveBtn.style.cursor = limitReached?'not-allowed':'pointer'; }
+    if (resetBtn) { resetBtn.disabled = limitReached; resetBtn.style.opacity = limitReached?'0.5':'1'; resetBtn.style.cursor = limitReached?'not-allowed':'pointer'; }
+
+    const valMsg = document.getElementById('eabValidationMsg');
+    if (valMsg) valMsg.style.display = 'none';
+
+    modalEl.style.display = 'flex';
+    modalEl.style.visibility = 'visible';
+    modalEl.style.opacity = '1';
+    modalEl.style.position = 'fixed';
+    modalEl.style.top = '0'; modalEl.style.left = '0'; modalEl.style.right = '0'; modalEl.style.bottom = '0';
+    modalEl.style.width = '100%'; modalEl.style.height = '100%';
+    modalEl.style.zIndex = '999999';
+    modalEl.style.background = 'rgba(0,0,0,0.75)';
+    modalEl.style.backdropFilter = 'blur(4px)';
+    modalEl.style.alignItems = 'center'; modalEl.style.justifyContent = 'center';
+
+    document.body.style.overflow = 'hidden';
+
+    const outsideCloseHandler = function(e) { if (e.target === modalEl) window.closeEditAvailedBagsModal(); };
+    modalEl.removeEventListener('click', modalEl._outsideClickHandler);
+    modalEl.addEventListener('click', outsideCloseHandler);
+    modalEl._outsideClickHandler = outsideCloseHandler;
+};
+
+window.closeEditAvailedBagsModal = function() {
+    const modalEl = document.getElementById('editAvailedBagsModal');
+    if (modalEl) {
+        modalEl.style.display = 'none';
+        if (modalEl._outsideClickHandler) modalEl.removeEventListener('click', modalEl._outsideClickHandler);
+    }
+    document.body.style.overflow = '';
+    document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+    document.body.classList.remove('modal-open');
+};
+
+window.saveEditedAvailedBags = async function() {
+    if (!window._eabState) { alert("No data to save. Please close and reopen the modal."); return; }
+    if (window._eabState.editCount >= EAB_MAX_EDITS) { alert("Edit limit reached. Cannot save further changes."); return; }
+
+    const u1 = parseInt(document.getElementById('eabUreaS1')?.value) || 0;
+    const u2 = parseInt(document.getElementById('eabUreaS2')?.value) || 0;
+    const u3 = parseInt(document.getElementById('eabUreaS3')?.value) || 0;
+    const d1 = parseInt(document.getElementById('eabDapS1')?.value) || 0;
+    const d2 = parseInt(document.getElementById('eabDapS2')?.value) || 0;
+    const d3 = parseInt(document.getElementById('eabDapS3')?.value) || 0;
+    const msgEl = document.getElementById('eabValidationMsg');
+
+    const errors = [];
+    if (u1 < 0 || u2 < 0 || u3 < 0 || d1 < 0 || d2 < 0 || d3 < 0) {
+        errors.push('Availed bags cannot be negative.');
+    }
+    const { eligU1, eligU2, eligU3, eligD1, eligD2, eligD3 } = window._eabState;
+    if (u1 > eligU1) errors.push(`Urea Split 1 availed (${u1}) exceeds eligible cap (${eligU1}).`);
+    if (u2 > eligU2) errors.push(`Urea Split 2 availed (${u2}) exceeds eligible cap (${eligU2}).`);
+    if (u3 > eligU3) errors.push(`Urea Split 3 availed (${u3}) exceeds eligible cap (${eligU3}).`);
+    if (d1 > eligD1) errors.push(`DAP Split 1 availed (${d1}) exceeds eligible cap (${eligD1}).`);
+    if (d2 > eligD2) errors.push(`DAP Split 2 availed (${d2}) exceeds eligible cap (${eligD2}).`);
+    if (d3 > eligD3) errors.push(`DAP Split 3 availed (${d3}) exceeds eligible cap (${eligD3}).`);
+
+    if (errors.length) {
+        if (msgEl) { msgEl.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> ' + errors.join(' '); msgEl.style.display = 'block'; }
+        return;
+    }
+    if (msgEl) msgEl.style.display = 'none';
+
+    const saveBtn = document.getElementById('eabSaveBtn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…'; }
+
+    try {
+        const { aadhaar, year, season } = window._eabState;
+        const user = firebase.auth().currentUser;
+        if (!user) throw new Error('Not logged in');
+
+        const fcKey = aadhaar + '_' + year.replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
+        const newEditCount = window._eabState.editCount + 1;
+
+        await database.ref('fertilizerCards/' + fcKey).update({
+            availedOverride: {
+                Urea: { s0: u1, s1: u2, s2: u3 },
+                DAP:  { s0: d1, s1: d2, s2: d3 }
+            },
+            availedOverriddenAt: Date.now(),
+            availedOverriddenByVO: user.uid,
+            availedEditCount: newEditCount
+        });
+
+        window.closeEditAvailedBagsModal();
+        if (typeof loadPrintFarmerProfile === 'function') await loadPrintFarmerProfile();
+        _eebShowToast('✅ Availed bags corrected! The distribution card now reflects the actual issued quantity.', 'success');
+    } catch(err) {
+        if (msgEl) { msgEl.innerHTML = '<i class="fas fa-times-circle me-1"></i> Error saving: ' + (err.message || err); msgEl.style.display = 'block'; }
+        else { _eebShowToast('❌ Error saving: ' + (err.message || err), 'error'); }
+    } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Correction'; }
+    }
+};
+
+window.resetAvailedBagsOverride = async function() {
+    if (!window._eabState) return;
+    if (window._eabState.editCount >= EAB_MAX_EDITS) { _eebShowToast('⚠️ Edit limit reached. Cannot reset.', 'warning'); return; }
+    if (!confirm('Remove the manual correction and revert to the actual recorded (QR-scan/distribution log) totals?')) return;
+
+    const { aadhaar, year, season } = window._eabState;
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    const fcKey = aadhaar + '_' + year.replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
+    const newEditCount = window._eabState.editCount + 1;
+
+    try {
+        await database.ref('fertilizerCards/' + fcKey).update({
+            availedOverride: null,
+            availedOverriddenAt: null,
+            availedOverriddenByVO: null,
+            availedEditCount: newEditCount
+        });
+        window.closeEditAvailedBagsModal();
+        if (typeof loadPrintFarmerProfile === 'function') await loadPrintFarmerProfile();
+        _eebShowToast('🔄 Correction removed — actual recorded totals restored. (Edit ' + newEditCount + '/' + EAB_MAX_EDITS + ')', 'success');
+    } catch(err) {
+        _eebShowToast('❌ Error removing correction: ' + (err.message || err), 'error');
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('editAvailedBagsModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) window.closeEditAvailedBagsModal();
+        });
+    }
+});
+</script>
 
 <script>
 // ============================================================
