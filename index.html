@@ -13052,15 +13052,20 @@ async function saveFarmerProfile() {
     let cropExtentSum = 0;
 
     for (const row of cropRows) {
-        const crop = row.querySelector('.fp-crop-select')?.value?.trim();
+        // Get crop from hidden input
+        const hidden = row.querySelector('.fp-crop-select');
+        const cropDisplay = hidden ? hidden.value.trim() : '';
         const ext = parseFloat(row.querySelector('.fp-crop-extent')?.value) || 0;
         const surveyNos = getFpCropSurveyNos(row);
 
-        if (!crop && !ext) continue;
-        if (!crop) return alert('Select crop name for all added crop rows.');
-        if (ext <= 0) return alert(`Enter valid extent for crop: ${crop}`);
+        if (!cropDisplay && !ext) continue;
+        if (!cropDisplay) return alert('Select crop name for all added crop rows.');
+        if (ext <= 0) return alert(`Enter valid extent for crop: ${cropDisplay}`);
 
-        crops.push({ crop, extent: ext, year: selectedYear, season: selectedSeason, surveyNos });
+        // Convert display name back to key (e.g., "Sweet Corn" -> "sweet_corn")
+        const cropKey = cropDisplay.toLowerCase().replace(/\s+/g, '_');
+
+        crops.push({ crop: cropKey, extent: ext, year: selectedYear, season: selectedSeason, surveyNos });
         cropExtentSum += ext;
     }
 
@@ -13207,12 +13212,24 @@ function clearFarmerProfileForm() {
 
 function addFpCropRow() {
     const container = document.getElementById('fpCropRows');
-    const cropList  = Object.keys(fertilizerDosage);   // ✅ fixed: Proxy ownKeys needs getOwnPropertyDescriptor trap; read source directly
+    const cropList  = Object.keys(fertilizerDosage);
     const idx       = container.querySelectorAll('.fp-crop-row').length + 1;
 
     const khatha     = document.getElementById('fpKhatha')?.value?.trim() || '';
     const surveyOpts = getSurveyNumbersForKhatha(khatha);
     const totalSurveyExtent = surveyOpts.reduce((s, o) => s + (o.extent || 0), 0);
+
+    // Get already used survey numbers from other crop rows
+    const usedSurveyNumbers = getUsedSurveyNumbers();
+
+    // Filter out already used survey numbers
+    const availableSurveyOpts = surveyOpts.filter(o => !usedSurveyNumbers.has(o.surveyNo));
+
+    // Format crop names for display
+    const formattedCrops = cropList.map(c => ({
+        key: c,
+        display: c.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+    }));
 
     const row = document.createElement('div');
     row.className = 'fp-crop-row mb-2';
@@ -13222,10 +13239,10 @@ function addFpCropRow() {
             Crop ${idx}
           </div>
           <div class="d-flex gap-2 align-items-end flex-wrap">
-            <!-- Survey Number (checkbox multi-select) -->
+            <!-- Survey Number -->
             <div style="flex:2; min-width:150px; position:relative;">
               <label class="form-label form-label-sm mb-1 text-muted" style="font-size:0.7rem;">Survey No.</label>
-              ${surveyOpts.length ? `
+              ${availableSurveyOpts.length ? `
               <div class="fp-survey-multiselect" style="position:relative;">
                 <button type="button" class="form-select form-select-sm fp-survey-trigger text-start"
                         style="background:#fff; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
@@ -13235,7 +13252,6 @@ function addFpCropRow() {
                 <div class="fp-survey-panel" style="display:none; position:absolute; top:100%; left:0; z-index:9999;
                      background:#fff; border:1.5px solid #1862ab; border-radius:8px; box-shadow:0 4px 16px rgba(24,98,171,0.15);
                      min-width:200px; max-height:220px; overflow-y:auto; padding:6px 0;">
-                  <!-- All checkbox -->
                   <label style="display:flex; align-items:center; gap:8px; padding:5px 12px; cursor:pointer;
                                 font-size:0.8rem; font-weight:700; color:#1862ab; border-bottom:1px solid #e0e6ed; margin:0;">
                     <input type="checkbox" class="fp-survey-cb fp-survey-all" value="__ALL__"
@@ -13243,8 +13259,7 @@ function addFpCropRow() {
                            onchange="onFpSurveyCheckAll(this)" style="width:15px;height:15px;cursor:pointer;">
                     <span>All &nbsp;<span style="font-weight:400;color:#555;">(${totalSurveyExtent.toFixed(2)} ac)</span></span>
                   </label>
-                  <!-- Individual survey checkboxes -->
-                  ${surveyOpts.map(o => `
+                  ${availableSurveyOpts.map(o => `
                   <label style="display:flex; align-items:center; gap:8px; padding:4px 12px; cursor:pointer;
                                 font-size:0.8rem; color:#2c3e50; margin:0; transition:background .1s;"
                          onmouseover="this.style.background='#eef5ff'" onmouseout="this.style.background=''">
@@ -13256,19 +13271,40 @@ function addFpCropRow() {
                 </div>
               </div>
               ` : `
-              <input type="text" class="form-control form-control-sm fp-crop-survey-text"
-                     placeholder="e.g. 21,33,37">
+              <div style="font-size:0.8rem; color:#e67e22; padding:4px 8px; background:#fff8e1; border-radius:4px;">
+                <i class="fas fa-exclamation-triangle me-1"></i> No available survey numbers for this Khatha
+              </div>
               `}
             </div>
-            <!-- Crop -->
-            <div style="flex:2.5; min-width:150px;">
+            <!-- Crop - Searchable Dropdown -->
+            <div style="flex:2.5; min-width:150px; position:relative;">
               <label class="form-label form-label-sm mb-1 text-muted" style="font-size:0.7rem;">Crop</label>
-              <select class="form-select form-select-sm fp-crop-select" onchange="onFpCropOrExtentChange()">
-                  <option value="">-- Select Crop --</option>
-                  ${cropList.map(c =>
-                      `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
-                  ).join('')}
-              </select>
+              <div class="fp-crop-dropdown-wrapper" style="position:relative;">
+                <input type="text" class="form-control form-control-sm fp-crop-search-input" 
+                       placeholder="Type to search crop..." 
+                       list="fpCropList"
+                       oninput="filterFpCropDropdown(this)"
+                       onfocus="showFpCropDropdown(this)"
+                       onblur="hideFpCropDropdownDelayed(this)"
+                       autocomplete="off"
+                       style="cursor:text;">
+                <input type="hidden" class="fp-crop-select" value="">
+                <div class="fp-crop-dropdown-list" style="display:none; position:absolute; top:100%; left:0; z-index:9999;
+                     background:#fff; border:1.5px solid #1862ab; border-radius:8px; 
+                     box-shadow:0 4px 16px rgba(24,98,171,0.15); min-width:100%; 
+                     max-height:200px; overflow-y:auto; padding:4px 0;">
+                  ${formattedCrops.map(c => `
+                    <div class="fp-crop-option" 
+                         data-key="${c.key}" 
+                         data-display="${c.display}"
+                         onmousedown="selectFpCrop(this)"
+                         onmouseover="this.style.background='#e8f4fd'"
+                         onmouseout="this.style.background=''"
+                         style="padding:6px 12px; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f0f0f0;">
+                      ${c.display}
+                    </div>`).join('')}
+                </div>
+              </div>
             </div>
             <!-- Extent -->
             <div style="flex:1; min-width:90px;">
@@ -13284,20 +13320,247 @@ function addFpCropRow() {
               </button>
             </div>
           </div>
-          ${!surveyOpts.length ? `<div style="font-size:0.68rem; color:#7f8c8d; margin-top:3px;"><i class="fas fa-info-circle me-1"></i>No survey numbers found for this Khatha — enter manually or re-upload 1B file</div>` : ''}
+          ${!availableSurveyOpts.length ? `<div style="font-size:0.68rem; color:#7f8c8d; margin-top:3px;"><i class="fas fa-info-circle me-1"></i>All survey numbers for this Khatha have been assigned to other crops.</div>` : ''}
         </div>
     `;
     container.appendChild(row);
-
-    // Close dropdown when clicking outside
-    if (!window._fpSurveyOutsideHandler) {
-        window._fpSurveyOutsideHandler = true;
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.fp-survey-multiselect')) {
-                document.querySelectorAll('.fp-survey-panel').forEach(p => p.style.display = 'none');
+}
+// Global function declarations for survey blocking
+function getUsedSurveyNumbers() {
+    const used = new Set();
+    const rows = document.querySelectorAll('.fp-crop-row');
+    
+    rows.forEach(row => {
+        const panel = row.querySelector('.fp-survey-panel');
+        if (panel) {
+            const checkedItems = panel.querySelectorAll('.fp-survey-item:checked');
+            checkedItems.forEach(cb => {
+                used.add(cb.value);
+            });
+        } else {
+            const select = row.querySelector('.fp-crop-survey');
+            if (select && select.value) {
+                select.value.split(',').forEach(s => {
+                    const trimmed = s.trim();
+                    if (trimmed) used.add(trimmed);
+                });
             }
+            const textInput = row.querySelector('.fp-crop-survey-text');
+            if (textInput && textInput.value) {
+                textInput.value.split(',').forEach(s => {
+                    const trimmed = s.trim();
+                    if (trimmed) used.add(trimmed);
+                });
+            }
+        }
+    });
+    
+    return used;
+}
+
+// Refresh all crop rows to reflect used survey numbers
+function refreshAllFpCropRows() {
+    const container = document.getElementById('fpCropRows');
+    if (!container) return;
+    
+    const rows = container.querySelectorAll('.fp-crop-row');
+    if (!rows.length) return;
+    
+    // Save current selections
+    const selections = [];
+    rows.forEach(row => {
+        const hidden = row.querySelector('.fp-crop-select');
+        const ext = row.querySelector('.fp-crop-extent');
+        const panel = row.querySelector('.fp-survey-panel');
+        const checked = [];
+        if (panel) {
+            panel.querySelectorAll('.fp-survey-item:checked').forEach(cb => {
+                checked.push(cb.value);
+            });
+        }
+        selections.push({
+            crop: hidden ? hidden.value : '',
+            extent: ext ? ext.value : '',
+            surveys: checked
         });
+    });
+    
+    // Clear and re-add rows with filtered survey options
+    container.innerHTML = '';
+    selections.forEach(() => {
+        addFpCropRow();
+    });
+    
+    // Restore selections on new rows WITHOUT triggering _updateFpSurveyLabel
+    const newRows = container.querySelectorAll('.fp-crop-row');
+    newRows.forEach((row, i) => {
+        if (i >= selections.length) return;
+        const sel = selections[i];
+        
+        // Restore crop
+        const input = row.querySelector('.fp-crop-search-input');
+        const hidden = row.querySelector('.fp-crop-select');
+        if (input && sel.crop) {
+            input.value = sel.crop;
+            hidden.value = sel.crop;
+        }
+        
+        // Restore extent
+        const ext = row.querySelector('.fp-crop-extent');
+        if (ext && sel.extent) {
+            ext.value = sel.extent;
+        }
+        
+        // Restore survey selections
+        const panel = row.querySelector('.fp-survey-panel');
+        if (panel) {
+            const items = panel.querySelectorAll('.fp-survey-item');
+            const allCb = panel.querySelector('.fp-survey-all');
+            
+            // Check the items that were previously selected
+            items.forEach(cb => {
+                cb.checked = sel.surveys.includes(cb.value);
+            });
+            
+            // Update "All" checkbox state
+            if (allCb) {
+                const allChecked = items.length > 0 && Array.from(items).every(cb => cb.checked);
+                allCb.checked = allChecked;
+            }
+            
+            // Manually update the label without triggering refresh
+            const trigger = row.querySelector('.fp-survey-trigger');
+            const labelEl = row.querySelector('.fp-survey-label');
+            if (trigger && labelEl) {
+                const checkedItems = Array.from(panel.querySelectorAll('.fp-survey-item:checked'));
+                const allItems = Array.from(panel.querySelectorAll('.fp-survey-item'));
+                const totalAvailableExtent = allItems.reduce((s, cb) => s + parseFloat(cb.dataset.extent || 0), 0);
+                
+                let totalExt = 0;
+                let labelText = '-- Survey No. --';
+                
+                if (checkedItems.length === 0) {
+                    labelText = '-- Survey No. --';
+                    labelEl.classList.add('text-muted');
+                } else if (checkedItems.length === allItems.length && allItems.length > 0) {
+                    const allExt = totalAvailableExtent;
+                    totalExt = allExt;
+                    labelText = `All (${allExt.toFixed(2)} ac)`;
+                    labelEl.classList.remove('text-muted');
+                } else if (checkedItems.length === 1) {
+                    const extVal = parseFloat(checkedItems[0].dataset.extent || 0);
+                    totalExt = extVal;
+                    labelText = `${checkedItems[0].value} (${extVal.toFixed(2)} ac)`;
+                    labelEl.classList.remove('text-muted');
+                } else {
+                    totalExt = checkedItems.reduce((s, c) => s + parseFloat(c.dataset.extent || 0), 0);
+                    labelText = `${checkedItems.length} surveys (${totalExt.toFixed(2)} ac)`;
+                    labelEl.classList.remove('text-muted');
+                }
+                labelEl.textContent = labelText;
+                if (ext && totalExt > 0) ext.value = totalExt.toFixed(2);
+            }
+        }
+    });
+    
+    onFpCropOrExtentChange();
+}
+
+// Show crop dropdown
+function showFpCropDropdown(input) {
+    const wrapper = input.closest('.fp-crop-dropdown-wrapper');
+    const list = wrapper.querySelector('.fp-crop-dropdown-list');
+    if (list) {
+        list.style.display = 'block';
+        // Scroll to selected option if any
+        const selected = wrapper.querySelector('.fp-crop-select').value;
+        if (selected) {
+            const options = list.querySelectorAll('.fp-crop-option');
+            options.forEach(opt => {
+                if (opt.dataset.display === selected) {
+                    opt.scrollIntoView({ block: 'nearest' });
+                }
+            });
+        }
     }
+}
+
+// Hide crop dropdown with delay (to allow click selection)
+function hideFpCropDropdownDelayed(input) {
+    setTimeout(() => {
+        const wrapper = input.closest('.fp-crop-dropdown-wrapper');
+        const list = wrapper.querySelector('.fp-crop-dropdown-list');
+        if (list) list.style.display = 'none';
+    }, 200);
+}
+
+// Filter crop dropdown based on search input
+function filterFpCropDropdown(input) {
+    const wrapper = input.closest('.fp-crop-dropdown-wrapper');
+    const list = wrapper.querySelector('.fp-crop-dropdown-list');
+    const hidden = wrapper.querySelector('.fp-crop-select');
+    const search = input.value.toLowerCase().trim();
+    
+    if (!list) return;
+    
+    // Show dropdown when typing
+    list.style.display = 'block';
+    
+    // Filter options
+    const options = list.querySelectorAll('.fp-crop-option');
+    let hasMatch = false;
+    options.forEach(opt => {
+        const display = opt.dataset.display.toLowerCase();
+        const key = opt.dataset.key.toLowerCase();
+        const match = !search || display.includes(search) || key.includes(search);
+        opt.style.display = match ? 'block' : 'none';
+        if (match) hasMatch = true;
+    });
+    
+    // If no match, show "No results" message
+    let noResultMsg = list.querySelector('.fp-no-result');
+    if (!hasMatch) {
+        if (!noResultMsg) {
+            noResultMsg = document.createElement('div');
+            noResultMsg.className = 'fp-no-result';
+            noResultMsg.style.cssText = 'padding:10px 12px; color:#999; font-size:0.85rem; text-align:center;';
+            noResultMsg.textContent = 'No matching crops found';
+            list.appendChild(noResultMsg);
+        }
+        noResultMsg.style.display = 'block';
+    } else if (noResultMsg) {
+        noResultMsg.style.display = 'none';
+    }
+    
+    // Clear hidden value if search doesn't exactly match
+    const exactMatch = Array.from(options).some(opt => 
+        opt.dataset.display.toLowerCase() === search && opt.style.display !== 'none'
+    );
+    if (!exactMatch && search !== '') {
+        hidden.value = '';
+    }
+}
+
+// Select crop from dropdown
+function selectFpCrop(option) {
+    const wrapper = option.closest('.fp-crop-dropdown-wrapper');
+    const input = wrapper.querySelector('.fp-crop-search-input');
+    const hidden = wrapper.querySelector('.fp-crop-select');
+    const list = wrapper.querySelector('.fp-crop-dropdown-list');
+    
+    input.value = option.dataset.display;
+    hidden.value = option.dataset.display;
+    
+    if (list) list.style.display = 'none';
+    
+    // Trigger extent recalculation
+    onFpCropOrExtentChange();
+}
+
+// Get selected crop value from the row
+function getFpCropValue(row) {
+    const hidden = row.querySelector('.fp-crop-select');
+    return hidden ? hidden.value.trim() : '';
 }
 
 // ── Toggle the survey checkbox dropdown panel ──
@@ -13340,6 +13603,10 @@ function _updateFpSurveyLabel(wrap) {
 
     const checkedItems = Array.from(panel.querySelectorAll('.fp-survey-item:checked'));
     const allCb        = panel.querySelector('.fp-survey-all');
+    
+    // Get all available items (not just checked ones)
+    const allItems = Array.from(panel.querySelectorAll('.fp-survey-item'));
+    const totalAvailableExtent = allItems.reduce((s, cb) => s + parseFloat(cb.dataset.extent || 0), 0);
 
     let totalExt = 0;
     let labelText = '-- Survey No. --';
@@ -13347,27 +13614,47 @@ function _updateFpSurveyLabel(wrap) {
     if (checkedItems.length === 0) {
         labelText = '-- Survey No. --';
         labelEl.classList.add('text-muted');
-    } else if (allCb && allCb.checked) {
-        const allExt = parseFloat(allCb.dataset.extent || 0);
-        totalExt  = allExt;
+    } else if (checkedItems.length === allItems.length && allItems.length > 0) {
+        // All items are checked
+        const allExt = totalAvailableExtent;
+        totalExt = allExt;
         labelText = `All (${allExt.toFixed(2)} ac)`;
         labelEl.classList.remove('text-muted');
+        if (allCb) allCb.checked = true;
     } else if (checkedItems.length === 1) {
-        const ext  = parseFloat(checkedItems[0].dataset.extent || 0);
-        totalExt   = ext;
-        labelText  = `${checkedItems[0].value} (${ext.toFixed(2)} ac)`;
+        const ext = parseFloat(checkedItems[0].dataset.extent || 0);
+        totalExt = ext;
+        labelText = `${checkedItems[0].value} (${ext.toFixed(2)} ac)`;
         labelEl.classList.remove('text-muted');
+        if (allCb) allCb.checked = false;
     } else {
-        totalExt  = checkedItems.reduce((s,c) => s + parseFloat(c.dataset.extent||0), 0);
+        totalExt = checkedItems.reduce((s, c) => s + parseFloat(c.dataset.extent || 0), 0);
         labelText = `${checkedItems.length} surveys (${totalExt.toFixed(2)} ac)`;
         labelEl.classList.remove('text-muted');
+        if (allCb) allCb.checked = false;
     }
 
     if (labelEl) labelEl.textContent = labelText;
     if (extInp && totalExt > 0) extInp.value = totalExt.toFixed(2);
     onFpCropOrExtentChange();
 }
+// Close survey dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.fp-survey-multiselect')) {
+        document.querySelectorAll('.fp-survey-panel').forEach(panel => {
+            panel.style.display = 'none';
+        });
+    }
+});
 
+// Also close dropdown when Escape key is pressed
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.fp-survey-panel').forEach(panel => {
+            panel.style.display = 'none';
+        });
+    }
+});
 // ✅ When a Survey Number is selected, auto-populate the Extent field.
 // Kept for backward compatibility — now delegates to checkbox logic.
 function onFpCropSurveyChange(select) {
@@ -13490,31 +13777,82 @@ function getKhathaAllocatedExtentByOthers(khatha, currentAadhaar) {
  * Returns the full (official) extent of a khatha from 1B data.
  */
 // Returns the primary pattadhar/owner name for a given khatha number.
-// Priority: 1) owner-type farmerProfile for that khatha, 2) first farmer row in 1B ureaData.
+// Priority: 1) 1B ureaData farmers (first farmer is usually the owner)
+//           2) owner-type farmerProfile for that khatha
+//           3) allReportsCache
+// IMPORTANT: Tenant profiles are EXCLUDED - only return the original owner
 function getKhathaOwnerName(khathaNo) {
     const k = String(khathaNo || '').trim();
     if (!k) return '';
-    // 1) Check farmerProfiles for an 'owner' type entry for this khatha
+    
+    // 1) Check 1B ureaData farmers[] - look for the FIRST farmer (usually the owner)
+    // This is the most reliable source for the original owner name
+    for (const fertData of Object.values(ureaData || {})) {
+        if (!fertData || typeof fertData !== 'object') continue;
+        const kData = fertData[k];
+        if (!kData) continue;
+        
+        // Check farmers array - the first farmer in 1B data is typically the owner
+        const farmers = Array.isArray(kData.farmers) ? kData.farmers : [];
+        if (farmers.length > 0) {
+            // Try to find an owner/primary farmer first
+            for (const f of farmers) {
+                const name = f['Farmer Name'] || f['farmerName'] || f['Occupant Name'] || f['occupantName'] || f['Pattadar Name'] || f['pattadarName'] || '';
+                const role = f['Pattadhar/Cultivator'] || f['pattadharRole'] || f['Farmer Type'] || f['farmerType'] || '';
+                // If this row has Pattadar/Pattadhar/Patta, it's the owner
+                if (role && (role.toLowerCase().includes('pattadar') || role.toLowerCase().includes('pattadhar') || role.toLowerCase().includes('patta'))) {
+                    if (name) return name;
+                }
+            }
+            // If no owner found by role, return the first farmer's name
+            const first = farmers[0];
+            const name = first['Farmer Name'] || first['farmerName'] || first['Occupant Name'] || first['occupantName'] || '';
+            if (name) return name;
+        }
+        
+        // Check surveys array for owner name
+        const surveys = Array.isArray(kData.surveys) ? kData.surveys : [];
+        if (surveys.length > 0 && surveys[0].farmerName) {
+            return surveys[0].farmerName;
+        }
+    }
+    
+    // 2) Check farmerProfiles for an 'owner' type entry for this khatha
+    // Only look at profiles where farmerType is 'owner' - skip tenant profiles
     for (const profiles of Object.values(farmerProfiles || {})) {
         const arr = Array.isArray(profiles) ? profiles : Object.values(profiles);
         for (const p of arr) {
+            // ONLY return if it's an owner-type profile (not tenant)
             if (p.farmerType === 'owner' && String(p.khatha || '').trim() === k && p.farmerName) {
                 return p.farmerName;
             }
         }
     }
-    // 2) Fall back to 1B ureaData farmers[]
-    for (const fertData of Object.values(ureaData || {})) {
-        if (!fertData || typeof fertData !== 'object') continue;
-        const kData = fertData[k];
-        if (!kData) continue;
-        const farmers = Array.isArray(kData.farmers) ? kData.farmers : [];
-        if (farmers.length > 0) {
-            const f = farmers[0];
-            const name = f['Farmer Name'] || f['farmerName'] || '';
-            if (name) return name;
+    
+    // 3) Check allReportsCache for this khatha
+    for (const reportKey of Object.keys(allReportsCache || {})) {
+        const report = allReportsCache[reportKey];
+        if (!report?.farmerDetails) continue;
+        for (const farmerKey of Object.keys(report.farmerDetails)) {
+            const bookings = report.farmerDetails[farmerKey];
+            if (!Array.isArray(bookings)) continue;
+            for (const b of bookings) {
+                if (String(b.khathaNo || '').trim() === k) {
+                    // Check if this farmer is a Pattadar
+                    const role = b.pattadharRole || b.rowRole || '';
+                    if (role && (role.toLowerCase().includes('pattadar') || role.toLowerCase().includes('pattadhar') || role.toLowerCase().includes('patta'))) {
+                        // Find the farmer name from uniqueFarmers
+                        const farmer = report.uniqueFarmers?.find(f => {
+                            const fKey = f.aadhaarNumber || (f.farmerName + '|' + (f.village || ''));
+                            return fKey === farmerKey;
+                        });
+                        if (farmer?.farmerName) return farmer.farmerName;
+                    }
+                }
+            }
         }
     }
+    
     return '';
 }
 
@@ -13668,26 +14006,17 @@ function onFpKhathaSearch(query) {
         return;
     }
 
-    dd.innerHTML = matches.map(k => {
-
+        dd.innerHTML = matches.map(k => {
         const currentAadhaar = document.getElementById('fpAadhaar')?.value?.trim() || '';
-
         const officialExt = parseFloat(getKhathaOfficialExtent(k) || 0);
+        const allocatedByOthers = parseFloat(getKhathaAllocatedExtentByOthers(k, currentAadhaar) || 0);
+        const remaining = Math.max(0, parseFloat((officialExt - allocatedByOthers).toFixed(2)));
 
-        // Uses allocated crop extents from OTHER farmers
-        const allocatedByOthers = parseFloat(
-            getKhathaAllocatedExtentByOthers(k, currentAadhaar) || 0
-        );
-
-        const remaining = Math.max(
-            0,
-            parseFloat((officialExt - allocatedByOthers).toFixed(2))
-        );
+        // Get owner name for display - THIS NOW CHECKS 1B DATA FIRST
+        const ownerLabel = getKhathaOwnerName(k);
 
         let extInfo = '';
-
         if (officialExt > 0) {
-
             if (allocatedByOthers > 0) {
                 extInfo = `
                     <span style="font-size:0.78rem; color:#c0392b; margin-left:8px;">
@@ -13708,7 +14037,6 @@ function onFpKhathaSearch(query) {
             }
         }
 
-        const ownerLabel = getKhathaOwnerName(k);
         return `
             <div class="fp-khatha-opt"
                  data-val="${k}"
@@ -13718,7 +14046,8 @@ function onFpKhathaSearch(query) {
                  onmouseout="this.style.background=''">
 
                 <span>
-                    Khatha <strong>${k}</strong>${ownerLabel ? ` — <span style="font-weight:400; color:#2c3e50;">${ownerLabel}</span>` : ''}
+                    Khatha <strong>${k}</strong>
+                    ${ownerLabel ? ` — <span style="font-weight:400; color:#2c3e50;">${ownerLabel}</span>` : ''}
                 </span>
 
                 ${extInfo}
@@ -13735,12 +14064,22 @@ function selectFpKhatha(k) {
     const dd     = document.getElementById('fpKhathaDropdown');
     const hint   = document.getElementById('fpKhathaHint');
     const ownerLabel = getKhathaOwnerName(k);
-    if (inp)    inp.value    = 'Khatha ' + k + (ownerLabel ? ' — ' + ownerLabel : '');
+    
+    // Display: "Khatha 51 — Owner Name" or just "Khatha 51" if no owner
+    if (inp) {
+        if (ownerLabel) {
+            inp.value = 'Khatha ' + k + ' — ' + ownerLabel;
+        } else {
+            inp.value = 'Khatha ' + k;
+        }
+    }
     if (hidden) hidden.value = k;
     if (dd)     dd.style.display = 'none';
     if (hint)   hint.textContent = '';
     onFpKhathaChange();
     refreshFpCropRowSurveyOptions();
+    // Refresh crop rows to update available surveys for the new khatha
+    refreshAllFpCropRows();
 }
 
 // ✅ Re-render crop rows so their Survey Number selector matches the newly selected Khatha
@@ -13959,6 +14298,11 @@ function onFpKhathaChange() {
     if (a.length === 12 && farmerProfiles[a]) {
         const existing = farmerProfiles[a].find(p => String(p.khatha) === String(k));
         if (existing) loadProfileIntoForm(existing, false);
+    }
+    
+    // Refresh crop rows when khatha changes (to update available surveys)
+    if (k && k !== '--Select Khatha--' && k !== '') {
+        refreshAllFpCropRows();
     }
 }
 
@@ -14376,10 +14720,39 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
 
     if (crops.length) {
         crops.forEach(() => addFpCropRow());
+        // Build used survey numbers from existing crops
+        const usedSurveys = new Set();
+        crops.forEach(c => {
+            if (c.surveyNos) {
+                String(c.surveyNos).split(',').forEach(s => {
+                    const trimmed = s.trim();
+                    if (trimmed) usedSurveys.add(trimmed);
+                });
+            }
+        });
+        
+        // Store used surveys globally for this load
+        window._fpLoadingUsedSurveys = usedSurveys;
+
         const rows = document.querySelectorAll('.fp-crop-row');
         crops.forEach((c, i) => {
             if (!rows[i]) return;
-            rows[i].querySelector('.fp-crop-select').value = c.crop || '';
+            
+            // Set crop value in the search input and hidden
+            const wrapper = rows[i].querySelector('.fp-crop-dropdown-wrapper');
+            if (wrapper) {
+                const input = wrapper.querySelector('.fp-crop-search-input');
+                const hidden = wrapper.querySelector('.fp-crop-select');
+                if (input && c.crop) {
+                    // Format the crop name for display
+                    const displayName = c.crop.split('_').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ');
+                    input.value = displayName;
+                    hidden.value = displayName;
+                }
+            }
+            
             rows[i].querySelector('.fp-crop-extent').value = c.extent || '';
 
             if (c.surveyNos) {
@@ -14397,6 +14770,9 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
                 }
             }
         });
+
+        // Clear the temporary used surveys
+        window._fpLoadingUsedSurveys = null;
 
         const firstCrop = crops[0];
         const yearSel = document.getElementById('fpCropYear');
