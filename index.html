@@ -3518,6 +3518,24 @@
           <div id="rtHistAadhaarStatus" style="margin-top:0.5rem;"></div>
         </div>
 
+        <!-- Village Filter Bar -->
+        <div id="rtVillageFilterBar" style="background:#f0f7ff; border:1.5px solid #b3d1f0; border-radius:12px; padding:0.75rem 1.2rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+            <i class="fas fa-map-marker-alt" style="color:#1862ab; font-size:0.9rem;"></i>
+            <span style="font-size:0.78rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.8px; white-space:nowrap;">Filter by Village</span>
+            <select id="rtVillageFilterSelect" class="form-select form-select-sm" style="max-width:220px; border-radius:8px; border:1.5px solid #b3d1f0; font-size:0.83rem; font-weight:600; color:#2c3e50;" onchange="applyRetailerVillageFilter()">
+                <option value="">— All Villages —</option>
+            </select>
+            <span id="rtVillageMissingBadge" class="hidden" style="font-size:0.72rem; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:20px; padding:3px 10px; font-weight:600; cursor:pointer; white-space:nowrap;" onclick="applyRetailerVillageFilter('__missing__')" title="Click to show only records missing a village name">
+                <i class="fas fa-exclamation-triangle me-1"></i><span id="rtMissingVillageCount">0</span> missing village
+            </span>
+            <button id="rtBulkVillageBtn" class="hidden btn btn-sm fw-bold" style="background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:20px;font-size:0.78rem;padding:4px 14px;white-space:nowrap;" onclick="bulkSetMissingVillage()" title="Set the same village name for all 116 missing records in one click">
+                <i class="fas fa-bolt me-1"></i>Update All <span id="rtBulkMissingCount">0</span> Missing → 1 Click
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" id="rtVillageClearBtn" onclick="applyRetailerVillageFilter('')" style="border-radius:20px; font-size:0.75rem; padding:3px 12px; display:none;">
+                <i class="fas fa-times me-1"></i>Clear Filter
+            </button>
+        </div>
+
         <div id="rtHistoryContainer">
             <div class="text-center text-muted py-5">
                 <i class="fas fa-history fa-3x mb-3 opacity-25"></i>
@@ -4579,7 +4597,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
           </span>
           <div class="d-flex gap-2 align-items-center">
               <span id="fpAllProfilesCount" class="badge bg-light text-primary fs-6">0 profiles</span>
-              <button class="btn btn-sm btn-success" onclick="exportAllFarmerProfiles()">
+              <button class="btn btn-sm btn-success" id="fpExportExcelBtn" onclick="exportFpSmartExcel()">
                   <i class="fas fa-file-excel me-1"></i> Export Excel
               </button>
               <button class="btn btn-sm btn-warning text-dark fw-semibold" onclick="rearrangeCardNumbers()" title="Reset all card numbers from 0001 in order">
@@ -15131,6 +15149,7 @@ function setFpProfilesViewMode(mode) {
     const normalWrap = document.getElementById('fpAllProfilesTableWrap');
     const cardWrap    = document.getElementById('fpCardWiseTableWrap');
     const hint = document.getElementById('fpViewModeHint');
+    const exportBtn = document.getElementById('fpExportExcelBtn');
 
     if (mode === 'card') {
         normalBtn.classList.remove('btn-primary'); normalBtn.classList.add('btn-outline-primary');
@@ -15139,6 +15158,7 @@ function setFpProfilesViewMode(mode) {
         cardWrap.classList.remove('d-none');
         document.getElementById('fpCardWiseFertSelect')?.classList.remove('d-none');
         if (hint) hint.textContent = 'Click any column header to sort. One row per Farmer Card. Bags figures are taken from the Farmer Profile (eligibility) and Fertilizer Distribution records (availed).';
+        if (exportBtn) exportBtn.innerHTML = '<i class="fas fa-file-excel me-1"></i> Export Card-wise Excel';
         const search = document.getElementById('fpAllProfilesSearch')?.value || '';
         const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
         const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
@@ -15150,6 +15170,7 @@ function setFpProfilesViewMode(mode) {
         normalWrap.classList.remove('d-none');
         document.getElementById('fpCardWiseFertSelect')?.classList.add('d-none');
         if (hint) hint.textContent = 'Sorted by registration date (newest first)';
+        if (exportBtn) exportBtn.innerHTML = '<i class="fas fa-file-excel me-1"></i> Export Excel';
     }
 }
 
@@ -15608,6 +15629,133 @@ function exportAllFarmerProfiles() {
     XLSX.writeFile(wb, `FarmerProfiles_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
    // ---- ADMIN PANEL FUNCTIONS ----
+
+// ── Smart Export: routes to card-wise or khatha-wise based on current view mode ──
+function exportFpSmartExcel() {
+    if (window.fpProfilesViewMode === 'card') {
+        exportCardWiseExcel();
+    } else {
+        exportAllFarmerProfiles();
+    }
+}
+
+// ── Card-wise Excel Export ──
+// One row per Farmer Card. Columns: Card No, Farmer Name, Father Name, Aadhaar, APFR,
+// Mobile, Village, Khatha(s), Total Extent, Crops, Urea Eligible/Availed/Available,
+// DAP Eligible/Availed/Available, Urea Splits ×3, DAP Splits ×3.
+function exportCardWiseExcel() {
+    if (!farmerProfiles || !Object.keys(farmerProfiles).length)
+        return alert('No profiles to export.');
+
+    const search = document.getElementById('fpAllProfilesSearch')?.value || '';
+    const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
+    const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+
+    let rows = buildFpCardWiseData(search, season, year);
+    if (!rows.length) return alert('No data to export for current filter.');
+
+    // Sort by card number, re-number
+    rows.sort((a, b) => String(a.cardNumber).localeCompare(String(b.cardNumber)));
+    rows.forEach((r, i) => { r.sno = i + 1; });
+
+    // ── Urea availed bags per farmer ──
+    function getUreaAvailed(aadhaar) {
+        const a = String(aadhaar || '').replace(/\D/g, '');
+        return (ureaHistory || [])
+            .filter(h =>
+                String(h.aadhaar || '').replace(/\D/g, '') === a &&
+                String(h.fertilizerType || h.fert || 'Urea').trim() === 'Urea' &&
+                h.status !== 'Rejected' && h.status !== 'Cancelled'
+            )
+            .reduce((s, h) => s + Number(h.bags || 0), 0);
+    }
+
+    // ── Urea eligible bags per farmer (from dosage formula) ──
+    function getUreaEligible(aadhaar) {
+        const profs = farmerProfiles[aadhaar] || [];
+        let bags = 0;
+        profs.forEach(p => {
+            (p.crops || []).forEach(c => {
+                if (season && c.season !== season) return;
+                if (year   && c.year   !== year)   return;
+                const cropName  = (c.crop || '').toLowerCase().trim();
+                const cropExt   = Number(c.extent || p.extent || 0);
+                const csn       = c.season || 'Kharif';
+                const dosage    = typeof fertilizerDosage !== 'undefined' ? fertilizerDosage[cropName] : null;
+                if (!dosage) return;
+                const seasonDose = dosage.seasons?.[csn] || dosage.seasons?.['Kharif'] || { N: 0 };
+                const nKg = (seasonDose.N || 0) * cropExt;
+                if (typeof getUreaBagsFromN === 'function') bags += getUreaBagsFromN(nKg);
+            });
+        });
+        return bags;
+    }
+
+    const headers = [
+        'S.No',
+        'Card Number',
+        'Farmer Name',
+        'Father Name',
+        'Aadhar Number',
+        'APFR ID',
+        'Mobile Number',
+        'Khatha Number(s)',
+        'Extent',
+        'Crops',
+        'Urea Bags Eligible',
+        'Urea Bags Availed',
+        'Urea Available Bags'
+    ];
+
+    const dataRows = rows.map(r => {
+        const ureaElig = getUreaEligible(r.aadhaar);
+        const ureaAvld = getUreaAvailed(r.aadhaar);
+        const ureaAvbl = Math.max(0, ureaElig - ureaAvld);
+
+        // Strip extent from khatha string — keep only khatha numbers
+        const khathaOnly = r.khathaNumbers.replace(/\([\d.]+\)/g, '').replace(/,\s*/g, ', ').trim();
+
+        return [
+            r.sno,
+            r.cardNumber,
+            r.farmerName,
+            r.fatherName,
+            r.aadhaar,
+            r.apfrNumber || 'NA',
+            r.mobile,
+            khathaOnly,
+            r.totalExtent.toFixed(2),
+            r.cropsText,
+            ureaElig,
+            ureaAvld,
+            ureaAvbl
+        ];
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+
+    ws['!cols'] = [
+        { wch: 6  }, // S.No
+        { wch: 18 }, // Card Number
+        { wch: 22 }, // Farmer Name
+        { wch: 22 }, // Father Name
+        { wch: 16 }, // Aadhar Number
+        { wch: 16 }, // APFR ID
+        { wch: 14 }, // Mobile Number
+        { wch: 20 }, // Khatha Number(s)
+        { wch: 10 }, // Extent
+        { wch: 28 }, // Crops
+        { wch: 18 }, // Urea Bags Eligible
+        { wch: 18 }, // Urea Bags Availed
+        { wch: 18 }  // Urea Available Bags
+    ];
+
+    const today = new Date().toISOString().slice(0, 10);
+    const suffix = [season, year].filter(Boolean).join('_');
+    XLSX.utils.book_append_sheet(wb, ws, 'CardWise_Profiles');
+    XLSX.writeFile(wb, `CardWise_Profiles${suffix ? '_' + suffix : ''}_${today}.xlsx`);
+}
 
 let allAdminData    = [];
 let allAdminDapData = [];
@@ -18523,6 +18671,39 @@ function loadRetailerHistory() {
         // Store for Excel export
         window._rtHistoryRecords = records;
 
+        // ── Populate village filter dropdown ──
+        const villageSet = new Set();
+        let missingVillageCount = 0;
+        records.forEach(r => {
+            const v = (r.village || '').trim();
+            if (v) villageSet.add(v);
+            else missingVillageCount++;
+        });
+        const sel = document.getElementById('rtVillageFilterSelect');
+        if (sel) {
+            const prevVal = sel.value;
+            sel.innerHTML = '<option value="">— All Villages —</option>'
+                + [...villageSet].sort().map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+            if (prevVal && [...villageSet].includes(prevVal)) sel.value = prevVal;
+        }
+        const missingBadge = document.getElementById('rtVillageMissingBadge');
+        const missingCountEl = document.getElementById('rtMissingVillageCount');
+        const bulkBtn = document.getElementById('rtBulkVillageBtn');
+        const bulkCountEl = document.getElementById('rtBulkMissingCount');
+        if (missingBadge && missingCountEl) {
+            if (missingVillageCount > 0) {
+                missingCountEl.textContent = missingVillageCount;
+                missingBadge.classList.remove('hidden');
+                if (bulkBtn && bulkCountEl) {
+                    bulkCountEl.textContent = missingVillageCount;
+                    bulkBtn.classList.remove('hidden');
+                }
+            } else {
+                missingBadge.classList.add('hidden');
+                if (bulkBtn) bulkBtn.classList.add('hidden');
+            }
+        }
+
         const rows = records.map((r, i) => {
             const isRejected  = r.status === 'Rejected';
             const actionDate  = r.verifiedAt || r.rejectedAt || r.distributedAt || '';
@@ -18551,11 +18732,21 @@ function loadRetailerHistory() {
             const outletDisplay = escapeHtml(r.outletName || r.outletId || getRetailerInfo().outletName || '—');
             const allCrops = escapeHtml(r.crops || r.crop || '—');
 
-            return `<tr class="${isRejected ? 'table-danger bg-opacity-25' : ''}">
+            const villageVal = (r.village || '').trim();
+            const villageCell = villageVal
+                ? `<span>${escapeHtml(villageVal)}</span>`
+                : `<span class="text-danger small fw-semibold" style="font-size:0.72rem;">
+                        <i class="fas fa-exclamation-circle me-1"></i>Missing
+                    </span>
+                    <button class="btn btn-warning btn-sm d-block mt-1" style="padding:1px 7px;font-size:0.68rem;border-radius:6px;white-space:nowrap;" onclick="retailerEditVillage('${escapeHtml(r.tokenKey||'')}', this)" title="Set village name for this record">
+                        <i class="fas fa-map-marker-alt me-1"></i>Set Village
+                    </button>`;
+
+            return `<tr class="${isRejected ? 'table-danger bg-opacity-25' : ''}" data-village="${escapeHtml(villageVal).toLowerCase()}">
                 <td class="text-muted">${i+1}</td>
                 <td>${statusBadge}</td>
                 <td class="small">${escapeHtml(r.date||'')}</td>
-                <td class="small">${escapeHtml(r.village||'—')}</td>
+                <td class="small" style="min-width:90px;">${villageCell}</td>
                 <td class="fw-semibold small">${escapeHtml(r.farmerName||'—')}<br><code class="text-muted" style="font-size:0.65rem;">••••${String(r.aadhaar||'').slice(-4)}</code></td>
                 <td class="small text-muted">${escapeHtml(r.fatherName||'—')}</td>
                 <td class="small text-muted" style="font-family:monospace;">${escapeHtml(r.mobile||'—')}</td>
@@ -18573,27 +18764,121 @@ function loadRetailerHistory() {
                 <td class="text-center">${deleteBtn}</td></tr>`;
         }).join('');
 
+        // ── Build village-wise breakdown for the abstract report ──
+        const villageStats = {};
+        records.forEach(r => {
+            if (r.status === 'Rejected') return; // only count distributed
+            const v = (r.village || '').trim() || '(No Village)';
+            if (!villageStats[v]) villageStats[v] = { distributions: 0, farmers: new Set(), bags: 0, fertilizers: {} };
+            villageStats[v].distributions++;
+            villageStats[v].farmers.add((r.aadhaar || r.farmerName || '').trim());
+            villageStats[v].bags += Number(r.bags) || 0;
+            const fert = r.fertilizerType || 'Urea';
+            villageStats[v].fertilizers[fert] = (villageStats[v].fertilizers[fert] || 0) + (Number(r.bags) || 0);
+        });
+        const totalDistBags   = records.filter(r => r.status !== 'Rejected').reduce((s, r) => s + (Number(r.bags)||0), 0);
+        const totalDistFarmers= new Set(records.filter(r => r.status !== 'Rejected').map(r => (r.aadhaar||r.farmerName||'').trim())).size;
+        const totalDistCount  = records.filter(r => r.status !== 'Rejected').length;
+        const villageCount    = Object.keys(villageStats).length;
+
+        const villageRows = Object.entries(villageStats)
+            .sort((a,b) => b[1].bags - a[1].bags)
+            .map(([v, s]) => {
+                const fertStr = Object.entries(s.fertilizers).map(([f,b]) => `<span class="badge" style="background:#fff3cd;color:#7d5400;border:1px solid #ffc107;font-size:0.68rem;">${f}: ${b}</span>`).join(' ');
+                return `<tr style="font-size:0.8rem;">
+                    <td class="fw-semibold">${escapeHtml(v)}</td>
+                    <td class="text-center fw-bold text-primary">${s.distributions}</td>
+                    <td class="text-center fw-bold text-success">${s.farmers.size}</td>
+                    <td class="text-center fw-bold" style="color:#e67e22;">${s.bags}</td>
+                    <td>${fertStr}</td>
+                </tr>`;
+            }).join('');
+
         container.innerHTML = `
-        <div class="d-flex gap-3 mb-3 flex-wrap align-items-center justify-content-between">
-            <div class="d-flex gap-2 flex-wrap">
-                <span class="badge bg-success px-3 py-2" style="border-radius:20px;font-size:.85rem;">
-                    <i class="fas fa-check-circle me-1"></i>${distributedCount} Distributed
-                </span>
-                <span class="badge bg-danger px-3 py-2" style="border-radius:20px;font-size:.85rem;">
-                    <i class="fas fa-times-circle me-1"></i>${rejectedCount} Rejected
-                </span>
-                <span class="badge bg-secondary px-3 py-2" style="border-radius:20px;font-size:.85rem;">
-                    <i class="fas fa-list me-1"></i>${records.length} Total
-                </span>
+        <!-- ── Abstract Report ── -->
+        <div id="rtAbstractReport" style="background:linear-gradient(135deg,#f8f9ff,#eef3ff);border:1.5px solid #c5d5f0;border-radius:16px;padding:1.1rem 1.3rem;margin-bottom:1.1rem;">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span style="background:linear-gradient(135deg,#1862ab,#0d4d86);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-chart-bar text-white" style="font-size:0.85rem;"></i>
+                    </span>
+                    <div>
+                        <div style="font-size:0.82rem;font-weight:800;color:#1862ab;text-transform:uppercase;letter-spacing:0.8px;">Abstract Report</div>
+                        <div id="rtAbstractLabel" style="font-size:0.7rem;color:#6c757d;font-weight:500;">All Villages · Distributed Records Only</div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-success btn-sm fw-semibold" onclick="exportRetailerHistoryExcel()" style="border-radius:20px;font-size:0.78rem;">
+                        <i class="fas fa-file-excel me-1"></i>Export Excel
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadRetailerHistory()" style="border-radius:20px;font-size:0.78rem;">
+                        <i class="fas fa-sync me-1"></i>Refresh
+                    </button>
+                </div>
             </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-success btn-sm fw-semibold" onclick="exportRetailerHistoryExcel()" style="border-radius:20px;">
-                    <i class="fas fa-file-excel me-1"></i> Export to Excel
-                </button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="loadRetailerHistory()" style="border-radius:20px;">
-                    <i class="fas fa-sync me-1"></i> Refresh
-                </button>
+
+            <!-- KPI Cards -->
+            <div class="row g-2 mb-3" id="rtAbstractKpis">
+                <div class="col-6 col-md-3">
+                    <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #d0e8ff;text-align:center;height:100%;">
+                        <div style="font-size:1.6rem;font-weight:800;color:#1862ab;line-height:1;" id="kpiDistCount">${totalDistCount}</div>
+                        <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;"><i class="fas fa-truck me-1 text-primary"></i>Distributions</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #c8f5d8;text-align:center;height:100%;">
+                        <div style="font-size:1.6rem;font-weight:800;color:#1a7a3c;line-height:1;" id="kpiFarmerCount">${totalDistFarmers}</div>
+                        <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;"><i class="fas fa-users me-1 text-success"></i>Unique Farmers</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #ffe8c0;text-align:center;height:100%;">
+                        <div style="font-size:1.6rem;font-weight:800;color:#e67e22;line-height:1;" id="kpiBagCount">${totalDistBags}</div>
+                        <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;"><i class="fas fa-sack me-1" style="color:#e67e22;"></i>Total Bags</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #f5d0d0;text-align:center;height:100%;">
+                        <div style="font-size:1.6rem;font-weight:800;color:#c0392b;line-height:1;" id="kpiRejCount">${rejectedCount}</div>
+                        <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;"><i class="fas fa-times-circle me-1 text-danger"></i>Rejected</div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Village-wise breakdown -->
+            ${villageCount > 1 ? `
+            <div id="rtAbstractVillageTable">
+                <div style="font-size:0.73rem;font-weight:700;color:#495057;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:0.4rem;">
+                    <i class="fas fa-map-marker-alt me-1 text-danger"></i>Village-wise Breakdown
+                </div>
+                <div class="table-responsive" style="border-radius:10px;overflow:hidden;border:1px solid #dee2e6;">
+                <table class="table table-sm mb-0" style="font-size:0.8rem;">
+                    <thead style="background:linear-gradient(135deg,#343a40,#495057);color:#fff;">
+                        <tr>
+                            <th style="padding:7px 10px;">Village</th>
+                            <th style="padding:7px 8px;text-align:center;width:95px;">Distributions</th>
+                            <th style="padding:7px 8px;text-align:center;width:90px;">Farmers</th>
+                            <th style="padding:7px 8px;text-align:center;width:80px;">Bags</th>
+                            <th style="padding:7px 10px;">Fertilizer Split</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rtAbstractVillageTbody">${villageRows}</tbody>
+                </table>
+                </div>
+            </div>` : ''}
+        </div>
+
+        <!-- ── Main Table ── -->
+        <div class="d-flex gap-2 flex-wrap mb-2">
+            <span class="badge bg-success px-3 py-2" style="border-radius:20px;font-size:.82rem;">
+                <i class="fas fa-check-circle me-1"></i>${distributedCount} Distributed
+            </span>
+            <span class="badge bg-danger px-3 py-2" style="border-radius:20px;font-size:.82rem;">
+                <i class="fas fa-times-circle me-1"></i>${rejectedCount} Rejected
+            </span>
+            <span class="badge bg-secondary px-3 py-2" style="border-radius:20px;font-size:.82rem;">
+                <i class="fas fa-list me-1"></i>${records.length} Total
+            </span>
         </div>
         <div class="table-responsive">
         <table class="table table-sm table-hover align-middle" style="font-size:.82rem;" id="rtHistoryTable">
@@ -26294,6 +26579,255 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ── Retailer: Village Filter ─────────────────────────────────────────────────
+window.applyRetailerVillageFilter = function(forceValue) {
+    const sel = document.getElementById('rtVillageFilterSelect');
+    const clearBtn = document.getElementById('rtVillageClearBtn');
+    const filterVal = (forceValue !== undefined ? forceValue : (sel ? sel.value : '')).toLowerCase().trim();
+
+    // Update dropdown to match forced value
+    if (forceValue !== undefined && sel) {
+        if (forceValue === '__missing__' || forceValue === '') {
+            sel.value = '';
+        } else {
+            sel.value = forceValue;
+        }
+    }
+
+    const tbody = document.querySelector('#rtHistoryTable tbody');
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr');
+    let shown = 0;
+    rows.forEach(row => {
+        const rowVillage = (row.getAttribute('data-village') || '').trim();
+        let show = false;
+        if (filterVal === '') {
+            show = true;
+        } else if (filterVal === '__missing__') {
+            show = !rowVillage;
+        } else {
+            show = rowVillage === filterVal;
+        }
+        row.style.display = show ? '' : 'none';
+        if (show) shown++;
+    });
+
+    if (clearBtn) clearBtn.style.display = (filterVal && filterVal !== '') ? '' : 'none';
+
+    // Update row numbers
+    let visIdx = 1;
+    rows.forEach(row => {
+        if (row.style.display !== 'none') {
+            const numCell = row.querySelector('td:first-child');
+            if (numCell) numCell.textContent = visIdx++;
+        }
+    });
+
+    // ── Recompute abstract report KPIs for visible rows ──
+    const allRecords = window._rtHistoryRecords || [];
+    let filteredRecords;
+    if (filterVal === '') {
+        filteredRecords = allRecords.filter(r => r.status !== 'Rejected');
+    } else if (filterVal === '__missing__') {
+        filteredRecords = allRecords.filter(r => r.status !== 'Rejected' && !(r.village||'').trim());
+    } else {
+        filteredRecords = allRecords.filter(r => r.status !== 'Rejected' && (r.village||'').trim().toLowerCase() === filterVal);
+    }
+
+    const kpiDist    = document.getElementById('kpiDistCount');
+    const kpiFarmer  = document.getElementById('kpiFarmerCount');
+    const kpiBag     = document.getElementById('kpiBagCount');
+    const labelEl    = document.getElementById('rtAbstractLabel');
+    const villageTableEl = document.getElementById('rtAbstractVillageTable');
+
+    const fCount  = filteredRecords.length;
+    const farmers = new Set(filteredRecords.map(r => (r.aadhaar||r.farmerName||'').trim())).size;
+    const bags    = filteredRecords.reduce((s,r) => s + (Number(r.bags)||0), 0);
+
+    if (kpiDist)   { kpiDist.textContent   = fCount;   kpiDist.style.transition='color .3s';   kpiDist.style.color='#1862ab'; }
+    if (kpiFarmer) { kpiFarmer.textContent = farmers;  kpiFarmer.style.transition='color .3s'; kpiFarmer.style.color='#1a7a3c'; }
+    if (kpiBag)    { kpiBag.textContent    = bags;     kpiBag.style.transition='color .3s';    kpiBag.style.color='#e67e22'; }
+
+    if (labelEl) {
+        if (filterVal === '') {
+            labelEl.textContent = 'All Villages · Distributed Records Only';
+        } else if (filterVal === '__missing__') {
+            labelEl.textContent = 'Filtered: Records Missing Village · Distributed Only';
+        } else {
+            const selText = sel ? (sel.options[sel.selectedIndex]?.text || filterVal) : filterVal;
+            labelEl.textContent = `Filtered: ${selText} · Distributed Records Only`;
+        }
+    }
+
+    // Hide village breakdown when a single village is filtered — no point showing one row
+    if (villageTableEl) {
+        villageTableEl.style.display = (filterVal === '') ? '' : 'none';
+    }
+};
+
+// ── Retailer: Bulk-set village for ALL records missing a village name ─────────
+window.bulkSetMissingVillage = async function() {
+    const records = window._rtHistoryRecords || [];
+    const missing = records.filter(r => !(r.village || '').trim());
+    if (!missing.length) { alert('No records are missing a village name.'); return; }
+
+    const suggested = 'Kalavapamula';
+    const newVillage = prompt(
+        `${missing.length} records have no village name.\n\nEnter the village name to apply to all of them:`,
+        suggested
+    );
+    if (!newVillage || !newVillage.trim()) return;
+    const village = newVillage.trim();
+
+    if (!confirm(`Update ALL ${missing.length} records to village "${village}"?\n\nThis will save to Firebase immediately.`)) return;
+
+    const bulkBtn = document.getElementById('rtBulkVillageBtn');
+    if (bulkBtn) {
+        bulkBtn.disabled = true;
+        bulkBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating…';
+    }
+
+    // Build a multi-path Firebase update object
+    const updates = {};
+    missing.forEach(r => {
+        const key = r.tokenKey || r._tokenKey;
+        if (key) updates[`fertilizerDistributions/${key}/village`] = village;
+    });
+
+    try {
+        await database.ref('/').update(updates);
+
+        // Update in-memory records
+        missing.forEach(r => { r.village = village; });
+
+        // Update all matching DOM rows
+        const tbody = document.querySelector('#rtHistoryTable tbody');
+        if (tbody) {
+            tbody.querySelectorAll('tr[data-village=""]').forEach(row => {
+                row.setAttribute('data-village', village.toLowerCase());
+                const villageCell = row.querySelector('td:nth-child(4)');
+                if (villageCell) {
+                    villageCell.innerHTML = `<span style="color:#27ae60;font-weight:600;">${escapeHtml(village)}</span>`;
+                }
+                // Flash green
+                row.style.transition = 'background 0.5s';
+                row.style.background = '#d4edda';
+                setTimeout(() => { row.style.background = ''; }, 1800);
+            });
+        }
+
+        // Update village dropdown
+        const sel = document.getElementById('rtVillageFilterSelect');
+        if (sel) {
+            const exists = [...sel.options].some(o => o.value === village);
+            if (!exists) {
+                const opt = document.createElement('option');
+                opt.value = village; opt.textContent = village;
+                sel.appendChild(opt);
+                const allOpt = sel.options[0];
+                const opts = [...sel.options].slice(1).sort((a, b) => a.text.localeCompare(b.text));
+                sel.innerHTML = '';
+                sel.appendChild(allOpt);
+                opts.forEach(o => sel.appendChild(o));
+            }
+        }
+
+        // Hide missing badge and bulk button
+        const missingBadge = document.getElementById('rtVillageMissingBadge');
+        if (missingBadge) missingBadge.classList.add('hidden');
+        if (bulkBtn) bulkBtn.classList.add('hidden');
+
+        // Show toast / alert
+        const container = document.getElementById('rtHistoryContainer');
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:#27ae60;color:#fff;padding:12px 20px;border-radius:12px;font-weight:700;font-size:0.9rem;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:opacity 0.5s;';
+        toast.innerHTML = `<i class="fas fa-check-circle me-2"></i>${missing.length} records updated → "${village}"`;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3500);
+
+    } catch(err) {
+        alert('Error during bulk update: ' + (err.message || err));
+        if (bulkBtn) {
+            bulkBtn.disabled = false;
+            bulkBtn.innerHTML = `<i class="fas fa-bolt me-1"></i>Update All ${missing.length} Missing → 1 Click`;
+        }
+    }
+};
+
+window.retailerEditVillage = async function(tokenKey, btnEl) {
+    if (!tokenKey) { alert('Cannot find this record key.'); return; }
+
+    const newVillage = prompt('Enter village name for this record:', '');
+    if (!newVillage || !newVillage.trim()) return;
+    const village = newVillage.trim();
+
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+        await database.ref('fertilizerDistributions/' + tokenKey).update({ village: village });
+
+        // Update in-memory store
+        if (window._rtHistoryRecords) {
+            const rec = window._rtHistoryRecords.find(r => (r.tokenKey || r._tokenKey) === tokenKey);
+            if (rec) rec.village = village;
+        }
+
+        // Update the cell in-place without full reload
+        const row = btnEl.closest('tr');
+        if (row) {
+            const villageCell = row.querySelector('td:nth-child(4)');
+            if (villageCell) {
+                villageCell.innerHTML = `<span style="color:#27ae60;font-weight:600;">${escapeHtml(village)}</span>`;
+            }
+            row.setAttribute('data-village', village.toLowerCase());
+        }
+
+        // Refresh dropdown options
+        const sel = document.getElementById('rtVillageFilterSelect');
+        if (sel) {
+            const exists = [...sel.options].some(o => o.value.toLowerCase() === village.toLowerCase());
+            if (!exists) {
+                const opt = document.createElement('option');
+                opt.value = village;
+                opt.textContent = village;
+                sel.appendChild(opt);
+                // Re-sort options (keep first "All" option)
+                const allOpt = sel.options[0];
+                const opts = [...sel.options].slice(1).sort((a, b) => a.text.localeCompare(b.text));
+                sel.innerHTML = '';
+                sel.appendChild(allOpt);
+                opts.forEach(o => sel.appendChild(o));
+            }
+        }
+
+        // Update missing count badge
+        const missingCountEl = document.getElementById('rtMissingVillageCount');
+        const missingBadge = document.getElementById('rtVillageMissingBadge');
+        if (missingCountEl && missingBadge) {
+            const remaining = document.querySelectorAll('#rtHistoryTable tbody tr[data-village=""]').length;
+            if (remaining > 0) {
+                missingCountEl.textContent = remaining;
+            } else {
+                missingBadge.classList.add('hidden');
+            }
+        }
+
+        // Flash success
+        const row2 = btnEl ? btnEl.closest('tr') : null;
+        if (row2) {
+            row2.style.transition = 'background 0.4s';
+            row2.style.background = '#d4edda';
+            setTimeout(() => { row2.style.background = ''; }, 1500);
+        }
+    } catch(err) {
+        alert('Error saving village: ' + (err.message || err));
+        btnEl.disabled = false;
+        btnEl.innerHTML = '<i class="fas fa-map-marker-alt me-1"></i>Set Village';
+    }
+};
 </script>
 
     </body>
