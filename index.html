@@ -180,7 +180,7 @@
          *     "fertilizerDistributions": {
          *       ".read": "auth != null",
          *       ".write": "auth != null",
-         *       ".indexOn": ["outletId", "status", "aadhaar"]
+         *       ".indexOn": ["outletId", "status", "aadhaar", "retailerUid", "verifiedBy"]
          *     },
          *     "fertilizerCards": {
          *       ".read": "auth != null",
@@ -2921,6 +2921,20 @@
 
     <!-- ── TAB: Retailers ── -->
     <div id="moTabRetailers" class="mo-section-tab">
+      <div class="card border-0 shadow-sm p-4 mb-4" style="border-radius:16px; border-left:4px solid #f39c12 !important;">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <div>
+            <h5 class="fw-bold mb-0"><i class="fas fa-unlink me-2 text-warning"></i>Unlinked Retailer Accounts</h5>
+            <p class="text-muted small mb-0">Retailer logins that don't have an outlet linked yet. They can't see distribution history until linked.</p>
+          </div>
+          <button class="btn btn-outline-secondary btn-sm" onclick="loadMoUnlinkedRetailers(currentUserProfile?.mandal)">
+            <i class="fas fa-sync me-1"></i> Refresh
+          </button>
+        </div>
+        <div id="moUnlinkedRetailersList">
+          <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>
+        </div>
+      </div>
       <div class="card border-0 shadow-sm p-4 mb-4" style="border-radius:16px;">
         <h5 class="fw-bold mb-4"><i class="fas fa-list me-2 text-warning"></i>Registered Outlets</h5>
         <div id="moRetailersList">
@@ -3508,6 +3522,9 @@
             <div class="text-center text-muted py-5">
                 <i class="fas fa-history fa-3x mb-3 opacity-25"></i>
                 <p>Enter an Aadhaar above to search, or click <strong>Refresh</strong> to load all history</p>
+                <button class="btn btn-sm btn-outline-info mt-2" onclick="rtDiagnoseHistory()" style="border-radius:20px;font-size:0.75rem;">
+                    <i class="fas fa-stethoscope me-1"></i> Diagnose: Why is history empty?
+                </button>
             </div>
         </div>
     </div>
@@ -6632,6 +6649,7 @@ firebase.auth().onAuthStateChanged(user => {
                 loadMandalReports();
                 loadMoOfficersList(profile.mandal);
                 loadMoRetailersList(profile.mandal);
+                loadMoUnlinkedRetailers(profile.mandal);
                 // Check pending delete requests badge
                 setTimeout(() => {
                     database.ref('deleteRequests').once('value').then(snap => {
@@ -16176,7 +16194,7 @@ function switchMoMainTab(tabId, btn) {
 
     // Lazy-load lists when switching
     if (tabId === 'moTabOfficers') loadMoOfficersList(currentUserProfile?.mandal || '');
-    if (tabId === 'moTabRetailers') loadMoRetailersList(currentUserProfile?.mandal || '');
+    if (tabId === 'moTabRetailers') { loadMoRetailersList(currentUserProfile?.mandal || ''); loadMoUnlinkedRetailers(currentUserProfile?.mandal || ''); }
     if (tabId === 'moTabDeleteApprovals') loadMoDeleteRequests();
     if (tabId === 'moTabStockRequests') loadMoStockRequests();
 }
@@ -16701,6 +16719,122 @@ function loadMoRetailersList(mandal) {
     }).catch(err => {
         container.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message)}</div>`;
     });
+}
+
+// ── Retailer accounts that exist but have no outletId linked yet ──
+// (e.g. accounts created before outlet-linking existed, or created manually).
+// These retailers can log in but can't see stock/distribution history until
+// a Mandal Officer links them to an outlet via the button below.
+function loadMoUnlinkedRetailers(mandal) {
+    const container = document.getElementById('moUnlinkedRetailersList');
+    if (!container) return;
+    if (!mandal) { container.innerHTML = '<div class="alert alert-warning">Mandal not set.</div>'; return; }
+
+    const mandalKey = mandal.trim().toLowerCase().replace(/\s+/g,'_');
+
+    database.ref('users').once('value').then(snap => {
+        if (!snap.exists()) { container.innerHTML = '<div class="alert alert-info">No users found.</div>'; return; }
+
+        const unlinked = [];
+        snap.forEach(child => {
+            const profile = child.val()?.profile || {};
+            if (profile.role !== 'retailer') return;
+            if (profile.outletId) return; // already linked
+            const profileMandalKey = profile.mandalKey || (profile.mandal||'').trim().toLowerCase().replace(/\s+/g,'_');
+            if (profileMandalKey !== mandalKey) return;
+            unlinked.push({ uid: child.key, ...profile });
+        });
+
+        if (!unlinked.length) {
+            container.innerHTML = '<div class="alert alert-success py-2 small"><i class="fas fa-check-circle me-1"></i>All retailer accounts in this mandal are linked to an outlet.</div>';
+            return;
+        }
+
+        let html = '<div class="row g-3">';
+        unlinked.forEach(r => {
+            const displayName = r.outletName || r.name || (r.email ? r.email.split('@')[0] : 'Retailer');
+            html += `<div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100" style="border-left:4px solid #f39c12;">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:36px;height:36px;background:#fff3cd;flex-shrink:0;">
+                                <i class="fas fa-store-slash text-warning"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold">${escapeHtml(displayName)}</div>
+                                <div class="text-muted small">${escapeHtml(r.name||'—')}</div>
+                            </div>
+                        </div>
+                        <div class="small text-muted"><i class="fas fa-map-marker-alt me-1"></i>${escapeHtml(r.village||'—')}</div>
+                        <div class="small text-muted"><i class="fas fa-phone me-1"></i>${escapeHtml(r.mobile||'—')}</div>
+                        <code class="small d-block mt-1 mb-2" style="font-size:0.75rem;">${escapeHtml(r.email||'—')}</code>
+                        <button class="btn btn-warning btn-sm w-100 text-dark fw-semibold" onclick="linkRetailerOutlet('${escapeHtml(r.uid)}')">
+                            <i class="fas fa-link me-1"></i> Link Outlet
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }).catch(err => {
+        container.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message)}</div>`;
+    });
+}
+
+async function linkRetailerOutlet(uid) {
+    try {
+        const snap = await database.ref('users/' + uid + '/profile').once('value');
+        const profile = snap.val();
+        if (!profile) { alert('Retailer profile not found.'); return; }
+        if (profile.outletId) { alert('This retailer is already linked to an outlet.'); return; }
+
+        const defaultName = profile.outletName || profile.name || (profile.email ? profile.email.split('@')[0] : 'Retailer Outlet');
+        const outletName = prompt(
+            `Link Outlet\n\nRetailer: ${profile.name || '—'}\nEmail: ${profile.email || '—'}\nVillage: ${profile.village || '—'}\n\nEnter the outlet / shop name to link to this account:`,
+            defaultName
+        );
+        if (outletName === null) return;
+        const trimmedName = outletName.trim();
+        if (!trimmedName) { alert('Outlet name cannot be empty.'); return; }
+
+        if (!confirm(`Link outlet "${trimmedName}" to ${profile.name || profile.email}?\n\nThis will let them view and manage distribution history for that outlet.`)) return;
+
+        const mandal = profile.mandal || currentUserProfile?.mandal || '';
+        const mandalKey = profile.mandalKey || mandal.trim().toLowerCase().replace(/\s+/g,'_');
+        const outletId = 'outlet_' + Date.now();
+
+        const outletData = {
+            outletId,
+            outletName: trimmedName,
+            ownerName: profile.name || '',
+            email: profile.email || '',
+            mobile: profile.mobile || '',
+            village: profile.village || '',
+            district: profile.district || '',
+            mandal,
+            division: profile.division || '',
+            mandalKey
+        };
+
+        await Promise.all([
+            database.ref('users/' + uid + '/profile').update({
+                outletId,
+                outletName: trimmedName,
+                mandalKey,
+                linkedAt: new Date().toISOString(),
+                linkedBy: firebase.auth().currentUser?.uid || ''
+            }),
+            database.ref('mandals/' + mandalKey + '/retailers/' + outletId).set(outletData)
+        ]);
+
+        alert(`✅ Outlet "${trimmedName}" linked successfully. The retailer should refresh their page to see distribution history.`);
+
+        loadMoUnlinkedRetailers(currentUserProfile?.mandal);
+        loadMoRetailersList(currentUserProfile?.mandal);
+    } catch(err) {
+        alert('Error linking outlet: ' + (err.message || err));
+    }
 }
 
 function createRetailerOutlet() {
@@ -17867,7 +18001,9 @@ function _rtExecuteDistributeFromList(r, rowIdx) {
         }
         if (token) ops.push(database.ref('fertilizerDistributions/' + token).update({
             status: 'Distributed', retailerVerified: true,
-            verifiedAt: now, verifiedBy: uid||'', outletId: outletId||'', outletName: outletName||'',
+            verifiedAt: now, verifiedBy: uid||'',
+            retailerUid: uid||'',
+            outletId: outletId||'', outletName: outletName||'',
             distributedBags: bags, fertilizerType: fert,
             aadhaar: r.aadhaar||'', farmerName: r.farmerName||'',
             date: r.date||'', crop: r.crop||'', season: r.season||'', year: r.year||''
@@ -17888,6 +18024,7 @@ function _rtExecuteDistributeFromList(r, rowIdx) {
                 retailerVerified: true,
                 verifiedAt:     now,
                 verifiedBy:     uid||'',
+                retailerUid:    uid||'',
                 outletId:       outletId||'',
                 outletName:     outletName||'',
                 splitIndex:     r.splitIndex !== undefined ? r.splitIndex : 0,
@@ -17987,6 +18124,7 @@ async function retailerMarkDistributed(tokenKey, farmerName, bags) {
             retailerVerified: true,
             verifiedAt: now,
             verifiedBy: currentUid || '',
+            retailerUid: currentUid || '',
             outletId: outletId || record.outletId || '',
             outletName: outletName || record.outletName || '',
             confirmedByRetailerAt: now,
@@ -18219,6 +18357,62 @@ async function searchRetailerHistoryByAadhaar() {
     }
 }
 
+// ── DIAGNOSTIC: reveals exactly what Firebase holds for this retailer ──
+async function rtDiagnoseHistory() {
+    const { uid, outletId } = getRetailerInfo();
+    const container = document.getElementById('rtHistoryContainer');
+    container.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Running diagnostics…</p></div>';
+
+    const report = [];
+    report.push(`<b>Your UID:</b> <code>${uid || '(none)'}</code>`);
+    report.push(`<b>Your outletId:</b> <code>${outletId || '(none — this is the main problem!)'}</code>`);
+
+    const totalSnap = await database.ref('fertilizerDistributions').once('value').catch(() => null);
+    const total = totalSnap ? totalSnap.numChildren() : 0;
+    report.push(`<b>Total records in fertilizerDistributions:</b> ${total}`);
+
+    if (total > 0 && total <= 200) {
+        // Sample scan — find any record referencing this outlet or uid
+        let byOutlet=0, byRetailerUid=0, byVerifiedBy=0, sample=null;
+        totalSnap.forEach(child => {
+            const r = child.val();
+            if (r.outletId === outletId) byOutlet++;
+            if (r.retailerUid === uid) byRetailerUid++;
+            if (r.verifiedBy === uid) byVerifiedBy++;
+            if (!sample && (r.outletId === outletId || r.retailerUid === uid || r.verifiedBy === uid)) sample = r;
+        });
+        report.push(`<b>Records with your outletId:</b> ${byOutlet}`);
+        report.push(`<b>Records with your retailerUid:</b> ${byRetailerUid}`);
+        report.push(`<b>Records with your verifiedBy:</b> ${byVerifiedBy}`);
+        if (sample) report.push(`<b>Sample record fields:</b> <code>${Object.keys(sample).join(', ')}</code>`);
+        else report.push(`<b>⚠️ NO records found matching your uid/outletId in any field!</b>`);
+    } else if (total > 200) {
+        report.push(`<i>(Too many records for full scan — using indexed queries only)</i>`);
+        const [s1,s2,s3] = await Promise.all([
+            database.ref('fertilizerDistributions').orderByChild('outletId').equalTo(outletId).once('value').catch(()=>null),
+            database.ref('fertilizerDistributions').orderByChild('retailerUid').equalTo(uid).once('value').catch(()=>null),
+            database.ref('fertilizerDistributions').orderByChild('verifiedBy').equalTo(uid).once('value').catch(()=>null),
+        ]);
+        report.push(`<b>By outletId query:</b> ${s1 ? s1.numChildren() : 'ERROR (index missing?)'} records`);
+        report.push(`<b>By retailerUid query:</b> ${s2 ? s2.numChildren() : 'ERROR (index missing?)'} records`);
+        report.push(`<b>By verifiedBy query:</b> ${s3 ? s3.numChildren() : 'ERROR (index missing?)'} records`);
+    } else {
+        report.push('<b>⚠️ fertilizerDistributions is EMPTY — no distributions have been saved to this path yet!</b>');
+    }
+
+    container.innerHTML = `
+    <div style="background:#fffbea;border:2px solid #f39c12;border-radius:12px;padding:1.2rem 1.5rem;">
+        <h6 style="color:#856404;"><i class="fas fa-stethoscope me-2"></i>History Diagnostic Report</h6>
+        <ul style="list-style:none;padding:0;margin:0;font-size:0.82rem;line-height:2;">
+            ${report.map(r => '<li>' + r + '</li>').join('')}
+        </ul>
+        <div class="mt-3 d-flex gap-2">
+            <button class="btn btn-sm btn-primary" onclick="loadRetailerHistory()"><i class="fas fa-sync me-1"></i>Try Load History</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="rtDiagnoseHistory()"><i class="fas fa-redo me-1"></i>Re-run Diagnostic</button>
+        </div>
+    </div>`;
+}
+
 function loadRetailerHistory() {
     const { uid, outletId } = getRetailerInfo();
     const container = document.getElementById('rtHistoryContainer');
@@ -18245,36 +18439,62 @@ function loadRetailerHistory() {
 
     container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-secondary"></i><p class="mt-2">Loading history…</p></div>';
 
-    // ── Query /fertilizerDistributions for completed records ─────────────────
-    // ✅ Now we KNOW outletId exists, so this query is always filtered
-    const query = database.ref('fertilizerDistributions').orderByChild('outletId').equalTo(outletId);
-
-    query.once('value').then(snap => {
+    // ── TRIPLE-PATH QUERY: covers all ways a record could be linked to this retailer ──
+    // Path 1: outletId field (standard VO-issued tokens verified by this outlet)
+    // Path 2: retailerUid field (farmerCardQR and newly-fixed token distributions)
+    // Path 3: verifiedBy field (older records before retailerUid was written)
+    // All 3 run in parallel and results are merged + deduplicated by Firebase key.
+    Promise.all([
+        database.ref('fertilizerDistributions').orderByChild('outletId').equalTo(outletId).once('value').catch(() => null),
+        database.ref('fertilizerDistributions').orderByChild('retailerUid').equalTo(uid).once('value').catch(() => null),
+        database.ref('fertilizerDistributions').orderByChild('verifiedBy').equalTo(uid).once('value').catch(() => null)
+    ]).then(([snapOutlet, snapRetailer, snapVerified]) => {
         const { uid: currentUid } = getRetailerInfo();
-        const records = [];
-        if (snap.exists()) {
-            snap.forEach(child => {
-                const r = child.val();
-                if (!r) return;
-                // Exclude cancelled/deleted records from the standard view
-                if (r.status !== 'Distributed' && r.status !== 'Rejected' && !r.retailerVerified) return;
-                if (r.status === 'Cancelled') return;
-                
-                // ✅ Secondary check: ensure record belongs to this retailer
-                if (r.outletId && r.outletId !== outletId) {
-                    // Still include if distributed by this retailer via farmer card QR
-                    if (r.retailerUid !== currentUid) return;
-                }
-                if (!r.outletId && r.retailerUid !== currentUid) return;
-                
-                records.push({ ...r, tokenKey: child.key });
-            });
-        }
 
-        records.sort((a,b) => {
-            const da = a.verifiedAt || a.rejectedAt || a.createdAt || '';
-            const db = b.verifiedAt || b.rejectedAt || b.createdAt || '';
-            return db.localeCompare(da);
+        // Merge all results, deduplicating by Firebase key
+        const seen = new Set();
+        const allChildren = [];
+        [snapOutlet, snapRetailer, snapVerified].forEach(snap => {
+            if (!snap || !snap.exists()) return;
+            snap.forEach(child => {
+                if (!seen.has(child.key)) {
+                    seen.add(child.key);
+                    allChildren.push({ key: child.key, val: child.val() });
+                }
+            });
+        });
+
+        const records = [];
+        allChildren.forEach(({ key, val: r }) => {
+            if (!r) return;
+            // Only include records genuinely belonging to this retailer
+            const mine = (r.outletId && r.outletId === outletId)
+                      || (r.retailerUid && r.retailerUid === currentUid)
+                      || (r.verifiedBy  && r.verifiedBy  === currentUid);
+            if (!mine) return;
+
+            // Accept all completed statuses (Distributed, farmerCardQR, Rejected)
+            const done = r.status === 'Distributed'
+                      || r.retailerVerified === true
+                      || r.distributedVia === 'farmerCardQR'
+                      || r.distributedByRetailer === true
+                      || r.status === 'Rejected';
+            if (!done) return;
+            if (r.status === 'Cancelled' || r.status === 'Deleted') return;
+
+            records.push({ ...r, tokenKey: key });
+        });
+
+        // Numeric sort — handles both ISO strings and ms-epoch timestamps
+        records.sort((a, b) => {
+            const toMs = v => {
+                if (!v) return 0;
+                if (typeof v === 'number') return v;
+                const n = Number(v); if (!isNaN(n)) return n;
+                return new Date(v).getTime() || 0;
+            };
+            return toMs(b.verifiedAt||b.distributedAt||b.rejectedAt||b.createdAt)
+                 - toMs(a.verifiedAt||a.distributedAt||a.rejectedAt||a.createdAt);
         });
 
         if (!records.length) {
