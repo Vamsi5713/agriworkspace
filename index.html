@@ -4634,6 +4634,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
                           <th>Father Name</th>
                           <th>Aadhaar</th>
                           <th>Mobile</th>
+                          <th>Village</th>
                           <th>Khatha</th>
                           <th>Survey No</th>
                           <th>Extent (Ac)</th>
@@ -4643,7 +4644,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
                       </tr>
                   </thead>
                   <tbody id="fpAllProfilesTbody">
-                      <tr><td colspan="12" class="text-center text-muted p-4">No profiles found.</td></tr>
+                      <tr><td colspan="14" class="text-center text-muted p-4">No profiles found.</td></tr>
                   </tbody>
               </table>
           </div>
@@ -5616,9 +5617,9 @@ function _applyCloudSnapshot(snapshot) {
 
 // ── Refresh all dependent UI panels ──────────────────────────
 function _refreshDependentUI() {
-    if (typeof refreshKhathaDropdown     === 'function') refreshKhathaDropdown();
-    if (typeof refreshUploadInfo         === 'function') refreshUploadInfo();
-    if (typeof update1BFileStatusBar     === 'function') update1BFileStatusBar();
+    if (typeof refreshKhathaDropdown === 'function') refreshKhathaDropdown();
+    if (typeof refreshUploadInfo === 'function') refreshUploadInfo();
+    if (typeof update1BFileStatusBar === 'function') update1BFileStatusBar();
 
     const fpSection = document.getElementById('farmerProfileSection');
     if (fpSection && fpSection.style.display !== 'none' && fpSection.style.display !== '') {
@@ -13132,6 +13133,7 @@ async function saveFarmerProfile() {
         cardNumber: finalCardNumber,
         apfrNumber: apfrNumber,
         ownerName: savedOwnerName,
+        village: userVillage,                      // ── Village of the VO who created this entry ──
         savedAt: new Date().toISOString()
     };
 
@@ -14855,7 +14857,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
     if (countEl) countEl.textContent = `${allProfiles.length} profile${allProfiles.length !== 1 ? 's' : ''}`;
 
     if (!allProfiles.length) {
-        tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted p-3">No matching profiles found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="14" class="text-center text-muted p-3">No matching profiles found.</td></tr>`;
         return;
     }
 
@@ -14918,6 +14920,14 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
             <td><code class="bg-light px-2 py-1 rounded border" style="font-size:0.8rem">
                 ${escapeHtml(p.aadhaar || '—')}</code></td>
             <td>${escapeHtml(p.mobile || '—')}</td>
+            <td style="font-size:0.78rem;">
+                ${p.village
+                    ? `<span class="badge" style="background:#e8f4fd;color:#1862ab;border:1px solid #b3d7f5;font-size:0.72rem;font-weight:700;">
+                        <i class="fas fa-map-marker-alt me-1"></i>${escapeHtml(p.village)}
+                       </span>`
+                    : `<span class="text-muted" style="font-size:0.75rem;">—</span>`
+                }
+            </td>
             <td><strong>${escapeHtml(p.khatha || '—')}</strong></td>
             <td style="min-width:100px">${surveyNoDisplay}</td>
             <td class="text-center fw-semibold" style="color:#27ae60;">${
@@ -18213,15 +18223,31 @@ function loadRetailerHistory() {
     const { uid, outletId } = getRetailerInfo();
     const container = document.getElementById('rtHistoryContainer');
     if (!container) return;
+    
+    // ✅ SAFETY CHECK: Prevent showing all retailers' data
+    if (!outletId) {
+        container.innerHTML = `
+        <div class="alert alert-warning d-flex align-items-start gap-3" style="border-radius:14px;">
+            <i class="fas fa-exclamation-triangle fa-lg text-warning flex-shrink-0 mt-1"></i>
+            <div>
+                <strong>Outlet Not Assigned</strong><br>
+                <span class="small text-muted">Your retailer account does not have an outlet ID linked yet.
+                Please contact your Mandal Officer to assign your outlet, then refresh this page.</span>
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadRetailerHistory()">
+                        <i class="fas fa-sync me-1"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        return;
+    }
+
     container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-secondary"></i><p class="mt-2">Loading history…</p></div>';
 
     // ── Query /fertilizerDistributions for completed records ─────────────────
-    let query;
-    if (outletId) {
-        query = database.ref('fertilizerDistributions').orderByChild('outletId').equalTo(outletId);
-    } else {
-        query = database.ref('fertilizerDistributions');
-    }
+    // ✅ Now we KNOW outletId exists, so this query is always filtered
+    const query = database.ref('fertilizerDistributions').orderByChild('outletId').equalTo(outletId);
 
     query.once('value').then(snap => {
         const { uid: currentUid } = getRetailerInfo();
@@ -18233,11 +18259,14 @@ function loadRetailerHistory() {
                 // Exclude cancelled/deleted records from the standard view
                 if (r.status !== 'Distributed' && r.status !== 'Rejected' && !r.retailerVerified) return;
                 if (r.status === 'Cancelled') return;
-                if (outletId && r.outletId && r.outletId !== outletId) {
+                
+                // ✅ Secondary check: ensure record belongs to this retailer
+                if (r.outletId && r.outletId !== outletId) {
                     // Still include if distributed by this retailer via farmer card QR
                     if (r.retailerUid !== currentUid) return;
                 }
-                if (!outletId && r.outletId && r.retailerUid !== currentUid) return;
+                if (!r.outletId && r.retailerUid !== currentUid) return;
+                
                 records.push({ ...r, tokenKey: child.key });
             });
         }
@@ -18249,7 +18278,14 @@ function loadRetailerHistory() {
         });
 
         if (!records.length) {
-            container.innerHTML = '<div class="alert alert-info">No distribution history yet.</div>';
+            container.innerHTML = `
+            <div class="alert alert-info d-flex align-items-center gap-3">
+                <i class="fas fa-info-circle fa-2x text-info flex-shrink-0"></i>
+                <div>
+                    <div class="fw-bold">No Distribution History</div>
+                    <div class="small text-muted">No completed distributions found for your outlet yet.</div>
+                </div>
+            </div>`;
             return;
         }
 
@@ -18318,10 +18354,18 @@ function loadRetailerHistory() {
                 <span class="badge bg-danger px-3 py-2" style="border-radius:20px;font-size:.85rem;">
                     <i class="fas fa-times-circle me-1"></i>${rejectedCount} Rejected
                 </span>
+                <span class="badge bg-secondary px-3 py-2" style="border-radius:20px;font-size:.85rem;">
+                    <i class="fas fa-list me-1"></i>${records.length} Total
+                </span>
             </div>
-            <button class="btn btn-success btn-sm fw-semibold" onclick="exportRetailerHistoryExcel()" style="border-radius:20px;">
-                <i class="fas fa-file-excel me-1"></i> Export to Excel
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success btn-sm fw-semibold" onclick="exportRetailerHistoryExcel()" style="border-radius:20px;">
+                    <i class="fas fa-file-excel me-1"></i> Export to Excel
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadRetailerHistory()" style="border-radius:20px;">
+                    <i class="fas fa-sync me-1"></i> Refresh
+                </button>
+            </div>
         </div>
         <div class="table-responsive">
         <table class="table table-sm table-hover align-middle" style="font-size:.82rem;" id="rtHistoryTable">
@@ -18348,8 +18392,20 @@ function loadRetailerHistory() {
             </thead>
             <tbody>${rows}</tbody>
         </table></div>`;
-    }).catch(e => container.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`);
+    }).catch(e => {
+        console.error('loadRetailerHistory error:', e);
+        container.innerHTML = `<div class="alert alert-danger">
+            <i class="fas fa-times-circle me-2"></i>
+            Error loading history: ${escapeHtml(e.message)}
+            <div class="mt-2">
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadRetailerHistory()">
+                    <i class="fas fa-sync me-1"></i> Retry
+                </button>
+            </div>
+        </div>`;
+    });
 }
+
 async function deleteDistribution(recordKey) {
     if (!confirm("\u26A0\uFE0F Delete this distribution?\n\nThe bags will be RESTORED to the farmer's eligible account so they can avail again.\n\nOnly allowed within 1 hour of issuance.")) {
         return;
@@ -18398,7 +18454,7 @@ async function deleteDistribution(recordKey) {
             retailerVerified: false,
             deletedAt: new Date().toISOString(),
             deletedByRetailer: true,
-            retailerDeletionNote: 'Deleted by Retailer \u2014 bags restored to farmer'
+            retailerDeletionNote: 'Deleted by Retailer — bags restored to farmer'
         }));
 
         // 2. Cancel matching ureaHistory record
@@ -18407,10 +18463,6 @@ async function deleteDistribution(recordKey) {
             deletedAt: new Date().toISOString(),
             deletedByRetailer: true
         }).catch(() => {}));
-
-        // 2b. Cancel in-memory ureaHistory
-        const memIdx = ureaHistory.findIndex(h => h._key === recordKey);
-        if (memIdx >= 0) ureaHistory[memIdx].status = 'Cancelled';
 
         // 3. Restore availed bags in farmerProfiles
         if (voUid && a && bags > 0) {
@@ -18577,8 +18629,12 @@ async function deleteDistribution(recordKey) {
                     deletedAt: new Date().toISOString(), deletedByRetailer: true };
             }
         });
+        
         alert('\u2705 Distribution deleted!\n\n' + bags + ' ' + fert + ' bag(s) have been RESTORED to the farmer\'s eligible account.\nThe farmer can now avail these bags again from any outlet.');
         loadRetailerHistory();
+        if (typeof loadDistributionDetailsForVO === 'function') {
+            loadDistributionDetailsForVO();
+        }
 
     } catch(err) {
         console.error("Error deleting distribution:", err);
@@ -19095,7 +19151,6 @@ function onQrDetected(data) {
 // ============================================================
 function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
     const a = String(aadhaar || '').replace(/\s/g, '');
-    // Store params on resultEl so delete-then-refresh can re-call this function
     if (resultEl) resultEl.dataset.lastQr = `FC|${a}|${year}|${season}|${voUid}`;
     if (a.length !== 12) {
         resultEl.innerHTML = _rtAuthErr('Invalid Farmer Card QR — Aadhaar missing or malformed.');
@@ -19108,38 +19163,38 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
 
     const fcKey = a + '_' + (year || '').replace(/[^a-zA-Z0-9]/g,'') + '_' + (season || '');
     const voUidClean = String(voUid || '').trim();
+    
     Promise.all([
         database.ref('fertilizerCards/' + fcKey).once('value'),
         database.ref('ureaHistory').orderByChild('aadhaar').equalTo(a).once('value'),
         voUidClean ? database.ref('users/' + voUidClean + '/ureaHistory').once('value') : Promise.resolve(null),
         database.ref('fertilizerDistributions').orderByChild('aadhaar').equalTo(a).once('value')
     ]).then(([snap, histSnap, voHistSnap, fdSnap]) => {
-        // ── Build already-issued map from fertilizerDistributions for this farmer ──
+        // ── Build already-issued map from fertilizerDistributions ──
         const fdIssuedRecords = [];
         if (fdSnap && fdSnap.exists()) {
             fdSnap.forEach(child => {
                 const v = child.val();
                 if (!v) return;
-                if ((v.status === 'Distributed' || v.retailerVerified === true) && v.status !== 'Cancelled' &&
+                // Skip cancelled/rejected
+                if (v.status === 'Cancelled' || v.status === 'Rejected') return;
+                // Only count distributed or retailer-verified records
+                if ((v.status === 'Distributed' || v.retailerVerified === true) &&
                      v.year === year && v.season === season) {
                     fdIssuedRecords.push({ ...v, _tokenKey: child.key });
                 }
             });
         }
         window._fcQrIssuedRecords = fdIssuedRecords;
-        // Refresh local ureaHistory cache with the latest records for this farmer
+        
+        // Refresh local ureaHistory cache
         if (histSnap.exists()) {
             histSnap.forEach(child => {
                 const v = child.val();
                 const existIdx = ureaHistory.findIndex(h => h._key === child.key);
                 if (existIdx >= 0) {
-                    // BUGFIX: If the in-memory record is already Cancelled (e.g. retailer just
-                    // deleted it and Firebase hasn't fully propagated yet), do NOT overwrite it
-                    // with a stale 'Distributed' status from the server. Preserve the Cancelled
-                    // status so _availed() correctly excludes this record in the re-scan.
                     const inMemStatus = ureaHistory[existIdx].status;
                     if (inMemStatus === 'Cancelled' && (v.status === 'Distributed' || !v.status)) {
-                        // Keep in-memory Cancelled but update non-status fields
                         ureaHistory[existIdx] = { ...v, _key: child.key, status: 'Cancelled',
                             deletedByRetailer: ureaHistory[existIdx].deletedByRetailer || v.deletedByRetailer };
                     } else {
@@ -19150,17 +19205,8 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 }
             });
         }
-        // Merge in the Village Officer's per-user ureaHistory records for this farmer
-        // (recorded via the farmer profile / print flow, stored under users/{voUid}/ureaHistory)
-        //
-        // IMPORTANT — duplicate-counting fix:
-        // submitFarmerCardDistribution() writes the SAME distribution event to BOTH the
-        // global /ureaHistory node AND users/{voUid}/ureaHistory (with a different push key).
-        // Earlier this merge added both copies as distinct entries, so _availed() summed
-        // them together (e.g. a real 2-bag distribution showed as "Availed: 4"). We now
-        // skip the VO-scoped copy whenever a content-matching record (same farmer, fert,
-        // split, bag count, year/season, and the same verified/distributed timestamp) is
-        // already present from the global ureaHistory merge above.
+        
+        // Merge VO ureaHistory
         if (voHistSnap && voHistSnap.exists()) {
             const voArr = voHistSnap.val();
             const voList = Array.isArray(voArr) ? voArr : Object.values(voArr || {});
@@ -19181,12 +19227,13 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                         (h.fcKey && v.fcKey && h.fcKey === v.fcKey && h.date === v.date)
                     )
                 );
-                if (isDuplicateOfGlobalRecord) return; // already counted via the global /ureaHistory copy
+                if (isDuplicateOfGlobalRecord) return;
                 const existIdx = ureaHistory.findIndex(h => h._key === vKey);
                 if (existIdx >= 0) ureaHistory[existIdx] = { ...v, _key: vKey };
                 else ureaHistory.push({ ...v, _key: vKey });
             });
         }
+        
         if (!snap.exists()) {
             resultEl.innerHTML = _rtAuthErr(
                 'No fertilizer card found for this QR code.',
@@ -19196,35 +19243,30 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             );
             return;
         }
+        
         const fc = snap.val();
         const splits = fc.splits || {};
         const uElig = [splits.Urea?.s0||0, splits.Urea?.s1||0, splits.Urea?.s2||0];
         const dElig = [splits.DAP?.s0||0,  splits.DAP?.s1||0,  splits.DAP?.s2||0];
-        // VO's manual "Edit Availed Bags" correction (if any) — must take priority over the
-        // raw transaction-log total so the retailer's QR scan matches what the VO sees.
+        
+        // ── CRITICAL FIX: Read availedOverride from the card ──
+        // This is the VO-corrected value that should be shown to the retailer
         const availedOverride = fc.availedOverride || null;
-
-        // Compute already availed from ureaHistory + fertilizerDistributions (fdIssuedRecords)
+        const hasAvailedOverride = availedOverride !== null;
+        
+        // ── Compute availed from ureaHistory + fertilizerDistributions ──
+        // BUT if availedOverride exists, use that instead
         function _availed(fert, splitIdx) {
-            if (availedOverride) {
-                const ovFert = availedOverride[fert] || {};
-                const ovVal  = ovFert['s' + splitIdx];
+            // ── FIRST: Check if VO has corrected this split ──
+            if (availedOverride && availedOverride[fert]) {
+                const ovVal = availedOverride[fert]['s' + splitIdx];
                 if (ovVal !== undefined && ovVal !== null) {
-                    // BUG FIX: availedOverride must never go below the count of genuine
-                    // retailer distributions that are still active in fertilizerDistributions.
-                    // If the VO correction was set to 0 but 3 bags were actually issued via
-                    // retailer QR scan, the real issued count (fromFdForOverride) takes priority
-                    // so that Remaining is never inflated above what is truly left.
-                    const fdRecsForOv = window._fcQrIssuedRecords || [];
-                    const fromFdForOverride = fdRecsForOv
-                        .filter(r =>
-                            (r.fertilizerType || r.fert || 'Urea') === fert &&
-                            Number(r.splitIndex !== undefined ? r.splitIndex : 0) === splitIdx
-                        )
-                        .reduce((s, r) => s + Number(r.bags || 0), 0);
-                    return Math.max(Number(ovVal) || 0, fromFdForOverride);
+                    // Use the VO-corrected value
+                    return Number(ovVal);
                 }
             }
+            
+            // ── SECOND: Fall back to actual transaction count ──
             // Count from local ureaHistory cache
             const fromHistory = ureaHistory
                 .filter(h =>
@@ -19237,9 +19279,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 )
                 .reduce((s,h) => s + Number(h.bags||0), 0);
 
-            // Also count from freshly-fetched fertilizerDistributions (most authoritative source).
-            // fdIssuedRecords was just loaded from Firebase in this same processFarmerCardQr call,
-            // so it already excludes Cancelled/deleted records (filter: status===Distributed && !==Cancelled).
+            // Count from fertilizerDistributions
             const fdRecs = window._fcQrIssuedRecords || [];
             const fromFd = fdRecs
                 .filter(r =>
@@ -19248,18 +19288,6 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 )
                 .reduce((s,r) => s + Number(r.bags||0), 0);
 
-            // BUGFIX for delete-then-rescan race condition:
-            // Previously Math.max(fromHistory, fromFd) was used, but this causes stale availed
-            // counts when a retailer deletes a distribution and immediately rescans — the Firebase
-            // propagation may lag, so fromHistory still contains the just-deleted bags, making
-            // _availed() return the wrong (too-high) value even though fromFd is correctly 0.
-            //
-            // Strategy: fertilizerDistributions is the single source of truth for retailer QR
-            // distributions (farmerCardQR path). Count fromFd first. For any ureaHistory records
-            // that are NOT already represented in fdRecs (e.g. older VO-path records without a
-            // corresponding fertilizerDistributions entry), add those on top — but skip records
-            // that originated from the retailer QR path, since their absence from fdRecs means
-            // they were deleted.
             const fdKeys = new Set(fdRecs.map(r => r._tokenKey).filter(Boolean));
             const fromHistoryOnly = ureaHistory
                 .filter(h =>
@@ -19269,10 +19297,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                     String(h.year||'').trim() === year &&
                     parseInt(h.splitIndex) === splitIdx &&
                     h.status !== 'Rejected' && h.status !== 'Cancelled' &&
-                    // Exclude records that are already counted in fdRecs
                     !fdKeys.has(h._key) &&
-                    // Exclude retailer QR distributions: if active they'd be in fdRecs;
-                    // absence means they were deleted — do not count them via ureaHistory
                     !(h.distributedVia === 'farmerCardQR' || h.retailerDistributedViaFarmerCard || h.distributedByRetailer)
                 )
                 .reduce((s,h) => s + Number(h.bags||0), 0);
@@ -19280,17 +19305,63 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             return fromFd + fromHistoryOnly;
         }
 
+        // ── Calculate remaining using the corrected availed values ──
         const splitNames = ['Split 1 — Basal', 'Split 2 — Top-dress', 'Split 3 — Final'];
         const splitBadges = ['#1862ab','#27ae60','#f39c12'];
         let splitRowsHtml = '';
+        
+        // ── Also fetch the availedOverride values for display ──
+        let availedOverrideDisplay = '';
+        if (hasAvailedOverride) {
+            const ovU = availedOverride.Urea || {};
+            const ovD = availedOverride.DAP || {};
+            availedOverrideDisplay = `
+            <div style="background:#e8f8ee;border:2px solid #27ae60;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+                <div style="font-weight:800;font-size:0.83rem;color:#1a7a45;margin-bottom:6px;">
+                    <i class="fas fa-user-edit me-1"></i> Village Officer Correction Applied
+                    <span style="font-weight:400;font-size:0.72rem;color:#2e7d52;margin-left:6px;">(Availed bags corrected by VO)</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+                    <thead><tr style="font-size:0.7rem;color:#555;border-bottom:1px solid #a8ddb5;">
+                        <th style="padding:3px 6px;">Split</th>
+                        <th style="padding:3px 6px;text-align:center;">Urea Availed</th>
+                        <th style="padding:3px 6px;text-align:center;">DAP Availed</th>
+                    </tr></thead>
+                    <tbody>
+                        ${[0,1,2].map(si => {
+                            const corrU = ovU['s'+si] !== undefined && ovU['s'+si] !== null ? Number(ovU['s'+si]) : '—';
+                            const corrD = ovD['s'+si] !== undefined && ovD['s'+si] !== null ? Number(ovD['s'+si]) : '—';
+                            const hasU = corrU !== '—';
+                            const hasD = corrD !== '—';
+                            if (!hasU && !hasD) return '';
+                            return `<tr style="font-size:0.72rem;">
+                                <td style="padding:3px 6px;font-weight:600;">${splitNames[si]}</td>
+                                <td style="padding:3px 6px;text-align:center;font-weight:700;color:#1862ab;">${hasU ? corrU : '—'}</td>
+                                <td style="padding:3px 6px;text-align:center;font-weight:700;color:#27ae60;">${hasD ? corrD : '—'}</td>
+                            </tr>`;
+                        }).filter(Boolean).join('')}
+                    </tbody>
+                </table>
+                <div style="margin-top:6px;font-size:0.72rem;color:#2e7d52;">
+                    <i class="fas fa-info-circle me-1"></i>
+                    The remaining eligible bags shown below reflect this VO correction.
+                </div>
+            </div>`;
+        }
 
         for (let si = 0; si < 3; si++) {
             const eU = uElig[si], eD = dElig[si];
             if (eU === 0 && eD === 0) continue;
-            const avU = _availed('Urea', si), avD = _availed('DAP', si);
-            const remU = Math.max(0, eU - avU), remD = Math.max(0, eD - avD);
-            const doneU = eU > 0 && remU === 0, doneD = eD > 0 && remD === 0;
+            
+            // Use the corrected availed values from _availed (which checks availedOverride first)
+            const avU = _availed('Urea', si);
+            const avD = _availed('DAP', si);
+            const remU = Math.max(0, eU - avU);
+            const remD = Math.max(0, eD - avD);
+            const doneU = eU > 0 && remU === 0;
+            const doneD = eD > 0 && remD === 0;
             const allDone = (eU === 0 || doneU) && (eD === 0 || doneD);
+            
             splitRowsHtml += `
             <div data-split-card data-elig-urea="${eU}" data-elig-dap="${eD}" style="border:1.5px solid #dee2e6; border-radius:10px; margin-bottom:0.7rem; overflow:hidden;">
               <div style="background:${allDone ? '#1b5e20' : splitBadges[si]}; color:#fff; padding:6px 12px; font-size:0.82rem; font-weight:700; display:flex; justify-content:space-between; align-items:center;">
@@ -19305,8 +19376,6 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 ${allDone ? `<div class="alert alert-success py-1 mb-0 small">All bags for this split have been distributed.</div>` : `
                 <div style="display:flex; gap:0.8rem; flex-wrap:wrap; align-items:flex-end;">
                   ${(() => {
-                    // Check lock status independently per fertilizer — Urea progression
-                    // is not blocked by DAP status, and vice versa.
                     let lockedU = false, lockedD = false;
                     let lockedReasonU = '', lockedReasonD = '';
                     for (let prev = 0; prev < si; prev++) {
@@ -19357,86 +19426,18 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         const totalRemU = [0,1,2].reduce((s,si) => s + Math.max(0, uElig[si] - _availed('Urea',si)), 0);
         const totalRemD = [0,1,2].reduce((s,si) => s + Math.max(0, dElig[si] - _availed('DAP',si)),  0);
 
-        // ── Build Already-Issued Bags panel from fertilizerDistributions ──
+        // ── Build Already Issued Bags panel with corrected totals ──
         const fdRecs = window._fcQrIssuedRecords || [];
         let alreadyIssuedHtml = '';
-
-        // ── VO Correction notice banner ──
-        // If the VO has used "Edit Availed Bags", show a prominent notice on the QR scan panel
-        // so the retailer understands the corrected availed totals and remaining eligible bags.
-        let voCorrectionBannerHtml = '';
-        if (availedOverride) {
-            const ovU = availedOverride.Urea || {};
-            const ovD = availedOverride.DAP  || {};
-            // Compute raw (pre-correction) totals from fdRecs
-            const rawU = [0,1,2].map(si =>
-                fdRecs.filter(r => (r.fertilizerType||r.fert||'Urea')==='Urea' && Number(r.splitIndex||0)===si)
-                      .reduce((s,r) => s + Number(r.bags||0), 0)
-            );
-            const rawD = [0,1,2].map(si =>
-                fdRecs.filter(r => (r.fertilizerType||r.fert||'')==='DAP' && Number(r.splitIndex||0)===si)
-                      .reduce((s,r) => s + Number(r.bags||0), 0)
-            );
-            const corrRows = [0,1,2].map(si => {
-                const splitName = ['Split 1 (Basal)','Split 2 (Top-dress)','Split 3 (Final)'][si];
-                const corrU = ovU['s'+si] !== undefined && ovU['s'+si] !== null ? Number(ovU['s'+si]) : null;
-                const corrD = ovD['s'+si] !== undefined && ovD['s'+si] !== null ? Number(ovD['s'+si]) : null;
-                const hasU = corrU !== null && corrU !== rawU[si];
-                const hasD = corrD !== null && corrD !== rawD[si];
-                if (!hasU && !hasD) return '';
-                return `<tr style="font-size:0.75rem;">
-                    <td style="padding:3px 6px;font-weight:600;">${splitName}</td>
-                    ${hasU
-                        ? `<td style="padding:3px 6px;text-align:center;">
-                             <span style="text-decoration:line-through;color:#e74c3c;">${rawU[si]}</span>
-                             <span style="color:#27ae60;font-weight:700;margin-left:4px;">→ ${corrU}</span>
-                           </td>`
-                        : '<td style="padding:3px 6px;text-align:center;color:#999;">—</td>'}
-                    ${hasD
-                        ? `<td style="padding:3px 6px;text-align:center;">
-                             <span style="text-decoration:line-through;color:#e74c3c;">${rawD[si]}</span>
-                             <span style="color:#27ae60;font-weight:700;margin-left:4px;">→ ${corrD}</span>
-                           </td>`
-                        : '<td style="padding:3px 6px;text-align:center;color:#999;">—</td>'}
-                </tr>`;
-            }).filter(Boolean).join('');
-
-            if (corrRows) {
-                voCorrectionBannerHtml = `
-                <div style="background:#e8f8ee;border:2px solid #27ae60;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
-                    <div style="font-weight:800;font-size:0.83rem;color:#1a7a45;margin-bottom:6px;">
-                        <i class="fas fa-user-edit me-1"></i> Village Officer Correction Applied
-                        <span style="font-weight:400;font-size:0.72rem;color:#2e7d52;margin-left:6px;">(Availed bags corrected by VO — distribution card updated)</span>
-                    </div>
-                    <table style="width:100%;border-collapse:collapse;">
-                        <thead><tr style="font-size:0.7rem;color:#555;border-bottom:1px solid #a8ddb5;">
-                            <th style="padding:3px 6px;">Split</th>
-                            <th style="padding:3px 6px;text-align:center;">Urea Availed</th>
-                            <th style="padding:3px 6px;text-align:center;">DAP Availed</th>
-                        </tr></thead>
-                        <tbody>${corrRows}</tbody>
-                    </table>
-                    <div style="margin-top:6px;font-size:0.72rem;color:#2e7d52;">
-                        <i class="fas fa-info-circle me-1"></i>
-                        The remaining eligible bags shown below reflect this VO correction.
-                        Distribute only the corrected remaining quantity.
-                    </div>
-                </div>`;
-            }
-        }
-
-        if (fdRecs.length > 0) {
-            // When availedOverride is active, display the VO-corrected totals (from _availed())
-            // instead of the raw fdRecs sum, so the panel is consistent with the remaining count.
-            const totalFdU = availedOverride
-                ? [0,1,2].reduce((s,si) => s + _availed('Urea', si), 0)
-                : fdRecs.filter(r => (r.fertilizerType||r.fert||'Urea') === 'Urea').reduce((s,r) => s + Number(r.bags||0), 0);
-            const totalFdD = availedOverride
-                ? [0,1,2].reduce((s,si) => s + _availed('DAP', si), 0)
-                : fdRecs.filter(r => (r.fertilizerType||r.fert||'') === 'DAP').reduce((s,r) => s + Number(r.bags||0), 0);
+        
+        // Use corrected availed totals for display
+        const totalCorrU = [0,1,2].reduce((s,si) => s + _availed('Urea', si), 0);
+        const totalCorrD = [0,1,2].reduce((s,si) => s + _availed('DAP', si), 0);
+        
+        if (fdRecs.length > 0 || hasAvailedOverride) {
             const fdRows = fdRecs.map(r => {
-                const fert = r.fertilizerType || r.fert || 'Urea';
-                const fc2  = fert === 'Urea' ? '#f57c00' : fert === 'DAP' ? '#0277bd' : '#7b1fa2';
+                const fert2 = r.fertilizerType || r.fert || 'Urea';
+                const fc2 = fert2 === 'Urea' ? '#f57c00' : fert2 === 'DAP' ? '#0277bd' : '#7b1fa2';
                 const date = r.verifiedAt || r.distributedAt || r.date || '';
                 const timeStr = date ? new Date(date).toLocaleString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
                 const splitLabel = r.splitName || (r.splitIndex !== undefined ? ['Basal','Top-dress','Final'][r.splitIndex] || ('Split '+(r.splitIndex+1)) : '—');
@@ -19445,38 +19446,43 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 const actionMs = date ? new Date(date).getTime() : 0;
                 const canDelete = actionMs > 0 && (Date.now() - actionMs) <= ONE_HOUR_MS;
                 const deleteBtn = canDelete
-                    ? `<button onclick="(async()=>{await deleteDistribution('${r._tokenKey}');window._fcQrIssuedRecords=(window._fcQrIssuedRecords||[]).filter(x=>x._tokenKey!=='${r._tokenKey}');loadRetailerHistory();const resEl=document.getElementById('rtQrScanResult');if(resEl&&resEl.dataset.lastQr){const p=resEl.dataset.lastQr.split('|');if(p[0]==='FC'&&p[1]&&p[2]&&p[3]&&p[4])processFarmerCardQr(p[1],p[2],p[3],p[4],resEl);}})()"
+                    ? `<button onclick="(async()=>{await deleteDistribution('${r._tokenKey}');window._fcQrIssuedRecords=(window._fcQrIssuedRecords||[]).filter(x=>x._tokenKey!=='${r._tokenKey}');loadRetailerHistory();const resEl=document.getElementById('qrScanResult');if(resEl&&resEl.dataset.lastQr){const p=resEl.dataset.lastQr.split('|');if(p[0]==='FC'&&p[1]&&p[2]&&p[3]&&p[4])processFarmerCardQr(p[1],p[2],p[3],p[4],resEl);}})()"
                          style="border:none;background:#fff0f0;color:#c0392b;border-radius:6px;padding:2px 8px;font-size:0.7rem;cursor:pointer;" title="Delete within 1 hour">
                          <i class="fas fa-trash-alt me-1"></i>Delete
                        </button>`
                     : '';
-                // When VO correction is active, show original bags with strikethrough and corrected value
-                const splitIdx = Number(r.splitIndex || 0);
-                const rawBags  = Number(r.bags || 0);
-                let bagsDisplay = `${rawBags}`;
-                if (availedOverride) {
-                    const ovFert  = availedOverride[fert] || {};
-                    const corrVal = ovFert['s' + splitIdx];
-                    if (corrVal !== undefined && corrVal !== null && Number(corrVal) !== rawBags) {
-                        bagsDisplay = `<span style="text-decoration:line-through;color:#e74c3c;font-size:0.72rem;">${rawBags}</span>
-                                       <span style="color:#27ae60;font-weight:800;margin-left:3px;">${Number(corrVal)}</span>
-                                       <span style="font-size:0.65rem;color:#888;display:block;">VO corrected</span>`;
+                
+                // Check if this record has been VO-corrected
+                const isVoCorrected = r.voEditedAt || false;
+                const voCorrNote = isVoCorrected 
+                    ? `<br><span style="font-size:0.6rem;color:#e67e22;font-weight:600;">✏️ VO corrected: ${r.voEditNote || ''}</span>`
+                    : '';
+                
+                // Get the corrected bag count if available
+                const splitIdx2 = Number(r.splitIndex || 0);
+                let displayBags = Number(r.bags || 0);
+                if (availedOverride && availedOverride[fert2]) {
+                    const corrVal = availedOverride[fert2]['s' + splitIdx2];
+                    if (corrVal !== undefined && corrVal !== null && Number(corrVal) !== displayBags) {
+                        displayBags = Number(corrVal);
                     }
                 }
+                
                 return `<tr style="font-size:0.75rem;">
-                    <td><span style="background:${fc2};color:#fff;padding:1px 7px;border-radius:6px;font-weight:700;">${escapeHtml(fert)}</span></td>
-                    <td class="text-center fw-bold">${bagsDisplay}</td>
+                    <td><span style="background:${fc2};color:#fff;padding:1px 7px;border-radius:6px;font-weight:700;">${escapeHtml(fert2)}</span></td>
+                    <td class="text-center fw-bold">${displayBags}${voCorrNote}</td>
                     <td>${escapeHtml(splitLabel)}</td>
                     <td class="text-muted">${outlet}</td>
                     <td class="text-muted" style="font-size:0.7rem;">${timeStr}</td>
                     <td>${deleteBtn}</td>
                 </tr>`;
             }).join('');
+            
             alreadyIssuedHtml = `
             <div style="background:#fff3e0;border:1.5px solid #ffcc80;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
                 <div style="font-weight:700;font-size:0.82rem;color:#e65100;margin-bottom:6px;">
                     <i class="fas fa-history me-1"></i> Already Issued Bags (via Retailer) — ${escapeHtml(year)} · ${escapeHtml(season)}
-                    <span class="ms-2" style="font-size:0.7rem;font-weight:400;color:#b07c00;">${availedOverride ? '(VO-corrected totals shown)' : '(From Distribution Records)'}</span>
+                    <span class="ms-2" style="font-size:0.7rem;font-weight:400;color:#b07c00;">${hasAvailedOverride ? '(VO-corrected totals shown)' : '(From Distribution Records)'}</span>
                 </div>
                 <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;">
@@ -19492,9 +19498,10 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 </table>
                 </div>
                 <div style="margin-top:6px;font-size:0.73rem;color:#b07c00;">
-                    ${totalFdU > 0 ? `<strong>Total Urea Availed: ${totalFdU} bags</strong>` : ''}
-                    ${totalFdU > 0 && totalFdD > 0 ? ' &nbsp;|&nbsp; ' : ''}
-                    ${totalFdD > 0 ? `<strong>Total DAP Availed: ${totalFdD} bags</strong>` : ''}
+                    ${totalCorrU > 0 ? `<strong>Total Urea Availed: ${totalCorrU} bags</strong>` : ''}
+                    ${totalCorrU > 0 && totalCorrD > 0 ? ' &nbsp;|&nbsp; ' : ''}
+                    ${totalCorrD > 0 ? `<strong>Total DAP Availed: ${totalCorrD} bags</strong>` : ''}
+                    ${(totalCorrU === 0 && totalCorrD === 0) ? '<span class="text-muted">No bags availed yet</span>' : ''}
                     &nbsp;·&nbsp; <i class="fas fa-clock me-1"></i>Distributions within 1 hour can be deleted.
                 </div>
             </div>`;
@@ -19504,16 +19511,19 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         <div style="border:2px solid #1862ab; border-radius:14px; overflow:hidden; margin-top:0.5rem;">
           <div style="background:linear-gradient(135deg,#1862ab,#0d4d86); color:#fff; padding:10px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
             <div>
-              <div style="font-weight:800; font-size:0.95rem;">🌾 Fertilizer Card — Retailer Distribution</div>
-              <div style="font-size:0.75rem; opacity:0.85; margin-top:2px;">${escapeHtml(fc.farmerName||'—')} &nbsp;|&nbsp; Father: ${escapeHtml(fc.fatherName||'—')}</div>
-            </div>
+  <div style="font-weight:800; font-size:0.95rem;">🌾 Fertilizer Card — Retailer Distribution</div>
+  <div style="font-size:0.75rem; opacity:0.85; margin-top:2px;">
+    <span style="font-weight:600;">Farmer Name:</span> ${escapeHtml(fc.farmerName||fc.farmer_name||'—')} &nbsp;|&nbsp; 
+    <span style="font-weight:600;">Father / Husband:</span> ${escapeHtml(fc.fatherName||fc.father_name||fc.husbandName||'—')}
+  </div>
+</div>
             <div style="text-align:right; font-size:0.72rem;">
               <div style="font-weight:700;">${escapeHtml(year)} · ${escapeHtml(season)}</div>
               <div style="opacity:0.8;">Aadhaar: ••••${escapeHtml(a.slice(-4))} &nbsp;|&nbsp; ${escapeHtml(fc.village||'—')}</div>
             </div>
           </div>
           <div style="padding:12px 16px; background:#fff;">
-            ${voCorrectionBannerHtml}
+            ${availedOverrideDisplay}
             ${alreadyIssuedHtml}
             ${totalRemU === 0 && totalRemD === 0
               ? '<div class="alert alert-success fw-bold text-center">✅ All fertilizer bags have been fully distributed for this card.</div>'
@@ -19541,6 +19551,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             </button>` : ''}
           </div>
         </div>`;
+        
         // Apply initial fertilizer filter (default Urea)
         setTimeout(() => onFcFertSelectChange(fcKey), 0);
     }).catch(err => {
@@ -22819,7 +22830,6 @@ async function loadPrintFarmerProfile() {
     }
 
     const a = cleanAadhaar(aadhaarRaw);
-    // ── Register this farmer as the currently-open card for live refresh ──
     _registerOpenFarmerCard(a);
     let profiles = farmerProfiles[a];
 
@@ -22828,7 +22838,6 @@ async function loadPrintFarmerProfile() {
         return;
     }
 
-    // Filter by year/season if selected
     if (selYear || selSeason) {
         profiles = profiles.filter(p => {
             const cropsList = p.crops || [];
@@ -22846,7 +22855,45 @@ async function loadPrintFarmerProfile() {
         return;
     }
 
-    // ── Merge all profiles for this Aadhaar ──
+    // ── Village-scope filter ──
+    // Each profile entry stores the village of the VO who created it.
+    // A farmer may cultivate in multiple villages — each village VO issues a
+    // separate card covering only that village's land. We filter here so only
+    // this VO's village lands appear on the card.
+    const _voVillage = (currentUserProfile && currentUserProfile.village) ? currentUserProfile.village.trim() : '';
+    const _otherVillageProfiles = _voVillage
+        ? profiles.filter(p => p.village && p.village.trim() !== _voVillage)
+        : [];
+    if (_voVillage) {
+        const villageFiltered = profiles.filter(p =>
+            // Include if profile has no village tag (old entries created before this fix)
+            // OR if its village matches the current VO's village
+            !p.village || p.village.trim() === _voVillage
+        );
+        // If filtering by village leaves something, use filtered set;
+        // otherwise fall back to all (backwards-compat for pre-fix entries)
+        if (villageFiltered.length > 0) {
+            profiles = villageFiltered;
+        }
+    }
+
+    // ── Cross-village notice ──
+    // If this farmer has profiles registered in other villages (other VOs' entries
+    // that ended up in this VO's farmerProfiles), show an info banner so the VO
+    // knows the farmer also cultivates land elsewhere.
+    const _otherVillageNames = [...new Set(
+        _otherVillageProfiles.map(p => p.village).filter(Boolean)
+    )];
+    const _crossVillageBanner = _otherVillageNames.length
+        ? `<div class="alert alert-info py-2 mb-2" style="font-size:0.82rem;border-left:4px solid #1862ab;">
+            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+            <strong>Multi-Village Farmer:</strong> This farmer also has land registered in
+            <strong>${_otherVillageNames.map(v => escapeHtml(v)).join(', ')}</strong>.
+            This card shows <strong>only ${escapeHtml(_voVillage)}</strong> village lands.
+            Each village issues its own fertilizer card.
+          </div>`
+        : '';
+
     const base = profiles[0];
     const farmerName  = base.farmerName || base.name || '—';
     const fatherName  = base.fatherName || '—';
@@ -22859,34 +22906,23 @@ async function loadPrintFarmerProfile() {
     const villageName = (currentUserProfile && currentUserProfile.village) ? currentUserProfile.village : '—';
     const officerName = (currentUserProfile && currentUserProfile.name)    ? currentUserProfile.name    : '—';
 
-    // ── Build owner-name lookup per khatha (for tenant farmer cards) ──
-    // Priority: 1) ownerName stored directly on profile, 2) a separate owner-type profile for that khatha
     const _ownerByKhatha = {};
     Object.values(farmerProfiles || {}).forEach(pGroup => {
         const list = Array.isArray(pGroup) ? pGroup : (pGroup ? [pGroup] : []);
         list.forEach(fp => {
             if (!fp || !fp.khatha) return;
             const kh = String(fp.khatha).trim();
-            // If a stored ownerName exists on any profile for this khatha, use it
             if (fp.ownerName && fp.ownerName !== '—') {
                 _ownerByKhatha[kh] = fp.ownerName;
             }
-            // Also index owner-type profiles (existing behaviour)
             if (fp.farmerType === 'owner') {
                 _ownerByKhatha[kh] = fp.farmerName || fp.ownerName || _ownerByKhatha[kh] || '—';
             }
         });
     });
 
-    // Build crop-wise aggregates across ALL khathas (overall cultivating extent per crop)
-    // — fixes: (1) crop extents under one khatha no longer exceed that khatha's
-    //   registered extent, (2) "Total Extent" reflects the farmer's actual
-    //   cultivating extent (sum of crop extents) rather than khatha extent,
-    //   (3) bags eligibility is computed once per crop on the OVERALL extent
-    //   across khathas instead of khatha-wise (avoids per-khatha rounding
-    //   inflating the total bags).
-    const cropAgg = {}; // cropName → { cropLabel, ext, khathaMap: Map(khatha → Set(surveyNos)), seasonForCalc }
-    let totalExtent = 0; // farmer's total cultivating extent (sum of crop extents)
+    const cropAgg = {};
+    let totalExtent = 0;
 
     profiles.forEach(profile => {
         const khatha  = String(profile.khatha || '—');
@@ -22898,8 +22934,6 @@ async function loadPrintFarmerProfile() {
             return ym && sm;
         });
 
-        // Sum of crop extents declared under this khatha (used to cap against the
-        // khatha's registered extent so we never show more than what's available)
         const declaredSum = pCrops.reduce((s, c) => s + Number(c.extent || 0), 0);
 
         pCrops.forEach(cropEntry => {
@@ -22909,9 +22943,7 @@ async function loadPrintFarmerProfile() {
             const seasonForCalc = cropEntry.season || selSeason || 'Kharif';
 
             let cropExt = Number(cropEntry.extent || 0);
-            // Legacy fallback: a single un-split crop entry without its own extent
             if (!cropExt && pCrops.length === 1) cropExt = kExt;
-            // Never let the sum of crop extents under a khatha exceed its registered extent
             if (kExt > 0 && declaredSum > kExt) {
                 cropExt = cropExt * (kExt / declaredSum);
             }
@@ -22924,31 +22956,25 @@ async function loadPrintFarmerProfile() {
             cropAgg[cropName].ext += cropExt;
             if (khatha) {
                 if (!cropAgg[cropName].khathaMap.has(khatha)) cropAgg[cropName].khathaMap.set(khatha, new Set());
-                // Split comma-separated survey numbers so each gets listed individually
                 String(surveyNos).split(',').map(s => s.trim()).filter(Boolean)
                     .forEach(sv => cropAgg[cropName].khathaMap.get(khatha).add(sv));
             }
         });
     });
 
-    // ── Crop-wise extent summary string ──
     const cropSummaryStr = Object.values(cropAgg)
         .map(c => `${c.cropLabel} (${c.ext.toFixed(2)} Ac)`)
         .join(', ') || '—';
 
-    // ── Build merged rows: one row per CROP, with bags eligibility computed
-    //    on the overall (cross-khatha) cultivating extent for that crop ──
     const rows = Object.entries(cropAgg).map(([cropName, agg]) => {
         const cropExt   = agg.ext;
         const cropLabel = agg.cropLabel;
 
-        // Khatha-wise survey numbers with per-survey extent: "<khatha>- <sv1>(<ext1>) | <sv2>(<ext2>)" per khatha, one per line
         const khathaEntries = [...agg.khathaMap.entries()];
         const khatha = khathaEntries.length
             ? khathaEntries.map(([kh, svSet]) => {
                   const svList = [...svSet];
                   if (!svList.length) return `<strong>${escapeHtml(kh)}</strong>`;
-                  // Look up the official per-survey extent for this khatha (from 1B data)
                   const svExtMap = {};
                   getSurveyNumbersForKhatha(kh).forEach(s => { svExtMap[String(s.surveyNo).trim()] = Number(s.extent || 0); });
                   const svStr = svList.map(sv => {
@@ -22958,51 +22984,32 @@ async function loadPrintFarmerProfile() {
                   return `<strong>${escapeHtml(kh)}</strong>- ${escapeHtml(svStr)}`;
               }).join('<br>')
             : '—';
-        const surveyNos = khathaEntries.length
-            ? [...new Set(khathaEntries.flatMap(([, svSet]) => [...svSet]))].join(', ') || '—'
-            : '—';
 
-        // Fertilizer calculation (on overall extent)
-        const dosage    = fertilizerDosage[cropName];
+        const dosage = fertilizerDosage[cropName];
         const seasonDose = dosage?.seasons?.[agg.seasonForCalc] || dosage?.seasons?.['Kharif'] || { N:0, P:0 };
         const nKgTotal  = (seasonDose.N || 0) * cropExt;
         const pKgTotal  = (seasonDose.P || 0) * cropExt;
         const ureaTotal = getUreaBagsFromN(nKgTotal);
         const dapTotal  = getDapBagsFromP(pKgTotal);
 
-        // Split calculation (Urea)
         const ureaSplits = getDeterministicSplitEligibilities(ureaTotal, cropName, 'Urea');
-        const split1U = ureaSplits[0] !== undefined ? ureaSplits[0] : ureaTotal;
-        const split2U = ureaSplits[1] !== undefined ? ureaSplits[1] : 0;
-        const split3U = ureaSplits[2] !== undefined ? ureaSplits[2] : 0;
-
-        // Split calculation (DAP)
         const dapSplits = getDeterministicSplitEligibilities(dapTotal, cropName, 'DAP');
-        const split1D = dapSplits[0] !== undefined ? dapSplits[0] : dapTotal;
-        const split2D = dapSplits[1] !== undefined ? dapSplits[1] : 0;
-        const split3D = dapSplits[2] !== undefined ? dapSplits[2] : 0;
 
-        // Owner name: use stored ownerName on profile first, then lookup, then own name if owner
-        const khathaOwnerNames = khathaEntries.map(([kh]) => {
-            if (farmerType === 'owner') return farmerName; // farmer IS the owner
-            // Find the matching profile for this khatha to get its stored ownerName
-            const matchedProfile = profiles.find(p => String(p.khatha||'').trim() === String(kh).trim());
-            if (matchedProfile?.ownerName && matchedProfile.ownerName !== '—') return matchedProfile.ownerName;
-            return _ownerByKhatha[String(kh).trim()] || '—';
-        });
-        // De-duplicate and join (most cards have one khatha)
-        const ownerNameDisplay = [...new Set(khathaOwnerNames)].join(', ') || '—';
-
-        return { khatha, surveyNos, cropLabel, cropName, cropExt, ureaTotal, dapTotal, split1U, split2U, split3U, split1D, split2D, split3D, ownerName: ownerNameDisplay };
+        return {
+            khatha, 
+            cropLabel, 
+            cropName, 
+            cropExt, 
+            ureaTotal, 
+            dapTotal,
+            split1U: ureaSplits[0] || 0,
+            split2U: ureaSplits[1] || 0,
+            split3U: ureaSplits[2] || 0,
+            split1D: dapSplits[0] || 0,
+            split2D: dapSplits[1] || 0,
+            split3D: dapSplits[2] || 0
+        };
     });
-
-    // ── Build the Fertilizer Card HTML ──
-    // yearSeasonLabel: derive from first crop entry if dropdowns are empty
-    const _firstCrop = profiles.flatMap(p => p.crops || []).find(c => c.year || c.season);
-    const _cardYear   = selYear   || (_firstCrop?.year   || '') || 'All Years';
-    const _cardSeason = selSeason || (_firstCrop?.season || '');
-    const yearSeasonLabel = _cardYear + (_cardSeason ? ' · ' + _cardSeason : ' · All Seasons');
-
 
     const totalUrea = rows.reduce((s, r) => s + r.ureaTotal, 0);
     const totalDAP  = rows.reduce((s, r) => s + r.dapTotal, 0);
@@ -23013,115 +23020,102 @@ async function loadPrintFarmerProfile() {
     const totalS2D  = rows.reduce((s, r) => s + r.split2D, 0);
     const totalS3D  = rows.reduce((s, r) => s + r.split3D, 0);
 
+    // Year/Season label
+    const _firstCrop = profiles.flatMap(p => p.crops || []).find(c => c.year || c.season);
+    const _cardYear   = selYear   || (_firstCrop?.year   || '') || 'All Years';
+    const _cardSeason = selSeason || (_firstCrop?.season || '');
+    const yearSeasonLabel = _cardYear + (_cardSeason ? ' · ' + _cardSeason : ' · All Seasons');
 
-    // ── Compute availed bags per split from ureaHistory ──
-    // If the VO left the Year/Season dropdowns on "All Years"/"All Seasons", derive from
-    // the actual crop entries that were included in this card (most recent wins).
-    let useYear   = selYear   || '';
+    // ── Load Firebase override BEFORE building availedS / splitTotals ──
+    let _ovS1 = totalS1, _ovS2 = totalS2, _ovS3 = totalS3;
+    let _ovS1D = totalS1D, _ovS2D = totalS2D, _ovS3D = totalS3D;
+    let _ovUreaTotal = totalUrea, _ovDapTotal = totalDAP;
+    let _hasOverride = false;
+    let _ovEditCount = 0;
+    let _avOvEditCount = 0;
+    let _hasAvailedOverride = false;
+
+    let useYear = selYear || '';
     let useSeason = selSeason || '';
     if (!useYear || !useSeason) {
-        // Walk the profile crops to find the first year/season
         outer: for (const profile of profiles) {
             for (const cropEntry of (profile.crops || [])) {
-                if (!useYear   && cropEntry.year)   useYear   = String(cropEntry.year).trim();
+                if (!useYear && cropEntry.year) useYear = String(cropEntry.year).trim();
                 if (!useSeason && cropEntry.season) useSeason = String(cropEntry.season).trim();
                 if (useYear && useSeason) break outer;
             }
         }
     }
 
-    // ── Load Firebase override BEFORE building availedS / splitTotals ──
-    // This must be awaited here so _ov* variables are correct before card HTML is built.
-    let _ovS1 = totalS1, _ovS2 = totalS2, _ovS3 = totalS3;
-    let _ovS1D = totalS1D, _ovS2D = totalS2D, _ovS3D = totalS3D;
-    let _ovUreaTotal = totalUrea, _ovDapTotal = totalDAP;
-    let _hasOverride = false;
-    let _ovEditCount = 0;
-    // ── Availed-bags manual-correction override ──
-    // Fixes cases where the actual QR-scan/distribution records were double-written or
-    // mis-logged (e.g. retailer's QR shows "2 bags on 16th June" but the splits view
-    // computed 4 bags availed). A VO can manually correct the Availed total per split
-    // via the "Edit Availed Bags" option without altering the underlying transaction log.
-    let _avOvS1 = null, _avOvS2 = null, _avOvS3 = null;
-    let _avOvS1D = null, _avOvS2D = null, _avOvS3D = null;
-    let _hasAvailedOverride = false;
-    let _avOvEditCount = 0;
-    let _avOvAt = 0;
-    if (useYear && useSeason) {
-        const voUidCheck = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
-        if (voUidCheck) {
-            const fcKeyCheck = a + '_' + useYear.replace(/[^a-zA-Z0-9]/g,'') + '_' + useSeason;
-            try {
-                const ovSnap = await database.ref('fertilizerCards/' + fcKeyCheck).once('value');
-                const ovData = ovSnap.val();
-                _ovEditCount = Number(ovData?.editCount || 0);
-                if (ovData && ovData.eligibleOverride) {
-                    _hasOverride = true;
-                    const ovU = (ovData.splits && ovData.splits.Urea) || {};
-                    const ovD = (ovData.splits && ovData.splits.DAP)  || {};
-                    _ovS1  = Number(ovU.s0 !== undefined ? ovU.s0 : totalS1);
-                    _ovS2  = Number(ovU.s1 !== undefined ? ovU.s1 : totalS2);
-                    _ovS3  = Number(ovU.s2 !== undefined ? ovU.s2 : totalS3);
-                    _ovS1D = Number(ovD.s0 !== undefined ? ovD.s0 : totalS1D);
-                    _ovS2D = Number(ovD.s1 !== undefined ? ovD.s1 : totalS2D);
-                    _ovS3D = Number(ovD.s2 !== undefined ? ovD.s2 : totalS3D);
-                    _ovUreaTotal = _ovS1 + _ovS2 + _ovS3;
-                    _ovDapTotal  = _ovS1D + _ovS2D + _ovS3D;
-                }
-                _avOvEditCount = Number(ovData?.availedEditCount || 0);
-                if (ovData && ovData.availedOverride) {
-                    _hasAvailedOverride = true;
-                    const avU = ovData.availedOverride.Urea || {};
-                    const avD = ovData.availedOverride.DAP  || {};
-                    _avOvS1  = avU.s0 !== undefined ? Number(avU.s0) : null;
-                    _avOvS2  = avU.s1 !== undefined ? Number(avU.s1) : null;
-                    _avOvS3  = avU.s2 !== undefined ? Number(avU.s2) : null;
-                    _avOvS1D = avD.s0 !== undefined ? Number(avD.s0) : null;
-                    _avOvS2D = avD.s1 !== undefined ? Number(avD.s1) : null;
-                    _avOvS3D = avD.s2 !== undefined ? Number(avD.s2) : null;
-                    _avOvAt  = Number(ovData.availedOverriddenAt || 0);
-                }
-            } catch(e) { /* ignore — use computed values */ }
-        }
-    }
-
-    // Returns array of transaction objects for a given fert + splitIdx
-    // Includes both VO-recorded distributions and retailer QR-scan distributions
-    function _getTransactions(fert, splitIdx) {
-        if (!useYear || !useSeason) return [];
-        return ureaHistory.filter(h =>
-            String(h.aadhaar || '').replace(/\s/g,'') === a &&
-            String(h.fertilizerType || h.fert || 'Urea').trim() === fert &&
-            String(h.season || '').trim() === useSeason &&
-            String(h.year   || '').trim() === useYear &&
-            parseInt(h.splitIndex) === splitIdx &&
-            h.status !== 'Rejected' && h.status !== 'Cancelled'
-        );
-    }
-
-    // ── Pull ALL retailer distributions from Firebase BEFORE rendering ──
-    // Await both sources so availedS is computed with complete data on the FIRST render.
-    const voUidForTx = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
-    if (voUidForTx && useYear && useSeason) {
-        cardEl.innerHTML = '<div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading distribution data…</div>';
-        // Source 1: availedTransactions log (written by submitFarmerCardDistribution)
+    const voUidCheck = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
+    if (useYear && useSeason && voUidCheck) {
+        const fcKeyCheck = a + '_' + useYear.replace(/[^a-zA-Z0-9]/g,'') + '_' + useSeason;
         try {
-            const txSnap = await database.ref(`users/${voUidForTx}/farmerProfiles/${a}/availedTransactions`).once('value');
+            const ovSnap = await database.ref('fertilizerCards/' + fcKeyCheck).once('value');
+            const ovData = ovSnap.val();
+            _ovEditCount = Number(ovData?.editCount || 0);
+            if (ovData && ovData.eligibleOverride) {
+                _hasOverride = true;
+                const ovU = (ovData.splits && ovData.splits.Urea) || {};
+                const ovD = (ovData.splits && ovData.splits.DAP) || {};
+                _ovS1  = Number(ovU.s0 !== undefined ? ovU.s0 : totalS1);
+                _ovS2  = Number(ovU.s1 !== undefined ? ovU.s1 : totalS2);
+                _ovS3  = Number(ovU.s2 !== undefined ? ovU.s2 : totalS3);
+                _ovS1D = Number(ovD.s0 !== undefined ? ovD.s0 : totalS1D);
+                _ovS2D = Number(ovD.s1 !== undefined ? ovD.s1 : totalS2D);
+                _ovS3D = Number(ovD.s2 !== undefined ? ovD.s2 : totalS3D);
+                _ovUreaTotal = _ovS1 + _ovS2 + _ovS3;
+                _ovDapTotal  = _ovS1D + _ovS2D + _ovS3D;
+            }
+            _avOvEditCount = Number(ovData?.availedEditCount || 0);
+            if (ovData && ovData.availedOverride) {
+                _hasAvailedOverride = true;
+            }
+        } catch(e) { /* ignore */ }
+    }
+
+    const splitTotals = [
+        { u: _ovS1, d: _ovS1D },
+        { u: _ovS2, d: _ovS2D },
+        { u: _ovS3, d: _ovS3D }
+    ];
+
+        // ── Fetch actual distribution records ──
+    const voUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
+    if (voUid && useYear && useSeason) {
+        // ── PURGE stale in-memory entries for this farmer+year+season ──
+        // This ensures VO-edited bag counts always replace old values in both
+        // the Distribution History banner and the per-split schedule rows.
+        const _beforePurgeLen = ureaHistory.length;
+        for (let _pi = ureaHistory.length - 1; _pi >= 0; _pi--) {
+            const _ph = ureaHistory[_pi];
+            const _phAad = String(_ph.aadhaar || '').replace(/\s/g, '');
+            if (_phAad === a &&
+                String(_ph.year   || '') === useYear &&
+                String(_ph.season || '') === useSeason) {
+                ureaHistory.splice(_pi, 1);
+            }
+        }
+        console.log(`[loadPrintFarmerProfile] Purged ${_beforePurgeLen - ureaHistory.length} stale in-memory records for ${a} (${useYear}/${useSeason}). Fresh Firebase fetch follows.`);
+
+        // 1. Fetch availedTransactions
+        try {
+            const txSnap = await database.ref(`users/${voUid}/farmerProfiles/${a}/availedTransactions`).once('value');
             if (txSnap.exists()) {
                 txSnap.forEach(child => {
                     const tx = child.val();
                     if (!tx) return;
-                    // Skip entries that have since been cancelled/rejected (e.g. by a
-                    // retailer or VO deletion) — they must never be counted as availed.
                     if (tx.status === 'Cancelled' || tx.status === 'Rejected') return;
                     if (String(tx.year||'') !== useYear || String(tx.season||'') !== useSeason) return;
+                    
+                    // ── Filter by village ──
+                    const txVillage = tx.village || tx.voVillage || '';
+                    if (txVillage && villageName && txVillage !== villageName) return;
+                    
                     const txKey = 'availedTx_' + child.key;
-                    // Dedup: match by _key OR by content fingerprint
                     const alreadyIn = ureaHistory.some(h =>
                         h._key === txKey ||
                         (String(h.aadhaar||'').replace(/\s/g,'') === a &&
-                         // A cancelled global record still means "already accounted for" —
-                         // it must suppress this duplicate, not just an active one.
                          (h.retailerVerified || h.status === 'Cancelled') &&
                          (h.fertilizerType||h.fert||'Urea') === (tx.fert||'Urea') &&
                          String(h.splitIndex) === String(tx.splitIndex !== undefined ? tx.splitIndex : 0) &&
@@ -23145,35 +23139,39 @@ async function loadPrintFarmerProfile() {
                             season:           tx.season || useSeason,
                             status:           tx.status || 'Distributed',
                             retailerVerified: true,
-                            distributedVia:   'farmerCardQR'
+                            distributedVia:   'farmerCardQR',
+                            village:          tx.village || villageName,
+                            voVillage:        villageName,
+                            // ── Carry VO-edit metadata if present ──
+                            voEditedAt:       tx.voEditedAt   || null,
+                            voEditedBy:       tx.voEditedBy   || null,
+                            voEditNote:       tx.voEditNote   || null,
+                            previousBags:     tx.previousBags || null
                         });
                     }
                 });
             }
         } catch(e) { console.warn('availedTransactions fetch failed:', e.message); }
 
-        // Source 2: push-keyed records in users/{voUid}/ureaHistory (written by retailer directly)
+        // 2. Fetch users/{voUid}/ureaHistory
         try {
-            const voHistSnap = await database.ref(`users/${voUidForTx}/ureaHistory`).once('value');
+            const voHistSnap = await database.ref(`users/${voUid}/ureaHistory`).once('value');
             if (voHistSnap.exists()) {
                 voHistSnap.forEach(child => {
                     const rec = child.val();
                     if (!rec || !rec.retailerVerified) return;
-                    // Skip per-VO copies that have themselves already been cancelled/rejected
-                    // (e.g. by the newer delete-fix below) — they must never be counted.
                     if (rec.status === 'Cancelled' || rec.status === 'Rejected') return;
                     if (String(rec.aadhaar||'').replace(/\s/g,'') !== a) return;
                     if ((rec.year||'') !== useYear || (rec.season||'') !== useSeason) return;
+                    
+                    // ── Filter by village ──
+                    const recVillage = rec.village || rec.voVillage || '';
+                    if (recVillage && villageName && recVillage !== villageName) return;
+                    
                     const alreadyIn = ureaHistory.some(h => {
                         if (h._key === child.key) return true;
                         const hAad = String(h.aadhaar||'').replace(/\s/g,'');
                         if (hAad !== a) return false;
-                        // A cancelled global record still represents "this event has
-                        // already been accounted for" — it must suppress the duplicate
-                        // per-VO copy, not just an active (retailerVerified) one. Older
-                        // deletions only cancelled the global copy, leaving the per-VO
-                        // copy stuck as 'Distributed'; without this check that orphaned
-                        // copy would reappear here as a phantom still-active distribution.
                         if (!h.retailerVerified && h.status !== 'Cancelled') return false;
                         if (h.printToken && rec.printToken && h.printToken === rec.printToken) return true;
                         return (
@@ -23184,43 +23182,38 @@ async function loadPrintFarmerProfile() {
                         );
                     });
                     if (!alreadyIn) {
-                        ureaHistory.push({ ...rec, _key: child.key });
-                    } else {
-                        // Backfill _key on matching record
-                        const idx = ureaHistory.findIndex(h => !h._key && String(h.aadhaar||'').replace(/\s/g,'') === a && h.retailerVerified &&
-                            (h.fertilizerType||h.fert||'Urea') === (rec.fertilizerType||rec.fert||'Urea') &&
-                            String(h.splitIndex) === String(rec.splitIndex) &&
-                            String(h.bags||0) === String(rec.bags||0));
-                        if (idx >= 0) ureaHistory[idx]._key = child.key;
+                        ureaHistory.push({ ...rec, _key: child.key, voVillage: villageName });
                     }
                 });
             }
         } catch(e) { console.warn('voUreaHistory fetch failed:', e.message); }
 
-        // Source 3: global /fertilizerDistributions cross-check
-        // This is the authoritative source for retailer-distributed bags (both token & farmerCardQR flows).
+        // 3. Fetch fertilizerDistributions - CRITICAL: Add village filter
         try {
             const fdSnap = await database.ref('fertilizerDistributions').orderByChild('aadhaar').equalTo(a).once('value');
             if (fdSnap.exists()) {
                 fdSnap.forEach(child => {
                     const fd = child.val();
-                    // Include both 'Distributed' status and retailerVerified=true records;
-                    // exclude cancelled/rejected records.
                     if (!fd) return;
                     if (fd.status === 'Cancelled' || fd.status === 'Rejected') return;
                     if (fd.status !== 'Distributed' && !fd.retailerVerified) return;
                     if ((fd.year||'') !== useYear || (fd.season||'') !== useSeason) return;
+                    
+                    // ── CRITICAL FIX: Filter by village ──
+                    // Only include distributions from the current VO's village
+                    const fdVillage = fd.village || fd.voVillage || fd.voVillageName || '';
+                    if (fdVillage && villageName && fdVillage !== villageName) {
+                        return; // Skip distributions from other villages
+                    }
+                    
                     const fdFert     = fd.fertilizerType || fd.fert || 'Urea';
                     const fdSplitIdx = fd.splitIndex !== undefined ? Number(fd.splitIndex) : 0;
                     const fdBags     = Number(fd.distributedBags || fd.bags || 0);
-                    // Dedup: match by printToken key OR by content fingerprint (aadhaar+fert+split+bags+date)
                     const alreadyIn = ureaHistory.some(h => {
                         if (!h.retailerVerified && h.status !== 'Distributed') return false;
                         const hAad = String(h.aadhaar||'').replace(/\s/g,'');
                         if (hAad !== a) return false;
-                        // Key match (token-based flow)
                         if (h.printToken === child.key || h.printToken === fd.printToken || h._key === child.key) return true;
-                        // Content fingerprint match (farmerCardQR & token flows)
                         return (
                             (h.fertilizerType||h.fert||'Urea') === fdFert &&
                             Number(h.splitIndex) === fdSplitIdx &&
@@ -23250,96 +23243,59 @@ async function loadPrintFarmerProfile() {
                             splitIndex:     fdSplitIdx,
                             splitName:      fd.splitName||'',
                             printToken:     child.key,
-                            distributedVia: fd.distributedVia || 'fertilizerDistributions'
+                            distributedVia: fd.distributedVia || 'fertilizerDistributions',
+                            village:        fd.village || villageName,
+                            voVillage:      villageName,
+                            // ── Carry VO-edit metadata so the edit badge renders ──
+                            voEditedAt:     fd.voEditedAt     || null,
+                            voEditedBy:     fd.voEditedBy     || null,
+                            voEditNote:     fd.voEditNote     || null,
+                            previousBags:   fd.previousBags   || null
                         });
                     }
                 });
             }
         } catch(e) { console.warn('fertilizerDistributions fetch failed:', e.message); }
+    }
 
-        // ── Reconciliation pass: cancel phantom Source-1 entries after all sources loaded ──
-        // Problem: Sources 1 (availedTransactions), 2 (voUreaHistory), 3 (fertilizerDistributions)
-        // are loaded sequentially.  When Source 1 runs, the cancelled global /ureaHistory record
-        // isn't in-memory yet, so the dedup check misses it and pushes the availedTransactions
-        // entry as a live 'Distributed' record. Source 3 then correctly adds the Cancelled version
-        // — but Source 1's already-pushed copy is never updated.
-        //
-        // Fix: now that all sources are loaded, find every Cancelled record and mark any
-        // content-matching non-cancelled record (from availedTransactions or voUreaHistory) as
-        // Cancelled too, so _getTransactions() excludes it and availed bags reflect the deletion.
-        const cancelledRecords = ureaHistory.filter(h =>
-            h.status === 'Cancelled' &&
-            String(h.aadhaar || '').replace(/\s/g, '') === a &&
-            (h.year || '') === useYear && (h.season || '') === useSeason
+    function _getTransactions(fert, splitIdx) {
+        if (!useYear || !useSeason) return [];
+        return ureaHistory.filter(h =>
+            String(h.aadhaar || '').replace(/\s/g,'') === a &&
+            String(h.fertilizerType || h.fert || 'Urea').trim() === fert &&
+            String(h.season || '').trim() === useSeason &&
+            String(h.year   || '').trim() === useYear &&
+            parseInt(h.splitIndex) === splitIdx &&
+            h.status !== 'Rejected' && h.status !== 'Cancelled'
         );
-        if (cancelledRecords.length > 0) {
-            ureaHistory.forEach((h, idx) => {
-                if (h.status === 'Cancelled') return; // already cancelled
-                if (String(h.aadhaar || '').replace(/\s/g, '') !== a) return;
-                if ((h.year || '') !== useYear || (h.season || '') !== useSeason) return;
-                const isSuppressed = cancelledRecords.some(c =>
-                    (c.fertilizerType || c.fert || 'Urea') === (h.fertilizerType || h.fert || 'Urea') &&
-                    Number(c.splitIndex || 0) === Number(h.splitIndex || 0) &&
-                    Number(c.bags || 0) === Number(h.bags || 0) &&
-                    (!c.date || !h.date || c.date === h.date)
-                );
-                if (isSuppressed) {
-                    ureaHistory[idx] = { ...ureaHistory[idx], status: 'Cancelled',
-                        _suppressedByReconciliation: true };
-                }
-            });
-        }
     }
 
     function _availedForSplit(fert, splitIdx) {
         return _getTransactions(fert, splitIdx).reduce((s, h) => s + Number(h.bags || 0), 0);
     }
-    // Helper: format date from ISO or dd-mm-yyyy string
+
     function _fmtDate(raw) {
         if (!raw) return '—';
         try {
-            // If it looks like an ISO date use Date parse
             const d = new Date(raw);
             if (!isNaN(d)) return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
         } catch(e) {}
         return String(raw);
     }
+
     const availedS = [0,1,2].map(si => ({
         u:  _availedForSplit('Urea', si),
         d:  _availedForSplit('DAP',  si),
-        txU: _getTransactions('Urea', si),   // per-transaction detail
+        txU: _getTransactions('Urea', si),
         txD: _getTransactions('DAP',  si)
     }));
 
-    // ── Apply VO manual correction (Edit Availed Bags) on top of actual-transaction totals ──
-    // rawU/rawD keep the real sum-of-transactions figure so the UI can show "(was X)" and
-    // render an auditable correction row when a VO has fixed a mis-counted split.
-    const _avOvArr = [
-        { u: _avOvS1,  d: _avOvS1D  },
-        { u: _avOvS2,  d: _avOvS2D  },
-        { u: _avOvS3,  d: _avOvS3D  }
-    ];
-    const finalAvailedS = [0,1,2].map(si => ({
-        u:    (_hasAvailedOverride && _avOvArr[si].u !== null) ? _avOvArr[si].u : availedS[si].u,
-        d:    (_hasAvailedOverride && _avOvArr[si].d !== null) ? _avOvArr[si].d : availedS[si].d,
-        rawU: availedS[si].u,
-        rawD: availedS[si].d
-    }));
-
-    // ── QR payload for farmer card ──
-    // Format: FC|<aadhaar>|<year>|<season>|<voUid>
-    const voUid     = firebase.auth().currentUser ? firebase.auth().currentUser.uid : '';
+    // ── Build QR payload ──
     const qrPayload = `FC|${a}|${useYear}|${useSeason}|${voUid}`;
 
-    // ── Write eligibility snapshot to Firebase so retailer can read it ──
-    // IMPORTANT: We use .update() (not .set()) so a VO-saved eligible-bags
-    // override (splits / eligibleOverride) is NEVER overwritten by a card reload.
-    // The splits field is only written here when there is NO existing override;
-    // if an override exists, splits were already saved by saveEditedEligibleBags()
-    // and we must leave them alone.
+    // ── Write eligibility snapshot to Firebase ──
     if (useYear && useSeason && voUid) {
         const fcKey = a + '_' + useYear.replace(/[^a-zA-Z0-9]/g,'') + '_' + useSeason;
-
         const fcKhathas = [...new Set(profiles.map(p => String(p.khatha||'').trim()).filter(Boolean))].join(', ');
         const fcExtent  = totalExtent > 0 ? totalExtent.toFixed(2) : '';
         const fcCardNo  = cardNumber !== '—' ? cardNumber : '';
@@ -23352,9 +23308,6 @@ async function loadPrintFarmerProfile() {
         )].map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ');
         const fcSerialNo = rows.length > 0 ? (rows[0].serialNo || '') : '';
 
-        // Always update farmer-info fields (safe to overwrite).
-        // Only write computed splits if NO override is active (_hasOverride was set
-        // by the early await block above, using the same fcKey).
         const farmerInfoUpdate = {
             aadhaar: a, farmerName, fatherName, mobile,
             mandal: mandalName, village: villageName, voUid,
@@ -23369,42 +23322,27 @@ async function loadPrintFarmerProfile() {
         };
 
         if (!_hasOverride) {
-            // No VO override — write computed splits so retailer sees fresh values.
             farmerInfoUpdate.splits = {
                 Urea: { s0: totalS1,  s1: totalS2,  s2: totalS3  },
                 DAP:  { s0: totalS1D, s1: totalS2D, s2: totalS3D }
             };
         }
-        // .update() merges — never touches fields we don't include (e.g. eligibleOverride, splits when overridden)
         database.ref('fertilizerCards/' + fcKey).update(farmerInfoUpdate)
             .catch(err => console.warn('fertilizerCards write failed:', err.message));
     }
 
-    // fertilizerDistributions fetch moved to async block above (now awaited before render)
-
-    // ── Build distribution schedule rows (3 splits with Availed + Distributed Till Now) ──
+    // ── Build the schedule rows ──
     const splitLabels = [
-        { num: 1, label: 'Split 1 — Basal',     uColor: '#155724', dColor: '#0d4d73', badge: 'bg-primary' },
-        { num: 2, label: 'Split 2 — Top-dress',  uColor: '#155724', dColor: '#0d4d73', badge: 'bg-success' },
-        { num: 3, label: 'Split 3 — Final',      uColor: '#155724', dColor: '#0d4d73', badge: 'bg-warning text-dark' }
-    ];
-    // Use override values if VO has previously edited eligible bags
-    const splitTotals = [
-        { u: _ovS1,  d: _ovS1D  },
-        { u: _ovS2,  d: _ovS2D  },
-        { u: _ovS3,  d: _ovS3D  }
+        { num: 1, label: 'Split 1 — Basal', uColor: '#155724', dColor: '#0d4d73', badge: 'bg-primary' },
+        { num: 2, label: 'Split 2 — Top-dress', uColor: '#155724', dColor: '#0d4d73', badge: 'bg-success' },
+        { num: 3, label: 'Split 3 — Final', uColor: '#155724', dColor: '#0d4d73', badge: 'bg-warning text-dark' }
     ];
 
     const scheduleRows = splitLabels.map((sp, si) => {
         const eligU      = splitTotals[si].u;
         const eligD      = splitTotals[si].d;
-        const availU     = finalAvailedS[si].u;
-        const availD     = finalAvailedS[si].d;
-        const rawAvailU  = finalAvailedS[si].rawU;   // actual sum from transaction log (pre-correction)
-        const rawAvailD  = finalAvailedS[si].rawD;
-        const isCorrected = (availU !== rawAvailU) || (availD !== rawAvailD);
-        const txU        = availedS[si].txU;   // Urea transactions array
-        const txD        = availedS[si].txD;   // DAP transactions array
+        const availU     = availedS[si].u;
+        const availD     = availedS[si].d;
         const remU       = Math.max(0, eligU - availU);
         const remD       = Math.max(0, eligD - availD);
         const fullyDoneU = eligU > 0 && remU === 0;
@@ -23420,7 +23358,6 @@ async function loadPrintFarmerProfile() {
                 &nbsp;|&nbsp; Eligible Urea: <span style="background:rgba(255,255,255,0.2); padding:1px 8px; border-radius:10px;">${eligU} bags</span>
                 &nbsp;|&nbsp; Eligible DAP: <span style="background:rgba(255,255,255,0.2); padding:1px 8px; border-radius:10px;">${eligD} bags</span>
                 ${(availU > 0 || availD > 0) ? `&nbsp;|&nbsp; <span style="background:rgba(255,220,0,0.3); padding:1px 8px; border-radius:10px; font-size:0.78rem;">✅ Availed U:${availU} D:${availD}</span>` : ''}
-                ${isCorrected ? `&nbsp;|&nbsp; <span style="background:rgba(243,156,18,0.4); padding:1px 8px; border-radius:10px; font-size:0.78rem;" title="Manually corrected by VO">✏️ Corrected (was U:${rawAvailU} D:${rawAvailD})</span>` : ''}
               </td>
             </tr>
             <tr style="background:#f0f4ff; font-size:0.75rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.4px;">
@@ -23434,15 +23371,13 @@ async function loadPrintFarmerProfile() {
               <th style="padding:6px 10px; border:1px solid #dee2e6; width:80px;">Remaining</th>
             </tr>`;
 
-        // Build one row per actual QR-scan transaction (merged Urea+DAP for same scan where possible)
-        // Merge by matching verifiedAt timestamp (same retailer scan = same event)
+        // Build transaction rows
         const allTx = [];
         const usedDIdx = new Set();
-        txU.forEach((hu, ui) => {
-            // Find a matching DAP tx by same verifiedAt or date
+        availedS[si].txU.forEach((hu, ui) => {
             const scanKey = hu.verifiedAt || hu.date || ui;
             let matchedD = null;
-            txD.forEach((hd, di) => {
+            availedS[si].txD.forEach((hd, di) => {
                 if (!usedDIdx.has(di)) {
                     const dKey = hd.verifiedAt || hd.date || di;
                     if (dKey === scanKey || (!matchedD && Math.abs(di - ui) === 0)) {
@@ -23452,31 +23387,34 @@ async function loadPrintFarmerProfile() {
             });
             allTx.push({ hu, hd: matchedD });
         });
-        // Any DAP transactions not paired with a Urea one
-        txD.forEach((hd, di) => {
+        availedS[si].txD.forEach((hd, di) => {
             if (!usedDIdx.has(di)) allTx.push({ hu: null, hd });
         });
 
+        let cumU = 0, cumD = 0;
         const txRows = allTx.map((pair, rowIdx) => {
             const hu = pair.hu, hd = pair.hd;
-            const bagsU      = hu ? Number(hu.bags || 0) : 0;
-            const bagsD      = hd ? Number(hd.bags || 0) : 0;
-            // Date: prefer verifiedAt (retailer scan timestamp), fall back to date field
-            const rawDate    = (hu || hd).verifiedAt || (hu || hd).date || '';
-            const dispDate   = _fmtDate(rawDate);
-            // Outlet name from retailer scan
-            const outlet     = (hu || hd).outletName || (hu || hd).outletId || '';
-            // Store the token for async outlet-name enrichment if outletName is missing
-            const txToken    = (hu || hd).printToken || (hu || hd).tokenNumber || (hu || hd).authToken || '';
+            const bagsU = hu ? Number(hu.bags || 0) : 0;
+            const bagsD = hd ? Number(hd.bags || 0) : 0;
+            cumU += bagsU;
+            cumD += bagsD;
+            const rawDate = (hu || hd).verifiedAt || (hu || hd).date || '';
+            const dispDate = _fmtDate(rawDate);
+            const outlet = (hu || hd).outletName || (hu || hd).outletId || '';
+            const txToken = (hu || hd).printToken || (hu || hd).tokenNumber || (hu || hd).authToken || '';
             const outletDisplay = outlet || '—';
-            const cumU       = allTx.slice(0, rowIdx+1).reduce((s,p) => s + (p.hu ? Number(p.hu.bags||0) : 0), 0);
-            const cumD       = allTx.slice(0, rowIdx+1).reduce((s,p) => s + (p.hd ? Number(p.hd.bags||0) : 0), 0);
-            const rowRemU    = Math.max(0, eligU - cumU);
-            const rowRemD    = Math.max(0, eligD - cumD);
-            // Flag retailer QR-scan rows so they render with a distinct style
+            const rowRemU = Math.max(0, eligU - cumU);
+            const rowRemD = Math.max(0, eligD - cumD);
             const isRetailerQr = !!(hu || hd).retailerVerified || (hu || hd).distributedVia === 'farmerCardQR';
             const rowBg = isRetailerQr ? '#f0fff4' : '#f9f9f9';
             const rowBorderLeft = isRetailerQr ? '4px solid #27ae60' : '4px solid #1862ab';
+            
+            // Check if VO edited this record
+            const isVoEdited = hu?.voEditedAt || hd?.voEditedAt;
+            const editNote = isVoEdited 
+                ? `<br><span style="font-size:0.6rem;color:#e67e22;font-weight:600;">✏️ ${hu?.voEditNote || hd?.voEditNote || 'Edited'}</span>`
+                : '';
+
             return `
             <tr style="background:${rowBg}; border-left:${rowBorderLeft};">
               <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; font-size:0.78rem; font-weight:700; color:#1b5e20;">${rowIdx+1}</td>
@@ -23486,6 +23424,7 @@ async function loadPrintFarmerProfile() {
                 ${bagsD > 0 ? `DAP: <span style="background:#27ae60;color:#fff;padding:1px 7px;border-radius:4px;">${bagsD}</span>` : ''}
                 ${!bagsU && !bagsD ? '<span style="color:#ccc">—</span>' : ''}
                 ${isRetailerQr ? '<br><span style="font-size:0.65rem;color:#27ae60;font-weight:600;">via Farmer Card QR</span>' : ''}
+                ${editNote}
               </td>
               <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.78rem; font-weight:700; color:#1862ab;">${dispDate}</td>
               <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.78rem; font-weight:700; color:#7c5700;" ${!outlet && txToken ? `data-outlet-token="${escapeHtml(txToken)}"` : ''}>
@@ -23499,32 +23438,6 @@ async function loadPrintFarmerProfile() {
             </tr>`;
         }).join('');
 
-        // ── If a VO manually corrected the Availed total for this split, append an
-        //    auditable correction row so the cumulative figures reconcile with availU/availD ──
-        let correctionRowHtml = '';
-        if (isCorrected) {
-            const deltaU = availU - rawAvailU;
-            const deltaD = availD - rawAvailD;
-            const dispCorrDate = _fmtDate(_avOvAt || Date.now());
-            correctionRowHtml = `
-            <tr style="background:#fdf6e3; border-left:4px solid #f39c12;">
-              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; font-size:0.78rem; font-weight:700; color:#8a6500;">⚙️</td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; font-weight:700; color:#8a6500; font-size:0.82rem;">
-                ${deltaU !== 0 ? `Urea adj: <span style="background:${deltaU>0?'#e67e22':'#c0392b'};color:#fff;padding:1px 7px;border-radius:4px;">${deltaU>0?'+':''}${deltaU}</span>` : ''}
-                ${deltaU !== 0 && deltaD !== 0 ? '&nbsp;' : ''}
-                ${deltaD !== 0 ? `DAP adj: <span style="background:${deltaD>0?'#e67e22':'#c0392b'};color:#fff;padding:1px 7px;border-radius:4px;">${deltaD>0?'+':''}${deltaD}</span>` : ''}
-                <br><span style="font-size:0.65rem;color:#8a6500;font-weight:600;">⚙️ VO Manual Correction</span>
-              </td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.78rem; font-weight:700; color:#8a6500;">${dispCorrDate}</td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; font-size:0.78rem; font-weight:700; color:#8a6500;">⚙️ Office Correction</td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#fdf6e3; text-align:center; font-weight:800; color:#8a6500;">U:${availU} / D:${availD}</td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; background:#fdf6e3; text-align:center; font-weight:800; color:#8a6500;">U:${availU} / D:${availD}</td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
-              <td style="padding:6px 10px; border:1px solid #dee2e6; text-align:center; font-weight:800; color:${remU===0&&remD===0?'#c0392b':'#1862ab'};">U:${remU} / D:${remD}</td>
-            </tr>`;
-        }
-
-        // Always show at least 2 blank rows for future distributions
         const blankCount = Math.max(2, 3 - allTx.length);
         const blankRows = Array.from({length: blankCount}, (_, i) => `
             <tr style="height:38px;">
@@ -23538,10 +23451,11 @@ async function loadPrintFarmerProfile() {
               <td style="padding:6px 10px; border:1px solid #dee2e6;"></td>
             </tr>`).join('');
 
-        return splitHeader + txRows + correctionRowHtml + blankRows;
+        return splitHeader + txRows + blankRows;
     }).join('');
 
-    cardEl.innerHTML = `
+    // ── Build the full card HTML ──
+    const displayCard = `
     <div id="fertCardPrintArea" style="background:#fff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); overflow:hidden; max-width:980px; margin:0 auto; font-family:'Segoe UI',Arial,sans-serif;">
 
       <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%); color:#fff; padding:0.75rem 1.2rem;">
@@ -23634,20 +23548,19 @@ async function loadPrintFarmerProfile() {
         </button>
       </div>
 
-     <div class="no-print" style="padding:0.4rem 1rem 0.5rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; background:#fdf3e7; border-top:1px dashed #e67e22;">
+           <div class="no-print" style="padding:0.4rem 1rem 0.5rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; background:#fdf3e7; border-top:1px dashed #e67e22;">
         <span style="font-size:0.72rem; color:#7c5700; font-weight:600;"><i class="fas fa-qrcode me-1" style="color:#e67e22;"></i>If a retailer's QR scan/distribution record doesn't match the Availed total shown below (e.g. mis-logged or double-counted bags), correct it here.</span>
         <span id="editAvailBagsCount_${a}" style="font-size:0.7rem; font-weight:700; padding:2px 9px; border-radius:10px; white-space:nowrap; ${_avOvEditCount >= 3 ? 'background:#fdecea; color:#c0392b;' : _avOvEditCount > 0 ? 'background:#fff3cd; color:#8a6500;' : 'background:#eef3fb; color:#5d7a99;'}">
           <i class="fas fa-history me-1"></i>Edits used: ${_avOvEditCount}/3
         </span>
         <button type="button"
-                onclick="try { window.openEditAvailedBagsModal('${a}','${useYear}','${useSeason}',${finalAvailedS[0].u||0},${finalAvailedS[1].u||0},${finalAvailedS[2].u||0},${finalAvailedS[0].d||0},${finalAvailedS[1].d||0},${finalAvailedS[2].d||0},${finalAvailedS[0].rawU||0},${finalAvailedS[1].rawU||0},${finalAvailedS[2].rawU||0},${finalAvailedS[0].rawD||0},${finalAvailedS[1].rawD||0},${finalAvailedS[2].rawD||0},${splitTotals[0].u||0},${splitTotals[1].u||0},${splitTotals[2].u||0},${splitTotals[0].d||0},${splitTotals[1].d||0},${splitTotals[2].d||0},${_avOvEditCount||0}); } catch(e) { alert('Button error: ' + e.message); console.error(e); }"
+                onclick="try { window.openEditAvailedBagsModal('${a}','${useYear}','${useSeason}',${availedS[0].u||0},${availedS[1].u||0},${availedS[2].u||0},${availedS[0].d||0},${availedS[1].d||0},${availedS[2].d||0},${availedS[0].rawU||0},${availedS[1].rawU||0},${availedS[2].rawU||0},${availedS[0].rawD||0},${availedS[1].rawD||0},${availedS[2].rawD||0},${splitTotals[0].u||0},${splitTotals[1].u||0},${splitTotals[2].u||0},${splitTotals[0].d||0},${splitTotals[1].d||0},${splitTotals[2].d||0},${_avOvEditCount||0}); } catch(e) { alert('Button error: ' + e.message); console.error(e); }"
                 id="editAvailBagsBtn_${a}"
                 ${_avOvEditCount >= 3 ? 'disabled' : ''}
                 style="background:${_avOvEditCount >= 3 ? '#ccc' : 'linear-gradient(135deg,#e67e22,#c0530d)'}; color:#fff; border:none; border-radius:8px; padding:5px 14px; font-size:0.76rem; font-weight:700; cursor:${_avOvEditCount >= 3 ? 'not-allowed' : 'pointer'}; display:flex; align-items:center; gap:5px; white-space:nowrap;">
           <i class="fas fa-clipboard-check"></i>&nbsp;<span id="editAvailBagsBtnLabel_${a}">${_avOvEditCount >= 3 ? 'Edit Limit Reached' : 'Edit Availed Bags'}</span>
         </button>
       </div>
-
 
       <div style="padding:0.6rem 1rem 0.5rem;">
         <div style="font-size:0.7rem; font-weight:700; color:#1862ab; margin-bottom:0.4rem; text-transform:uppercase; letter-spacing:0.5px;">
@@ -23671,19 +23584,11 @@ async function loadPrintFarmerProfile() {
           </thead>
          <tbody>
            ${rows.map((r, i) => {
-             // Colours each khatha line: cherry-red khatha, peacock-blue survey(s), green extent(s)
-             // Handles both single-line "636- 11(2.00)" and multi-survey "1229- 453-3(0.54) | 453-1B(0.61)"
-             // Also handles multi-khatha (lines joined by <br>)
              const colorKhathaLine = (line) => {
-               // Each line looks like: <strong>KHATHA</strong>- SV1(ext) | SV2(ext) ...
-               // OR plain: KHATHA- SV1(ext) | SV2(ext) ...
                return line.replace(
                  /(<strong>)([^<]+)(<\/strong>)(.*)/,
                  (m, open, kh, close, rest) => {
-                   // khatha part (inside <strong>)
                    const khathaHtml = `${open}<span style="color:#9B111E;font-weight:900;">${kh}</span>${close}`;
-                   // rest: "- 453-3(0.54) | 453-1B(0.61) | ..."
-                   // colour each survey token and its extent
                    const restStyled = rest.replace(
                      /([^(|]+)(\([^)]*\))?/g,
                      (mm, sv, ext) => {
@@ -23697,7 +23602,6 @@ async function loadPrintFarmerProfile() {
                    return khathaHtml + restStyled;
                  }
                ).replace(
-                 // Fallback for lines WITHOUT <strong> tags: plain "636- 11(2.00)"
                  /^(?!.*<strong>)([^<\-]+)(-\s*)(.+)$/,
                  (m, kh, hyp, rest) => {
                    const khathaHtml = `<span style="color:#9B111E;font-weight:900;">${kh}</span>${hyp}`;
@@ -23715,7 +23619,6 @@ async function loadPrintFarmerProfile() {
                  }
                );
              };
-             // Split by <br> so each khatha line is coloured independently
              const styledKhatha = (r.khatha || '')
                .split('<br>')
                .map(line => colorKhathaLine(line))
@@ -23755,7 +23658,6 @@ async function loadPrintFarmerProfile() {
 
       ${/* ── Khatha-wise Owner Name Panel ── */
       (()=>{
-        // Collect unique khathas in profile order, with their owner name
         const khathaOwnerList = [];
         const seenKh = new Set();
         profiles.forEach(profile => {
@@ -23764,20 +23666,15 @@ async function loadPrintFarmerProfile() {
           seenKh.add(kh);
           let oName = '—';
           if (profile.farmerType === 'owner') {
-            // Owner farmer: their own name IS the owner name
             oName = profile.farmerName || farmerName || '—';
           } else if (profile.ownerName && profile.ownerName !== '—') {
-            // Tenant with stored ownerName (saved during profile creation)
             oName = profile.ownerName;
           } else {
-            // Fallback: look for an owner-type profile registered for this khatha
             oName = _ownerByKhatha[kh] || '—';
           }
           khathaOwnerList.push({ kh, oName });
         });
         if (!khathaOwnerList.length) return '';
-        // Compact grid: multiple khatha→owner entries pack side-by-side per row
-        // instead of stacking one-per-line, so the panel stays short on page 1.
         const items = khathaOwnerList.map((item, idx) => `
           <div style="display:flex;align-items:center;gap:5px;padding:3px 7px;background:${idx%2===0?'#f5f0ff':'#ede8ff'};border-radius:5px;min-width:0;overflow:hidden;">
             <span style="flex-shrink:0;font-size:0.68rem;font-weight:800;color:#7c3aed;">${idx+1}.</span>
@@ -23802,8 +23699,7 @@ async function loadPrintFarmerProfile() {
           Fertilizer Distribution Schedule
         </div>
 
-        ${/* Distribution summary banner — shown only if any bags have been availed */
-        (()=>{
+        ${/* Distribution summary banner */ (()=>{
           const totalAvailedU = availedS.reduce((s,x) => s + x.u, 0);
           const totalAvailedD = availedS.reduce((s,x) => s + x.d, 0);
           const totalEligU = _ovS1 + _ovS2 + _ovS3;
@@ -23812,7 +23708,6 @@ async function loadPrintFarmerProfile() {
           const totalRemD  = Math.max(0, totalEligD - totalAvailedD);
           if (totalAvailedU === 0 && totalAvailedD === 0) return '';
 
-          // Build distribution event rows grouped by verifiedAt
           const allDistEvents = [];
           availedS.forEach((sp, si) => {
             const splitLabel = ['Split 1 — Basal', 'Split 2 — Top-dress', 'Split 3 — Final'][si];
@@ -23899,25 +23794,21 @@ async function loadPrintFarmerProfile() {
       <div style="border-top:1.5px solid #e0e6ed; margin:0 1rem; padding:0.6rem 0 0.5rem;">
         <div style="font-size:0.62rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.4rem;">Authorisation Signatures</div>
         <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:1rem;">
-
           <div style="flex:1; text-align:center;">
             <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
             <div style="font-size:0.72rem; font-weight:700; color:#1b5e20;">🧑‍🌾 Farmer Signature</div>
             <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(farmerName)}</div>
           </div>
-
           <div style="flex:1; text-align:center;">
             <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
             <div style="font-size:0.72rem; font-weight:700; color:#1562ab;">📋 Village Agriculture Assistant</div>
             <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(officerName)} &nbsp;|&nbsp; ${escapeHtml(villageName)}</div>
           </div>
-
           <div style="flex:1; text-align:center;">
             <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
             <div style="font-size:0.72rem; font-weight:700; color:#6a1a1a;">🏛️ Mandal Agriculture Officer</div>
             <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(mandalName)} Mandal</div>
           </div>
-
         </div>
       </div>
 
@@ -23942,27 +23833,9 @@ async function loadPrintFarmerProfile() {
       </div>
     </div>`;
 
-    // ── Update Edit Eligible Bags button to reflect override status ──
-    (function() {
-        const btnLabel = document.getElementById('editEligBagsBtnLabel_' + a);
-        const btn      = document.getElementById('editEligBagsBtn_' + a);
-        if (btnLabel && _hasOverride && _ovEditCount < 3) {
-            btnLabel.textContent = '✏️ Eligible Bags (Overridden)';
-            if (btn) btn.style.background = 'linear-gradient(135deg,#e67e22,#ca6f1e)';
-        }
-    })();
+    cardEl.innerHTML = _crossVillageBanner + displayCard;
 
-    // ── Update Edit Availed Bags button to reflect correction status ──
-    (function() {
-        const btnLabel = document.getElementById('editAvailBagsBtnLabel_' + a);
-        const btn      = document.getElementById('editAvailBagsBtn_' + a);
-        if (btnLabel && _hasAvailedOverride && _avOvEditCount < 3) {
-            btnLabel.textContent = '✏️ Availed Bags (Corrected)';
-            if (btn) btn.style.background = 'linear-gradient(135deg,#c0392b,#922b21)';
-        }
-    })();
-
-    // ── Generate QR code into the holder after DOM is set ──
+    // ── Generate QR code ──
     const qrHolderEl = document.getElementById('fcQrCode_' + a);
     if (qrHolderEl && typeof QRCode !== 'undefined') {
         try {
@@ -23979,9 +23852,7 @@ async function loadPrintFarmerProfile() {
         }
     }
 
-    // ── Fix 3: Async outlet-name enrichment ──────────────────────────────────
-    // If any availed-outlet cells are missing the outlet name (outletName not
-    // yet synced in ureaHistory), look them up directly from fertilizerDistributions.
+    // ── Async outlet-name enrichment ──
     const outletCells = document.querySelectorAll('[data-outlet-token]');
     outletCells.forEach(cell => {
         const tk = (cell.getAttribute('data-outlet-token') || '').replace(/[^A-Z0-9]/gi,'').toUpperCase();
@@ -23990,7 +23861,6 @@ async function loadPrintFarmerProfile() {
             const rec = s.val();
             if (rec && rec.outletName) {
                 cell.textContent = '🏪 ' + rec.outletName;
-                // Also patch ureaHistory so subsequent prints don't need another lookup
                 const h = ureaHistory.find(h2 =>
                     (h2.printToken || h2.tokenNumber || h2.authToken || '') === tk);
                 if (h) h.outletName = rec.outletName;
@@ -23999,7 +23869,8 @@ async function loadPrintFarmerProfile() {
             }
         }).catch(() => {});
     });
-}
+} // ← THIS CLOSES THE FUNCTION
+
 
 function printFertilizerCard() {
     const cardEl = document.getElementById('fertCardPrintArea');
@@ -24216,7 +24087,6 @@ ${cardEl.innerHTML}
 // ============================================================
 //  PRINT FARMER PROFILE — VO: LOAD & DELETE DISTRIBUTION DETAILS
 // ============================================================
-
 async function loadDistributionDetailsForVO() {
     const aadhaarRaw = (document.getElementById('printFpAadhaar')?.value || '').trim();
     const selYear    = (document.getElementById('printFpYear')?.value || '').trim();
@@ -24278,12 +24148,22 @@ async function loadDistributionDetailsForVO() {
             const village    = escapeHtml(r.village || '-');
             const distDate   = r.verifiedAt || r.distributedAt || r.createdAt || '';
             const distDateFmt = distDate ? new Date(distDate).toLocaleString('en-IN') : '-';
+            
+            // Check if record can be edited (not already edited)
+            const canEdit = !r.voEditedAt && r.status !== 'Cancelled';
+            const canDelete = r.status !== 'Cancelled';
+            
             const via = (r.distributedVia === 'farmerCardQR' || r.retailerDistributedViaFarmerCard)
                 ? `<span class="badge ms-1" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;font-size:0.6rem;">&#128242; Card QR</span>`
                 : `<span class="badge ms-1 bg-secondary" style="font-size:0.6rem;">Retailer</span>`;
+                
             const statusBadge = (r.status === 'Distributed' || r.retailerVerified)
                 ? `<span class="badge bg-success"><i class="fas fa-check me-1"></i>Distributed</span>`
                 : `<span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>${escapeHtml(r.status||'Pending')}</span>`;
+                
+            const editNote = r.voEditedAt 
+                ? `<br><span class="text-warning" style="font-size:0.65rem;">✏️ Edited: ${r.voEditNote || ''}</span>`
+                : '';
 
             return `<tr>
                 <td class="text-muted" style="font-size:0.8rem;">${i+1}</td>
@@ -24293,16 +24173,24 @@ async function loadDistributionDetailsForVO() {
                 <td><span class="badge bg-warning text-dark">${fertType}</span>
                     <span class="badge bg-info text-dark ms-1" style="font-size:0.65rem;">Split ${splitNum}</span>
                     ${via}</td>
-                <td class="fw-bold text-success">${bags}</td>
+                <td class="fw-bold text-success">${bags}${editNote}</td>
                 <td class="small text-muted">${outletName}</td>
                 <td class="small text-muted">${distDateFmt}</td>
                 <td class="text-center">
-                    <button class="btn btn-sm btn-danger"
-                            style="font-size:0.74rem; padding:3px 10px; border-radius:6px;"
-                            onclick="voDeleteDistribution('${r._key}', ${bags})"
-                            title="Delete this distribution and restore bags to farmer">
-                        <i class="fas fa-trash-restore me-1"></i>Delete &amp; Restore
-                    </button>
+                    <div class="d-flex gap-1 justify-content-center flex-wrap">
+                        ${canEdit ? `<button class="btn btn-sm btn-warning"
+                                style="font-size:0.74rem; padding:3px 10px; border-radius:6px;"
+                                onclick="voEditDistribution('${r._key}', ${bags})"
+                                title="Edit this distribution (reduce bags)">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </button>` : ''}
+                        ${canDelete ? `<button class="btn btn-sm btn-danger"
+                                style="font-size:0.74rem; padding:3px 10px; border-radius:6px;"
+                                onclick="voDeleteDistribution('${r._key}', ${bags})"
+                                title="Delete this distribution and restore bags to farmer">
+                            <i class="fas fa-trash-restore me-1"></i>Delete
+                        </button>` : ''}
+                    </div>
                 </td>
             </tr>`;
         }).join('');
@@ -24319,7 +24207,7 @@ async function loadDistributionDetailsForVO() {
             </div>
             <div style="font-size:0.72rem; color:#c0392b; font-weight:600;">
                 <i class="fas fa-exclamation-triangle me-1"></i>
-                Deleting a record RESTORES bags to the farmer's account
+                Editing a record RESTORES bags to the farmer's account
             </div>
         </div>
         <div class="table-responsive">
@@ -24328,7 +24216,7 @@ async function loadDistributionDetailsForVO() {
                 <tr>
                     <th>#</th><th>Status</th><th>Farmer</th><th>Village</th>
                     <th>Fertilizer / Split</th><th>Bags</th><th>Outlet</th>
-                    <th>Distributed At</th><th class="text-center">VO Action</th>
+                    <th>Distributed At</th><th class="text-center">VO Actions</th>
                 </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -24342,6 +24230,391 @@ async function loadDistributionDetailsForVO() {
         </table></div>`;
     } catch(e) {
         container.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// ============================================================
+//  VO: EDIT A SPECIFIC DISTRIBUTION RECORD
+//  Allows VO to reduce bags (e.g., 4 → 1) for a fresh distribution
+// ============================================================
+async function voEditDistribution(recordKey, currentBags) {
+    const snap = await database.ref('fertilizerDistributions/' + recordKey).once('value');
+    const record = snap.val();
+    if (!record) {
+        alert('Record not found.');
+        return;
+    }
+
+    if (record.voEditedAt) {
+        alert('⚠️ This record has already been edited.');
+        return;
+    }
+
+    const newBags = prompt(
+        `✏️ Edit Distribution\n\n` +
+        `Farmer: ${record.farmerName || '—'}\n` +
+        `Current bags: ${currentBags}\n` +
+        `Fertilizer: ${record.fertilizerType || 'Urea'}\n` +
+        `Date: ${record.date || '—'}\n\n` +
+        `Enter new bag count (0-${currentBags}):`,
+        currentBags
+    );
+
+    if (newBags === null) return;
+    const newBagNum = parseInt(newBags);
+    if (isNaN(newBagNum) || newBagNum < 0 || newBagNum > currentBags) {
+        alert(`Please enter a valid number between 0 and ${currentBags}.`);
+        return;
+    }
+
+    if (newBagNum === currentBags) {
+        alert('No change detected.');
+        return;
+    }
+
+    if (!confirm(
+        `⚠️ Confirm Edit\n\n` +
+        `Farmer: ${record.farmerName || '—'}\n` +
+        `Fertilizer: ${record.fertilizerType || 'Urea'}\n` +
+        `Bags: ${currentBags} → ${newBagNum}\n` +
+        `Date: ${record.date || '—'}\n\n` +
+        `This will reduce the distributed bags and restore ${currentBags - newBagNum} bags to the farmer's balance.`
+    )) return;
+
+    const voUid = record.voUid || (firebase.auth().currentUser ? firebase.auth().currentUser.uid : '');
+    const a = String(record.aadhaar || '').replace(/\s/g, '');
+    const fert = record.fertilizerType || record.fert || 'Urea';
+    const splitIdx = record.splitIndex !== undefined ? Number(record.splitIndex) : 0;
+    const year = record.cropYear || record.year || '';
+    const season = record.season || '';
+    const splitKey = 's' + splitIdx;
+    const bagDiff = currentBags - newBagNum;
+
+    const ops = [];
+
+    // 1. Update fertilizerDistributions record
+    ops.push(database.ref('fertilizerDistributions/' + recordKey).update({
+        bags: newBagNum,
+        bagsDistributing: newBagNum,
+        distributedBags: newBagNum,
+        voEditedAt: new Date().toISOString(),
+        voEditedBy: firebase.auth().currentUser?.uid || '',
+        voEditNote: `Bags reduced from ${currentBags} to ${newBagNum}`,
+        previousBags: currentBags
+    }));
+
+    // 2. Update ureaHistory record (global)
+    ops.push(
+        database.ref('ureaHistory/' + recordKey).update({
+            bags: newBagNum,
+            voEditedAt: new Date().toISOString(),
+            voEditedBy: firebase.auth().currentUser?.uid || '',
+            voEditNote: `Bags reduced from ${currentBags} to ${newBagNum}`,
+            previousBags: currentBags
+        }).catch(() => {})
+    );
+
+    // 3. Update users/{voUid}/ureaHistory
+    if (voUid) {
+        ops.push(
+            database.ref(`users/${voUid}/ureaHistory`).once('value').then(voHistSnap => {
+                if (!voHistSnap.exists()) return;
+                const updateOps = [];
+                const recDate = record.date || (record.verifiedAt ? record.verifiedAt.substring(0, 10) : '') || '';
+                voHistSnap.forEach(child => {
+                    const v = child.val();
+                    if (!v) return;
+                    if (String(v.aadhaar || '').replace(/\s/g, '') !== a) return;
+                    const vDate = v.date || (v.verifiedAt ? v.verifiedAt.substring(0, 10) : '') || '';
+                    const contentMatch =
+                        (v.fertilizerType || v.fert || 'Urea') === fert &&
+                        Number(v.splitIndex) === splitIdx &&
+                        Number(v.bags || 0) === currentBags &&
+                        String(v.year || '') === String(year) &&
+                        String(v.season || '') === String(season) &&
+                        (!recDate || !vDate || vDate === recDate);
+                    if (contentMatch) {
+                        updateOps.push(
+                            database.ref(`users/${voUid}/ureaHistory/${child.key}`).update({
+                                bags: newBagNum,
+                                voEditedAt: new Date().toISOString(),
+                                voEditedBy: firebase.auth().currentUser?.uid || '',
+                                voEditNote: `Bags reduced from ${currentBags} to ${newBagNum}`,
+                                previousBags: currentBags
+                            })
+                        );
+                    }
+                });
+                return Promise.all(updateOps);
+            }).catch(() => {})
+        );
+    }
+
+    // 4. Update availedTransactions log
+    if (voUid && a && bagDiff > 0) {
+        ops.push(
+            database.ref(`users/${voUid}/farmerProfiles/${a}/availedTransactions`).once('value').then(txSnap => {
+                if (!txSnap.exists()) return;
+                const updateOps = [];
+                const recDate = record.date || (record.verifiedAt ? record.verifiedAt.substring(0, 10) : '') || '';
+                txSnap.forEach(child => {
+                    const tx = child.val();
+                    if (!tx || tx.status === 'Cancelled') return;
+                    const txDate = tx.date || (tx.verifiedAt ? tx.verifiedAt.substring(0, 10) : '') || '';
+                    const contentMatch =
+                        (tx.fert || 'Urea') === fert &&
+                        Number(tx.splitIndex) === splitIdx &&
+                        Number(tx.bags || 0) === currentBags &&
+                        (!recDate || !txDate || txDate === recDate);
+                    if (contentMatch) {
+                        updateOps.push(
+                            database.ref(`users/${voUid}/farmerProfiles/${a}/availedTransactions/${child.key}`).update({
+                                bags: newBagNum,
+                                voEditedAt: new Date().toISOString(),
+                                voEditNote: `Bags reduced from ${currentBags} to ${newBagNum}`,
+                                previousBags: currentBags
+                            })
+                        );
+                    }
+                });
+                return Promise.all(updateOps);
+            }).catch(() => {})
+        );
+
+        // 5. Restore split-level availed bags
+        const splitPath = `users/${voUid}/farmerProfiles/${a}/splits/${fert}/${splitKey}/availed`;
+        ops.push(
+            database.ref(splitPath).once('value').then(avSnap => {
+                const prev = Number(avSnap.val()) || 0;
+                return database.ref(splitPath).set(Math.max(0, prev - bagDiff));
+            })
+        );
+
+        // 6. Restore top-level availed counter
+        const topPath = `users/${voUid}/farmerProfiles/${a}/availed/${year}_${season}_${fert}_s${splitIdx}`;
+        ops.push(
+            database.ref(topPath).once('value').then(avSnap2 => {
+                const prev2 = Number(avSnap2.val()) || 0;
+                return database.ref(topPath).set(Math.max(0, prev2 - bagDiff));
+            })
+        );
+    }
+
+    // ── CRITICAL FIX: Update the Fertilizer Card (QR card) ──
+    const fcKey = a + '_' + String(year).replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
+    
+    const cardSnap = await database.ref('fertilizerCards/' + fcKey).once('value');
+    const cardData = cardSnap.val() || {};
+    const currentAvailed = cardData.availedOverride || {};
+    const currentEditCount = Number(cardData.availedEditCount || 0);
+    
+    const newAvailed = { ...currentAvailed };
+    if (!newAvailed[fert]) newAvailed[fert] = {};
+    
+    // Calculate the actual current availed from the records
+    const histForThisSplit = ureaHistory.filter(h =>
+        String(h.aadhaar || '').replace(/\s/g, '') === a &&
+        String(h.fertilizerType || h.fert || 'Urea') === fert &&
+        Number(h.splitIndex) === splitIdx &&
+        String(h.year || '') === String(year) &&
+        String(h.season || '') === String(season) &&
+        h.status !== 'Cancelled' && h.status !== 'Rejected'
+    );
+    const actualCurrentAvailed = histForThisSplit.reduce((sum, h) => sum + Number(h.bags || 0), 0);
+    
+    const newAvailedForSplit = Math.max(0, actualCurrentAvailed - bagDiff);
+    newAvailed[fert][splitKey] = newAvailedForSplit;
+    
+    // Update the fertilizer card
+    ops.push(
+        database.ref('fertilizerCards/' + fcKey).update({
+            availedOverride: newAvailed,
+            availedEditCount: currentEditCount + 1,
+            availedOverriddenAt: Date.now(),
+            availedOverriddenByVO: firebase.auth().currentUser?.uid || '',
+            updatedAt: Date.now()
+        }).catch(() => {})
+    );
+
+    // 7. Add audit log entry
+    if (voUid) {
+        const logKey = database.ref(`distributionUpdates/${voUid}/voEdit_${recordKey}`).push().key;
+        if (logKey) {
+            ops.push(database.ref(`distributionUpdates/${voUid}/voEdit_${recordKey}`).set({
+                type: 'voEdit',
+                recordKey,
+                aadhaar: a,
+                farmerName: record.farmerName || '',
+                fertilizerType: fert,
+                splitIndex: splitIdx,
+                oldBags: currentBags,
+                newBags: newBagNum,
+                editedAt: new Date().toISOString(),
+                editedBy: firebase.auth().currentUser?.uid || '',
+                year,
+                season,
+                newAvailedForSplit
+            }));
+        }
+    }
+
+    await Promise.all(ops);
+
+    // ── UPDATE ALL IN-MEMORY CACHES ──
+
+    // 1. Update global ureaHistory - find by content match
+    let foundInHistory = false;
+    ureaHistory.forEach((h, idx) => {
+        const hAad = String(h.aadhaar || '').replace(/\s/g, '');
+        const contentMatch = 
+            hAad === a &&
+            String(h.fertilizerType || h.fert || 'Urea') === fert &&
+            Number(h.splitIndex) === splitIdx &&
+            Number(h.bags || 0) === currentBags &&
+            String(h.year || '') === String(year) &&
+            String(h.season || '') === String(season) &&
+            h.status !== 'Cancelled';
+        
+        if (contentMatch || h._key === recordKey) {
+            foundInHistory = true;
+            ureaHistory[idx] = {
+                ...ureaHistory[idx],
+                bags: newBagNum,
+                voEditedAt: new Date().toISOString(),
+                voEditNote: `Bags reduced from ${currentBags} to ${newBagNum}`,
+                previousBags: currentBags
+            };
+        }
+    });
+
+    if (!foundInHistory) {
+        ureaHistory.push({
+            _key: recordKey,
+            aadhaar: a,
+            farmerName: record.farmerName || '',
+            fertilizerType: fert,
+            fert: fert,
+            splitIndex: splitIdx,
+            bags: newBagNum,
+            date: record.date || '',
+            year: year,
+            season: season,
+            voEditedAt: new Date().toISOString(),
+            voEditNote: `Bags reduced from ${currentBags} to ${newBagNum}`,
+            previousBags: currentBags,
+            status: 'Distributed',
+            retailerVerified: true,
+            outletName: record.outletName || ''
+        });
+    }
+
+    // 2. Update voUreaHistory
+    if (window.voUreaHistory && Array.isArray(window.voUreaHistory)) {
+        let foundInVo = false;
+        window.voUreaHistory.forEach((h, idx) => {
+            const hAad = String(h.aadhaar || '').replace(/\s/g, '');
+            if (hAad === a &&
+                String(h.fertilizerType || h.fert || 'Urea') === fert &&
+                Number(h.splitIndex) === splitIdx &&
+                Number(h.bags || 0) === currentBags &&
+                String(h.year || '') === String(year) &&
+                String(h.season || '') === String(season)) {
+                foundInVo = true;
+                window.voUreaHistory[idx] = {
+                    ...window.voUreaHistory[idx],
+                    bags: newBagNum,
+                    voEditedAt: new Date().toISOString(),
+                    voEditNote: `Bags reduced from ${currentBags} to ${newBagNum}`,
+                    previousBags: currentBags
+                };
+            }
+        });
+        if (!foundInVo) {
+            window.voUreaHistory.push({
+                aadhaar: a,
+                farmerName: record.farmerName || '',
+                fertilizerType: fert,
+                fert: fert,
+                splitIndex: splitIdx,
+                bags: newBagNum,
+                date: record.date || '',
+                year: year,
+                season: season,
+                voEditedAt: new Date().toISOString(),
+                voEditNote: `Bags reduced from ${currentBags} to ${newBagNum}`,
+                previousBags: currentBags,
+                status: 'Distributed',
+                retailerVerified: true
+            });
+        }
+    }
+
+    alert(`✅ Distribution updated!\n\nBags reduced from ${currentBags} to ${newBagNum}.\n${bagDiff} bag(s) restored to farmer's account.`);
+
+    // ── PURGE all in-memory ureaHistory entries for this farmer+year+season ──
+    // This guarantees that when loadPrintFarmerProfile runs below, it fetches
+    // fresh data from Firebase — edited bag counts will replace old values in
+    // both the Distribution History banner and the per-split schedule rows.
+    for (let _ei = ureaHistory.length - 1; _ei >= 0; _ei--) {
+        const _eh = ureaHistory[_ei];
+        const _ehAad = String(_eh.aadhaar || '').replace(/\s/g, '');
+        if (_ehAad === a &&
+            String(_eh.year   || '') === String(year) &&
+            String(_eh.season || '') === String(season)) {
+            ureaHistory.splice(_ei, 1);
+        }
+    }
+    if (window.voUreaHistory && Array.isArray(window.voUreaHistory)) {
+        for (let _vi = window.voUreaHistory.length - 1; _vi >= 0; _vi--) {
+            const _vh = window.voUreaHistory[_vi];
+            const _vhAad = String(_vh.aadhaar || '').replace(/\s/g, '');
+            if (_vhAad === a &&
+                String(_vh.year   || '') === String(year) &&
+                String(_vh.season || '') === String(season)) {
+                window.voUreaHistory.splice(_vi, 1);
+            }
+        }
+    }
+
+    // ── FORCE FULL REFRESH OF THE FARMER CARD ──
+    // This is the key fix - reload the entire card so availedS is recomputed
+    
+    // 1. Refresh the distribution details view (VO table)
+    if (typeof loadDistributionDetailsForVO === 'function') {
+        setTimeout(() => loadDistributionDetailsForVO(), 300);
+    }
+    
+    // 2. Force reload the farmer card with a full refresh
+    if (typeof loadPrintFarmerProfile === 'function') {
+        // Clear the card to show loading state
+        const cardEl = document.getElementById('printFpCardContainer');
+        if (cardEl) {
+            cardEl.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin me-2" style="color:#1862ab;"></i><span class="text-muted">Updating distribution table...</span></div>';
+        }
+        
+        // Reload with a delay to ensure Firebase writes complete
+        setTimeout(async () => {
+            // Clear the aadhaar input value temporarily to force fresh load
+            const aadhaarInput = document.getElementById('printFpAadhaar');
+            const currentAadhaar = aadhaarInput?.value || '';
+            
+            // Reload the profile (in-memory cache already purged above,
+            // so this will fetch the edited bag count fresh from Firebase)
+            await loadPrintFarmerProfile();
+            
+            // Restore the aadhaar value if it was cleared
+            if (aadhaarInput && currentAadhaar) {
+                aadhaarInput.value = currentAadhaar;
+            }
+        }, 600);
+    }
+    
+    // 3. Refresh history modal if open
+    const historyModal = document.getElementById('ureaHistoryModal');
+    if (historyModal && historyModal.classList.contains('show')) {
+        if (typeof showUreaHistory === 'function') {
+            setTimeout(() => showUreaHistory(), 700);
+        }
     }
 }
 
@@ -24359,6 +24632,12 @@ async function voDeleteDistribution(recordKey, bags) {
         const record = snap.val();
         if (!record) { alert('Record not found.'); return; }
 
+        // Check if this record is already deleted
+        if (record.status === 'Cancelled') {
+            alert('⚠️ This record has already been deleted.');
+            return;
+        }
+
         const ops = [];
         const voUid    = record.voUid || (firebase.auth().currentUser ? firebase.auth().currentUser.uid : '');
         const a        = String(record.aadhaar || '').replace(/\s/g, '');
@@ -24375,10 +24654,10 @@ async function voDeleteDistribution(recordKey, bags) {
             retailerVerified: false,
             deletedAt: new Date().toISOString(),
             deletedByVO: true,
-            voDeletionNote: 'Deleted by VO via Print Farmer Profile \u2014 bags restored'
+            voDeletionNote: 'Deleted by VO via Print Farmer Profile — bags restored'
         }));
 
-        // 2. Cancel matching ureaHistory record
+        // 2. Cancel matching ureaHistory record (global)
         ops.push(
             database.ref('ureaHistory/' + recordKey).update({
                 status: 'Cancelled',
@@ -24437,12 +24716,7 @@ async function voDeleteDistribution(recordKey, bags) {
                 }).catch(() => {})
             );
 
-            // 5b. submitFarmerCardDistribution() writes the SAME distribution event to BOTH
-            //     the global /ureaHistory node (cancelled above, step 2) AND
-            //     users/{voUid}/ureaHistory under a DIFFERENT push key. Without this,
-            //     that second copy is never marked Cancelled and gets re-added as a
-            //     phantom still-active record, so the bags never actually return to
-            //     the farmer's eligible/remaining count.
+            // 5b. Cancel matching records in users/{voUid}/ureaHistory
             ops.push(
                 database.ref(`users/${voUid}/ureaHistory`).once('value').then(voHistSnap => {
                     if (!voHistSnap.exists()) return;
@@ -24475,10 +24749,7 @@ async function voDeleteDistribution(recordKey, bags) {
                 }).catch(() => {})
             );
 
-            // 6. Keep an active "Edit Availed Bags" override (if any) in sync by
-            //    reducing it by the restored bag count, mirroring the raw-counter
-            //    restoration above, so it doesn't go stale on the card or the
-            //    retailer's QR scan.
+            // 6. Update availedOverride if exists
             if (year && season) {
                 const fcKeyForOv = a + '_' + String(year).replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
                 const ovPath = `fertilizerCards/${fcKeyForOv}/availedOverride/${fert}/${splitKey}`;
@@ -24490,11 +24761,49 @@ async function voDeleteDistribution(recordKey, bags) {
                     }).catch(() => {})
                 );
             }
+
+            // 7. Add audit log entry for VO deletion
+            const logKey = database.ref(`distributionUpdates/${voUid}/voDelete_${recordKey}`).push().key;
+            if (logKey) {
+                ops.push(database.ref(`distributionUpdates/${voUid}/voDelete_${recordKey}`).set({
+                    type: 'voDelete',
+                    recordKey,
+                    aadhaar: a,
+                    farmerName: record.farmerName || '',
+                    fertilizerType: fert,
+                    splitIndex: splitIdx,
+                    bags: bagCount,
+                    deletedAt: new Date().toISOString(),
+                    deletedBy: firebase.auth().currentUser?.uid || '',
+                    year,
+                    season
+                }));
+            }
         }
 
         await Promise.all(ops);
+        
+        // Update local ureaHistory cache
+        ureaHistory.forEach((h, idx) => {
+            const hKey = h._key || '';
+            if (hKey === recordKey || 
+                (String(h.aadhaar || '').replace(/\s/g, '') === a &&
+                 String(h.fertilizerType || h.fert || 'Urea') === fert &&
+                 Number(h.splitIndex) === splitIdx &&
+                 Number(h.bags || 0) === bagCount &&
+                 String(h.year || '') === String(year) &&
+                 String(h.season || '') === String(season))) {
+                ureaHistory[idx] = { ...ureaHistory[idx], status: 'Cancelled',
+                    deletedAt: new Date().toISOString(), deletedByVO: true };
+            }
+        });
+
         alert('\u2705 Distribution deleted successfully!\n' + bagCount + ' bag(s) have been restored to the farmer.\nThe farmer card will update automatically.');
-        loadDistributionDetailsForVO();
+        
+        // Refresh the distribution details view
+        if (typeof loadDistributionDetailsForVO === 'function') {
+            loadDistributionDetailsForVO();
+        }
         // Also refresh the print farmer profile if it is open
         if (typeof loadPrintFarmerProfile === 'function') {
             loadPrintFarmerProfile().catch(() => {});
@@ -24741,30 +25050,229 @@ const EAB_MAX_EDITS = 3;
     }
 })();
 
-window.openEditAvailedBagsModal = function(aadhaar, year, season, u1, u2, u3, d1, d2, d3, rawU1, rawU2, rawU3, rawD1, rawD2, rawD3, eligU1, eligU2, eligU3, eligD1, eligD2, eligD3, editCount) {
+window.openEditAvailedBagsModal = async function(aadhaar, year, season, u1, u2, u3, d1, d2, d3, rawU1, rawU2, rawU3, rawD1, rawD2, rawD3, eligU1, eligU2, eligU3, eligD1, eligD2, eligD3, editCount) {
     const modalEl = document.getElementById('editAvailedBagsModal');
     if (!modalEl) {
         alert("Error: Modal not found. Please refresh the page.");
         return;
     }
 
-    document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
-    document.body.classList.remove('modal-open');
-    document.body.style.overflow = '';
-    document.body.style.paddingRight = '';
+    // ── FETCH ACTUAL RETAILER DISTRIBUTION RECORDS ──
+    let actualU1 = rawU1, actualU2 = rawU2, actualU3 = rawU3;
+    let actualD1 = rawD1, actualD2 = rawD2, actualD3 = rawD3;
+    let retailerRecords = [];
 
+    try {
+        const user = firebase.auth().currentUser;
+        if (user) {
+            const voUid = user.uid;
+            const a = String(aadhaar).replace(/\s/g, '');
+            
+            const fdSnap = await database.ref('fertilizerDistributions')
+                .orderByChild('aadhaar')
+                .equalTo(a)
+                .once('value');
+            
+            if (fdSnap.exists()) {
+                fdSnap.forEach(child => {
+                    const r = child.val();
+                    if (!r) return;
+                    if (r.status === 'Cancelled' || r.status === 'Rejected') return;
+                    if ((r.year || '') !== year || (r.season || '') !== season) return;
+                    
+                    const rFert = r.fertilizerType || r.fert || 'Urea';
+                    const rSplit = r.splitIndex !== undefined ? Number(r.splitIndex) : 0;
+                    const rBags = Number(r.bags || r.bagsDistributing || 0);
+                    
+                    retailerRecords.push({ fert: rFert, split: rSplit, bags: rBags, key: child.key });
+                    
+                    if (rFert === 'Urea') {
+                        if (rSplit === 0) actualU1 += rBags;
+                        else if (rSplit === 1) actualU2 += rBags;
+                        else if (rSplit === 2) actualU3 += rBags;
+                    } else if (rFert === 'DAP') {
+                        if (rSplit === 0) actualD1 += rBags;
+                        else if (rSplit === 1) actualD2 += rBags;
+                        else if (rSplit === 2) actualD3 += rBags;
+                    }
+                });
+            }
+        }
+    } catch(e) {
+        console.warn('Could not fetch actual distributions:', e.message);
+    }
+
+    // Also check ureaHistory for retailer-distributed records
+    try {
+        const a = String(aadhaar).replace(/\s/g, '');
+        const histSnap = await database.ref('ureaHistory')
+            .orderByChild('aadhaar')
+            .equalTo(a)
+            .once('value');
+        
+        if (histSnap.exists()) {
+            histSnap.forEach(child => {
+                const h = child.val();
+                if (!h) return;
+                if (h.status === 'Cancelled' || h.status === 'Rejected') return;
+                if ((h.year || '') !== year || (h.season || '') !== season) return;
+                if (!h.retailerVerified && h.status !== 'Distributed') return;
+                
+                const hFert = h.fertilizerType || h.fert || 'Urea';
+                const hSplit = h.splitIndex !== undefined ? Number(h.splitIndex) : 0;
+                const hBags = Number(h.bags || 0);
+                
+                const alreadyCounted = retailerRecords.some(r => 
+                    r.fert === hFert && r.split === hSplit && r.bags === hBags
+                );
+                if (!alreadyCounted) {
+                    if (hFert === 'Urea') {
+                        if (hSplit === 0) actualU1 += hBags;
+                        else if (hSplit === 1) actualU2 += hBags;
+                        else if (hSplit === 2) actualU3 += hBags;
+                    } else if (hFert === 'DAP') {
+                        if (hSplit === 0) actualD1 += hBags;
+                        else if (hSplit === 1) actualD2 += hBags;
+                        else if (hSplit === 2) actualD3 += hBags;
+                    }
+                }
+            });
+        }
+    } catch(e) {
+        console.warn('Could not fetch ureaHistory:', e.message);
+    }
+
+    // ── ALSO FETCH FROM USER'S VO UREA HISTORY ──
+    try {
+        const user = firebase.auth().currentUser;
+        if (user) {
+            const voUid = user.uid;
+            const a = String(aadhaar).replace(/\s/g, '');
+            
+            const voHistSnap = await database.ref(`users/${voUid}/ureaHistory`)
+                .orderByChild('aadhaar')
+                .equalTo(a)
+                .once('value');
+            
+            if (voHistSnap.exists()) {
+                voHistSnap.forEach(child => {
+                    const h = child.val();
+                    if (!h) return;
+                    if (h.status === 'Cancelled' || h.status === 'Rejected') return;
+                    if ((h.year || '') !== year || (h.season || '') !== season) return;
+                    if (!h.retailerVerified && h.status !== 'Distributed') return;
+                    
+                    const hFert = h.fertilizerType || h.fert || 'Urea';
+                    const hSplit = h.splitIndex !== undefined ? Number(h.splitIndex) : 0;
+                    const hBags = Number(h.bags || 0);
+                    
+                    const alreadyCounted = retailerRecords.some(r => 
+                        r.fert === hFert && r.split === hSplit && r.bags === hBags
+                    );
+                    if (!alreadyCounted) {
+                        if (hFert === 'Urea') {
+                            if (hSplit === 0) actualU1 += hBags;
+                            else if (hSplit === 1) actualU2 += hBags;
+                            else if (hSplit === 2) actualU3 += hBags;
+                        } else if (hFert === 'DAP') {
+                            if (hSplit === 0) actualD1 += hBags;
+                            else if (hSplit === 1) actualD2 += hBags;
+                            else if (hSplit === 2) actualD3 += hBags;
+                        }
+                    }
+                });
+            }
+        }
+    } catch(e) {
+        console.warn('Could not fetch VO ureaHistory:', e.message);
+    }
+
+    // ── USE THE FETCHED ACTUAL VALUES ──
+    const finalRawU1 = Math.max(rawU1, actualU1);
+    const finalRawU2 = Math.max(rawU2, actualU2);
+    const finalRawU3 = Math.max(rawU3, actualU3);
+    const finalRawD1 = Math.max(rawD1, actualD1);
+    const finalRawD2 = Math.max(rawD2, actualD2);
+    const finalRawD3 = Math.max(rawD3, actualD3);
+
+    // ── CRITICAL FIX: Recalculate u1, u2, u3 from actual records ──
+    // If u1 is 0 but actualU1 has a value, use the actual value
+    // This ensures the modal shows the real distributed bags
+    const currentU1 = Number(u1) || 0;
+    const currentU2 = Number(u2) || 0;
+    const currentU3 = Number(u3) || 0;
+    const currentD1 = Number(d1) || 0;
+    const currentD2 = Number(d2) || 0;
+    const currentD3 = Number(d3) || 0;
+
+    // If actual is greater than current, use actual (this handles the case where 
+    // the modal was showing 0 but actual records exist)
+    const displayU1 = Math.max(currentU1, actualU1);
+    const displayU2 = Math.max(currentU2, actualU2);
+    const displayU3 = Math.max(currentU3, actualU3);
+    const displayD1 = Math.max(currentD1, actualD1);
+    const displayD2 = Math.max(currentD2, actualD2);
+    const displayD3 = Math.max(currentD3, actualD3);
+
+    // Store state globally
     window._eabState = {
-        aadhaar: String(aadhaar), year: String(year), season: String(season),
-        u1: Number(u1)||0, u2: Number(u2)||0, u3: Number(u3)||0,
-        d1: Number(d1)||0, d2: Number(d2)||0, d3: Number(d3)||0,
-        rawU1: Number(rawU1)||0, rawU2: Number(rawU2)||0, rawU3: Number(rawU3)||0,
-        rawD1: Number(rawD1)||0, rawD2: Number(rawD2)||0, rawD3: Number(rawD3)||0,
-        eligU1: Number(eligU1)||0, eligU2: Number(eligU2)||0, eligU3: Number(eligU3)||0,
-        eligD1: Number(eligD1)||0, eligD2: Number(eligD2)||0, eligD3: Number(eligD3)||0,
-        editCount: Number(editCount)||0
+        aadhaar: String(aadhaar),
+        year: String(year),
+        season: String(season),
+        // These are the values to show in the input fields - use the max of current and actual
+        u1: displayU1,
+        u2: displayU2,
+        u3: displayU3,
+        d1: displayD1,
+        d2: displayD2,
+        d3: displayD3,
+        // Raw totals for reference
+        rawU1: finalRawU1,
+        rawU2: finalRawU2,
+        rawU3: finalRawU3,
+        rawD1: finalRawD1,
+        rawD2: finalRawD2,
+        rawD3: finalRawD3,
+        // Eligible caps
+        eligU1: Number(eligU1) || 0,
+        eligU2: Number(eligU2) || 0,
+        eligU3: Number(eligU3) || 0,
+        eligD1: Number(eligD1) || 0,
+        eligD2: Number(eligD2) || 0,
+        eligD3: Number(eligD3) || 0,
+        editCount: Number(editCount) || 0,
+        // Store original passed values for debug
+        _debug: { u1: currentU1, u2: currentU2, u3: currentU3, actualU1, actualU2, actualU3 }
     };
 
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    // Log for debugging
+    console.log('Edit Availed Bags State:', window._eabState);
+
+    // ── SET INPUT VALUES WITH CURRENT VALUES ──
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = val;
+            // Set max to eligible cap
+            const eligMap = {
+                'eabUreaS1': window._eabState.eligU1,
+                'eabUreaS2': window._eabState.eligU2,
+                'eabUreaS3': window._eabState.eligU3,
+                'eabDapS1': window._eabState.eligD1,
+                'eabDapS2': window._eabState.eligD2,
+                'eabDapS3': window._eabState.eligD3
+            };
+            if (eligMap[id] !== undefined) {
+                el.max = eligMap[id];
+                // If current value exceeds eligible cap, cap it
+                if (Number(val) > Number(eligMap[id])) {
+                    el.value = eligMap[id];
+                }
+            }
+        }
+    };
+    
+    // Populate with the values we determined
     setVal('eabUreaS1', window._eabState.u1);
     setVal('eabUreaS2', window._eabState.u2);
     setVal('eabUreaS3', window._eabState.u3);
@@ -24772,7 +25280,11 @@ window.openEditAvailedBagsModal = function(aadhaar, year, season, u1, u2, u3, d1
     setVal('eabDapS2', window._eabState.d2);
     setVal('eabDapS3', window._eabState.d3);
 
-    const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    // Update labels with actual values (for reference only)
+    const setTxt = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = txt;
+    };
     setTxt('eabRawUreaS1', `(actual: ${window._eabState.rawU1})`);
     setTxt('eabRawUreaS2', `(actual: ${window._eabState.rawU2})`);
     setTxt('eabRawUreaS3', `(actual: ${window._eabState.rawU3})`);
@@ -24786,8 +25298,9 @@ window.openEditAvailedBagsModal = function(aadhaar, year, season, u1, u2, u3, d1
     setTxt('eabEligDapS2',  window._eabState.eligD2);
     setTxt('eabEligDapS3',  window._eabState.eligD3);
 
-    const remaining = Math.max(0, EAB_MAX_EDITS - window._eabState.editCount);
-    const limitReached = window._eabState.editCount >= EAB_MAX_EDITS;
+    // Edit limit UI
+    const remaining = Math.max(0, 3 - window._eabState.editCount);
+    const limitReached = window._eabState.editCount >= 3;
     const limitMsg = document.getElementById('eabEditLimitMsg');
     if (limitMsg) {
         limitMsg.style.display = 'block';
@@ -24800,32 +25313,53 @@ window.openEditAvailedBagsModal = function(aadhaar, year, season, u1, u2, u3, d1
             limitMsg.style.background = '#eef3fb';
             limitMsg.style.borderColor = '#b0c4de';
             limitMsg.style.color = '#34495e';
-            limitMsg.innerHTML = `<i class="fas fa-history me-1"></i>Edits used: <strong>${window._eabState.editCount}/${EAB_MAX_EDITS}</strong> &nbsp;(${remaining} edit${remaining === 1 ? '' : 's'} remaining)`;
+            limitMsg.innerHTML = `<i class="fas fa-history me-1"></i>Edits used: <strong>${window._eabState.editCount}/3</strong> &nbsp;(${remaining} edit${remaining === 1 ? '' : 's'} remaining)`;
         }
     }
 
+    // Enable/disable buttons
     const saveBtn = document.getElementById('eabSaveBtn');
     const resetBtn = document.getElementById('eabResetBtn');
-    if (saveBtn) { saveBtn.disabled = limitReached; saveBtn.style.opacity = limitReached?'0.5':'1'; saveBtn.style.cursor = limitReached?'not-allowed':'pointer'; }
-    if (resetBtn) { resetBtn.disabled = limitReached; resetBtn.style.opacity = limitReached?'0.5':'1'; resetBtn.style.cursor = limitReached?'not-allowed':'pointer'; }
+    if (saveBtn) {
+        saveBtn.disabled = limitReached;
+        saveBtn.style.opacity = limitReached ? '0.5' : '1';
+        saveBtn.style.cursor = limitReached ? 'not-allowed' : 'pointer';
+    }
+    if (resetBtn) {
+        resetBtn.disabled = limitReached;
+        resetBtn.style.opacity = limitReached ? '0.5' : '1';
+        resetBtn.style.cursor = limitReached ? 'not-allowed' : 'pointer';
+    }
 
+    // Hide validation message
     const valMsg = document.getElementById('eabValidationMsg');
     if (valMsg) valMsg.style.display = 'none';
 
+    // SHOW MODAL
     modalEl.style.display = 'flex';
     modalEl.style.visibility = 'visible';
     modalEl.style.opacity = '1';
     modalEl.style.position = 'fixed';
-    modalEl.style.top = '0'; modalEl.style.left = '0'; modalEl.style.right = '0'; modalEl.style.bottom = '0';
-    modalEl.style.width = '100%'; modalEl.style.height = '100%';
+    modalEl.style.top = '0';
+    modalEl.style.left = '0';
+    modalEl.style.right = '0';
+    modalEl.style.bottom = '0';
+    modalEl.style.width = '100%';
+    modalEl.style.height = '100%';
     modalEl.style.zIndex = '999999';
     modalEl.style.background = 'rgba(0,0,0,0.75)';
     modalEl.style.backdropFilter = 'blur(4px)';
-    modalEl.style.alignItems = 'center'; modalEl.style.justifyContent = 'center';
+    modalEl.style.alignItems = 'center';
+    modalEl.style.justifyContent = 'center';
 
     document.body.style.overflow = 'hidden';
-
-    const outsideCloseHandler = function(e) { if (e.target === modalEl) window.closeEditAvailedBagsModal(); };
+    
+    // Outside click handler
+    const outsideCloseHandler = function(e) {
+        if (e.target === modalEl) {
+            window.closeEditAvailedBagsModal();
+        }
+    };
     modalEl.removeEventListener('click', modalEl._outsideClickHandler);
     modalEl.addEventListener('click', outsideCloseHandler);
     modalEl._outsideClickHandler = outsideCloseHandler;
@@ -24895,43 +25429,52 @@ window.saveEditedAvailedBags = async function() {
 
         // ── NEW: Update /fertilizerDistributions records for this farmer to reflect VO correction ──
         try {
-            const fdSnap = await database.ref('fertilizerDistributions')
-                .orderByChild('aadhaar')
-                .equalTo(aadhaar)
-                .once('value');
-            if (fdSnap.exists()) {
-                const updateOps = [];
-                fdSnap.forEach(child => {
-                    const r = child.val();
-                    if (!r) return;
-                    if ((r.year || '') !== year || (r.season || '') !== season) return;
-                    const rFert = r.fertilizerType || r.fert || 'Urea';
-                    const rSplit = r.splitIndex !== undefined ? Number(r.splitIndex) : 0;
-                    let newAvailed = 0;
-                    if (rFert === 'Urea') {
-                        if (rSplit === 0) newAvailed = u1;
-                        else if (rSplit === 1) newAvailed = u2;
-                        else if (rSplit === 2) newAvailed = u3;
-                    } else if (rFert === 'DAP') {
-                        if (rSplit === 0) newAvailed = d1;
-                        else if (rSplit === 1) newAvailed = d2;
-                        else if (rSplit === 2) newAvailed = d3;
-                    }
-                    updateOps.push(
-                        database.ref('fertilizerDistributions/' + child.key).update({
-                            voCorrectedAvailed: newAvailed,
-                            voCorrectedAt: Date.now(),
-                            voCorrectedBy: user.uid,
-                            voCorrectedSplit: rSplit,
-                            voCorrectedFert: rFert
-                        })
-                    );
-                });
-                await Promise.all(updateOps);
+    const fdSnap = await database.ref('fertilizerDistributions')
+        .orderByChild('aadhaar')
+        .equalTo(aadhaar)
+        .once('value');
+    if (fdSnap.exists()) {
+        const updateOps = [];
+        fdSnap.forEach(child => {
+            const r = child.val();
+            if (!r) return;
+            if ((r.year || '') !== year || (r.season || '') !== season) return;
+            
+            // ── CRITICAL FIX: Filter by village ──
+            // Only update records from the current VO's village
+            const recordVillage = r.village || r.voVillage || r.voVillageName || '';
+            if (recordVillage && villageName && recordVillage !== villageName) {
+                return; // Skip records from other villages
             }
-        } catch(e) {
-            console.warn('Could not update fertilizerDistributions:', e.message);
-        }
+            
+            const rFert = r.fertilizerType || r.fert || 'Urea';
+            const rSplit = r.splitIndex !== undefined ? Number(r.splitIndex) : 0;
+            let newAvailed = 0;
+            if (rFert === 'Urea') {
+                if (rSplit === 0) newAvailed = u1;
+                else if (rSplit === 1) newAvailed = u2;
+                else if (rSplit === 2) newAvailed = u3;
+            } else if (rFert === 'DAP') {
+                if (rSplit === 0) newAvailed = d1;
+                else if (rSplit === 1) newAvailed = d2;
+                else if (rSplit === 2) newAvailed = d3;
+            }
+            updateOps.push(
+                database.ref('fertilizerDistributions/' + child.key).update({
+                    voCorrectedAvailed: newAvailed,
+                    voCorrectedAt: Date.now(),
+                    voCorrectedBy: user.uid,
+                    voCorrectedSplit: rSplit,
+                    voCorrectedFert: rFert,
+                    voCorrectedVillage: villageName
+                })
+            );
+        });
+        await Promise.all(updateOps);
+    }
+} catch(e) {
+    console.warn('Could not update fertilizerDistributions:', e.message);
+}
 
         window.closeEditAvailedBagsModal();
         if (typeof loadPrintFarmerProfile === 'function') await loadPrintFarmerProfile();
@@ -25074,31 +25617,38 @@ window.openEditEligibleBagsModal = function(aadhaar, year, season, ureaTotal, da
         }
     } catch(e) { /* ignore */ }
 
-    // Set all input values
+        // Set all input values - populate with CURRENT availed values (u1, u2, u3, d1, d2, d3)
+    // These are the values currently saved in the system
     const setVal = (id, val) => {
         const el = document.getElementById(id);
-        if(el) {
+        if (el) {
             el.value = val;
-            if (id === 'eebUreaTotal') {
-                el.max = window._eebState.sysUreaTotal;
-                if (val > window._eebState.sysUreaTotal) el.value = window._eebState.sysUreaTotal;
-            }
-            if (id === 'eebDapTotal') {
-                el.max = window._eebState.sysDapTotal;
-                if (val > window._eebState.sysDapTotal) el.value = window._eebState.sysDapTotal;
+            // Set max to eligible cap so user can't exceed
+            const eligMap = {
+                'eabUreaS1': window._eabState.eligU1,
+                'eabUreaS2': window._eabState.eligU2,
+                'eabUreaS3': window._eabState.eligU3,
+                'eabDapS1': window._eabState.eligD1,
+                'eabDapS2': window._eabState.eligD2,
+                'eabDapS3': window._eabState.eligD3
+            };
+            if (eligMap[id] !== undefined) {
+                el.max = eligMap[id];
+                // If current value exceeds max, cap it
+                if (Number(val) > Number(eligMap[id])) {
+                    el.value = eligMap[id];
+                }
             }
         }
     };
     
-    setVal('eebUreaTotal', window._eebState.origUreaTotal);
-    setVal('eebDapTotal', window._eebState.origDapTotal);
-    setVal('eebUreaS1', window._eebState.u1);
-    setVal('eebUreaS2', window._eebState.u2);
-    setVal('eebUreaS3', window._eebState.u3);
-    setVal('eebDapS1', window._eebState.d1);
-    setVal('eebDapS2', window._eebState.d2);
-    setVal('eebDapS3', window._eebState.d3);
-
+    // Populate with CURRENT values (u1, u2, u3 = current availed Urea, d1, d2, d3 = current availed DAP)
+    setVal('eabUreaS1', window._eabState.u1);
+    setVal('eabUreaS2', window._eabState.u2);
+    setVal('eabUreaS3', window._eabState.u3);
+    setVal('eabDapS1', window._eabState.d1);
+    setVal('eabDapS2', window._eabState.d2);
+    setVal('eabDapS3', window._eabState.d3);
     // Update labels
     const sysUreaSpan = document.getElementById('lblSysUrea');
     const sysDapSpan = document.getElementById('lblSysDap');
