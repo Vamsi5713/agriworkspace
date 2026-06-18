@@ -13886,49 +13886,34 @@ function getKhathaOfficialExtent(khathaNo) {
 
 // ✅ Returns array of {surveyNo, extent} for a given Khatha.
 // Sources (in priority order):
-//   1. allReportsCache  — e-Panta booking data (surveyNo field)
-//   2. ureaData surveys — surveys[] stored at 1B upload time (new uploads)
-//   3. ureaData farmers — raw row data from flat/simple format uploads (older data)
+//   1. ureaData surveys — surveys[] stored at 1B upload time (the OFFICIAL master
+//      survey-wise breakup for the Khatha; its total matches "Khatha Official Extent")
+//   2. ureaData farmers — raw row data from flat/simple format uploads (older data,
+//      same official source, just not pre-aggregated into surveys[] yet)
+//   3. allReportsCache — e-Panta booking data (surveyNo field). Used ONLY as a last
+//      resort when the khatha has no 1B master record at all, because booking data
+//      only contains survey numbers that have actually been used in a crop booking
+//      so far — it is a partial subset, NOT the full official survey list, and must
+//      never be allowed to shadow the master list (this previously caused the
+//      Survey No. dropdown to show only a fraction of the Khatha's true extent).
 function getSurveyNumbersForKhatha(khatha) {
     const k = String(khatha || '').trim();
     if (!k) return [];
     const surveyMap = {}; // surveyNo -> total extent
 
-    // Source 1: allReportsCache (e-Panta reports with per-booking surveyNo)
-    for (const reportKey of Object.keys(allReportsCache || {})) {
-        const report = allReportsCache[reportKey];
-        if (!report?.farmerDetails) continue;
-        for (const farmerKey of Object.keys(report.farmerDetails)) {
-            const bookings = report.farmerDetails[farmerKey];
-            if (!Array.isArray(bookings)) continue;
-            bookings.forEach(b => {
-                if (String(b.khathaNo || '').trim() === k && b.surveyNo) {
-                    const area = parseFloat(b.area) || 0;
-                    String(b.surveyNo).split(/[,\/]/).forEach(s => {
-                        const sv = s.trim();
-                        if (!sv) return;
-                        surveyMap[sv] = (surveyMap[sv] || 0) + area;
-                    });
-                }
+    // Source 1: ureaData surveys[] — official 1B master list (preferred)
+    for (const fertData of Object.values(ureaData || {})) {
+        const khathaEntry = fertData && fertData[k];
+        if (khathaEntry && Array.isArray(khathaEntry.surveys) && khathaEntry.surveys.length) {
+            khathaEntry.surveys.forEach(s => {
+                const sv = String(s.surveyNo || '').trim();
+                if (!sv) return;
+                surveyMap[sv] = (surveyMap[sv] || 0) + (parseFloat(s.extent) || 0);
             });
         }
     }
 
-    // Source 2: ureaData surveys[] — populated by new 1B uploads after fix
-    if (!Object.keys(surveyMap).length) {
-        for (const fertData of Object.values(ureaData || {})) {
-            const khathaEntry = fertData && fertData[k];
-            if (khathaEntry && Array.isArray(khathaEntry.surveys) && khathaEntry.surveys.length) {
-                khathaEntry.surveys.forEach(s => {
-                    const sv = String(s.surveyNo || '').trim();
-                    if (!sv) return;
-                    surveyMap[sv] = (surveyMap[sv] || 0) + (parseFloat(s.extent) || 0);
-                });
-            }
-        }
-    }
-
-    // Source 3: ureaData farmers[] rows — mine survey columns from older flat-format data
+    // Source 2: ureaData farmers[] rows — mine survey columns from older flat-format data
     if (!Object.keys(surveyMap).length) {
         const surveyColKeys = ['Survey Number','SurveyNo','SurveyNumber','Survey No','survey_no','Survey','surveyNo'];
         const extColKeys    = ['Extent','extent','Area','area'];
@@ -13947,6 +13932,29 @@ function getSurveyNumbersForKhatha(khatha) {
                     if (s) surveyMap[s] = (surveyMap[s] || 0) + ext;
                 });
             });
+        }
+    }
+
+    // Source 3: allReportsCache (e-Panta reports with per-booking surveyNo) — fallback only
+    // when this Khatha has no 1B master record at all.
+    if (!Object.keys(surveyMap).length) {
+        for (const reportKey of Object.keys(allReportsCache || {})) {
+            const report = allReportsCache[reportKey];
+            if (!report?.farmerDetails) continue;
+            for (const farmerKey of Object.keys(report.farmerDetails)) {
+                const bookings = report.farmerDetails[farmerKey];
+                if (!Array.isArray(bookings)) continue;
+                bookings.forEach(b => {
+                    if (String(b.khathaNo || '').trim() === k && b.surveyNo) {
+                        const area = parseFloat(b.area) || 0;
+                        String(b.surveyNo).split(/[,\/]/).forEach(s => {
+                            const sv = s.trim();
+                            if (!sv) return;
+                            surveyMap[sv] = (surveyMap[sv] || 0) + area;
+                        });
+                    }
+                });
+            }
         }
     }
 
