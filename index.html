@@ -19408,13 +19408,13 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                   ${showU ? `<div data-fert-block="Urea">
                     <label style="font-size:0.72rem; font-weight:600; color:#1862ab; display:block; margin-bottom:3px;">Urea Bags Now (max ${remU})</label>
                     <input type="number" id="fcBagsU_${si}" min="0" max="${remU}" value="0"
-                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remU})"
+                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remU})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remU})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remU})"
                       style="width:90px; padding:5px 8px; border:1.5px solid #1862ab; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:center;">
                   </div>` : `<input type="hidden" id="fcBagsU_${si}" value="0">`}
                   ${showD ? `<div data-fert-block="DAP">
                     <label style="font-size:0.72rem; font-weight:600; color:#27ae60; display:block; margin-bottom:3px;">DAP Bags Now (max ${remD})</label>
                     <input type="number" id="fcBagsD_${si}" min="0" max="${remD}" value="0"
-                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remD})"
+                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remD})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remD})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remD})"
                       style="width:90px; padding:5px 8px; border:1.5px solid #27ae60; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:center;">
                   </div>` : `<input type="hidden" id="fcBagsD_${si}" value="0">`}`;
                   })()}
@@ -19786,7 +19786,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
     if (resultEl) resultEl.innerHTML = `<div class="alert alert-info py-2 d-flex align-items-center gap-2"><i class="fas fa-spinner fa-spin"></i><span>Saving distribution…</span></div>`;
 
     // ── FIXED: Fetch voUid and farmer details FIRST, then build and execute all ops ──
-    database.ref('fertilizerCards/' + fcKey).once('value').then(cardSnap => {
+    database.ref('fertilizerCards/' + fcKey).once('value').then(async cardSnap => {
         const cardData = cardSnap.val() || {};
         const voUidForHist = cardData.voUid || '';
         const farmerName   = cardData.farmerName || '';
@@ -19801,6 +19801,89 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         const khatha       = cardData.khatha      || '';
         const extent       = cardData.extent      || '';
         const serialNo     = cardData.serialNo    || '';
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  SERVER-SIDE ELIGIBILITY GUARD
+        //  Re-fetch live distribution records from Firebase and recompute the
+        //  true remaining bags for each requested split. This prevents any
+        //  over-distribution that could occur if the DOM was stale, the page
+        //  was open for a long time, or the input max was bypassed.
+        // ══════════════════════════════════════════════════════════════════════
+        const splits = cardData.splits || {};
+        const uEligServer = [splits.Urea?.s0||0, splits.Urea?.s1||0, splits.Urea?.s2||0];
+        const dEligServer = [splits.DAP?.s0||0,  splits.DAP?.s1||0,  splits.DAP?.s2||0];
+        const availedOverrideServer = cardData.availedOverride || null;
+
+        // Fetch live issued records from Firebase
+        let liveAvailed = {}; // key: "Fert_splitIdx" → bags
+        try {
+            const liveFdSnap = await database.ref('fertilizerDistributions')
+                .orderByChild('aadhaar').equalTo(a).once('value');
+            if (liveFdSnap.exists()) {
+                liveFdSnap.forEach(child => {
+                    const v = child.val();
+                    if (!v) return;
+                    if (v.status === 'Cancelled' || v.status === 'Rejected') return;
+                    if (!((v.status === 'Distributed' || v.retailerVerified === true) &&
+                          v.year === year && v.season === season)) return;
+                    const fk = (v.fertilizerType || v.fert || 'Urea') + '_' + (v.splitIndex !== undefined ? v.splitIndex : 0);
+                    liveAvailed[fk] = (liveAvailed[fk] || 0) + Number(v.bags || 0);
+                });
+            }
+        } catch(e) {
+            // If live fetch fails, fall through — client-side validation is still a guard
+            console.warn('[submitFarmerCardDistribution] live availed fetch failed:', e.message);
+        }
+
+        function _serverAvailed(fert, splitIdx) {
+            // If VO has an override, trust it (same logic as the display side)
+            if (availedOverrideServer && availedOverrideServer[fert]) {
+                const ov = availedOverrideServer[fert]['s' + splitIdx];
+                if (ov !== undefined && ov !== null) return Number(ov);
+            }
+            return liveAvailed[fert + '_' + splitIdx] || 0;
+        }
+
+        function _serverRemaining(fert, splitIdx) {
+            const elig = (fert === 'Urea' ? uEligServer : dEligServer)[splitIdx] || 0;
+            return Math.max(0, elig - _serverAvailed(fert, splitIdx));
+        }
+
+        // Validate every entry against server-computed remaining
+        for (const entry of entries) {
+            const serverRem = _serverRemaining(entry.fert, entry.splitIdx);
+            const eligTotal = (entry.fert === 'Urea' ? uEligServer : dEligServer)[entry.splitIdx] || 0;
+            if (eligTotal === 0) {
+                if (resultEl) resultEl.innerHTML = `<div class="alert alert-danger fw-bold">
+                    ⛔ Distribution Blocked (Server Check)<br>
+                    <small>No eligible ${entry.fert} bags for Split ${entry.splitIdx + 1}.</small>
+                </div>`;
+                return;
+            }
+            if (entry.bags > serverRem) {
+                if (resultEl) resultEl.innerHTML = `<div class="alert alert-danger fw-bold">
+                    ⛔ Distribution Blocked — Over-limit Detected (Server Check)<br>
+                    <small>
+                        ${entry.fert} Split ${entry.splitIdx + 1}:<br>
+                        Eligible: <strong>${eligTotal}</strong> bags &nbsp;|&nbsp;
+                        Already Availed: <strong>${_serverAvailed(entry.fert, entry.splitIdx)}</strong> bags &nbsp;|&nbsp;
+                        Remaining: <strong>${serverRem}</strong> bags<br>
+                        Requested: <strong>${entry.bags}</strong> bags —
+                        <span style="color:#c0392b;">exceeds remaining by ${entry.bags - serverRem} bag(s).</span><br><br>
+                        Please re-scan the QR code to load the updated balance and try again.
+                    </small>
+                    <br><button onclick="location.reload()" class="btn btn-sm btn-outline-danger mt-2">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh Page
+                    </button>
+                </div>`;
+                return;
+            }
+            // Also cap the actual bags written to never exceed server remaining (safety net)
+            entry.bags = Math.min(entry.bags, serverRem);
+        }
+        // ══════════════════════════════════════════════════════════════════════
+        //  END SERVER-SIDE GUARD
+        // ══════════════════════════════════════════════════════════════════════
 
         const ops = [];
 
@@ -23034,6 +23117,7 @@ async function loadPrintFarmerProfile() {
     let _ovEditCount = 0;
     let _avOvEditCount = 0;
     let _hasAvailedOverride = false;
+    let _ovAvailedData = null;
 
     let useYear = selYear || '';
     let useSeason = selSeason || '';
@@ -23070,6 +23154,7 @@ async function loadPrintFarmerProfile() {
             _avOvEditCount = Number(ovData?.availedEditCount || 0);
             if (ovData && ovData.availedOverride) {
                 _hasAvailedOverride = true;
+                _ovAvailedData = ovData.availedOverride;
             }
         } catch(e) { /* ignore */ }
     }
@@ -23283,12 +23368,45 @@ async function loadPrintFarmerProfile() {
         return String(raw);
     }
 
-    const availedS = [0,1,2].map(si => ({
-        u:  _availedForSplit('Urea', si),
-        d:  _availedForSplit('DAP',  si),
-        txU: _getTransactions('Urea', si),
-        txD: _getTransactions('DAP',  si)
-    }));
+    // ── Apply VO "Edit Availed Bags" correction (fertilizerCards.availedOverride) ──
+    // The raw transaction records (ureaHistory / fertilizerDistributions) keep their
+    // original bag counts forever, but the VO may later correct the total via the
+    // "Edit Availed Bags" modal. That correction was previously only used by the
+    // retailer-facing view and never reached this farmer-profile card, so the
+    // schedule table and "Bags Already Given" banner kept showing the old number.
+    // We adjust the most recent transaction's displayed bag count so every total
+    // that's derived from txU/txD (badges, banner, cumulative columns) reflects
+    // the VO-corrected figure.
+    function _applyAvailedOverride(fert, splitIdx, txList) {
+        const rawTotal = txList.reduce((s, h) => s + Number(h.bags || 0), 0);
+        if (!_hasAvailedOverride || !_ovAvailedData || !_ovAvailedData[fert]) {
+            return { tx: txList, total: rawTotal };
+        }
+        const ovVal = _ovAvailedData[fert]['s' + splitIdx];
+        if (ovVal === undefined || ovVal === null) {
+            return { tx: txList, total: rawTotal };
+        }
+        const target = Number(ovVal);
+        if (target === rawTotal || txList.length === 0) {
+            return { tx: txList, total: target };
+        }
+        const adjusted = txList.map(h => ({ ...h }));
+        const lastIdx = adjusted.length - 1;
+        const sumExceptLast = adjusted.slice(0, lastIdx).reduce((s, h) => s + Number(h.bags || 0), 0);
+        adjusted[lastIdx] = {
+            ...adjusted[lastIdx],
+            bags: Math.max(0, target - sumExceptLast),
+            voEditedAt: adjusted[lastIdx].voEditedAt || Date.now(),
+            voEditNote: adjusted[lastIdx].voEditNote || `VO-corrected to ${target} bag(s)`
+        };
+        return { tx: adjusted, total: target };
+    }
+
+    const availedS = [0,1,2].map(si => {
+        const adjU = _applyAvailedOverride('Urea', si, _getTransactions('Urea', si));
+        const adjD = _applyAvailedOverride('DAP',  si, _getTransactions('DAP',  si));
+        return { u: adjU.total, d: adjD.total, txU: adjU.tx, txD: adjD.tx };
+    });
 
     // ── Build QR payload ──
     const qrPayload = `FC|${a}|${useYear}|${useSeason}|${voUid}`;
@@ -25388,6 +25506,15 @@ window.saveEditedAvailedBags = async function() {
     const d3 = parseInt(document.getElementById('eabDapS3')?.value) || 0;
     const msgEl = document.getElementById('eabValidationMsg');
 
+    // ── If the VO didn't actually change any value, don't count this as an edit ──
+    const { u1: curU1, u2: curU2, u3: curU3, d1: curD1, d2: curD2, d3: curD3 } = window._eabState;
+    if (u1 === curU1 && u2 === curU2 && u3 === curU3 && d1 === curD1 && d2 === curD2 && d3 === curD3) {
+        if (msgEl) msgEl.style.display = 'none';
+        window.closeEditAvailedBagsModal();
+        _eebShowToast('ℹ️ No change made — nothing was saved and this edit was not counted.', 'info');
+        return;
+    }
+
     const errors = [];
     if (u1 < 0 || u2 < 0 || u3 < 0 || d1 < 0 || d2 < 0 || d3 < 0) {
         errors.push('Availed bags cannot be negative.');
@@ -25497,9 +25624,18 @@ window.resetAvailedBagsOverride = async function() {
     if (!user) return;
 
     const fcKey = aadhaar + '_' + year.replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
-    const newEditCount = window._eabState.editCount + 1;
 
     try {
+        // ── Only count this as an edit if a correction actually exists to remove ──
+        const cardSnap = await database.ref('fertilizerCards/' + fcKey).once('value');
+        const cardData = cardSnap.val() || {};
+        if (!cardData.availedOverride) {
+            window.closeEditAvailedBagsModal();
+            _eebShowToast('ℹ️ No correction is currently applied — nothing to remove.', 'info');
+            return;
+        }
+
+        const newEditCount = window._eabState.editCount + 1;
         await database.ref('fertilizerCards/' + fcKey).update({
             availedOverride: null,
             availedOverriddenAt: null,
@@ -25799,6 +25935,17 @@ window.saveEditedEligibleBags = async function() {
     const d3 = parseInt(document.getElementById('eebDapS3')?.value) || 0;
     const msgEl = document.getElementById('eebValidationMsg');
 
+    // ── If the VO didn't actually change any value, don't count this as an edit ──
+    const { origUreaTotal: curUTotal, origDapTotal: curDTotal, u1: curU1, u2: curU2, u3: curU3, d1: curD1, d2: curD2, d3: curD3 } = window._eebState;
+    if (uTotal === curUTotal && dTotal === curDTotal &&
+        u1 === curU1 && u2 === curU2 && u3 === curU3 &&
+        d1 === curD1 && d2 === curD2 && d3 === curD3) {
+        if (msgEl) msgEl.style.display = 'none';
+        window.closeEditEligibleBagsModal();
+        _eebShowToast('ℹ️ No change made — nothing was saved and this edit was not counted.', 'info');
+        return;
+    }
+
     const errors = [];
     if (u1 + u2 + u3 !== uTotal) {
         errors.push(`Urea splits (${u1}+${u2}+${u3}=${u1+u2+u3}) must equal total (${uTotal}).`);
@@ -25882,9 +26029,18 @@ window.resetEligibleBagsOverride = async function() {
     if (!user) return;
 
     const fcKey = aadhaar + '_' + year.replace(/[^a-zA-Z0-9]/g, '') + '_' + season;
-    const newEditCount = window._eebState.editCount + 1;
-    
+
     try {
+        // ── Only count this as an edit if an override actually exists to remove ──
+        const cardSnap = await database.ref('fertilizerCards/' + fcKey).once('value');
+        const cardData = cardSnap.val() || {};
+        if (!cardData.eligibleOverride) {
+            window.closeEditEligibleBagsModal();
+            _eebShowToast('ℹ️ No override is currently applied — nothing to remove.', 'info');
+            return;
+        }
+
+        const newEditCount = window._eebState.editCount + 1;
         await database.ref('fertilizerCards/' + fcKey).update({
             eligibleOverride: null,
             overriddenAt: null,
