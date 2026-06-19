@@ -892,6 +892,24 @@
                    
                 </div>
 
+               <!-- ── Login Page Copyright Strip ── -->
+               <div style="background:linear-gradient(135deg,#0d1b2a,#1a2f4a);color:#7a95ae;text-align:center;padding:10px 16px;font-family:'Poppins',sans-serif;font-size:0.68rem;line-height:1.7;border-top:2px solid #1862ab;">
+                   <div style="color:#fff;font-weight:700;font-size:0.75rem;margin-bottom:2px;">
+                       🌾 AGRI WORK SPACE
+                   </div>
+                   <div style="color:#c8d8e8;font-weight:500;">
+                       &copy; <span id="cpYearLogin"></span> <strong style="color:#fff;">GUGULOTHU VAMSI NAYAK</strong>. All rights reserved.
+                   </div>
+                   <div style="margin-top:3px;">
+                       <span style="background:rgba(24,98,171,0.25);border:1px solid rgba(24,98,171,0.5);border-radius:20px;padding:1px 10px;color:#90c4f9;font-size:0.65rem;font-weight:600;">
+                           <i class="fas fa-shield-alt" style="margin-right:4px;"></i>Copyright Registration Pending — Copyright Office, India
+                       </span>
+                   </div>
+                   <div style="margin-top:4px;font-size:0.63rem;color:#5a7a94;">
+                       Protected under Copyright Act, 1957 (India) &nbsp;|&nbsp; Unauthorized use is prohibited
+                   </div>
+               </div>
+
             </div>
         </div>
     </div>
@@ -8653,7 +8671,7 @@ const horticulturalCrops = [
 // ╚══════════════════════════════════════════════════════════════╝
 const fertilizerDosage = {
   paddy: { seasons: { Kharif:{N:41.4,P:24,K:24}, Rabi:{N:72,P:36,K:24}, Summer:{N:72,P:36,K:24} }, Ca:4, Mg:3, S:12, splits:'Apply N in 2 splits: basal and tillering; full P as basal and K in 2 splits.' },
-  maize: { seasons: { Kharif:{N:80,P:25,K:20}, Rabi:{N:100,P:35,K:35}, Summer:{N:100,P:35,K:35} }, Ca:6, Mg:5, S:14, splits:'Apply full P and K with 1/4 N as basal, remaining N at 21 DAS, 35 DAS and 45-50 DAS.' },
+  maize: { seasons: { Kharif:{N:80,P:25,K:20}, Rabi:{N:100,P:35,K:35}, Summer:{N:100,P:35,K:35} }, Ca:6, Mg:5, S:14, splits:'Apply full P and K with 1/3 N as basal, remaining N in 2 equal splits at 21-35 DAS and 45-50 DAS.' },
   sweet_corn: { seasons: { Kharif:{N:75,P:25,K:20}, Rabi:{N:80,P:25,K:20}, Summer:{N:80,P:25,K:20} }, Ca:6, Mg:5, S:12, splits:'Apply full P and K with 1/3 N as basal, remaining N at 25-30 DAS and 40-45 DAS.' },
   baby_corn: { seasons: { Kharif:{N:50,P:20,K:20}, Rabi:{N:75,P:25,K:20}, Summer:{N:75,P:25,K:20} }, Ca:6, Mg:5, S:12, splits:'Apply full P and K with N in 3 equal splits at sowing, 20-25 DAS and 40-45 DAS.' },
   jowar: { seasons: { Kharif:{N:35,P:24,K:16}, Rabi:{N:32,P:16,K:12}, Summer:{N:32,P:16,K:12} }, Ca:4, Mg:3, S:10, splits:'Apply full P and K basally and N in two splits.' },
@@ -8772,7 +8790,7 @@ const cropNPKRecommendations = new Proxy({}, {
 // ============================================================
 const fertilizerSchedule = {
   paddy:[{stage:'Basal',N:'1/2',P:'Full',K:'1/2'},{stage:'Tillering',N:'1/2',P:'—',K:'1/2'}],
-  maize:[{stage:'Basal',N:'1/4',P:'Full',K:'Full'},{stage:'21 DAS',N:'1/4',P:'—',K:'—'},{stage:'35 DAS',N:'1/4',P:'—',K:'—'},{stage:'45-50 DAS',N:'1/4',P:'—',K:'—'}],
+  maize:[{stage:'Basal',N:'1/3',P:'Full',K:'Full'},{stage:'21-35 DAS',N:'1/3',P:'—',K:'—'},{stage:'45-50 DAS',N:'1/3',P:'—',K:'—'}],
   sweet_corn:[{stage:'Basal',N:'1/3',P:'Full',K:'Full'},{stage:'25-30 DAS',N:'1/3',P:'—',K:'—'},{stage:'40-45 DAS',N:'1/3',P:'—',K:'—'}],
   baby_corn:[{stage:'Basal',N:'1/3',P:'Full',K:'Full'},{stage:'20-25 DAS',N:'1/3',P:'—',K:'—'},{stage:'40-45 DAS',N:'1/3',P:'—',K:'—'}],
   jowar:[{stage:'Basal',N:'1/2',P:'Full',K:'Full'},{stage:'30 DAS',N:'1/2',P:'—',K:'—'}],
@@ -23600,10 +23618,10 @@ async function loadPrintFarmerProfile() {
             dapTotal,
             split1U: ureaSplits[0] || 0,
             split2U: ureaSplits[1] || 0,
-            split3U: ureaSplits[2] || 0,
+            split3U: ureaSplits.slice(2).reduce((s, v) => s + (v || 0), 0),
             split1D: dapSplits[0] || 0,
             split2D: dapSplits[1] || 0,
-            split3D: dapSplits[2] || 0
+            split3D: dapSplits.slice(2).reduce((s, v) => s + (v || 0), 0)
         };
     });
 
@@ -24207,10 +24225,10 @@ async function loadPrintFarmerProfile() {
               <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#1a3a6b;">DAP (Bags)</th>
               <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#155724; color:#d4edda;">U-Split1</th>
               <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#155724; color:#d4edda;">U-Split2</th>
-              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#155724; color:#d4edda;">U-Split3</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#155724; color:#d4edda;">U-Split3+</th>
               <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#0d4d73; color:#d4f1ff;">D-Split1</th>
               <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#0d4d73; color:#d4f1ff;">D-Split2</th>
-              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#0d4d73; color:#d4f1ff;">D-Split3</th>
+              <th style="padding:5px 7px; border:1px solid #b0c4de; text-align:center; background:#0d4d73; color:#d4f1ff;">D-Split3+</th>
             </tr>
           </thead>
          <tbody>
@@ -26828,6 +26846,77 @@ window.retailerEditVillage = async function(tokenKey, btnEl) {
         btnEl.innerHTML = '<i class="fas fa-map-marker-alt me-1"></i>Set Village';
     }
 };
+</script>
+
+
+<!-- ── COPYRIGHT FOOTER ── -->
+<footer style="
+    background: linear-gradient(135deg, #0d1b2a 0%, #1a2f4a 100%);
+    color: #a0b4c8;
+    text-align: center;
+    padding: 1.4rem 1rem 1.1rem;
+    margin-top: 2.5rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.2px;
+    border-top: 3px solid #1862ab;
+">
+    <div style="max-width: 900px; margin: 0 auto;">
+
+        <!-- Logo / Brand -->
+        <div style="margin-bottom: 0.55rem;">
+            <span style="font-size: 1.05rem; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">
+                🌾 e-Panta Agriculture Dashboard
+            </span>
+        </div>
+
+        <!-- Copyright line -->
+        <div style="margin-bottom: 0.4rem; color: #c8d8e8; font-weight: 500;">
+            &copy; <span id="cpYear"></span> <strong style="color:#ffffff;">Vamsi Krishna</strong>.
+            All rights reserved.
+        </div>
+
+        <!-- Registration notice -->
+        <div style="
+            display: inline-block;
+            background: rgba(24,98,171,0.18);
+            border: 1px solid rgba(24,98,171,0.45);
+            border-radius: 20px;
+            padding: 3px 14px;
+            margin-bottom: 0.55rem;
+            font-size: 0.72rem;
+            color: #90c4f9;
+            font-weight: 600;
+        ">
+            <i class="fas fa-shield-alt" style="margin-right:5px;"></i>
+            Copyright Registration Pending — Copyright Office, India
+        </div>
+
+        <!-- Legal lines -->
+        <div style="font-size: 0.7rem; color: #7a95ae; line-height: 1.7;">
+            This software, its design, source code, database structure, and all associated content are the exclusive<br>
+            intellectual property of <strong style="color:#a0b4c8;">Vamsi Krishna</strong>, protected under the
+            <strong style="color:#a0b4c8;">Copyright Act, 1957 (India)</strong>.<br>
+            Unauthorized reproduction, distribution, or modification is strictly prohibited.
+        </div>
+
+        <!-- Divider -->
+        <hr style="border-color: rgba(255,255,255,0.08); margin: 0.75rem auto; max-width: 400px;">
+
+        <!-- Bottom row -->
+        <div style="font-size: 0.68rem; color: #5a7a94;">
+            Developed &amp; Designed by <strong style="color:#90c4f9;">GUGULOTHU VAMSI NAYAK</strong>
+            &nbsp;|&nbsp; Vijayawada, Andhra Pradesh, India
+        </div>
+
+    </div>
+</footer>
+
+<script>
+    // Auto-update copyright year
+    document.getElementById('cpYear').textContent = new Date().getFullYear();
+    const _lyr = document.getElementById('cpYearLogin');
+    if (_lyr) _lyr.textContent = new Date().getFullYear();
 </script>
 
     </body>
