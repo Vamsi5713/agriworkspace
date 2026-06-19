@@ -9490,6 +9490,22 @@ function getSplitFraction(crop, splitIndex, fertType) {
     return parseFraction(valStr, sch.length);
 }
 
+// Returns the stage-aware split name for any crop and split index.
+// Falls back gracefully to 'Split N' when schedule is missing.
+function getSplitName(crop, splitIdx, shortForm) {
+    crop = (crop || '').toLowerCase().trim();
+    const sch = fertilizerSchedule[crop];
+    if (sch && sch[splitIdx] && sch[splitIdx].stage) {
+        return shortForm
+            ? sch[splitIdx].stage
+            : `Split ${splitIdx + 1} — ${sch[splitIdx].stage}`;
+    }
+    const fallbacks = ['Basal', 'Top-dress', 'Final'];
+    return shortForm
+        ? (fallbacks[splitIdx] || `Split ${splitIdx + 1}`)
+        : `Split ${splitIdx + 1} — ${fallbacks[splitIdx] || ('Dose ' + (splitIdx + 1))}`;
+}
+
 // DETERMINISTIC CAPPING LOGIC
 function getDeterministicSplitEligibilities(totalEligible, crop, fert) {
     crop = (crop || '').toLowerCase().trim();
@@ -9514,14 +9530,18 @@ function getDeterministicSplitEligibilities(totalEligible, crop, fert) {
     const eligibilities = [];
 
     for (let i = 0; i < sch.length; i++) {
-        let frac = getSplitFraction(crop, i, fert);
-
-        let base = Math.ceil(totalEligible * frac);
-
-        let actual = Math.max(
-            0,
-            Math.min(base, totalEligible - accumulatedBags)
-        );
+        let actual;
+        if (i === sch.length - 1) {
+            // Last split always gets the exact remainder to avoid rounding drift
+            actual = Math.max(0, totalEligible - accumulatedBags);
+        } else {
+            let frac = getSplitFraction(crop, i, fert);
+            let base = Math.round(totalEligible * frac);
+            actual = Math.max(
+                0,
+                Math.min(base, totalEligible - accumulatedBags)
+            );
+        }
 
         eligibilities.push(actual);
         accumulatedBags += actual;
@@ -19779,6 +19799,16 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         const splits = fc.splits || {};
         const uElig = [splits.Urea?.s0||0, splits.Urea?.s1||0, splits.Urea?.s2||0];
         const dElig = [splits.DAP?.s0||0,  splits.DAP?.s1||0,  splits.DAP?.s2||0];
+        // Crop-aware split label helper for retailer view
+        const _rtCrop = (fc.crops || fc.crop || '').split(',')[0].trim().toLowerCase().replace(/\s+/g,'_');
+        const _rtSch = fertilizerSchedule[_rtCrop] || [];
+        function _rtSplitName(si) {
+            if (_rtSch[si]) {
+                if (_rtSch.length > 3 && si === 2) return `Split 3 — ${_rtSch[2].stage}/${_rtSch[3]?.stage||'Final'}`;
+                return `Split ${si+1} — ${_rtSch[si].stage}`;
+            }
+            return ['Split 1 — Basal','Split 2 — Top-dress','Split 3 — Final'][si] || `Split ${si+1}`;
+        }
         
         // ── CRITICAL FIX: Read availedOverride from the card ──
         // This is the VO-corrected value that should be shown to the retailer
@@ -19837,7 +19867,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         }
 
         // ── Calculate remaining using the corrected availed values ──
-        const splitNames = ['Split 1 — Basal', 'Split 2 — Top-dress', 'Split 3 — Final'];
+        const splitNames = [_rtSplitName(0), _rtSplitName(1), _rtSplitName(2)];
         const splitBadges = ['#1862ab','#27ae60','#f39c12'];
         let splitRowsHtml = '';
         
@@ -19971,7 +20001,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 const fc2 = fert2 === 'Urea' ? '#f57c00' : fert2 === 'DAP' ? '#0277bd' : '#7b1fa2';
                 const date = r.verifiedAt || r.distributedAt || r.date || '';
                 const timeStr = date ? new Date(date).toLocaleString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
-                const splitLabel = r.splitName || (r.splitIndex !== undefined ? ['Basal','Top-dress','Final'][r.splitIndex] || ('Split '+(r.splitIndex+1)) : '—');
+                const splitLabel = r.splitName || getSplitName((r.crop||r.crops||'').toLowerCase().replace(/\s+/g,'_'), r.splitIndex !== undefined ? Number(r.splitIndex) : 0);
                 const outlet = escapeHtml(r.outletName || r.outletId || '—');
                 const ONE_HOUR_MS = 60 * 60 * 1000;
                 const actionMs = date ? new Date(date).getTime() : 0;
@@ -20038,6 +20068,8 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             </div>`;
         }
 
+        // Store primary crop so confirm functions can derive correct split labels
+        resultEl.dataset.fcCrop = _rtCrop || '';
         resultEl.innerHTML = `
         <div style="border:2px solid #1862ab; border-radius:14px; overflow:hidden; margin-top:0.5rem;">
           <div style="background:linear-gradient(135deg,#1862ab,#0d4d86); color:#fff; padding:10px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
@@ -20137,7 +20169,9 @@ function askConfirmFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr
     }
 
     const eligArr = fert === 'Urea' ? uEligArr : dEligArr;
-    const splitNames = ['Split 1 — Basal', 'Split 2 — Top-dress', 'Split 3 — Final'];
+    // Use crop stored on the result element (set by processFarmerCardQr) for split labels
+    const _confirmCrop = (document.getElementById('qrScanResult')?.dataset?.fcCrop || '').toLowerCase().replace(/\s+/g,'_');
+    const splitNames = [0,1,2].map(si => getSplitName(_confirmCrop, si));
     const entries = [];
     let hasAny = false;
 
@@ -20261,7 +20295,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         const bagsU = parseInt(document.getElementById('fcBagsU_' + si)?.value || '0') || 0;
         const bagsD = parseInt(document.getElementById('fcBagsD_' + si)?.value || '0') || 0;
 
-        const splitNames = ['Split 1', 'Split 2', 'Split 3'];
+        const splitNames = [0,1,2].map(si => getSplitName(_confirmCrop, si).replace('Split 1 — ','Split 1 ').replace('Split 2 — ','Split 2 ').replace('Split 3 — ','Split 3 '));
         if (bagsU > 0) {
             for (let prev = 0; prev < si; prev++) {
                 if (!_splitDone2('Urea', prev)) {
@@ -20419,7 +20453,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         const ops = [];
 
         entries.forEach(entry => {
-            const splitDisplayName = ['Basal', 'Top-dress', 'Final'][entry.splitIdx] || ('Split ' + (entry.splitIdx + 1));
+            const splitDisplayName = getSplitName(_rtCrop || cropForHist || '', entry.splitIdx, true);
 
             // ── Core record written to global /ureaHistory ──
             const recKey = database.ref('ureaHistory').push().key;
@@ -20596,7 +20630,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
             });
         }
         const splitSummary = entries.map(e => {
-            const sName = ['Basal','Top-dress','Final'][e.splitIdx] || ('Split '+(e.splitIdx+1));
+            const sName = getSplitName(_rtCrop || cropForHist || '', e.splitIdx, true);
             return `<strong>${e.fert}</strong>: ${e.bags} bag${e.bags>1?'s':''} <span class="text-muted">(${sName})</span>`;
         }).join('<br>');
 
@@ -23981,10 +24015,24 @@ async function loadPrintFarmerProfile() {
     }
 
     // ── Build the schedule rows ──
+    // Use crop-aware stage names from fertilizerSchedule.
+    // For crops with >3 splits (e.g. sugarcane: 4 splits), split3 merges the remainder.
+    const _primaryCrop = Object.keys(cropAgg)[0] || '';
+    const _sch = fertilizerSchedule[_primaryCrop] || [];
+    function _splitLabel(si) {
+        if (_sch[si]) {
+            // For sugarcane (4 splits), split index 2 covers stages 2+3 merged
+            if (_sch.length > 3 && si === 2) {
+                return `Split 3 — ${_sch[2].stage} / ${_sch[3]?.stage || 'Final'}`;
+            }
+            return `Split ${si + 1} — ${_sch[si].stage}`;
+        }
+        return ['Split 1 — Basal','Split 2 — Top-dress','Split 3 — Final'][si] || `Split ${si+1}`;
+    }
     const splitLabels = [
-        { num: 1, label: 'Split 1 — Basal', uColor: '#155724', dColor: '#0d4d73', badge: 'bg-primary' },
-        { num: 2, label: 'Split 2 — Top-dress', uColor: '#155724', dColor: '#0d4d73', badge: 'bg-success' },
-        { num: 3, label: 'Split 3 — Final', uColor: '#155724', dColor: '#0d4d73', badge: 'bg-warning text-dark' }
+        { num: 1, label: _splitLabel(0), uColor: '#155724', dColor: '#0d4d73', badge: 'bg-primary' },
+        { num: 2, label: _splitLabel(1), uColor: '#155724', dColor: '#0d4d73', badge: 'bg-success' },
+        { num: 3, label: _splitLabel(2), uColor: '#155724', dColor: '#0d4d73', badge: 'bg-warning text-dark' }
     ];
 
     const scheduleRows = splitLabels.map((sp, si) => {
@@ -24359,7 +24407,7 @@ async function loadPrintFarmerProfile() {
 
           const allDistEvents = [];
           availedS.forEach((sp, si) => {
-            const splitLabel = ['Split 1 — Basal', 'Split 2 — Top-dress', 'Split 3 — Final'][si];
+            const splitLabel = _splitLabel(si);
             sp.txU.forEach(h => {
               allDistEvents.push({
                 splitLabel, fert: 'Urea', bags: Number(h.bags||0),
