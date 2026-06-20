@@ -18245,6 +18245,27 @@ function _rtExecuteDistributeFromList(r, rowIdx) {
                 })
             );
         }
+
+        // ── Record first-distribution date for the 15-day split lock ──
+        // Mirrors the same logic in submitFarmerCardDistribution: only set if
+        // not already present, so the lock window always starts from the very
+        // first time bags were taken from this split, regardless of which
+        // distribution path (QR scan or pending-list) issued them.
+        if (r.aadhaar && r.year && r.season) {
+            const _aClean2  = String(r.aadhaar||'').replace(/\s/g,'');
+            const _fcKey2   = _aClean2 + '_' + String(r.year).replace(/[^a-zA-Z0-9]/g,'') + '_' + String(r.season);
+            const _splitIdx3 = r.splitIndex !== undefined ? Number(r.splitIndex) : 0;
+            const _sfdPath  = `fertilizerCards/${_fcKey2}/splitFirstDistributed/${fert}/s${_splitIdx3}`;
+            ops.push(
+                database.ref(_sfdPath).once('value').then(sfdSnap => {
+                    if (!sfdSnap.exists() || !sfdSnap.val()) {
+                        return database.ref(_sfdPath).set(now);
+                    }
+                }).catch(() => {})
+            );
+            ops.push(database.ref('fertilizerCards/' + _fcKey2 + '/lastDistributed').set(now).catch(() => {}));
+        }
+
         return Promise.all(ops);
     }).then(() => {
         if (row) {
@@ -18375,6 +18396,24 @@ async function retailerMarkDistributed(tokenKey, farmerName, bags) {
                     distributedVia:   'retailerConfirmed'
                 }));
             }
+        }
+
+        // ── Record first-distribution date for the 15-day split lock ──
+        // Mirrors submitFarmerCardDistribution: only set if not already present.
+        if (record.aadhaar && record.year && record.season) {
+            const _aClean3  = String(record.aadhaar||'').replace(/\s/g,'');
+            const _fcKey3   = _aClean3 + '_' + String(record.year).replace(/[^a-zA-Z0-9]/g,'') + '_' + String(record.season);
+            const _fert3    = record.fertilizerType || 'Urea';
+            const _splitIdx4 = record.splitIndex !== undefined ? Number(record.splitIndex) : 0;
+            const _sfdPath2 = `fertilizerCards/${_fcKey3}/splitFirstDistributed/${_fert3}/s${_splitIdx4}`;
+            ops.push(
+                database.ref(_sfdPath2).once('value').then(sfdSnap => {
+                    if (!sfdSnap.exists() || !sfdSnap.val()) {
+                        return database.ref(_sfdPath2).set(now);
+                    }
+                }).catch(() => {})
+            );
+            ops.push(database.ref('fertilizerCards/' + _fcKey3 + '/lastDistributed').set(now).catch(() => {}));
         }
 
         await Promise.all(ops);
@@ -19849,7 +19888,12 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 )
                 .reduce((s,r) => s + Number(r.bags||0), 0);
 
-            const fdKeys = new Set(fdRecs.map(r => r._tokenKey).filter(Boolean));
+            // fdKeys: push-key set from fertilizerDistributions (excludes records already in fromFd)
+            // fdTokens: token/printToken set from fertilizerDistributions (excludes VO-token ureaHistory records
+            //   written under users/{voUid}/ureaHistory that would otherwise double-count with fromFd)
+            const fdKeys   = new Set(fdRecs.map(r => r._tokenKey).filter(Boolean));
+            const fdTokens = new Set(fdRecs.map(r => r.token || r.printToken || r.tokenNumber).filter(Boolean));
+
             const fromHistoryOnly = ureaHistory
                 .filter(h =>
                     String(h.aadhaar||'').replace(/\s/g,'') === a &&
@@ -19858,8 +19902,19 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                     String(h.year||'').trim() === year &&
                     parseInt(h.splitIndex) === splitIdx &&
                     h.status !== 'Rejected' && h.status !== 'Cancelled' &&
+                    // Exclude if _key matches any fertilizerDistributions push-key
                     !fdKeys.has(h._key) &&
-                    !(h.distributedVia === 'farmerCardQR' || h.retailerDistributedViaFarmerCard || h.distributedByRetailer)
+                    // Exclude if printToken/token matches a fertilizerDistributions record
+                    // (prevents VO-token ureaHistory records from being double-counted with fromFd)
+                    !(h.printToken && fdTokens.has(h.printToken)) &&
+                    !(h.token && fdTokens.has(h.token)) &&
+                    // Exclude farmerCardQR / retailer-distributed records (already in fromFd)
+                    !(h.distributedVia === 'farmerCardQR' || h.retailerDistributedViaFarmerCard || h.distributedByRetailer) &&
+                    // Exclude ANY retailer-verified record, regardless of distributedVia value
+                    // (e.g. 'pendingList', 'token', etc.) — any retailerVerified:true ureaHistory
+                    // record was written alongside a matching fertilizerDistributions record,
+                    // so counting it here as well would double-count bags already in fromFd.
+                    !h.retailerVerified
                 )
                 .reduce((s,h) => s + Number(h.bags||0), 0);
 
@@ -19870,6 +19925,95 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         const splitNames = [_rtSplitName(0), _rtSplitName(1), _rtSplitName(2)];
         const splitBadges = ['#1862ab','#27ae60','#f39c12'];
         let splitRowsHtml = '';
+
+        // ── 15-DAY NEXT-SPLIT LOCK ──
+        // A split is never locked by ITS OWN first-avail date — the farmer can take
+        // the remaining bags of that same split whenever he wants. Instead, once a
+        // split is first availed (even partially), it starts a 15-day clock that
+        // locks the NEXT split until the clock elapses. Callers pass the PRIOR
+        // split's (fert, si) to check whether the FOLLOWING split should be locked.
+        // Day-counting is INCLUSIVE: the first-avail day itself counts as day 1,
+        // so the unlock date is day 15 = firstDate + 14 calendar days
+        // (e.g. first availed 10 Jun → unlocks 24 Jun, not 25 Jun).
+        const SPLIT_LOCK_DAYS = 15;
+        const _splitFirstDist = fc.splitFirstDistributed || {};
+
+        // Returns { locked: bool, unlockDateStr, daysLeft, firstDateStr } for the
+        // given split's own first-avail date — i.e. whether 15 days have passed
+        // since THAT split started. Call with the prior split's index to determine
+        // if the next split should still be locked.
+        function _splitLockStatus(fert, si) {
+            const stored = (_splitFirstDist[fert] || {})['s' + si];
+            if (!stored) return { locked: false };
+            const firstTs = Number(stored);
+            if (!firstTs) return { locked: false };
+            const firstDate = new Date(firstTs);
+            firstDate.setHours(0, 0, 0, 0);
+            const unlockDate = new Date(firstDate);
+            unlockDate.setDate(unlockDate.getDate() + (SPLIT_LOCK_DAYS - 1));
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (today < unlockDate) {
+                const daysLeft = Math.ceil((unlockDate - today) / 86400000);
+                return {
+                    locked: true,
+                    daysLeft,
+                    unlockDateStr: unlockDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    firstDateStr:  firstDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                };
+            }
+            return { locked: false };
+        }
+
+        // ── BACKFILL: splitFirstDistributed for bags issued before this field existed ──
+        // Some retailer distribution paths historically didn't write this field, so a
+        // split can have availed bags with no recorded lock-start date — meaning the
+        // 15-day lock silently never activates for those older distributions. On scan,
+        // detect this gap and backfill it from the earliest known record so the lock
+        // takes effect going forward.
+        (function _backfillSplitFirstDistributed() {
+            const fertList = ['Urea', 'DAP'];
+            const backfillOps = [];
+            fertList.forEach(fert => {
+                [0, 1, 2].forEach(si => {
+                    const alreadySet = (_splitFirstDist[fert] || {})['s' + si];
+                    if (alreadySet) return; // lock date already recorded — nothing to do
+                    if (_availed(fert, si) <= 0) return; // nothing availed on this split — no lock needed
+
+                    // Find the earliest known date among matching records (fertilizerDistributions + ureaHistory)
+                    let earliestTs = null;
+                    const candidateDates = [];
+                    const fdRecsAll = window._fcQrIssuedRecords || [];
+                    fdRecsAll.forEach(r => {
+                        if ((r.fertilizerType || r.fert || 'Urea') !== fert) return;
+                        if (Number(r.splitIndex !== undefined ? r.splitIndex : 0) !== si) return;
+                        const d = r.verifiedAt || r.distributedAt || r.date;
+                        if (d) candidateDates.push(d);
+                    });
+                    ureaHistory.forEach(h => {
+                        if (String(h.aadhaar||'').replace(/\s/g,'') !== a) return;
+                        if (String(h.fertilizerType||h.fert||'Urea').trim() !== fert) return;
+                        if (parseInt(h.splitIndex) !== si) return;
+                        const d = h.verifiedAt || h.distributedAt || h.date;
+                        if (d) candidateDates.push(d);
+                    });
+                    candidateDates.forEach(d => {
+                        const ts = new Date(d).getTime();
+                        if (!isNaN(ts) && (earliestTs === null || ts < earliestTs)) earliestTs = ts;
+                    });
+                    if (earliestTs === null) return; // no usable date found — skip, can't backfill blindly
+
+                    backfillOps.push(
+                        database.ref(`fertilizerCards/${fcKey}/splitFirstDistributed/${fert}/s${si}`)
+                            .set(earliestTs).catch(() => {})
+                    );
+                    // Keep the in-memory copy in sync so the lock shows immediately on this scan too
+                    if (!_splitFirstDist[fert]) _splitFirstDist[fert] = {};
+                    _splitFirstDist[fert]['s' + si] = earliestTs;
+                });
+            });
+            if (backfillOps.length) Promise.all(backfillOps).catch(() => {});
+        })();
         
         // ── Also fetch the availedOverride values for display ──
         let availedOverrideDisplay = '';
@@ -19939,6 +20083,8 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                   ${(() => {
                     let lockedU = false, lockedD = false;
                     let lockedReasonU = '', lockedReasonD = '';
+
+                    // ── Sequential-split check (prior split not yet started) ──
                     for (let prev = 0; prev < si; prev++) {
                       if (!lockedU && (uElig[prev]||0) > 0 && _availed('Urea', prev) === 0) {
                         lockedU = true;
@@ -19950,19 +20096,55 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                       }
                     }
 
+                    // ── 15-Day NEXT-split lock ──
+                    // A split itself is never time-locked by its own first-avail date —
+                    // the farmer can take the remaining bags of THIS split whenever he
+                    // wants. Instead, starting THIS split (even partially) starts a
+                    // 15-day clock that locks the very NEXT split until it elapses.
+                    // Split 0 (the first split) has no prior split, so it's never
+                    // time-locked. For split si > 0, check the immediately preceding
+                    // split's first-avail date.
+                    if (si > 0) {
+                        const lockInfoU = _splitLockStatus('Urea', si - 1);
+                        const lockInfoD = _splitLockStatus('DAP', si - 1);
+                        if (!lockedU && remU > 0 && lockInfoU.locked) {
+                            lockedU = true;
+                            lockedReasonU = `__15DAY__Urea__${lockInfoU.daysLeft}__${lockInfoU.unlockDateStr}__${lockInfoU.firstDateStr}`;
+                        }
+                        if (!lockedD && remD > 0 && lockInfoD.locked) {
+                            lockedD = true;
+                            lockedReasonD = `__15DAY__DAP__${lockInfoD.daysLeft}__${lockInfoD.unlockDateStr}__${lockInfoD.firstDateStr}`;
+                        }
+                    }
+
                     const showU = remU > 0 && !lockedU;
                     const showD = remD > 0 && !lockedD;
                     let lockNoticesHtml = '';
-                    if (remU > 0 && lockedU) {
-                      lockNoticesHtml += `<div class="alert alert-warning py-2 mb-0" style="font-size:0.78rem; flex:1 1 auto;">
-                        <i class="fas fa-lock me-1"></i> <strong>Urea Locked:</strong> ${escapeHtml(lockedReasonU)}.
-                      </div>`;
+
+                    function _lockHtml(reason, fertColor) {
+                        if (reason.startsWith('__15DAY__')) {
+                            const parts = reason.split('__').filter(Boolean);
+                            const fertLabel = parts[1];
+                            const dLeft = parts[2];
+                            const unlockD = parts[3];
+                            const firstD = parts[4];
+                            return `<div style="background:#fff3cd;border:1.5px solid #f39c12;border-radius:10px;padding:10px 14px;margin-bottom:4px;font-size:0.78rem;flex:1 1 auto;">
+                                <div style="font-weight:800;color:#856404;margin-bottom:4px;"><i class="fas fa-clock me-1"></i>⏳ 15-Day Lock Active — ${escapeHtml(fertLabel)}</div>
+                                <div style="color:#664d03;line-height:1.6;">
+                                    First availed on: <strong>${escapeHtml(firstD)}</strong><br>
+                                    Unlocks on: <strong style="color:#c0392b;">${escapeHtml(unlockD)}</strong><br>
+                                    Days remaining: <strong style="color:#c0392b;">${escapeHtml(dLeft)} day${dLeft==='1'?'':'s'}</strong>
+                                </div>
+                                <div style="margin-top:5px;font-size:0.72rem;color:#856404;"><i class="fas fa-info-circle me-1"></i>This split unlocks 15 days after the previous split was first availed.</div>
+                            </div>`;
+                        }
+                        return `<div class="alert alert-warning py-2 mb-0" style="font-size:0.78rem; flex:1 1 auto;">
+                            <i class="fas fa-lock me-1"></i> <strong>${fertColor} Locked:</strong> ${escapeHtml(reason)}.
+                        </div>`;
                     }
-                    if (remD > 0 && lockedD) {
-                      lockNoticesHtml += `<div class="alert alert-warning py-2 mb-0" style="font-size:0.78rem; flex:1 1 auto;">
-                        <i class="fas fa-lock me-1"></i> <strong>DAP Locked:</strong> ${escapeHtml(lockedReasonD)}.
-                      </div>`;
-                    }
+
+                    if (remU > 0 && lockedU) lockNoticesHtml += _lockHtml(lockedReasonU, 'Urea');
+                    if (remD > 0 && lockedD) lockNoticesHtml += _lockHtml(lockedReasonD, 'DAP');
 
                     return `
                   ${lockNoticesHtml}
@@ -20263,6 +20445,11 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
     const a = String(aadhaar || '').replace(/\s/g, '');
     const resultEl = document.getElementById('qrScanResult');
     const errEl    = document.getElementById('fcDistError_' + fcKey);
+    // _rtCrop is set in processFarmerCardQr (a separate function/scope) and stashed
+    // on resultEl.dataset.fcCrop specifically so this function can read it back —
+    // referencing _rtCrop directly here throws "_rtCrop is not defined" since it's
+    // a const local to the other function.
+    const _rtCrop = resultEl?.dataset.fcCrop || '';
 
     let entries;
     let hasAny = false;
@@ -20366,6 +20553,46 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         const khatha       = cardData.khatha      || '';
         const extent       = cardData.extent      || '';
         const serialNo     = cardData.serialNo    || '';
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  15-DAY NEXT-SPLIT LOCK — SERVER-SIDE GUARD
+        //  A split is never time-locked by its OWN first-avail date — only by
+        //  the PRIOR split's first-avail date. Split index 0 has no prior split,
+        //  so it is never time-locked (only the remaining-bags cap applies to it).
+        //  Day-counting is INCLUSIVE (first-avail day = day 1), matching the
+        //  display-side _splitLockStatus(): unlock = firstDate + 14 days.
+        // ══════════════════════════════════════════════════════════════════════
+        const _LOCK_DAYS = 15;
+        const _sfdSnap = await database.ref('fertilizerCards/' + fcKey + '/splitFirstDistributed').once('value');
+        const _sfd = _sfdSnap.val() || {};
+        for (const entry of entries) {
+            if (entry.splitIdx <= 0) continue; // first split is never time-locked
+            const _prevSplitIdx = entry.splitIdx - 1;
+            const _stored = ((_sfd[entry.fert] || {})['s' + _prevSplitIdx]);
+            if (_stored) {
+                const _firstTs = Number(_stored);
+                if (_firstTs) {
+                    const _firstDate = new Date(_firstTs);
+                    _firstDate.setHours(0, 0, 0, 0);
+                    const _unlockDate = new Date(_firstDate);
+                    _unlockDate.setDate(_unlockDate.getDate() + (_LOCK_DAYS - 1));
+                    const _today = new Date();
+                    _today.setHours(0, 0, 0, 0);
+                    if (_today < _unlockDate) {
+                        const _dLeft = Math.ceil((_unlockDate - _today) / 86400000);
+                        const _unlockStr = _unlockDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                        if (resultEl) resultEl.innerHTML = `<div class="alert alert-warning fw-bold" style="border-radius:14px;">
+                            ⏳ 15-Day Lock Active — ${escapeHtml(entry.fert)} Split ${entry.splitIdx + 1}<br>
+                            <small style="font-weight:400;">This split unlocks 15 days after Split ${_prevSplitIdx + 1} was first availed. Allowed after <strong>${escapeHtml(_unlockStr)}</strong> (${_dLeft} day${_dLeft===1?'':'s'} remaining).</small>
+                        </div>`;
+                        return;
+                    }
+                }
+            }
+        }
+        // ══════════════════════════════════════════════════════════════════════
+        //  END 15-DAY LOCK GUARD
+        // ══════════════════════════════════════════════════════════════════════
 
         // ══════════════════════════════════════════════════════════════════════
         //  SERVER-SIDE ELIGIBILITY GUARD
@@ -20614,6 +20841,18 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
 
         // ── Update fertilizerCards timestamp ──
         ops.push(database.ref('fertilizerCards/' + fcKey + '/lastDistributed').set(now));
+
+        // ── Record first-distribution date per split per fert (for 15-day lock) ──
+        // Only set if not already present — we never overwrite the first avail date.
+        const _firstDistSnap = await database.ref('fertilizerCards/' + fcKey + '/splitFirstDistributed').once('value');
+        const _existingFirstDist = _firstDistSnap.val() || {};
+        for (const entry of entries) {
+            const _fdKey = `splitFirstDistributed/${entry.fert}/s${entry.splitIdx}`;
+            const _existing = ((_existingFirstDist[entry.fert] || {})['s' + entry.splitIdx]);
+            if (!_existing) {
+                ops.push(database.ref('fertilizerCards/' + fcKey + '/' + _fdKey).set(now));
+            }
+        }
 
         return Promise.all(ops);
     })
@@ -20958,6 +21197,23 @@ function _rtExecuteDistribute(r, method) {
                     return database.ref(topAvailPath).set(prev2 + bags);
                 })
             );
+        }
+
+        // ── Record first-distribution date for the 15-day split lock ──
+        // Mirrors submitFarmerCardDistribution: only set if not already present.
+        if (r.aadhaar && r.year && r.season) {
+            const _aClean4   = String(r.aadhaar||'').replace(/\s/g,'');
+            const _fcKey4    = _aClean4 + '_' + String(r.year).replace(/[^a-zA-Z0-9]/g,'') + '_' + String(r.season);
+            const _splitIdx5 = r.splitIndex !== undefined ? Number(r.splitIndex) : 0;
+            const _sfdPath3  = `fertilizerCards/${_fcKey4}/splitFirstDistributed/${fert}/s${_splitIdx5}`;
+            ops.push(
+                database.ref(_sfdPath3).once('value').then(sfdSnap => {
+                    if (!sfdSnap.exists() || !sfdSnap.val()) {
+                        return database.ref(_sfdPath3).set(now);
+                    }
+                }).catch(() => {})
+            );
+            ops.push(database.ref('fertilizerCards/' + _fcKey4 + '/lastDistributed').set(now).catch(() => {}));
         }
 
         return Promise.all(ops);
@@ -23908,6 +24164,37 @@ async function loadPrintFarmerProfile() {
         } catch(e) { console.warn('fertilizerDistributions fetch failed:', e.message); }
     }
 
+    // ── DEDUP retailer-verified records before computing availed totals ──
+    // ureaHistory was assembled from up to 3 sources above (global /ureaHistory,
+    // users/{voUid}/ureaHistory, and /fertilizerDistributions), each with its own
+    // best-effort "alreadyIn" check against what was already pushed at merge time.
+    // Those per-source checks can miss matches (different push keys, missing
+    // printToken field, slightly different field shapes), so a single retributed
+    // event can end up represented twice in the final array. Collapse retailer-
+    // verified records here by a content fingerprint so totals are never doubled,
+    // regardless of which source(s) contributed a copy.
+    (function _dedupRetailerVerifiedHistory() {
+        const seen = new Map();
+        for (let i = ureaHistory.length - 1; i >= 0; i--) {
+            const h = ureaHistory[i];
+            if (!h || !h.retailerVerified) continue; // only collapse retailer-distributed records
+            const fp = [
+                String(h.aadhaar||'').replace(/\s/g,''),
+                String(h.fertilizerType||h.fert||'Urea').trim(),
+                parseInt(h.splitIndex)||0,
+                Number(h.bags||0),
+                String(h.year||''),
+                String(h.season||''),
+                String(h.date||'')
+            ].join('|');
+            if (seen.has(fp)) {
+                ureaHistory.splice(i, 1); // duplicate of a record already kept — drop it
+            } else {
+                seen.set(fp, true);
+            }
+        }
+    })();
+
     function _getTransactions(fert, splitIdx) {
         if (!useYear || !useSeason) return [];
         return ureaHistory.filter(h =>
@@ -25758,6 +26045,15 @@ window.openEditAvailedBagsModal = async function(aadhaar, year, season, u1, u2, 
     let actualU1 = rawU1, actualU2 = rawU2, actualU3 = rawU3;
     let actualD1 = rawD1, actualD2 = rawD2, actualD3 = rawD3;
     let retailerRecords = [];
+    // Tracks every record counted so far across ALL THREE fetch blocks below
+    // (fertilizerDistributions, global ureaHistory, users/{voUid}/ureaHistory).
+    // The same real distribution is written to more than one of these paths,
+    // so each block must check against everything counted so far — not just
+    // against retailerRecords — or the same bags get added more than once.
+    const _countedFingerprints = new Set();
+    function _fp(fert, split, bags, date) {
+        return `${fert}|${split}|${bags}|${date||''}`;
+    }
 
     try {
         const user = firebase.auth().currentUser;
@@ -25780,8 +26076,10 @@ window.openEditAvailedBagsModal = async function(aadhaar, year, season, u1, u2, 
                     const rFert = r.fertilizerType || r.fert || 'Urea';
                     const rSplit = r.splitIndex !== undefined ? Number(r.splitIndex) : 0;
                     const rBags = Number(r.bags || r.bagsDistributing || 0);
+                    const fp = _fp(rFert, rSplit, rBags, r.date || r.verifiedAt || r.distributedAt);
                     
                     retailerRecords.push({ fert: rFert, split: rSplit, bags: rBags, key: child.key });
+                    _countedFingerprints.add(fp);
                     
                     if (rFert === 'Urea') {
                         if (rSplit === 0) actualU1 += rBags;
@@ -25818,11 +26116,10 @@ window.openEditAvailedBagsModal = async function(aadhaar, year, season, u1, u2, 
                 const hFert = h.fertilizerType || h.fert || 'Urea';
                 const hSplit = h.splitIndex !== undefined ? Number(h.splitIndex) : 0;
                 const hBags = Number(h.bags || 0);
+                const fp = _fp(hFert, hSplit, hBags, h.date || h.verifiedAt || h.distributedAt);
                 
-                const alreadyCounted = retailerRecords.some(r => 
-                    r.fert === hFert && r.split === hSplit && r.bags === hBags
-                );
-                if (!alreadyCounted) {
+                if (!_countedFingerprints.has(fp)) {
+                    _countedFingerprints.add(fp);
                     if (hFert === 'Urea') {
                         if (hSplit === 0) actualU1 += hBags;
                         else if (hSplit === 1) actualU2 += hBags;
@@ -25862,11 +26159,10 @@ window.openEditAvailedBagsModal = async function(aadhaar, year, season, u1, u2, 
                     const hFert = h.fertilizerType || h.fert || 'Urea';
                     const hSplit = h.splitIndex !== undefined ? Number(h.splitIndex) : 0;
                     const hBags = Number(h.bags || 0);
+                    const fp = _fp(hFert, hSplit, hBags, h.date || h.verifiedAt || h.distributedAt);
                     
-                    const alreadyCounted = retailerRecords.some(r => 
-                        r.fert === hFert && r.split === hSplit && r.bags === hBags
-                    );
-                    if (!alreadyCounted) {
+                    if (!_countedFingerprints.has(fp)) {
+                        _countedFingerprints.add(fp);
                         if (hFert === 'Urea') {
                             if (hSplit === 0) actualU1 += hBags;
                             else if (hSplit === 1) actualU2 += hBags;
