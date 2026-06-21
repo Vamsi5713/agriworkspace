@@ -344,8 +344,10 @@
         }
         .dashboard-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: rgba(24, 98, 171, 0.2); }
         .dashboard-card:hover .card-icon { transform: scale(1.05); }
-        .dashboard-card h5 { font-size: 1.1rem; margin-bottom: 0.45rem; font-weight: 700; }
-        .dashboard-card p { color: var(--text-muted); font-size: 0.92rem; margin: 0; line-height: 1.6; }
+        .dashboard-card h5 { font-size: 1.1rem; margin-bottom: 0.45rem; font-weight: 700; font-family: 'Poppins', sans-serif; }
+        .dashboard-card p { color: var(--text-muted); font-size: 0.92rem; margin: 0; line-height: 1.6; font-family: 'Poppins', sans-serif; }
+        .dashboard-card .card-badge { font-family: 'Poppins', sans-serif; }
+        .dashboard-card .card-meta span { font-family: 'Poppins', sans-serif; }
         .dashboard-card .card-topline { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.75rem; margin-bottom: 0.75rem; }
         .dashboard-card .card-icon {
             width: 56px; height: 56px; border-radius: 18px; display: flex; align-items: center; justify-content: center;
@@ -1410,6 +1412,16 @@
 
         <!-- Season selector -->
         <div class="card border-0 shadow-sm p-3 mb-4" style="border-radius:14px;border-left:5px solid #1562ab !important;">
+          <!-- Village picker — shown only for multi-village VOs -->
+          <div id="vpVillageRow" style="display:none;" class="mb-3">
+            <label class="form-label fw-semibold small" style="color:#1862ab;">
+              <i class="fas fa-map-marker-alt me-1"></i>Village <span class="text-danger">*</span>
+            </label>
+            <select id="vpVillageSelect" class="form-select" onchange="loadVillageProfile()">
+              <option value="">-- Select Village --</option>
+            </select>
+            <div class="form-text text-muted" style="font-size:0.72rem;"><i class="fas fa-info-circle me-1"></i>Select village to view its profile.</div>
+          </div>
           <div class="row g-3 align-items-end">
             <div class="col-sm-4">
               <label class="form-label fw-semibold small">Display Season</label>
@@ -1471,6 +1483,17 @@
                   </select>
                </div>
             </div>
+            <div class="row mb-3" id="uploadVillageRow" style="display:none;">
+               <div class="col-md-12">
+                  <label for="uploadVillage" class="form-label fw-semibold">
+                     <i class="fas fa-map-marker-alt me-1 text-primary"></i>Village <span class="text-danger">*</span>
+                  </label>
+                  <select id="uploadVillage" class="form-select">
+                     <option value="">-- Select village --</option>
+                  </select>
+                  <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Choose which village this uploaded report belongs to. Each village's data is saved separately.</small>
+               </div>
+            </div>
             <input type="file" id="fileInput" class="form-control mb-3" accept=".csv, .xlsx, .xls" />
             <div id="message" class="text-danger mb-2"></div>
             <div id="previewHeading" style="display:none;" class="fw-bold mb-2">Preview of Uploaded Data</div>
@@ -1509,6 +1532,14 @@
                   
                   <!-- FIX: Used a compact Bootstrap Grid to pack items tightly and save vertical space -->
                   <div class="row g-2">
+                     <div class="col-12" id="filterVillageRow" style="display:none;">
+                        <label for="filterVillage" class="form-label text-muted fw-medium mb-1 small">
+                           <i class="fas fa-map-marker-alt me-1 text-primary"></i>Village
+                        </label>
+                        <select id="filterVillage" class="form-select">
+                           <option value="">-- Select village --</option>
+                        </select>
+                     </div>
                      <div class="col-sm-6 col-lg-12">
                         <label for="filterYear" class="form-label text-muted fw-medium mb-1 small">Crop Year</label>
                         <select id="filterYear" class="form-select"></select>
@@ -1597,33 +1628,40 @@
         <i class="fas fa-arrow-left me-2"></i> Back
     </button>
 
-    <div class="card p-4 mx-auto" style="max-width: 900px;">
-        <h2><i class="fas fa-history me-2 text-success"></i>Fertilizer Distribution History</h2>
+    <!-- Fertilizer Distribution Abstract & History Card -->
+    <div class="card p-4 mx-auto" style="max-width: 900px; border-radius:16px;">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span style="background:linear-gradient(135deg,#1862ab,#0d4d86);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-history text-white" style="font-size:0.85rem;"></i>
+            </span>
+            <div>
+                <div style="font-size:0.82rem;font-weight:800;color:#1862ab;text-transform:uppercase;letter-spacing:0.8px;font-family:'Poppins',sans-serif;">Fertilizer Distribution History</div>
+            </div>
+        </div>
 
-        <div class="alert alert-info" style="font-size:0.9rem;">
+        <div class="alert alert-info mt-2" style="font-size:0.9rem; border-radius:10px;">
             <i class="fas fa-info-circle me-1"></i>
             Fertilizer is issued directly by the retailer, who scans the QR code on the farmer's
             <strong>Fertilizer Distribution Card</strong> and issues bags split-wise. VOs no longer
             record distributions here &mdash; this page only shows the distribution history.
         </div>
 
-        <div class="d-flex gap-2 flex-wrap">
-            <button class="btn btn-info text-white" onclick="showUreaHistory()">
-                <i class="fas fa-eye"></i> View Fertilizer Distribution History
-            </button>
-            <button class="btn btn-success" onclick="exportUreaData()">
-                <i class="fas fa-file-excel"></i> Export Excel
-            </button>
-        </div>
-    </div><!-- /card -->
-
-    <!-- Abstract Report Card -->
-    <div class="card p-4 mx-auto mt-3" style="max-width: 900px;">
-        <h2><i class="fas fa-clipboard-list me-2 text-primary"></i>Abstract Report</h2>
-        <p class="small text-muted">
-            Select Crop Year &amp; Season, Fertilizer Type and Crop, then click Submit to view a
-            summary of farmers covered, bags / quantity distributed, and extent covered.
+        <p class="small text-muted mb-2" style="font-family:'Poppins',sans-serif;">
+            Select Crop Year &amp; Season (required), and optionally Fertilizer Type &amp; Crop, then click <strong>Show</strong> to view the abstract and distribution list.
         </p>
+
+        <!-- Village picker row — visible only for multi-village VOs -->
+        <div class="row g-2 mb-2" id="absVillageRow" style="display:none;">
+            <div class="col-12">
+                <label class="form-label fw-semibold mb-1" style="color:#1862ab;">
+                    <i class="fas fa-map-marker-alt me-1"></i>Village <span class="text-danger">*</span>
+                </label>
+                <select id="absVillage" class="form-select" onchange="voLoadFertilizerHistory()">
+                    <option value="">-- Select Village --</option>
+                </select>
+                <div class="form-text text-muted small"><i class="fas fa-info-circle me-1"></i>Select village to view its distribution history.</div>
+            </div>
+        </div>
 
         <div class="row g-2 mb-2">
             <div class="col-md-3">
@@ -1660,14 +1698,19 @@
             </div>
         </div>
 
-        <div class="d-flex justify-content-end mb-3">
-            <button class="btn btn-primary" onclick="generateUreaAbstractReport()">
-                <i class="fas fa-check-circle me-1"></i> Submit
+        <div class="d-flex justify-content-end gap-2 mb-3">
+            <button class="btn btn-primary fw-semibold" style="border-radius:20px;" onclick="voLoadFertilizerHistory()">
+                <i class="fas fa-check-circle me-1"></i> Show
             </button>
         </div>
 
-        <div id="absReportResult"></div>
-    </div><!-- /Abstract Report Card -->
+        <div id="voHistoryContainer">
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-filter fa-3x mb-3 opacity-25"></i>
+                <p>Select Crop Year &amp; Season above and click <strong>Show</strong> to view the abstract and distribution list.</p>
+            </div>
+        </div>
+    </div><!-- /card -->
 </div><!-- /ureaSection -->
 
 
@@ -2043,14 +2086,25 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-6" id="profileVillageField">
-                    <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Village <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-home text-muted"></i></span>
-                        <select id="profileVillage" class="form-select border-start-0">
-                            <option value="">-- Select Village --</option>
+                <div class="col-12" id="profileVillageField">
+                    <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">
+                        Villages Handled <span class="text-danger">*</span>
+                        <span class="badge bg-primary ms-1" style="font-size:0.65rem;" title="You can manage multiple villages">Multi-village</span>
+                    </label>
+                    <!-- Tag display of selected villages -->
+                    <div id="profileVillageTags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:36px;padding:6px 8px;border:1px solid #ced4da;border-radius:8px 8px 0 0;background:#fff;">
+                        <!-- tags injected by JS -->
+                    </div>
+                    <!-- Village picker row -->
+                    <div class="input-group" style="border-radius:0 0 8px 8px;overflow:hidden;">
+                        <span class="input-group-text bg-light border-end-0 border-top-0"><i class="fas fa-home text-muted"></i></span>
+                        <select id="profileVillage" class="form-select border-start-0 border-top-0" onchange="addProfileVillageTag(this.value); this.value='';">
+                            <option value="">-- Add a village --</option>
                         </select>
                     </div>
+                    <!-- Hidden comma-separated store -->
+                    <input type="hidden" id="profileVillagesHidden">
+                    <div class="form-text text-muted small mt-1"><i class="fas fa-info-circle me-1"></i>Select all villages this officer handles. Click a tag's ✕ to remove it.</div>
                 </div>
                 <div class="col-12" id="profileSachivalayamField">
                     <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Grama Sachivalayam</label>
@@ -2230,7 +2284,7 @@
      ══════════════════════════════════════════════════════════ -->
 <div class="container hidden mt-4" id="adminSection" role="main">
 
-    <div class="card p-4 mx-auto" style="max-width: 1200px;">
+    <div class="card p-3 p-md-4 mx-auto" style="max-width:1400px; overflow-x:hidden;">
 
         <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
@@ -2316,8 +2370,9 @@
                             <input type="text" id="adminVoPass" class="form-control" placeholder="Min 6 characters">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Village <span class="text-danger">*</span></label>
-                            <input type="text" id="adminVoVillage" class="form-control" placeholder="Village name">
+                            <label class="form-label fw-semibold">Villages Handled <span class="text-danger">*</span></label>
+                            <input type="text" id="adminVoVillage" class="form-control" placeholder="e.g. Rampur, Kesavpur (comma-separated)">
+                            <div class="form-text text-muted small"><i class="fas fa-info-circle me-1"></i>Enter one or more villages separated by commas.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Grama Sachivalayam <span class="text-danger">*</span></label>
@@ -2436,8 +2491,8 @@
                     <button class="btn btn-outline-secondary btn-sm" onclick="loadAdminAllUsersList()"><i class="fas fa-sync me-1"></i> Refresh</button>
                 </div>
             </div>
-            <div id="adminAllUsersContainer">
-                <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i> Click Refresh to load...</div>
+            <div id="adminAllUsersContainer" style="min-height:200px; overflow-x:auto;">
+                <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2 text-primary"></i> Loading users...</div>
             </div>
         </div>
 
@@ -3396,14 +3451,14 @@
         <div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #f39c12 !important; border-radius:14px;">
             <div class="card-body p-3">
                 <h6 class="fw-bold text-warning mb-1"><i class="fas fa-shield-alt me-2"></i>Verify & Authorize Distribution</h6>
-                <p class="text-muted small mb-3">Scan farmer's QR code <strong>or</strong> enter Token Number + Aadhaar last 4 digits to find and authorize the distribution.</p>
+                <p class="text-muted small mb-3">Scan farmer's QR code <strong>or</strong> search by Card Number + Aadhaar last 6 digits to find and authorize the distribution.</p>
 
                 <div class="rt-tabs" id="authTabs" style="margin-bottom:12px;">
                     <button class="rt-tab-btn active" onclick="showAuthTab('qrTab')">
                         <i class="fas fa-qrcode me-1"></i> QR Scanner
                     </button>
                     <button class="rt-tab-btn" onclick="showAuthTab('tokenTab')">
-                        <i class="fas fa-ticket-alt me-1"></i> Token Number
+                        <i class="fas fa-id-card me-1"></i> Card Number
                     </button>
                 </div>
 
@@ -3430,46 +3485,41 @@
                     <div id="qrScanResult" class="mt-2"></div>
                 </div>
 
-                <!-- Token Number Tab -->
+                <!-- Card Number Tab -->
                 <div id="tokenTab" class="hidden">
                     <div class="alert alert-info py-2 small mb-3">
                         <i class="fas fa-info-circle me-2"></i>
-                        Ask the farmer for the <strong>Token Number</strong> printed on their distribution slip, and their <strong>Aadhaar last 4 digits</strong>.
+                        If the QR code isn't scanning, ask the farmer for the <strong>Card Number</strong> printed on their card, and their <strong>Aadhaar last 6 digits</strong>.
                     </div>
                     <div class="row g-3 align-items-end">
                         <div class="col-12 col-md-5">
                             <label class="form-label fw-semibold">
-                                Token Number <span class="text-danger">*</span>
+                                Card Number <span class="text-danger">*</span>
                             </label>
-                            <input type="text" id="tokenNumberInput" class="form-control"
-                                   placeholder="e.g. AB3K-7Z2P"
-                                   maxlength="9"
-                                   style="font-family:'Courier New',monospace; letter-spacing:2px; text-transform:uppercase; font-size:1.1rem; font-weight:800; color:#1562ab; text-align:center; padding:10px 8px;"
-                                   oninput="
-                                       let v = this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
-                                       if(v.length>4) v = v.slice(0,4)+'-'+v.slice(4,8);
-                                       this.value = v;
-                                   "
-                                   onkeydown="if(event.key==='Enter') verifyByToken()">
+                            <input type="text" id="cardNumberInput" class="form-control"
+                                   placeholder="e.g. KLV/2026K/0001"
+                                   style="font-family:'Courier New',monospace; letter-spacing:1px; text-transform:uppercase; font-size:1.05rem; font-weight:800; color:#1562ab; text-align:center; padding:10px 8px;"
+                                   oninput="this.value = this.value.toUpperCase();"
+                                   onkeydown="if(event.key==='Enter') verifyByCard()">
                             <div class="form-text text-center" style="font-size:0.72rem;">
-                                <i class="fas fa-info-circle me-1"></i>8-character token from the farmer's printed slip
+                                <i class="fas fa-info-circle me-1"></i>Card number from the farmer's printed card
                             </div>
                         </div>
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold">
-                                Aadhaar Last 4 <span class="text-muted fw-normal small">(optional)</span>
+                                Aadhaar Last 6 <span class="text-danger">*</span>
                             </label>
-                            <input type="text" id="tokenAadhaarInput" class="form-control"
-                                   placeholder="XXXX" maxlength="4"
+                            <input type="text" id="cardAadhaarInput" class="form-control"
+                                   placeholder="XXXXXX" maxlength="6"
                                    style="font-family:'Courier New',monospace; letter-spacing:3px; font-size:1.05rem; font-weight:700; text-align:center; padding:10px 8px;"
-                                   oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
-                                   onkeydown="if(event.key==='Enter') verifyByToken()">
-                            <div class="form-text text-center" style="font-size:0.72rem;">Last 4 digits of farmer's Aadhaar card</div>
+                                   oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
+                                   onkeydown="if(event.key==='Enter') verifyByCard()">
+                            <div class="form-text text-center" style="font-size:0.72rem;">Last 6 digits of farmer's Aadhaar card</div>
                         </div>
                         <div class="col-12 col-md-3">
-                            <button class="btn btn-warning w-100 fw-bold py-2 shadow-sm" onclick="verifyByToken()"
+                            <button class="btn btn-warning w-100 fw-bold py-2 shadow-sm" onclick="verifyByCard()"
                                     style="border-radius:10px; font-size:0.95rem;">
-                                <i class="fas fa-search me-2"></i>Verify
+                                <i class="fas fa-search me-2"></i>Search
                             </button>
                         </div>
                     </div>
@@ -4200,6 +4250,17 @@ function submitRejectDistribution() {
           </button>
       </div>
 
+      <!-- Village picker for 1B upload — shown only when VO handles multiple villages -->
+      <div id="oneBVillagePickerRow" style="display:none;" class="mb-3 p-2 rounded" style="background:#eef5ff; border:1.5px solid #b3d1f0;">
+        <label class="form-label fw-semibold mb-1 small" style="color:#1862ab;">
+          <i class="fas fa-map-marker-alt me-1"></i>Village for this 1B file <span class="text-danger">*</span>
+        </label>
+        <select id="oneBVillageSelect" class="form-select form-select-sm" style="max-width:320px;">
+          <option value="">-- Select village --</option>
+        </select>
+        <div class="form-text text-muted" style="font-size:0.72rem;"><i class="fas fa-info-circle me-1"></i>Each village has its own 1B data. Select the village this file belongs to.</div>
+      </div>
+
       <div id="oneBUploadBox" class="mb-3 p-3 border rounded bg-light">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
             <label for="ureaFileInput" class="form-label fw-semibold mb-0">📊 Upload 1B Excel File (click help in dashboard for guidance)</label>
@@ -4455,6 +4516,23 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
       </div>
     </div>
 
+    <!-- Village selector: shown only for multi-village VOs — placed BEFORE Farmer Type -->
+    <div class="row g-2 mb-3" id="fpVillageRow" style="display:none;">
+      <div class="col-12">
+        <div class="alert alert-info py-2 mb-0 d-flex align-items-center gap-3" style="border-radius:10px; border-left:4px solid #1862ab;">
+          <i class="fas fa-map-marker-alt fa-lg text-primary"></i>
+          <div class="flex-grow-1">
+            <label class="form-label fw-semibold mb-1" style="color:#1862ab;">
+              Which village is this farmer's land in? <span class="text-danger">*</span>
+            </label>
+            <select id="fpVillageSelect" class="form-select form-select-sm" style="max-width:320px;">
+              <option value="">-- Select village --</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── STEP 2: Farmer Type ── -->
     <div class="row g-2 mb-3">
       <div class="col-md-4">
@@ -4595,7 +4673,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
         📋 View All Profiles
       </button>
       <button class="btn btn-warning text-dark fw-bold" onclick="openPrintFarmerProfilePanel()">
-        🖨️ Print Farmer Profile
+        🖨️ Print Fertilizer Distribution Card
       </button>
     </div>
 
@@ -4752,8 +4830,8 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
         <i class="fas fa-print" style="font-size:0.9rem;"></i>
       </div>
       <div>
-        <div style="font-size:0.95rem; font-weight:700; line-height:1.1;">Print Farmer Profile</div>
-        <div style="font-size:0.7rem; opacity:0.75; line-height:1;">Fertilizer Card Generator</div>
+        <div style="font-size:0.95rem; font-weight:700; line-height:1.1;">Print Fertilizer Distribution Card</div>
+        <div style="font-size:0.7rem; opacity:0.75; line-height:1;">Farmer Card Generator</div>
       </div>
     </div>
     <button onclick="closePrintFarmerProfilePanel()"
@@ -4819,6 +4897,23 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
               <option value="Kharif">🌧 Kharif</option>
               <option value="Rabi">🌾 Rabi</option>
               <option value="Summer">☀️ Summer</option>
+            </select>
+          </div>
+
+          <!-- Village picker — shown only for multi-village VOs -->
+          <div id="printFpVillageWrap" style="display:none; flex:0 0 160px;">
+            <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:0.35rem;">
+              <i class="fas fa-map-marker-alt me-1" style="color:#1862ab;"></i>Village
+            </label>
+            <select id="printFpVillage"
+                    style="width:100%; padding:0.5rem 0.75rem; border:1.5px solid #dde3ea; border-radius:8px;
+                           font-size:0.85rem; color:#2c3e50; background:#fff; outline:none; cursor:pointer;
+                           appearance:none; background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><path fill=%22%231862ab%22 d=%22M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z%22/></svg>');
+                           background-repeat:no-repeat; background-position:right 8px center; background-size:12px;
+                           padding-right:2rem;"
+                    onfocus="this.style.borderColor='#1862ab'; this.style.boxShadow='0 0 0 3px rgba(24,98,171,0.12)'"
+                    onblur="this.style.borderColor='#dde3ea'; this.style.boxShadow='none'">
+              <option value="">All Villages</option>
             </select>
           </div>
 
@@ -5198,7 +5293,12 @@ document.addEventListener("DOMContentLoaded", function() {
             if (cleanVal.length === 12) {
                 const selectedYear = document.getElementById('fpCropYear')?.value || '2026-27';
                 const selectedSeason = document.getElementById('fpCropSeason')?.value || 'Kharif';
-                const userVillage = window.currentUserProfile?.village || localStorage.getItem('user_village') || 'Unknown';
+                // ── Multi-village: prefer selected village in the farmer profile form ──
+                const _fpVillageSel = document.getElementById('fpVillageSelect');
+                const _voVList = Array.isArray(window.currentUserProfile?.villages) && window.currentUserProfile.villages.length
+                    ? window.currentUserProfile.villages : (window.currentUserProfile?.village ? [window.currentUserProfile.village] : []);
+                const userVillage = (_fpVillageSel && _fpVillageSel.value) ? _fpVillageSel.value
+                    : (_voVList[0] || localStorage.getItem('user_village') || 'Unknown');
                 
                 // 1. Show existing card number if already allocated — do NOT generate/burn a new counter slot here.
                 //    Counter is incremented only inside saveFarmerProfile() at actual save time.
@@ -5422,7 +5522,6 @@ function loadFromLocalCache(uid) {
         if (ar) allReportsCache = JSON.parse(ar);
         if (ud) ureaData        = JSON.parse(ud);
         const t = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
-        console.log('LocalCache restored from', t || 'unknown time');
         return true;
     } catch(e) { console.warn('LocalCache read failed', e); return false; }
 }
@@ -5438,7 +5537,6 @@ function markPendingWrite() {
 /** Try to flush any pending write once network is restored. */
 window.addEventListener('online', () => {
     if (_pendingCloudWrite) {
-        console.log('Network restored — flushing pending cloud write');
         saveToCloud();
     }
 });
@@ -5641,7 +5739,6 @@ function _applyCloudSnapshot(snapshot) {
             if (!hadLocalData) {
                 const restored = loadFromLocalCache(uid);
                 if (restored) {
-                    console.log('Restored data from localStorage after empty cloud snapshot');
                 }
             }
         }
@@ -5942,16 +6039,21 @@ function _refreshFarmerCardIfOpen(aadhaar) {
     }
 }
 
-// Auto-refresh the urea history modal if it's open
+// Auto-refresh the urea history modal if it's open, or the inline VO history view if visible
 function _refreshHistoryModalIfOpen() {
     const modal = document.getElementById('ureaHistoryModal');
-    if (!modal) return;
-    const bsModal = bootstrap.Modal.getInstance(modal);
-    if (!bsModal) return;
-    // Check if modal is shown
-    if (modal.classList.contains('show')) {
-        if (typeof showUreaHistory === 'function') {
-            setTimeout(showUreaHistory, 400);
+    if (modal) {
+        const bsModal = bootstrap.Modal.getInstance(modal);
+        if (bsModal && modal.classList.contains('show')) {
+            if (typeof showUreaHistory === 'function') {
+                setTimeout(showUreaHistory, 400);
+            }
+        }
+    }
+    const ureaSectionEl = document.getElementById('ureaSection');
+    if (ureaSectionEl && !ureaSectionEl.classList.contains('hidden') && window._voHistoryFiltersApplied) {
+        if (typeof voLoadFertilizerHistory === 'function') {
+            setTimeout(voLoadFertilizerHistory, 400);
         }
     }
 }
@@ -5964,63 +6066,99 @@ function _startLiveUreaHistoryListener(uid) {
     if (!uid || _liveUreaHistoryListenerUid === uid) return;
     _liveUreaHistoryListenerUid = uid;
 
-    database.ref('users/' + uid + '/ureaHistory').on('child_added', (snap) => {
-        if (!snap || !snap.val()) return;
-        const rec  = snap.val();
-        const key  = snap.key;
-        // Only process retailer-verified / Distributed records
-        if (!rec.retailerVerified && rec.status !== 'Distributed') return;
-        // Check if already in memory — use _key OR a content fingerprint
-        // (farmerCardQR records have empty printToken, so we can't rely on it alone)
-        const aadhaar = String(rec.aadhaar || '').replace(/\s/g, '');
-        const alreadyIn = ureaHistory.some(h => {
-            if (h._key === key) return true;
-            const hAad = String(h.aadhaar||'').replace(/\s/g,'');
-            if (hAad !== aadhaar) return false;
-            if (!h.retailerVerified) return false;
-            // Match by printToken when both are non-empty
-            if (h.printToken && rec.printToken && h.printToken === rec.printToken) return true;
-            // Fallback fingerprint: fert + splitIndex + bags + date (covers farmerCardQR records)
-            return (
-                (h.fertilizerType||h.fert||'Urea') === (rec.fertilizerType||rec.fert||'Urea') &&
-                String(h.splitIndex) === String(rec.splitIndex) &&
-                String(h.bags||0)    === String(rec.bags||0) &&
-                (h.date||'')         === (rec.date||'') &&
-                (h.year||'')         === (rec.year||'') &&
-                (h.season||'')       === (rec.season||'')
-            );
-        });
-        if (alreadyIn) {
-            // Update the existing record's _key so future lookups work correctly
-            const existIdx = ureaHistory.findIndex(h => {
+    const ref = database.ref('users/' + uid + '/ureaHistory');
+
+    // ── Snapshot existing keys first, so the child_added listener below only
+    //    fires (and shows toasts) for records that arrive AFTER this point —
+    //    not for the entire existing history, which Firebase always replays
+    //    once on initial subscription. ──
+    const _seenKeysAtStart = new Set();
+    ref.once('value').then(snap => {
+        if (snap && snap.exists()) {
+            snap.forEach(child => { _seenKeysAtStart.add(child.key); });
+        }
+        let _initialReplayDone = false;
+        // Allow one more tick for Firebase's own replay of child_added events
+        // to finish before treating any further additions as "live".
+        setTimeout(() => { _initialReplayDone = true; }, 800);
+
+        ref.on('child_added', (childSnap) => {
+            if (!childSnap || !childSnap.val()) return;
+            const rec  = childSnap.val();
+            const key  = childSnap.key;
+            const isPastRecord = _seenKeysAtStart.has(key) && !_initialReplayDone;
+            // Only process retailer-verified / Distributed records
+            if (!rec.retailerVerified && rec.status !== 'Distributed') return;
+            // Check if already in memory — use _key OR a content fingerprint
+            // (farmerCardQR records have empty printToken, so we can't rely on it alone)
+            const aadhaar = String(rec.aadhaar || '').replace(/\s/g, '');
+            const alreadyIn = ureaHistory.some(h => {
+                if (h._key === key) return true;
                 const hAad = String(h.aadhaar||'').replace(/\s/g,'');
-                return hAad === aadhaar && !h._key &&
+                if (hAad !== aadhaar) return false;
+                if (!h.retailerVerified) return false;
+                // Match by printToken when both are non-empty
+                if (h.printToken && rec.printToken && h.printToken === rec.printToken) return true;
+                // Fallback fingerprint: fert + splitIndex + bags + date (covers farmerCardQR records)
+                return (
                     (h.fertilizerType||h.fert||'Urea') === (rec.fertilizerType||rec.fert||'Urea') &&
                     String(h.splitIndex) === String(rec.splitIndex) &&
-                    String(h.bags||0) === String(rec.bags||0) &&
-                    (h.date||'') === (rec.date||'');
+                    String(h.bags||0)    === String(rec.bags||0) &&
+                    (h.date||'')         === (rec.date||'') &&
+                    (h.year||'')         === (rec.year||'') &&
+                    (h.season||'')       === (rec.season||'')
+                );
             });
-            if (existIdx >= 0) ureaHistory[existIdx]._key = key;
-            return;
-        }
-        // Add to memory
-        ureaHistory.push({ ...rec, _key: key });
-        // Refresh farmer card if this farmer is open
-        _refreshFarmerCardIfOpen(aadhaar);
-        // Refresh history modal if open
-        _refreshHistoryModalIfOpen();
-        // Show live notification
-        const fert = rec.fertilizerType || rec.fert || 'Urea';
-        const bags = Number(rec.bags || 0);
-        _showVoRetailerNotification(
-            `<i class="fas fa-check-circle text-success me-2"></i><strong>Distributed by Retailer:</strong> ` +
-            `${escapeHtml(rec.farmerName || aadhaar.slice(-4))} — ${bags} ${escapeHtml(fert)} bag(s)` +
-            (rec.outletName ? `<div class="small text-muted mt-1">Outlet: ${escapeHtml(rec.outletName)}</div>` : '')
-        );
+            if (alreadyIn) {
+                // Update the existing record's _key so future lookups work correctly
+                const existIdx = ureaHistory.findIndex(h => {
+                    const hAad = String(h.aadhaar||'').replace(/\s/g,'');
+                    return hAad === aadhaar && !h._key &&
+                        (h.fertilizerType||h.fert||'Urea') === (rec.fertilizerType||rec.fert||'Urea') &&
+                        String(h.splitIndex) === String(rec.splitIndex) &&
+                        String(h.bags||0) === String(rec.bags||0) &&
+                        (h.date||'') === (rec.date||'');
+                });
+                if (existIdx >= 0) ureaHistory[existIdx]._key = key;
+                return;
+            }
+            // Add to memory
+            ureaHistory.push({ ...rec, _key: key });
+            // Refresh farmer card if this farmer is open
+            _refreshFarmerCardIfOpen(aadhaar);
+            // Refresh history modal if open
+            _refreshHistoryModalIfOpen();
+            // Show live notification — only for records that genuinely arrived
+            // after this session started, not for the initial history replay.
+            if (!isPastRecord) {
+                const fert = rec.fertilizerType || rec.fert || 'Urea';
+                const bags = Number(rec.bags || 0);
+                _showVoRetailerNotification(
+                    `<i class="fas fa-check-circle text-success me-2"></i><strong>Distributed by Retailer:</strong> ` +
+                    `${escapeHtml(rec.farmerName || aadhaar.slice(-4))} — ${bags} ${escapeHtml(fert)} bag(s)` +
+                    (rec.outletName ? `<div class="small text-muted mt-1">Outlet: ${escapeHtml(rec.outletName)}</div>` : '')
+                );
+            }
+        });
+    }).catch(err => {
+        console.error('_startLiveUreaHistoryListener initial snapshot error:', err);
+        // Fall back to attaching the listener anyway so live updates still work
+        ref.on('child_added', (childSnap) => {
+            if (!childSnap || !childSnap.val()) return;
+            const rec  = childSnap.val();
+            const key  = childSnap.key;
+            if (!rec.retailerVerified && rec.status !== 'Distributed') return;
+            const aadhaar = String(rec.aadhaar || '').replace(/\s/g, '');
+            const alreadyIn = ureaHistory.some(h => h._key === key);
+            if (alreadyIn) return;
+            ureaHistory.push({ ...rec, _key: key });
+            _refreshFarmerCardIfOpen(aadhaar);
+            _refreshHistoryModalIfOpen();
+        });
     });
 
     // Also listen for updates (status changes) to existing records
-    database.ref('users/' + uid + '/ureaHistory').on('child_changed', (snap) => {
+    ref.on('child_changed', (snap) => {
         if (!snap || !snap.val()) return;
         const rec  = snap.val();
         const key  = snap.key;
@@ -6068,18 +6206,20 @@ function renderSavedReportsList() {
         return;
     }
     container.innerHTML = keys.map(k => {
-        const parts = k.split('_');
-        const yr = parts[0] || k, szn = parts[1] || '';
+        const { village, year, season } = parseReportKey(k);
+        const yr = year || k, szn = season || '';
         const count = (allReportsCache[k]?.summary?.totalFarmers) || (allReportsCache[k]?.uniqueFarmers?.length) || '—';
+        const villageBadge = village ? `<span class="badge bg-primary ms-2"><i class="fas fa-map-marker-alt me-1"></i>${escapeHtml(village)}</span>` : '';
         return `
         <div class="d-flex align-items-center justify-content-between border rounded px-3 py-2 mb-2 bg-light">
             <div>
                 <span class="fw-semibold text-primary">${escapeHtml(yr)}</span>
                 <span class="badge bg-secondary ms-2">${escapeHtml(szn)}</span>
+                ${villageBadge}
                 <span class="text-muted small ms-2"><i class="fas fa-users me-1"></i>${count} farmers</span>
             </div>
             <button class="btn btn-sm btn-outline-danger fw-semibold"
-                onclick="deleteEPantaReport('${escapeHtml(yr)}','${escapeHtml(szn)}'); renderSavedReportsList();">
+                onclick="deleteEPantaReport('${escapeHtml(yr)}','${escapeHtml(szn)}','${escapeHtml(village)}'); renderSavedReportsList();">
                 <i class="fas fa-trash-alt me-1"></i>Delete
             </button>
         </div>`;
@@ -6088,23 +6228,24 @@ function renderSavedReportsList() {
 
 
 // ══════════════════════════════════════════════════════════════
-function deleteEPantaReport(yr, szn) {
+function deleteEPantaReport(yr, szn, vlg) {
     // If called from sidebar button without args, read from filter dropdowns
     const year   = yr   || document.getElementById('filterYear')?.value || '';
     const season = szn  || document.getElementById('filterSeason')?.value || '';
+    const village = (vlg !== undefined && vlg !== null && vlg !== '') ? vlg : (document.getElementById('filterVillage')?.value || '');
 
     if (!year || !season) {
         alert('⚠️ Please select a Crop Year and Season first, then click Delete Report.');
         return;
     }
 
-    const key = year + '_' + season;
+    const key = buildReportKey(village, year, season);
     if (!allReportsCache || !allReportsCache[key]) {
-        alert(`No report found for ${year} — ${season}.`);
+        alert(`No report found for ${year} — ${season}${village ? ' — ' + village : ''}.`);
         return;
     }
 
-    if (!confirm(`🗑️ Are you sure you want to DELETE the report for:\n\nCrop Year: ${year}\nSeason: ${season}\n\nThis will remove it from cloud permanently.`)) return;
+    if (!confirm(`🗑️ Are you sure you want to DELETE the report for:\n\nCrop Year: ${year}\nSeason: ${season}${village ? '\nVillage: ' + village : ''}\n\nThis will remove it from cloud permanently.`)) return;
 
     // Remove from local cache
     delete allReportsCache[key];
@@ -6117,7 +6258,7 @@ function deleteEPantaReport(yr, szn) {
                 <div>
                     <i class="fas fa-check-circle fa-3x mb-3 text-success opacity-75"></i>
                     <h4 class="text-secondary">Report Deleted</h4>
-                    <p>The report for <strong>${escapeHtml(year)} — ${escapeHtml(season)}</strong> has been removed.</p>
+                    <p>The report for <strong>${escapeHtml(year)} — ${escapeHtml(season)}${village ? ' — ' + escapeHtml(village) : ''}</strong> has been removed.</p>
                 </div>
             </div>`;
     }
@@ -6127,7 +6268,7 @@ function deleteEPantaReport(yr, szn) {
     if (user && isDataLoaded) {
         database.ref('users/' + user.uid + '/allReports/' + key).remove()
             .then(() => {
-                showModernPopup('Deleted', `Report for ${year} — ${season} deleted from cloud.`, 'success');
+                showModernPopup('Deleted', `Report for ${year} — ${season}${village ? ' — ' + village : ''} deleted from cloud.`, 'success');
             })
             .catch(err => {
                 // Fallback: full save (also removes the key since it's deleted from allReportsCache)
@@ -6152,6 +6293,15 @@ function saveFertilizerToCloud(fert) {
 
     const fertKey = fert || selectedFertilizerKey || 'Urea';
     const payload = (ureaData && ureaData[fertKey]) ? ureaData[fertKey] : {};
+
+    // ── Attach village metadata if a village is selected ──
+    const _oneBVillageSel = document.getElementById('oneBVillageSelect');
+    const _selectedVillage = (_oneBVillageSel && _oneBVillageSel.value)
+        ? _oneBVillageSel.value.trim()
+        : (window.voActiveVillage || sessionStorage.getItem('voActiveVillage') || '');
+    if (_selectedVillage) {
+        ureaData['__village__' + fertKey] = _selectedVillage;
+    }
 
     updateSyncStatusCard('syncing', '', `Uploading ${fertKey} data…`);
 
@@ -6516,7 +6666,6 @@ function detachCloudListener() {
     }
 
     if (sectionId === 'ureaSection') {
-        if (typeof showUreaHistory === 'function') setTimeout(showUreaHistory, 100);
         if (typeof populateAbstractCropDropdown === 'function') setTimeout(populateAbstractCropDropdown, 100);
     }
 
@@ -6553,7 +6702,13 @@ function detachCloudListener() {
 
     // ✅ Render saved reports list when Upload Report page opens
     if (sectionId === 'uploadReportPage' && isDataLoaded) {
+        if (typeof initVillagePicker === 'function') initVillagePicker('uploadVillageRow', 'uploadVillage');
         if (typeof renderSavedReportsList === 'function') renderSavedReportsList();
+    }
+
+    // ✅ Village picker for e-Panta Report filters
+    if (sectionId === 'ePantaReportPage' && isDataLoaded) {
+        if (typeof initVillagePicker === 'function') initVillagePicker('filterVillageRow', 'filterVillage');
     }
 }
 
@@ -6665,10 +6820,41 @@ firebase.auth().onAuthStateChanged(user => {
                 const titleEl = document.getElementById('voDashboardTitle');
                 const subEl   = document.getElementById('voDashboardSubtitle');
                 if (titleEl) titleEl.innerHTML = `<i class="fas fa-leaf me-2 text-success"></i>Village Officer Dashboard`;
-                if (subEl)   subEl.textContent = `Welcome, ${profile.name || user.email}! — ${profile.village || ''}, ${profile.mandal || ''}`;
+                // ── Show all villages in dashboard subtitle ──
+                const _subVillages = Array.isArray(profile.villages) && profile.villages.length
+                    ? profile.villages.join(' · ')
+                    : (profile.village || '');
+                if (subEl) subEl.textContent = `Welcome, ${profile.name || user.email}! — ${_subVillages}${_subVillages && profile.mandal ? ', ' : ''}${profile.mandal || ''}`;
                 populateYearDropdowns();
                 loadUserCloudData(user.uid);
                 loadVoOutlets(user.uid, profile.mandal);
+                // ── Init multi-village picker in farmer profile form ──
+                setTimeout(() => { if (typeof initFpVillagePicker === 'function') initFpVillagePicker(); }, 800);
+                // ── Init multi-village pickers for Upload Report / e-Panta Report ──
+                setTimeout(() => {
+                    if (typeof initVillagePicker === 'function') {
+                        initVillagePicker('uploadVillageRow', 'uploadVillage');
+                        initVillagePicker('filterVillageRow', 'filterVillage');
+                    }
+                    // ── Init 1B upload card village picker ──
+                    if (typeof initOneBVillagePicker === 'function') initOneBVillagePicker();
+                    // ── Init village pickers for Fertilizer History & Village Profile ──
+                    if (typeof initVillagePicker === 'function') {
+                        initVillagePicker('absVillageRow', 'absVillage');
+                        initVillagePicker('vpVillageRow',  'vpVillageSelect');
+                    }
+                    // ── Show village selection modal on login if multi-village VO ──
+                    const _voVillages = getVoVillages ? getVoVillages() : [];
+                    if (_voVillages.length > 1) {
+                        const _savedVillage = sessionStorage.getItem('voActiveVillage');
+                        // Show modal only if no village saved yet in this session
+                        if (!_savedVillage || !_voVillages.includes(_savedVillage)) {
+                            if (typeof showVoActiveVillageModal === 'function') showVoActiveVillageModal(_voVillages);
+                        } else {
+                            window.voActiveVillage = _savedVillage;
+                        }
+                    }
+                }, 900);
                 // Check for any approved/rejected delete requests
                 setTimeout(pollVoDeleteApprovals, 2000);
                 if (!profile.mandal || !profile.village) {
@@ -7188,16 +7374,23 @@ async function approveRegistration(pendingKey) {
 
         // VO uniqueness check — admin is authenticated so this is reliable
         if (u.role === 'village_officer' && u.village) {
+            const pendingVillages = (Array.isArray(u.villages) && u.villages.length)
+                ? u.villages.map(v => v.trim().toLowerCase())
+                : [u.village.trim().toLowerCase()];
             const usersSnap = await database.ref('users').once('value');
-            let voExists = false;
+            let conflictVillage = null;
             usersSnap.forEach(userChild => {
                 const profile = userChild.val()?.profile || {};
-                if ((profile.role === 'village_officer' || profile.role === 'vo') && profile.village === u.village) {
-                    voExists = true;
+                if (profile.role === 'village_officer' || profile.role === 'vo') {
+                    const existingVillages = Array.isArray(profile.villages) && profile.villages.length
+                        ? profile.villages.map(v => v.trim().toLowerCase())
+                        : (profile.village ? [profile.village.trim().toLowerCase()] : []);
+                    const clash = pendingVillages.find(pv => existingVillages.includes(pv));
+                    if (clash) conflictVillage = clash;
                 }
             });
-            if (voExists) {
-                if (actionEl) actionEl.innerHTML = `<div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-2"></i>Cannot approve — a Village Officer already exists for <strong>${escapeHtml(u.village)}</strong>. Reject this request instead.</div>`;
+            if (conflictVillage) {
+                if (actionEl) actionEl.innerHTML = `<div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-2"></i>Cannot approve — a Village Officer already exists for <strong>${escapeHtml(conflictVillage)}</strong>. Reject this request instead.</div>`;
                 return;
             }
         }
@@ -7218,8 +7411,10 @@ async function approveRegistration(pendingKey) {
             email: u.email,
             role: u.role,
             district: u.district || '',
+            division: u.division || '',
             mandal: u.mandal || '',
             village: u.village || '',
+            createdAt: new Date().toISOString(),
             approvedAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         });
@@ -7425,7 +7620,9 @@ function applyProfileFieldConfig(role) {
     const missingDistrict = !document.getElementById('profileDistrict')?.value;
     const missingDivision = !document.getElementById('profileDivision')?.value;
     const missingMandal = config.requireMandal && !document.getElementById('profileMandal')?.value;
-    const missingVillage = config.requireVillage && !document.getElementById('profileVillage')?.value;
+    const _taggedVillages = (document.getElementById('profileVillagesHidden')?.value || '').split(',').filter(Boolean);
+    const _legacyVillage = document.getElementById('profileVillage')?.value || '';
+    const missingVillage = config.requireVillage && !_taggedVillages.length && !_legacyVillage;
     const shouldWarn = missingDistrict || missingDivision || missingMandal || missingVillage;
     alertEl.classList.toggle('hidden', !shouldWarn);
     if (shouldWarn) {
@@ -7616,6 +7813,14 @@ function validateAadhaar(aadhaar) {
              if (!year || !season) return alert('Select Crop Year and Season');
              if (uploadData.length === 0) return alert('No data to save. Please upload a report.');
 
+             // ── Multi-village: require an explicit village pick when VO handles >1 village ──
+             const _voVillages = getVoVillages();
+             const _uploadVillageEl = document.getElementById('uploadVillage');
+             const uploadVillage = (_uploadVillageEl && _uploadVillageEl.value) ? _uploadVillageEl.value.trim() : (_voVillages[0] || '');
+             if (_voVillages.length > 1 && !uploadVillage) {
+                 return alert('⚠️ Please select your Village before saving this report.');
+             }
+
              // Resolve column names from actual header row
              const colMap = resolveColumns(uploadData[0]);
              const getCol = (row, col) => col ? ((row[col] !== undefined && row[col] !== null) ? String(row[col]) : '') : '';
@@ -7701,7 +7906,9 @@ function validateAadhaar(aadhaar) {
              
                      // Sync to Cloud
         allReportsCache = allReportsCache || {};
-        allReportsCache[year + '_' + season] = {
+        const _saveReportKey = buildReportKey(uploadVillage, year, season);
+        allReportsCache[_saveReportKey] = {
+            village: uploadVillage || '',
             summary: {
                 totalFarmers: farmersSet.size || 0,
                 totalArea: parseFloat((Object.values(cropsSummary).reduce((s, c) => s + (isFinite(c.area) ? c.area : 0), 0)).toFixed(4)) || 0,
@@ -7712,10 +7919,12 @@ function validateAadhaar(aadhaar) {
         };
 
         saveToCloud();
-        alert(`✅ Report saved to Cloud!\nCrop Year: ${year} | Season: ${season}`);
+        alert(`✅ Report saved to Cloud!\nCrop Year: ${year} | Season: ${season}${uploadVillage ? ' | Village: ' + uploadVillage : ''}`);
         showSection('ePantaReportPage');
         document.getElementById('filterYear').value = year;
         document.getElementById('filterSeason').value = season;
+        const _filterVillageEl = document.getElementById('filterVillage');
+        if (_filterVillageEl && uploadVillage) _filterVillageEl.value = uploadVillage;
         loadReport();
     });
          
@@ -7724,8 +7933,19 @@ function validateAadhaar(aadhaar) {
              if(!isDataLoaded) return;
              const year = document.getElementById('filterYear').value, season = document.getElementById('filterSeason').value;
              if (!year || !season) return;
-             
-             const report = allReportsCache[year+'_'+season];
+
+             // ── Multi-village: require an explicit village pick when VO handles >1 village ──
+             const _voVillagesLR = getVoVillages();
+             const _filterVillageElLR = document.getElementById('filterVillage');
+             const village = (_filterVillageElLR && _filterVillageElLR.value) ? _filterVillageElLR.value.trim() : (_voVillagesLR[0] || '');
+             if (_voVillagesLR.length > 1 && !village) {
+                 const reportContainer = document.getElementById('reportContainer');
+                 if (reportContainer) reportContainer.innerHTML = `<div class="card p-5 border-0 shadow-sm text-center text-warning"><i class="fas fa-map-marker-alt fa-3x mb-3 opacity-50"></i><h4>Select a Village</h4><p class="text-muted">Please choose a village above, then click "Load Report".</p></div>`;
+                 return;
+             }
+             const reportKey = buildReportKey(village, year, season);
+
+             const report = allReportsCache[reportKey];
              const reportContainer = document.getElementById('reportContainer');
              
              if(!report) {
@@ -7760,10 +7980,10 @@ function validateAadhaar(aadhaar) {
              let html = `
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                    <div>
-                      <h5 class="mb-0 fw-bold text-primary"><i class="fas fa-file-alt me-2"></i>Report: ${escapeHtml(year)} &mdash; ${escapeHtml(season)}</h5>
+                      <h5 class="mb-0 fw-bold text-primary"><i class="fas fa-file-alt me-2"></i>Report: ${escapeHtml(year)} &mdash; ${escapeHtml(season)}${village ? ` &mdash; <span class="text-success">${escapeHtml(village)}</span>` : ''}</h5>
                    </div>
                    <button class="btn btn-danger btn-sm fw-semibold shadow-sm"
-                      onclick="deleteEPantaReport('${escapeHtml(year)}','${escapeHtml(season)}')">
+                      onclick="deleteEPantaReport('${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(village)}')">
                       <i class="fas fa-trash-alt me-1"></i> Delete This Report
                    </button>
                 </div>
@@ -7906,13 +8126,13 @@ function validateAadhaar(aadhaar) {
   document.addEventListener('click', function (e) {
     const cropBtn = e.target.closest('.crop-btn');
     if (cropBtn) {
-      showCropPage(decodeURIComponent(cropBtn.dataset.crop), `${year}_${season}`);
+      showCropPage(decodeURIComponent(cropBtn.dataset.crop), reportKey);
       return;
     }
 
     const farmerBtn = e.target.closest('.farmer-btn');
     if (farmerBtn) {
-      showFarmerPage(decodeURIComponent(farmerBtn.dataset.key), `${year}_${season}`);
+      showFarmerPage(decodeURIComponent(farmerBtn.dataset.key), reportKey);
       return;
     }
   });
@@ -7924,7 +8144,7 @@ function validateAadhaar(aadhaar) {
           type="button"
           class="card h-100 border-0 shadow-sm text-center w-100 p-0"
           data-role="${roleKey}"
-          data-period="${year}_${season}"
+          data-period="${reportKey}"
           style="cursor:pointer; border-left: 5px solid ${borderColor} !important; background: linear-gradient(135deg,${bgGradient});">
           <div class="card-body py-4">
             <div class="mb-3"><span style="font-size:2.5rem;">${emoji}</span></div>
@@ -7952,7 +8172,7 @@ function validateAadhaar(aadhaar) {
                 exportCropsBtn.addEventListener('click', function () {
                    const rows = [['Crop Name', 'Unique Farmers', 'Area (Acres)']];
                    report.summary.crops.forEach(c => rows.push([c.cropName, c.uniqueFarmers, c.areaSown.toFixed(2)]));
-                   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Crop_Summary'); XLSX.writeFile(wb, `CropSummary_${year}_${season}.xlsx`);
+                   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Crop_Summary'); XLSX.writeFile(wb, `CropSummary_${reportKey}.xlsx`);
                 });
              }
 
@@ -7964,7 +8184,7 @@ function validateAadhaar(aadhaar) {
                       const cells = tr.querySelectorAll('td');
                       if(cells.length === 5) rows.push([cells[0].innerText.trim(), cells[1].innerText.trim(), cells[2].innerText.trim(), cells[3].innerText.trim(), cells[4].innerText.trim()]);
                    });
-                   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Farmers'); XLSX.writeFile(wb, `Farmers_${year}_${season}.xlsx`);
+                   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Farmers'); XLSX.writeFile(wb, `Farmers_${reportKey}.xlsx`);
                 });
              }
          
@@ -7985,12 +8205,18 @@ function validateAadhaar(aadhaar) {
 });
              }
          
-             document.querySelectorAll('.crop-btn').forEach(b => b.onclick = () => { sessionStorage.setItem('selectedCropName', decodeURIComponent(b.dataset.crop)); sessionStorage.setItem('selectedReportKey', year+'_'+season); showCropFarmersPage(); });
+             document.querySelectorAll('.crop-btn').forEach(b => b.onclick = () => { sessionStorage.setItem('selectedCropName', decodeURIComponent(b.dataset.crop)); sessionStorage.setItem('selectedReportKey', reportKey); showCropFarmersPage(); });
              attachFarmerButtons();
          }
          
          function attachFarmerButtons() {
-             document.querySelectorAll('.farmer-btn').forEach(b => b.onclick = () => { sessionStorage.setItem('selectedFarmerKey', decodeURIComponent(b.dataset.key)); sessionStorage.setItem('selectedReportKey', document.getElementById('filterYear').value+'_'+document.getElementById('filterSeason').value); showFarmerDetailsPage(); });
+             document.querySelectorAll('.farmer-btn').forEach(b => b.onclick = () => {
+                 sessionStorage.setItem('selectedFarmerKey', decodeURIComponent(b.dataset.key));
+                 const _fy = document.getElementById('filterYear').value, _fs = document.getElementById('filterSeason').value;
+                 const _fv = document.getElementById('filterVillage')?.value || '';
+                 sessionStorage.setItem('selectedReportKey', buildReportKey(_fv, _fy, _fs));
+                 showFarmerDetailsPage();
+             });
          }
 
          // ── Pattadhar Role Drilldown ─────────────────────────────────────────────
@@ -8430,15 +8656,24 @@ document.getElementById(
         applyProfileFieldConfig(role);
 
         ensureAPLocationDataLoaded().then(() => {
-            populateProfileLocationControls(profile.district || '', profile.mandal || '', profile.village || '', profile.division || '');
+            // Use primary village for location cascade (loads mandal → village dropdown)
+            const primaryVillage = (profile.villages && profile.villages[0]) || profile.village || '';
+            populateProfileLocationControls(profile.district || '', profile.mandal || '', primaryVillage, profile.division || '');
             setSelectValue('profileDistrict', profile.district || '');
             setSelectValue('profileMandal', profile.mandal || '');
-            setSelectValue('profileVillage', profile.village || '');
             setSelectValue('profileDivision', profile.division || '');
             // Load sachivalayam for VO
             const sachEl = document.getElementById('profileSachivalayam');
             if (sachEl) sachEl.value = profile.sachivalayam || '';
             applyProfileFieldConfig(role);
+
+            // ── Populate multi-village tag UI ──
+            const savedVillages = Array.isArray(profile.villages) && profile.villages.length
+                ? profile.villages
+                : (profile.village ? [profile.village] : []);
+            const hiddenInput = document.getElementById('profileVillagesHidden');
+            if (hiddenInput) hiddenInput.value = savedVillages.join(',');
+            renderProfileVillageTags(savedVillages);
         });
 
         const roleEl = document.getElementById('profileRole');
@@ -8456,7 +8691,8 @@ document.getElementById(
         const alertEl = document.getElementById('profileLocationAlert');
         if (alertEl) {
             const config = getProfileFieldConfig(role);
-            const missingLocation = !profile.district || !profile.division || (config.requireMandal && !profile.mandal) || (config.requireVillage && !profile.village);
+            const _hasVillage = (Array.isArray(profile.villages) && profile.villages.length > 0) || !!profile.village;
+            const missingLocation = !profile.district || !profile.division || (config.requireMandal && !profile.mandal) || (config.requireVillage && !_hasVillage);
             if (missingLocation) {
                 alertEl.classList.remove('hidden');
             } else {
@@ -8476,13 +8712,21 @@ document.getElementById(
     const name = document.getElementById('profileDisplayName').value.trim();
     const district = document.getElementById('profileDistrict').value.trim();
     const mandal = document.getElementById('profileMandal').value.trim();
-    const village = document.getElementById('profileVillage').value.trim();
     const division = document.getElementById('profileDivision').value.trim();
     const sachivalayam = document.getElementById('profileSachivalayam')?.value.trim() || '';
 
+    // Villages are stored as tags in #profileVillagesHidden (comma-separated).
+    // #profileVillage itself is reset to '' after each tag is added, so it
+    // must NOT be used alone to decide whether a village was picked.
+    const taggedVillages = (document.getElementById('profileVillagesHidden')?.value || '')
+        .split(',').map(v => v.trim()).filter(Boolean);
+    const legacyVillage = document.getElementById('profileVillage')?.value.trim() || '';
+    const villages = taggedVillages.length ? taggedVillages : (legacyVillage ? [legacyVillage] : []);
+    const village = villages[0] || ''; // primary/legacy single-village field
+
     if (!district || !division) return alert('Please select District and Division.');
     if (config.requireMandal && !mandal) return alert('Please select your Mandal.');
-    if (config.requireVillage && !village) return alert('Please select your Village.');
+    if (config.requireVillage && villages.length === 0) return alert('Please select your Village.');
 
     const pendingSig = window._pendingSignatureBase64 || null;
     const updateObj = {
@@ -8492,7 +8736,7 @@ document.getElementById(
         updatedAt: new Date().toISOString()
     };
     if (config.requireMandal) updateObj.mandal = mandal;
-    if (config.requireVillage) { updateObj.village = village; updateObj.sachivalayam = sachivalayam; }
+    if (config.requireVillage) { updateObj.village = village; updateObj.villages = villages; updateObj.sachivalayam = sachivalayam; }
     if (pendingSig) updateObj.signatureBase64 = pendingSig;
 
     user.updateProfile({ displayName: name }).then(() =>
@@ -8583,8 +8827,15 @@ function syncProfileToCloud() {
     const name = document.getElementById('profileDisplayName')?.value?.trim() || user.displayName || '';
     const district = document.getElementById('profileDistrict')?.value?.trim() || '';
     const mandal = document.getElementById('profileMandal')?.value?.trim() || '';
-    const village = document.getElementById('profileVillage')?.value?.trim() || '';
     const division = document.getElementById('profileDivision')?.value?.trim() || '';
+
+    // ── Multi-village: read from hidden input (populated by tag UI) ──
+    const villagesRaw = document.getElementById('profileVillagesHidden')?.value || '';
+    const villageList = villagesRaw ? villagesRaw.split(',').map(v => v.trim()).filter(Boolean) : [];
+    // Fallback: if tag UI isn't active, read legacy single select
+    const legacySingle = document.getElementById('profileVillage')?.value?.trim() || '';
+    if (!villageList.length && legacySingle) villageList.push(legacySingle);
+    const village = villageList[0] || '';   // primary village (backwards compat)
 
     // Build sync payload: profile metadata + all app data
     const profilePayload = {
@@ -8595,7 +8846,10 @@ function syncProfileToCloud() {
         updatedAt: new Date().toISOString()
     };
     if (config.requireMandal) profilePayload.mandal = mandal;
-    if (config.requireVillage) profilePayload.village = village;
+    if (config.requireVillage) {
+        profilePayload.village  = village;           // primary (backwards compat)
+        profilePayload.villages = villageList;       // full list
+    }
 
     const appData = {
         allReports:     allReportsCache  || {},
@@ -8619,6 +8873,14 @@ function syncProfileToCloud() {
         // Update display name in navbar
         const emailEl = document.getElementById('userEmail');
         if (emailEl && name) emailEl.textContent = name;
+        // Refresh multi-village picker in case village list changed
+        if (typeof initFpVillagePicker === 'function') setTimeout(initFpVillagePicker, 400);
+        if (typeof initVillagePicker === 'function') {
+            setTimeout(() => {
+                initVillagePicker('uploadVillageRow', 'uploadVillage');
+                initVillagePicker('filterVillageRow', 'filterVillage');
+            }, 400);
+        }
     }).catch(err => {
         if (statusEl) {
             statusEl.innerHTML = `<div class="alert alert-danger py-2 mb-0">
@@ -10266,6 +10528,15 @@ if (fileInput) {
     fileInput.addEventListener("change", e => {
         const file = e.target.files[0];
         if (!file) { refreshUploadInfo(); return; }
+
+        // ── Validate village selection for multi-village VOs ──
+        const _oneBVSel = document.getElementById('oneBVillageSelect');
+        const _voVillagesCheck = typeof getVoVillages === 'function' ? getVoVillages() : [];
+        if (_voVillagesCheck.length > 1 && _oneBVSel && !_oneBVSel.value) {
+            alert('⚠️ Please select a village before uploading the 1B file.\n\nEach village has its own 1B data — choose the correct village first.');
+            e.target.value = '';
+            return;
+        }
 
         setSelectedFertilizerKey();
         const fert   = selectedFertilizerKey;
@@ -12259,10 +12530,375 @@ window.filterModalHistory = function() {
 };
 
 // ============================================================
-// FERTILIZER ABSTRACT REPORT - COMPLETE FIX
+// VO: INLINE FERTILIZER DISTRIBUTION HISTORY (replaces old modal popup)
+// Mirrors the Retailer's loadRetailerHistory() — KPI cards, day-wise
+// distribution, village-wise breakdown, and a full searchable table —
+// but rendered inline on the page instead of a modal.
 // ============================================================
+window.voLoadFertilizerHistory = function() {
+    const container = document.getElementById('voHistoryContainer');
+    if (!container) return;
 
-// ── Populate Crop Dropdown ──
+    const year   = document.getElementById('absYear')?.value || '';
+    const season = document.getElementById('absSeason')?.value || '';
+    const fert   = document.getElementById('absFert')?.value || 'All';
+    const crop   = document.getElementById('absCrop')?.value || 'All';
+
+    // ── Village filter for multi-village VOs ──
+    const _absVillageSel = document.getElementById('absVillage');
+    const _absVoVillages = typeof getVoVillages === 'function' ? getVoVillages() : [];
+    const absVillage = (_absVillageSel && _absVillageSel.value) ? _absVillageSel.value.trim()
+        : (_absVoVillages.length === 1 ? _absVoVillages[0] : '');
+    if (_absVoVillages.length > 1 && !absVillage) {
+        container.innerHTML = `
+        <div class="alert alert-warning d-flex align-items-center gap-3" style="border-radius:10px;">
+            <i class="fas fa-map-marker-alt fa-lg text-warning flex-shrink-0"></i>
+            <div>Please select a <strong>Village</strong> above, then click <strong>Show</strong>.</div>
+        </div>`;
+        window._voHistoryFiltersApplied = false;
+        return;
+    }
+
+    if (!year || !season) {
+        container.innerHTML = `
+        <div class="alert alert-warning d-flex align-items-center gap-3" style="border-radius:10px;">
+            <i class="fas fa-exclamation-triangle fa-lg text-warning flex-shrink-0"></i>
+            <div>Please select <strong>Crop Year</strong> &amp; <strong>Season</strong> above, then click <strong>Show</strong>.</div>
+        </div>`;
+        window._voHistoryFiltersApplied = false;
+        return;
+    }
+
+    window._voHistoryFiltersApplied = true;
+    container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-secondary"></i><p class="mt-2">Loading history…</p></div>';
+
+    const finish = (history) => {
+        let records = (Array.isArray(history) ? history : []).filter(r => r && r.status !== 'Cancelled' && r.status !== 'Deleted');
+
+        // ── Apply filters: Year & Season required, Fertilizer & Crop optional, Village if multi-VO ──
+        records = records.filter(r => {
+            if (String(r.year || '').trim() !== String(year).trim()) return false;
+            if (String(r.season || '').trim() !== String(season).trim()) return false;
+            if (fert !== 'All' && String(r.fertilizerType || r.fert || 'Urea').trim() !== fert) return false;
+            if (crop !== 'All' && String(r.crop || r.crops || '').trim().toLowerCase() !== crop.trim().toLowerCase()) return false;
+            if (absVillage && String(r.village || '').trim().toLowerCase() !== absVillage.toLowerCase()) return false;
+            return true;
+        });
+
+        if (!records.length) {
+            container.innerHTML = `
+            <div class="alert alert-secondary d-flex align-items-center gap-3" style="border-radius:10px;">
+                <i class="fas fa-info-circle fa-2x text-secondary flex-shrink-0"></i>
+                <div>
+                    <div class="fw-bold">No Distribution Records Found</div>
+                    <div class="small text-muted">
+                        Year: ${escapeHtml(year)} · Season: ${escapeHtml(season)} · Fertilizer: ${escapeHtml(fert)} · Crop: ${escapeHtml(crop)}
+                    </div>
+                </div>
+            </div>`;
+            return;
+        }
+
+        // Sort newest first
+        records.sort((a, b) => {
+            const toMs = v => {
+                if (!v) return 0;
+                if (typeof v === 'number') return v;
+                const n = Number(v); if (!isNaN(n)) return n;
+                return new Date(v).getTime() || 0;
+            };
+            return toMs(b.verifiedAt || b.distributedAt || b.date) - toMs(a.verifiedAt || a.distributedAt || a.date);
+        });
+
+        const distributedCount = records.filter(r => r.status !== 'Rejected').length;
+        const rejectedCount = records.filter(r => r.status === 'Rejected').length;
+
+        const totalDistBags = records.filter(r => r.status !== 'Rejected').reduce((s, r) => s + (Number(r.bags) || 0), 0);
+        const totalDistFarmers = new Set(records.filter(r => r.status !== 'Rejected').map(r => (r.aadhaar || r.farmerName || '').trim())).size;
+        const totalDistCount = records.filter(r => r.status !== 'Rejected').length;
+        const totalDistMts = records.filter(r => r.status !== 'Rejected').reduce((s, r) => s + ((Number(r.bags) || 0) * getFertBagWeightKg(r.fertilizerType || r.fert || 'Urea')) / 1000, 0);
+        const totalDistExtent = records.filter(r => r.status !== 'Rejected').reduce((s, r) => s + (Number(r.extent) || 0), 0);
+        const bagsPerAcre = totalDistExtent > 0 ? (totalDistBags / totalDistExtent).toFixed(2) : 'N/A';
+
+        // ── Day-wise distribution (defaults to today; VO can pick any date) ──
+        const voTodayStr = new Date().toISOString().slice(0, 10);
+        const voTodayRecords = records.filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === voTodayStr);
+        const voTodayDistCount = voTodayRecords.length;
+        const voTodayBagCount = voTodayRecords.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+
+        // ── Main table rows ──
+        const rows = records.map((r, i) => {
+            const isRejected = r.status === 'Rejected';
+            const actionDate = r.verifiedAt || r.rejectedAt || r.distributedAt || r.date || '';
+            const isFarmerCardQR = r.distributedVia === 'farmerCardQR' || r.distributedByRetailer === true || r.retailerDistributedViaFarmerCard === true;
+            const sourceTag = isFarmerCardQR
+                ? `<span class="badge ms-1" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;font-size:0.6rem;vertical-align:middle;">📲 Card QR</span>`
+                : '';
+            const statusBadge = isRejected
+                ? `<span class="badge bg-danger"><i class="fas fa-times me-1"></i>Rejected</span>`
+                : `<span class="badge bg-success"><i class="fas fa-check me-1"></i>Distributed</span>`;
+            const outletDisplay = escapeHtml(r.outletName || r.outletId || '—');
+            const allCrops = escapeHtml(r.crops || r.crop || '—');
+
+            return `<tr class="${isRejected ? 'table-danger bg-opacity-25' : ''}">
+                <td class="text-muted">${i + 1}</td>
+                <td>${statusBadge}</td>
+                <td class="small">${escapeHtml(r.date || '')}</td>
+                <td class="fw-semibold small">${escapeHtml(r.farmerName || '—')}</td>
+                <td class="small" style="white-space:nowrap;">${r.aadhaar ? `<code class="bg-light px-1 py-0 rounded border" style="font-size:0.78rem;color:#1862ab;font-family:monospace;letter-spacing:0.5px;white-space:nowrap;">${escapeHtml(String(r.aadhaar).replace(/\s/g,'').replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3'))}</code>` : '<span class="text-muted">—</span>'}</td>
+                <td class="small text-muted">${escapeHtml(r.fatherName || '—')}</td>
+                <td class="small text-muted" style="font-family:monospace;">${escapeHtml(r.mobile || '—')}</td>
+                <td class="small text-muted">${escapeHtml(r.khatha || r.khathaNo || '—')}</td>
+                <td class="small text-muted">${r.extent ? Number(r.extent).toFixed(2) : '—'}</td>
+                <td class="small">${allCrops}</td>
+                <td><span class="badge bg-warning text-dark">${escapeHtml(r.fertilizerType || 'Urea')}</span>${sourceTag}</td>
+                <td class="${isRejected ? 'text-danger' : 'text-success fw-bold'}">${isRejected ? '—' : (r.bags || 0)}</td>
+                <td class="small text-muted">${escapeHtml(r.season || '—')}</td>
+                <td class="small text-muted">${escapeHtml(r.year || '—')}</td>
+                <td class="small text-muted">${outletDisplay}</td>
+                <td class="small text-muted" style="max-width:130px;">
+                    ${isRejected ? escapeHtml(r.rejectionReason || '—') : (actionDate ? new Date(actionDate).toLocaleString('en-IN') : '—')}
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `
+        <!-- ── Abstract Report ── -->
+        <div id="voAbstractReport" style="background:linear-gradient(135deg,#f8f9ff,#eef3ff);border:1.5px solid #c5d5f0;border-radius:16px;padding:1.1rem 1.3rem;margin-bottom:1.1rem;">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span style="background:linear-gradient(135deg,#1862ab,#0d4d86);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-chart-bar text-white" style="font-size:0.85rem;"></i>
+                    </span>
+                    <div>
+                        <div style="font-size:0.85rem;font-weight:800;color:#1862ab;text-transform:uppercase;letter-spacing:1.2px;font-family:'Montserrat',sans-serif;">Abstract Report</div>
+                        <div style="font-size:0.7rem;color:#6c757d;font-weight:500;font-family:'Poppins',sans-serif;">${escapeHtml(year)} · ${escapeHtml(season)} · ${fert === 'All' ? 'All Fertilizers' : escapeHtml(fert)} · ${crop === 'All' ? 'All Crops' : escapeHtml(crop)}</div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <input type="text" id="voHistSearchInput" class="form-control form-control-sm" style="max-width:220px;border-radius:20px;font-size:0.8rem;" placeholder="🔍 Search name, aadhaar, crop..." oninput="voFilterHistoryTable()">
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-md-3">
+                    <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #c8f5d8;text-align:center;height:100%;">
+                        <div style="font-size:1.6rem;font-weight:800;color:#1a7a3c;line-height:1;font-family:'Poppins',sans-serif;">${totalDistFarmers}</div>
+                        <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;font-family:'Poppins',sans-serif;"><i class="fas fa-users me-1 text-success"></i>Farmers Availed</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #d0e8ff;text-align:center;height:100%;">
+                        <div style="font-size:1.6rem;font-weight:800;color:#1862ab;line-height:1;font-family:'Poppins',sans-serif;">${totalDistBags}</div>
+                        <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;font-family:'Poppins',sans-serif;"><i class="fas fa-sack me-1 text-primary"></i>Total Bags</div>
+                        <div style="font-size:0.65rem;color:#95a5a6;margin-top:1px;">${totalDistMts.toFixed(2)} MT</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #ffe8c0;text-align:center;height:100%;">
+                        <div style="font-size:1.6rem;font-weight:800;color:#e67e22;line-height:1;font-family:'Poppins',sans-serif;">${totalDistExtent.toFixed(2)}</div>
+                        <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;font-family:'Poppins',sans-serif;"><i class="fas fa-seedling me-1" style="color:#e67e22;"></i>Extent (Ac)</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #f5d0d0;text-align:center;height:100%;">
+                        <div style="font-size:1.6rem;font-weight:800;color:#c0392b;line-height:1;font-family:'Poppins',sans-serif;">${rejectedCount}</div>
+                        <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;font-family:'Poppins',sans-serif;"><i class="fas fa-times-circle me-1 text-danger"></i>Rejected</div>
+                    </div>
+                </div>
+            </div>
+            <div class="small text-muted mb-3" style="font-family:'Poppins',sans-serif;">
+                <i class="fas fa-balance-scale me-1"></i><span class="fw-semibold text-primary">${bagsPerAcre}</span> bags/acre
+                &nbsp;|&nbsp; ${records.length} distribution record${records.length !== 1 ? 's' : ''}
+            </div>
+
+            <!-- Day-wise Distribution -->
+            <div style="background:#fff;border-radius:12px;padding:0.7rem 1rem;border:1.5px solid #d0e8ff;margin-bottom:0.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.6rem;">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <i class="fas fa-calendar-day text-primary"></i>
+                    <span style="font-size:0.73rem;font-weight:700;color:#495057;text-transform:uppercase;letter-spacing:0.5px;font-family:'Poppins',sans-serif;">Day-wise Distribution</span>
+                    <input type="date" id="voDayDistDate" class="form-control form-control-sm" style="width:155px;" value="${voTodayStr}" max="${voTodayStr}" onchange="voUpdateDayDistribution()">
+                </div>
+                <div class="text-center" style="cursor:pointer;" onclick="voToggleDayDistFarmerList()" title="Click to view farmer list for this date">
+                    <div style="font-size:1.5rem;font-weight:800;color:#1862ab;line-height:1;font-family:'Poppins',sans-serif;" id="voDayDistCount">${voTodayDistCount}</div>
+                    <div style="font-size:0.65rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Distributed</div>
+                    <div style="font-size:0.62rem;color:#1862ab;font-weight:700;text-decoration:underline;margin-top:1px;" id="voDayDistToggleLabel">View list</div>
+                </div>
+                <div class="text-center">
+                    <div style="font-size:1.5rem;font-weight:800;color:#e67e22;line-height:1;font-family:'Poppins',sans-serif;" id="voDayDistBags">${voTodayBagCount}</div>
+                    <div style="font-size:0.65rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Bags</div>
+                </div>
+            </div>
+
+            <!-- Day-wise farmer list (hidden until 'View list' is clicked) -->
+            <div id="voDayDistFarmerListWrap" style="display:none;margin:0.6rem 0 0;">
+                <div class="table-responsive" style="border-radius:10px;overflow:hidden;border:1px solid #dee2e6;">
+                <table class="table table-sm mb-0" style="font-size:0.8rem;">
+                    <thead style="background:linear-gradient(135deg,#1862ab,#0d4d86);color:#fff;">
+                        <tr>
+                            <th style="padding:7px 10px;width:32px;">#</th>
+                            <th style="padding:7px 8px;">Farmer Name</th>
+                            <th style="padding:7px 8px;">Mobile</th>
+                            <th style="padding:7px 8px;">Fertilizer</th>
+                            <th style="padding:7px 8px;text-align:center;width:60px;">Bags</th>
+                            <th style="padding:7px 10px;">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="voDayDistFarmerTbody"></tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Main Table ── -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="d-flex gap-2 flex-wrap">
+                <span class="badge bg-success px-3 py-2" style="border-radius:20px;font-size:.82rem;">
+                    <i class="fas fa-check-circle me-1"></i>${distributedCount} Distributed
+                </span>
+                <span class="badge bg-danger px-3 py-2" style="border-radius:20px;font-size:.82rem;">
+                    <i class="fas fa-times-circle me-1"></i>${rejectedCount} Rejected
+                </span>
+                <span class="badge bg-secondary px-3 py-2" style="border-radius:20px;font-size:.82rem;">
+                    <i class="fas fa-list me-1"></i>${records.length} Total
+                </span>
+            </div>
+            <button class="btn btn-success btn-sm fw-semibold" style="border-radius:20px;" onclick="exportUreaData()">
+                <i class="fas fa-file-excel me-1"></i> Export Excel
+            </button>
+        </div>
+        <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle" style="font-size:.82rem;" id="voHistoryTable">
+            <thead style="background:linear-gradient(135deg,#495057,#343a40);color:white;font-size:0.78rem;">
+                <tr>
+                    <th style="width:36px">#</th>
+                    <th style="width:88px">Status</th>
+                    <th style="width:82px">Date</th>
+                    <th style="min-width:115px">Farmer Name</th>
+                    <th style="min-width:145px;white-space:nowrap;">Aadhaar No.</th>
+                    <th style="min-width:110px">Father Name</th>
+                    <th style="width:92px">Mobile</th>
+                    <th style="width:72px">Khatha</th>
+                    <th style="width:68px">Extent(ac)</th>
+                    <th style="min-width:90px">Crop(s)</th>
+                    <th style="width:85px">Fertilizer</th>
+                    <th style="width:48px">Bags</th>
+                    <th style="width:65px">Season</th>
+                    <th style="width:52px">Year</th>
+                    <th style="width:100px">Outlet</th>
+                    <th style="width:120px">Action / Date</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table></div>`;
+
+        // Store for day-wise farmer list + filtering + export
+        window._voHistoryRecords = records;
+        window._abstractData = {
+            farmers: Array.from(new Set(records.filter(r => r.status !== 'Rejected').map(r => (r.aadhaar || '').trim()))).filter(Boolean),
+            totalBags: totalDistBags,
+            totalMts: totalDistMts,
+            totalExtent: totalDistExtent,
+            farmerCount: totalDistFarmers,
+            bagsPerAcre,
+            year, season, fert, crop
+        };
+    };
+
+    let history = window.ureaHistory || [];
+    if (history && history.length) { finish(history); return; }
+
+    const user = firebase.auth().currentUser;
+    if (user) {
+        const cached = localStorage.getItem(`epanta_${user.uid}_ureaHistory`);
+        if (cached) {
+            try {
+                history = JSON.parse(cached);
+                window.ureaHistory = history;
+                if (history && history.length) { finish(history); return; }
+            } catch (e) {}
+        }
+        database.ref('users/' + user.uid + '/ureaHistory').once('value').then(snap => {
+            if (snap.exists()) {
+                const data = snap.val();
+                const arr = Array.isArray(data) ? data : Object.values(data).filter(v => v && typeof v === 'object');
+                window.ureaHistory = arr;
+                finish(arr);
+            } else {
+                finish([]);
+            }
+        }).catch(err => {
+            console.error('voLoadFertilizerHistory error:', err);
+            finish([]);
+        });
+    } else {
+        finish([]);
+    }
+};
+
+// ── VO: search/filter the inline history table ──
+window.voFilterHistoryTable = function() {
+    const searchVal = (document.getElementById('voHistSearchInput')?.value || '').toLowerCase();
+    const rows = document.querySelectorAll('#voHistoryTable tbody tr');
+    rows.forEach(r => {
+        const text = r.textContent.toLowerCase();
+        r.style.display = (!searchVal || text.includes(searchVal)) ? '' : 'none';
+    });
+};
+
+// ── VO: recompute Day-wise Distribution count for the picked date ──
+window.voUpdateDayDistribution = function() {
+    const dateInput = document.getElementById('voDayDistDate');
+    const countEl = document.getElementById('voDayDistCount');
+    const bagsEl = document.getElementById('voDayDistBags');
+    if (!dateInput || !countEl || !bagsEl) return;
+    const dateStr = dateInput.value;
+    const records = window._voHistoryRecords || [];
+    const dayRecords = records.filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === dateStr);
+    countEl.textContent = dayRecords.length;
+    bagsEl.textContent = dayRecords.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+    const listWrap = document.getElementById('voDayDistFarmerListWrap');
+    if (listWrap && listWrap.style.display !== 'none') {
+        window.voToggleDayDistFarmerList(true);
+    }
+};
+
+// ── VO: toggle the farmer list for the selected day ──
+window.voToggleDayDistFarmerList = function(forceShow) {
+    const wrap = document.getElementById('voDayDistFarmerListWrap');
+    const label = document.getElementById('voDayDistToggleLabel');
+    const tbody = document.getElementById('voDayDistFarmerTbody');
+    if (!wrap || !tbody) return;
+
+    const shouldShow = forceShow === true || wrap.style.display === 'none';
+    if (!shouldShow) {
+        wrap.style.display = 'none';
+        if (label) label.textContent = 'View list';
+        return;
+    }
+
+    const dateStr = document.getElementById('voDayDistDate')?.value || new Date().toISOString().slice(0, 10);
+    const records = window._voHistoryRecords || [];
+    const dayRecords = records.filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === dateStr);
+
+    tbody.innerHTML = dayRecords.map((r, i) => {
+        const actionDate = r.verifiedAt || r.distributedAt || r.date || '';
+        return `<tr>
+            <td style="padding:6px 10px;">${i + 1}</td>
+            <td style="padding:6px 8px;" class="fw-semibold">${escapeHtml(r.farmerName || '—')}</td>
+            <td style="padding:6px 8px;font-family:monospace;">${escapeHtml(r.mobile || '—')}</td>
+            <td style="padding:6px 8px;"><span class="badge bg-warning text-dark">${escapeHtml(r.fertilizerType || 'Urea')}</span></td>
+            <td style="padding:6px 8px;text-align:center;" class="fw-bold text-success">${r.bags || 0}</td>
+            <td style="padding:6px 10px;" class="small text-muted">${actionDate ? new Date(actionDate).toLocaleTimeString('en-IN') : '—'}</td>
+        </tr>`;
+    }).join('') || `<tr><td colspan="6" class="text-center text-muted py-3">No distributions on this date</td></tr>`;
+
+    wrap.style.display = '';
+    if (label) label.textContent = 'Hide list';
+};
+
+
 window.populateAbstractCropDropdown = function() {
     const sel = document.getElementById('absCrop');
     if (!sel) return;
@@ -12292,7 +12928,6 @@ window.populateAbstractCropDropdown = function() {
 
 // ── GENERATE ABSTRACT REPORT ──
 window.generateUreaAbstractReport = function() {
-    console.log('generateUreaAbstractReport called');
     
     const year   = document.getElementById('absYear')?.value || '';
     const season = document.getElementById('absSeason')?.value || '';
@@ -12431,14 +13066,14 @@ window.generateUreaAbstractReport = function() {
         farmerListHtml = `
         <div class="mt-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="fw-bold mb-0"><i class="fas fa-users me-2"></i>Farmers Who Availed Bags (${farmerCount})</h6>
-                <button class="btn btn-sm btn-outline-success" onclick="window.exportAbstractFarmerList()">
+                <h6 class="fw-bold mb-0" style="font-family:'Poppins',sans-serif;color:#1862ab;"><i class="fas fa-users me-2"></i>Farmers Who Availed Bags (${farmerCount})</h6>
+                <button class="btn btn-sm btn-outline-success fw-semibold" style="border-radius:20px;" onclick="window.exportAbstractFarmerList()">
                     <i class="fas fa-file-excel me-1"></i>Export
                 </button>
             </div>
-            <div class="table-responsive" style="max-height:300px; overflow-y:auto;">
-                <table class="table table-sm table-hover mb-0" id="abstractFarmerTable">
-                    <thead class="table-light sticky-top">
+            <div class="table-responsive" style="max-height:300px; overflow-y:auto; border-radius:10px; border:1px solid #dee2e6;">
+                <table class="table table-sm table-hover mb-0" id="abstractFarmerTable" style="font-size:0.82rem;">
+                    <thead class="sticky-top" style="background:linear-gradient(135deg,#1862ab,#0d4d86);color:#fff;">
                         <tr>
                             <th>#</th>
                             <th>Farmer Name</th>
@@ -12463,37 +13098,34 @@ window.generateUreaAbstractReport = function() {
     }
 
     resultEl.innerHTML = `
-        <div class="row g-3 text-center mt-2">
-            <div class="col-md-3">
-                <div class="border rounded p-3 h-100 bg-light">
-                    <div class="text-muted small">Number of Farmers</div>
-                    <div class="fs-3 fw-bold text-success">${farmerCount}</div>
-                    <div class="text-muted small" style="font-size:0.65rem;">who availed bags</div>
+        <div class="row g-2 mb-3" style="margin-top:0.25rem;">
+            <div class="col-6 col-md-3">
+                <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #c8f5d8;text-align:center;height:100%;">
+                    <div style="font-size:1.6rem;font-weight:800;color:#1a7a3c;line-height:1;font-family:'Poppins',sans-serif;">${farmerCount}</div>
+                    <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;font-family:'Poppins',sans-serif;"><i class="fas fa-users me-1 text-success"></i>Farmers Availed</div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="border rounded p-3 h-100 bg-light">
-                    <div class="text-muted small">Total Bags</div>
-                    <div class="fs-3 fw-bold text-primary">${totalBags}</div>
-                    <div class="text-muted small">${totalMts.toFixed(2)} MT</div>
+            <div class="col-6 col-md-3">
+                <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #d0e8ff;text-align:center;height:100%;">
+                    <div style="font-size:1.6rem;font-weight:800;color:#1862ab;line-height:1;font-family:'Poppins',sans-serif;">${totalBags}</div>
+                    <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;font-family:'Poppins',sans-serif;"><i class="fas fa-sack me-1 text-primary"></i>Total Bags</div>
+                    <div style="font-size:0.65rem;color:#95a5a6;margin-top:1px;">${totalMts.toFixed(2)} MT</div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="border rounded p-3 h-100 bg-light">
-                    <div class="text-muted small">Extent Covered (ac)</div>
-                    <div class="fs-3 fw-bold text-warning">${totalExtent.toFixed(2)}</div>
-                    <div class="text-muted small" style="font-size:0.65rem;">from distribution records</div>
+            <div class="col-6 col-md-3">
+                <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #ffe8c0;text-align:center;height:100%;">
+                    <div style="font-size:1.6rem;font-weight:800;color:#e67e22;line-height:1;font-family:'Poppins',sans-serif;">${totalExtent.toFixed(2)}</div>
+                    <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;font-family:'Poppins',sans-serif;"><i class="fas fa-seedling me-1" style="color:#e67e22;"></i>Extent (Ac)</div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="border rounded p-3 h-100 bg-light">
-                    <div class="text-muted small">Bags per Acre</div>
-                    <div class="fs-3 fw-bold text-info">${bagsPerAcre}</div>
-                    <div class="text-muted small" style="font-size:0.65rem;">${fert === 'All' ? 'All fertilizers' : escapeHtml(fert)}</div>
+            <div class="col-6 col-md-3">
+                <div style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #d0d8f5;text-align:center;height:100%;">
+                    <div style="font-size:1.6rem;font-weight:800;color:#5e35b1;line-height:1;font-family:'Poppins',sans-serif;">${bagsPerAcre}</div>
+                    <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;font-family:'Poppins',sans-serif;"><i class="fas fa-balance-scale me-1" style="color:#5e35b1;"></i>Bags / Acre</div>
                 </div>
             </div>
         </div>
-        <div class="small text-muted mt-2">
+        <div class="small text-muted mt-2" style="font-family:'Poppins',sans-serif;">
             <i class="fas fa-info-circle me-1"></i>
             ${escapeHtml(year)} · ${escapeHtml(season)} · ${fert === 'All' ? 'All Fertilizers' : escapeHtml(fert)} · ${crop === 'All' ? 'All Crops' : escapeHtml(crop)}
             &nbsp;|&nbsp; ${filtered.length} distribution record${filtered.length !== 1 ? 's' : ''}
@@ -12583,7 +13215,12 @@ window.initAbstractReport = function() {
 
 // ── Export Urea Data ──
 window.exportUreaData = function() {
-    const history = Array.isArray(window.ureaHistory) ? window.ureaHistory : [];
+    // Prefer the currently filtered/shown list (Year/Season/Fertilizer/Crop applied
+    // via the "Show" button) so the export matches what's on screen. Falls back to
+    // the full unfiltered history if nothing has been shown yet.
+    const history = Array.isArray(window._voHistoryRecords) && window._voHistoryRecords.length
+        ? window._voHistoryRecords
+        : (Array.isArray(window.ureaHistory) ? window.ureaHistory : []);
     if (!history.length) {
         alert('No history records to export.');
         return;
@@ -12638,7 +13275,10 @@ window.exportUreaData = function() {
             {wch:10},{wch:8},{wch:12},{wch:16},{wch:20}
         ];
         XLSX.utils.book_append_sheet(wb, ws, "FertilizerHistory");
-        XLSX.writeFile(wb, `FertilizerHistory_${formatToday()}.xlsx`);
+        const _fname = (window._abstractData && window._abstractData.year)
+            ? `FertilizerHistory_${window._abstractData.year}_${window._abstractData.season}_${formatToday()}.xlsx`
+            : `FertilizerHistory_${formatToday()}.xlsx`;
+        XLSX.writeFile(wb, _fname);
     } catch(e) {
         alert('Export failed: ' + e.message);
     }
@@ -13007,7 +13647,6 @@ async function cascadeMultiProfileUpdates(aadhaar, newCardNumber, newApfrNumber)
 
             if (Object.keys(updatePayload).length > 0) {
                 await userRef.update(updatePayload);
-                console.log(`Cascaded global configurations to structural records matching the input.`);
             }
         }
     } catch (e) {
@@ -13030,7 +13669,6 @@ async function recycleDeletedCardNumber(profileData) {
 
     try {
         await database.ref(`registrationRecycled/${key}`).push(cardNo);
-        console.log(`Recycled deleted Card Number: ${cardNo} back to active pool.`);
     } catch (e) {
         console.error("Error archiving to recycling index:", e);
     }
@@ -13168,7 +13806,13 @@ async function saveFarmerProfile() {
     // ── Generate Automatic Card Number if missing ──
     const user = firebase.auth().currentUser;
     const profileSnap = await database.ref(`users/${user.uid}/profile`).once('value');
-    const userVillage = profileSnap.val()?.village || 'Unknown';
+    const _profData = profileSnap.val() || {};
+    // If VO handles multiple villages, use the selected village from the fp form;
+    // fall back to primary profile village
+    const _voVillagesList = Array.isArray(_profData.villages) && _profData.villages.length
+        ? _profData.villages : (_profData.village ? [_profData.village] : ['Unknown']);
+    const _fpVillageEl = document.getElementById('fpVillageSelect');
+    const userVillage = (_fpVillageEl && _fpVillageEl.value) ? _fpVillageEl.value : _voVillagesList[0] || 'Unknown';
     const finalCardNumber = await generateAutomaticCardNumber(a, userVillage, selectedYear, selectedSeason);
 
     if (!farmerProfiles[a]) farmerProfiles[a] = [];
@@ -14913,7 +15557,13 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
     let allProfiles = [];
     Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
         (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
-            allProfiles.push({ ...p, aadhaar });
+            // ── Only include manually saved profiles (must have farmerName, khatha, savedAt, and at least one crop) ──
+            const isSaved = p &&
+                p.savedAt &&
+                (p.farmerName || '').trim() &&
+                (p.khatha || '').trim() &&
+                Array.isArray(p.crops) && p.crops.length > 0;
+            if (isSaved) allProfiles.push({ ...p, aadhaar });
         });
     });
 
@@ -15150,7 +15800,7 @@ function deleteFarmerProfile(aadhaar, khatha) {
         
         // Push the string directly back into the dynamic recycling collection pool
         database.ref(`registrationRecycled/${key}`).push(cardNumberToRecycle)
-            .then(() => console.log(`Card Number ${cardNumberToRecycle} successfully recycled to pool path: registrationRecycled/${key}`))
+            
             .catch(e => console.error('Error writing to recycling pool:', e));
     }
 
@@ -15226,7 +15876,13 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '') {
     let allProfiles = [];
     Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
         (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
-            allProfiles.push({ ...p, aadhaar });
+            // ── Only include manually saved profiles ──
+            const isSaved = p &&
+                p.savedAt &&
+                (p.farmerName || '').trim() &&
+                (p.khatha || '').trim() &&
+                Array.isArray(p.crops) && p.crops.length > 0;
+            if (isSaved) allProfiles.push({ ...p, aadhaar });
         });
     });
 
@@ -15547,7 +16203,13 @@ function exportAllFarmerProfiles() {
     let allProfiles = [];
     Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
         (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
-            allProfiles.push({ ...p, aadhaar });
+            // ── Only include manually saved profiles ──
+            const isSaved = p &&
+                p.savedAt &&
+                (p.farmerName || '').trim() &&
+                (p.khatha || '').trim() &&
+                Array.isArray(p.crops) && p.crops.length > 0;
+            if (isSaved) allProfiles.push({ ...p, aadhaar });
         });
     });
 
@@ -18871,6 +19533,12 @@ function loadRetailerHistory() {
                 </tr>`;
             }).join('');
 
+        // ── Day-wise distribution (defaults to today; retailer can pick any date) ──
+        const rtTodayStr = new Date().toISOString().slice(0, 10);
+        const rtTodayRecords = records.filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === rtTodayStr);
+        const rtTodayDistCount = rtTodayRecords.length;
+        const rtTodayBagCount = rtTodayRecords.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+
         container.innerHTML = `
         <!-- ── Abstract Report ── -->
         <div id="rtAbstractReport" style="background:linear-gradient(135deg,#f8f9ff,#eef3ff);border:1.5px solid #c5d5f0;border-radius:16px;padding:1.1rem 1.3rem;margin-bottom:1.1rem;">
@@ -18880,7 +19548,7 @@ function loadRetailerHistory() {
                         <i class="fas fa-chart-bar text-white" style="font-size:0.85rem;"></i>
                     </span>
                     <div>
-                        <div style="font-size:0.82rem;font-weight:800;color:#1862ab;text-transform:uppercase;letter-spacing:0.8px;">Abstract Report</div>
+                        <div style="font-size:0.85rem;font-weight:800;color:#1862ab;text-transform:uppercase;letter-spacing:1.2px;font-family:'Montserrat',sans-serif;">Abstract Report</div>
                         <div id="rtAbstractLabel" style="font-size:0.7rem;color:#6c757d;font-weight:500;">All Villages · Distributed Records Only</div>
                     </div>
                 </div>
@@ -18919,6 +19587,44 @@ function loadRetailerHistory() {
                         <div style="font-size:1.6rem;font-weight:800;color:#c0392b;line-height:1;" id="kpiRejCount">${rejectedCount}</div>
                         <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;"><i class="fas fa-times-circle me-1 text-danger"></i>Rejected</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Day-wise Distribution -->
+            <div style="background:#fff;border-radius:12px;padding:0.7rem 1rem;border:1.5px solid #d0e8ff;margin-bottom:0.9rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.6rem;">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <i class="fas fa-calendar-day text-primary"></i>
+                    <span style="font-size:0.73rem;font-weight:700;color:#495057;text-transform:uppercase;letter-spacing:0.5px;">Day-wise Distribution</span>
+                    <input type="date" id="rtDayDistDate" class="form-control form-control-sm" style="width:155px;" value="${rtTodayStr}" max="${rtTodayStr}" onchange="updateRtDayDistribution()">
+                </div>
+                <div class="text-center" style="cursor:pointer;" onclick="toggleRtDayDistFarmerList()" title="Click to view farmer list for this date">
+                    <div style="font-size:1.5rem;font-weight:800;color:#1862ab;line-height:1;" id="rtDayDistCount">${rtTodayDistCount}</div>
+                    <div style="font-size:0.65rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Distributed</div>
+                    <div style="font-size:0.62rem;color:#1862ab;font-weight:700;text-decoration:underline;margin-top:1px;" id="rtDayDistToggleLabel">View list</div>
+                </div>
+                <div class="text-center">
+                    <div style="font-size:1.5rem;font-weight:800;color:#e67e22;line-height:1;" id="rtDayDistBags">${rtTodayBagCount}</div>
+                    <div style="font-size:0.65rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Bags</div>
+                </div>
+            </div>
+
+            <!-- Day-wise farmer list (hidden until 'View list' is clicked) -->
+            <div id="rtDayDistFarmerListWrap" style="display:none;margin:-0.4rem 0 0.9rem;">
+                <div class="table-responsive" style="border-radius:10px;overflow:hidden;border:1px solid #dee2e6;">
+                <table class="table table-sm mb-0" style="font-size:0.8rem;">
+                    <thead style="background:linear-gradient(135deg,#1862ab,#0d4d86);color:#fff;">
+                        <tr>
+                            <th style="padding:7px 10px;width:32px;">#</th>
+                            <th style="padding:7px 8px;">Farmer Name</th>
+                            <th style="padding:7px 8px;">Village</th>
+                            <th style="padding:7px 8px;">Mobile</th>
+                            <th style="padding:7px 8px;">Fertilizer</th>
+                            <th style="padding:7px 8px;text-align:center;width:60px;">Bags</th>
+                            <th style="padding:7px 10px;">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rtDayDistFarmerTbody"></tbody>
+                </table>
                 </div>
             </div>
 
@@ -18995,6 +19701,98 @@ function loadRetailerHistory() {
         </div>`;
     });
 }
+
+// ── Resolve a distribution record's date as YYYY-MM-DD (falls back to verifiedAt/distributedAt/createdAt) ──
+function rtGetRecordDateStr(r) {
+    const raw = r.date || r.verifiedAt || r.distributedAt || r.createdAt || '';
+    if (!raw) return '';
+    if (typeof raw === 'number') return new Date(raw).toISOString().slice(0, 10);
+    const s = String(raw);
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
+// ── Retailer: recompute Day-wise Distribution count for the date picked in the Abstract Report ──
+window.updateRtDayDistribution = function() {
+    const dateInput = document.getElementById('rtDayDistDate');
+    const countEl = document.getElementById('rtDayDistCount');
+    const bagsEl = document.getElementById('rtDayDistBags');
+    if (!dateInput || !countEl) return;
+
+    const selectedDate = dateInput.value;
+    const records = window._rtHistoryRecords || [];
+    const dayRecords = records.filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === selectedDate);
+    const count = dayRecords.length;
+    const bags = dayRecords.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+
+    countEl.textContent = count;
+    countEl.style.transition = 'color .3s';
+    countEl.style.color = '#1862ab';
+
+    if (bagsEl) {
+        bagsEl.textContent = bags;
+        bagsEl.style.transition = 'color .3s';
+        bagsEl.style.color = '#e67e22';
+    }
+
+    // Keep the farmer list in sync with the newly selected date if it's currently open
+    const listWrap = document.getElementById('rtDayDistFarmerListWrap');
+    if (listWrap && listWrap.style.display !== 'none') {
+        renderRtDayDistFarmerList(selectedDate);
+    }
+};
+
+// ── Retailer: build the farmer list table for the selected day ──
+function renderRtDayDistFarmerList(selectedDate) {
+    const tbody = document.getElementById('rtDayDistFarmerTbody');
+    if (!tbody) return;
+
+    const records = window._rtHistoryRecords || [];
+    const dayRecords = records
+        .filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === selectedDate)
+        .sort((a, b) => {
+            const toMs = v => { if (!v) return 0; const n = Number(v); if (!isNaN(n)) return n; return new Date(v).getTime() || 0; };
+            return toMs(b.verifiedAt || b.distributedAt || b.createdAt) - toMs(a.verifiedAt || a.distributedAt || a.createdAt);
+        });
+
+    if (!dayRecords.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">No distributions found for this date.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = dayRecords.map((r, i) => {
+        const actionDate = r.verifiedAt || r.distributedAt || r.createdAt;
+        const timeStr = actionDate ? new Date(actionDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
+        return `<tr style="font-size:0.8rem;">
+            <td class="text-muted">${i + 1}</td>
+            <td class="fw-semibold">${escapeHtml(r.farmerName || '—')}</td>
+            <td>${escapeHtml((r.village || '').trim() || '—')}</td>
+            <td style="font-family:monospace;">${escapeHtml(r.mobile || '—')}</td>
+            <td><span class="badge bg-warning text-dark">${escapeHtml(r.fertilizerType || 'Urea')}</span></td>
+            <td class="text-center fw-bold text-success">${r.bags || 0}</td>
+            <td class="text-muted">${timeStr}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Retailer: show/hide the day-wise farmer list ──
+window.toggleRtDayDistFarmerList = function() {
+    const wrap = document.getElementById('rtDayDistFarmerListWrap');
+    const label = document.getElementById('rtDayDistToggleLabel');
+    const dateInput = document.getElementById('rtDayDistDate');
+    if (!wrap) return;
+
+    const isHidden = wrap.style.display === 'none';
+    if (isHidden) {
+        renderRtDayDistFarmerList(dateInput ? dateInput.value : '');
+        wrap.style.display = '';
+        if (label) label.textContent = 'Hide list';
+    } else {
+        wrap.style.display = 'none';
+        if (label) label.textContent = 'View list';
+    }
+};
 
 async function deleteDistribution(recordKey) {
     if (!confirm("\u26A0\uFE0F Delete this distribution?\n\nThe bags will be RESTORED to the farmer's eligible account so they can avail again.\n\nOnly allowed within 1 hour of issuance.")) {
@@ -19384,8 +20182,14 @@ function adminCreateVillageOfficer() {
     .then(data => {
         if (data.error) throw new Error(data.error.message);
         const newUid = data.localId;
+        // Parse comma-separated villages into array
+        const villageList = village.split(',').map(v => v.trim()).filter(Boolean);
+        const primaryVillage = villageList[0] || village;
         const profile = {
-            name, email, village, sachivalayam, mandal, district, division, mobile,
+            name, email,
+            village: primaryVillage,          // primary (backwards compat)
+            villages: villageList,            // full list
+            sachivalayam, mandal, district, division, mobile,
             role:      'village_officer',
             createdBy: 'admin',
             createdAt: new Date().toISOString()
@@ -19525,46 +20329,83 @@ function loadAdminOfficersList() {
         Object.entries(all).forEach(([uid, data]) => {
             const role = data?.profile?.role;
             if (role === 'mandal_officer' || role === 'divisional_officer' || role === 'village_officer') {
-                officers.push({ uid, ...data.profile });
+                officers.push({ uid, ...data.profile, userEmail: data.userEmail || data.profile?.email || '' });
             }
         });
 
-        if (!officers.length) { container.innerHTML = '<div class="alert alert-info">No MO/DO accounts found.</div>'; return; }
+        if (!officers.length) { container.innerHTML = '<div class="alert alert-info">No officer accounts found.</div>'; return; }
 
-        container.innerHTML = `<div class="table-responsive"><table class="table table-hover table-sm">
-            <thead><tr style="background:#1862ab;color:white;">
-                <tr>
-  <th>#</th>
-  <th>Name</th>
-  <th>Email</th>
-  <th>Role</th>
-  <th>Division</th>
-  <th>Mandal</th>
-  <th>Created</th>
-  <th>Actions</th>
-            </tr></thead>
+        // ── Register officers into _adminUsersMap so modals can read them ──
+        if (!window._adminUsersMap) window._adminUsersMap = {};
+        const roleMap = { village_officer: 'Village Officer', mandal_officer: 'Mandal Officer', divisional_officer: 'Divisional Officer', retailer: 'Retailer' };
+        const roleBadgeColor = { village_officer: 'bg-success', mandal_officer: 'bg-primary', divisional_officer: 'bg-purple', retailer: 'bg-warning text-dark' };
+        officers.forEach(o => {
+            const _oVillages = Array.isArray(o.villages) && o.villages.length
+                ? o.villages : (o.village ? [o.village] : []);
+            window._adminUsersMap[o.uid] = {
+                uid: o.uid,
+                name: o.name || '—',
+                email: o.userEmail || o.email || o.uid,
+                role: o.role || 'village_officer',
+                district: o.district || '—',
+                division: o.division || '—',
+                mandal: o.mandal || '—',
+                village: _oVillages.join(', ') || '—',
+                villages: _oVillages,
+                createdAt: o.createdAt || null,
+                roleLabel: roleMap[o.role] || o.role || 'Village Officer',
+                roleBadge: roleBadgeColor[o.role] || 'bg-secondary'
+            };
+        });
+
+        container.innerHTML = `<div class="table-responsive" style="border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.07);">
+            <table class="table table-hover table-sm mb-0 align-middle">
+            <thead>
+                <tr style="background:linear-gradient(135deg,#1862ab,#2980b9);color:white;font-size:0.82rem;">
+                    <th class="text-center" style="width:40px;">#</th>
+                    <th>Name / Email</th>
+                    <th>Role</th>
+                    <th>District</th>
+                    <th>Division</th>
+                    <th>Mandal</th>
+                    <th>Village</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
             <tbody>${officers.map((o,i)=>`<tr>
-                <td>${i+1}</td>
-                <td class="fw-semibold">${escapeHtml(o.name||'—')}</td>
-                <td class="small text-muted">${escapeHtml(o.email||'—')}</td>
-                <td><span class="badge ${o.role==='mandal_officer'?'bg-primary':'bg-purple'}" style="${o.role==='divisional_officer'?'background:#8e44ad':''}">${o.role==='mandal_officer'?'Mandal Officer':'Divisional Officer'}</span></td>
-                <td>${escapeHtml(o.division || '—')}</td>
-                <td>${escapeHtml(o.mandal || '—')}</td>
-                <td class="small text-muted">${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '—'}</td>
-                <td>
+                <td class="text-center text-muted fw-semibold small">${i+1}</td>
+                <td style="min-width:160px;">
+                    <div class="fw-semibold">${escapeHtml(o.name||'—')}</div>
+                    <div class="text-muted" style="font-size:0.75rem;word-break:break-all;">${escapeHtml(o.userEmail||o.email||'—')}</div>
+                </td>
+                <td style="white-space:nowrap;">
+                    <span class="badge ${o.role==='village_officer'?'bg-success':o.role==='mandal_officer'?'bg-primary':''}" style="${o.role==='divisional_officer'?'background:#8e44ad':''}">${o.role==='village_officer'?'Village Officer':o.role==='mandal_officer'?'Mandal Officer':'Divisional Officer'}</span>
+                </td>
+                <td class="small">${escapeHtml(o.district||'—')}</td>
+                <td class="small">${escapeHtml(o.division||'—')}</td>
+                <td class="small">${escapeHtml(o.mandal||'—')}</td>
+                <td class="small">${
+                    (Array.isArray(o.villages) && o.villages.length > 1)
+                        ? o.villages.map(v => `<span class="badge bg-success me-1" style="font-size:0.7rem;">${escapeHtml(v)}</span>`).join('')
+                        : escapeHtml(o.village||'—')
+                }</td>
+                <td class="small text-muted" style="white-space:nowrap;">${o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN') : '—'}</td>
+                <td style="white-space:nowrap;">
                     <div class="d-flex gap-1">
-                        <button class="btn btn-outline-primary btn-sm px-2 py-1" title="Edit"
-                            onclick="openEditUserModal('${escapeHtml(o.uid)}','${escapeHtml(o.name||'')}','${escapeHtml(o.email||'')}','${escapeHtml(o.role||'')}','${escapeHtml(o.district||'')}','${escapeHtml(o.division||'')}','${escapeHtml(o.mandal||'')}','${escapeHtml(o.village||'')}')">
-                            <i class="fas fa-edit"></i>
+                        <button class="btn btn-outline-primary btn-sm px-2 py-1" title="Edit User"
+                            onclick="openEditUserModal('${o.uid}')">
+                            <i class="fas fa-edit"></i> Edit
                         </button>
-                        <button class="btn btn-outline-danger btn-sm px-2 py-1" title="Delete"
-                            onclick="openDeleteUserModal('${escapeHtml(o.uid)}','${escapeHtml(o.name||'—')}','${escapeHtml(o.email||'—')}')">
+                        <button class="btn btn-outline-danger btn-sm px-2 py-1" title="Delete User"
+                            onclick="openDeleteUserModal('${o.uid}')">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
                 </td>
             </tr>`).join('')}
-            </tbody></table></div>`;
+            </tbody></table></div>
+            <div class="mt-2 text-muted small"><i class="fas fa-users me-1"></i> Total: <strong>${officers.length}</strong> officers</div>`;
     }).catch(e => container.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`);
 }
 
@@ -20529,7 +21370,7 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
     }
     if (errEl) errEl.classList.add('d-none');
 
-    const { outletId, outletName } = getRetailerInfo();
+    const { outletId, outletName, mandalKey } = getRetailerInfo();
     const retailerUid = firebase.auth().currentUser?.uid || '';
     const now = Date.now();
     const nowISO = new Date(now).toISOString();
@@ -20677,7 +21518,47 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         //  END SERVER-SIDE GUARD
         // ══════════════════════════════════════════════════════════════════════
 
+        // ══════════════════════════════════════════════════════════════════════
+        //  RETAILER STOCK CHECK & DEDUCTION
+        //  Farmer Card QR / Card Number distribution must deduct from the
+        //  retailer's own stock balance, same as the token/QR-token path
+        //  (_rtExecuteDistribute) already does. Aggregate bags needed per
+        //  fertilizer type (a single submission can include both Urea and
+        //  DAP across multiple splits), verify sufficient stock for each,
+        //  then queue the deduction write alongside the other ops.
+        // ══════════════════════════════════════════════════════════════════════
+        const _bagsByFert = {};
+        entries.forEach(e => { _bagsByFert[e.fert] = (_bagsByFert[e.fert] || 0) + e.bags; });
+        const _fertTypesNeeded = Object.keys(_bagsByFert);
+
+        const _stockInfo = await Promise.all(_fertTypesNeeded.map(fert => {
+            const balPath = outletId
+                ? `mandals/${mandalKey}/retailers/${outletId}/stock/${fert}`
+                : `users/${retailerUid}/retailerStock/balance/${fert}`;
+            return database.ref(balPath).once('value').then(snap => ({ fert, balPath, stock: Number(snap.val()) || 0 }));
+        }));
+
+        for (const { fert, stock } of _stockInfo) {
+            const needed = _bagsByFert[fert];
+            if (stock < needed) {
+                if (resultEl) resultEl.innerHTML = `<div class="alert alert-danger fw-bold" style="border-radius:14px;">
+                    ⛔ Insufficient Stock<br>
+                    <small>Available: <strong>${stock}</strong> ${escapeHtml(fert)} bag(s) in your outlet, needed: <strong>${needed}</strong>.<br>
+                    Add stock first, or reduce the quantity, then try again.</small>
+                </div>`;
+                return;
+            }
+        }
+        // ══════════════════════════════════════════════════════════════════════
+        //  END RETAILER STOCK CHECK
+        // ══════════════════════════════════════════════════════════════════════
+
         const ops = [];
+
+        // Deduct retailer stock for each fertilizer type involved in this distribution
+        _stockInfo.forEach(({ fert, balPath, stock }) => {
+            ops.push(database.ref(balPath).set(stock - _bagsByFert[fert]));
+        });
 
         entries.forEach(entry => {
             const splitDisplayName = getSplitName(_rtCrop || cropForHist || '', entry.splitIdx, true);
@@ -20904,35 +21785,78 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
 }
 
 // ============================================================
-//  RETAILER: TOKEN NUMBER VERIFICATION
+//  RETAILER: CARD NUMBER SEARCH (fallback when QR isn't scanning)
+//  Looks up /fertilizerCards by Card Number, confirms identity
+//  with Aadhaar last 6, then opens the SAME Farmer Card view
+//  that scanning the Farmer Card QR would show.
 // ============================================================
-function verifyByToken() {
-    const tokenRaw = (document.getElementById('tokenNumberInput')?.value || '').trim();
-    const last4    = (document.getElementById('tokenAadhaarInput')?.value || '').trim();
+function verifyByCard() {
+    const cardNumber   = (document.getElementById('cardNumberInput')?.value || '').trim().toUpperCase();
+    const aadhaarLast6 = (document.getElementById('cardAadhaarInput')?.value || '').trim();
     const resultEl = document.getElementById('tokenVerifyResult');
 
-    // Normalise: strip dashes/spaces, uppercase
-    const token = tokenRaw.replace(/[-\s]/g, '').toUpperCase();
-
-    if (!token) {
-        resultEl.innerHTML = '<div class="alert alert-warning py-2 d-flex gap-2"><i class="fas fa-exclamation-triangle flex-shrink-0 mt-1"></i><div>Please enter the Token Number printed on the farmer\'s slip.</div></div>';
+    if (!cardNumber) {
+        resultEl.innerHTML = '<div class="alert alert-warning py-2 d-flex gap-2"><i class="fas fa-exclamation-triangle flex-shrink-0 mt-1"></i><div>Please enter the Card Number printed on the farmer\'s card.</div></div>';
         return;
     }
-    if (token.length !== 8) {
-        resultEl.innerHTML = `<div class="alert alert-warning py-2 d-flex gap-2"><i class="fas fa-exclamation-triangle flex-shrink-0 mt-1"></i><div>Token must be exactly <strong>8 characters</strong>. You entered <strong>${token.length}</strong> character(s): <code>${escapeHtml(token)}</code></div></div>`;
-        return;
-    }
-    if (last4 && last4.length !== 4) {
-        resultEl.innerHTML = '<div class="alert alert-warning py-2">Aadhaar last 4 digits must be exactly 4 numbers (or leave blank).</div>';
+    if (aadhaarLast6.length !== 6) {
+        resultEl.innerHTML = '<div class="alert alert-warning py-2">Aadhaar last 6 digits must be exactly 6 numbers.</div>';
         return;
     }
 
     resultEl.innerHTML = `<div class="alert alert-info py-2 d-flex align-items-center gap-2">
         <i class="fas fa-spinner fa-spin flex-shrink-0"></i>
-        <span>Verifying token <strong>${escapeHtml(token)}</strong>…</span>
+        <span>Searching card <strong>${escapeHtml(cardNumber)}</strong>…</span>
     </div>`;
-    processAuthorizationData({ token, aadhaarLast4: last4 }, resultEl, 'token');
+    processCardAuthorization(cardNumber, aadhaarLast6, resultEl);
 }
+
+// ── Look up a farmer's card by Card Number, confirm identity with Aadhaar last 6, then open it ──
+function processCardAuthorization(cardNumber, aadhaarLast6, resultEl) {
+    database.ref('fertilizerCards').orderByChild('cardNumber').equalTo(cardNumber).once('value').then(snap => {
+        if (!snap.exists()) {
+            resultEl.innerHTML = _rtAuthErr(
+                `No farmer card found for Card Number <code>${escapeHtml(cardNumber)}</code>.`,
+                ['Double-check the card number printed on the farmer\'s card',
+                 'Card numbers look like <code>KLV/2026K/0001</code>',
+                 'Ask the Village Officer to open the farmer\'s card once so it can be found here']
+            );
+            return;
+        }
+
+        // A card number can have more than one year/season snapshot — match on Aadhaar last 6
+        let matched = null;
+        snap.forEach(child => {
+            const v = child.val();
+            if (!v) return;
+            const last6 = String(v.aadhaar || '').replace(/\D/g, '').slice(-6);
+            if (last6 === aadhaarLast6) matched = v;
+        });
+
+        if (!matched) {
+            resultEl.innerHTML = _rtAuthErr(
+                'Aadhaar last 6 digits do <strong>not match</strong> this card.',
+                ['Please re-check the Aadhaar card with the farmer', 'Make sure the card number was entered correctly too']
+            );
+            return;
+        }
+
+        const aadhaar = String(matched.aadhaar || '').replace(/\D/g, '');
+        if (aadhaar.length !== 12) {
+            resultEl.innerHTML = _rtAuthErr('This card record is missing a valid Aadhaar number — ask the Village Officer to check the farmer\'s profile.');
+            return;
+        }
+
+        // ── Show it exactly like a successful QR scan: switch to the QR tab and open the farmer card there ──
+        showAuthTab('qrTab');
+        const qrResultEl = document.getElementById('qrScanResult');
+        processFarmerCardQr(aadhaar, matched.year || '', matched.season || '', matched.voUid || '', qrResultEl);
+        if (qrResultEl) qrResultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }).catch(err => {
+        resultEl.innerHTML = _rtAuthErr('Database error: ' + escapeHtml(err.message));
+    });
+}
+
 
 // ============================================================
 //  RETAILER: PROCESS AUTHORIZATION (shared by QR + Token)
@@ -21054,7 +21978,7 @@ function _rtShowVerifiedCard(r, token, resultEl, method) {
             <i class="fas fa-shield-alt text-white small"></i>
           </div>
           <div>
-            <div class="fw-bold text-success small">✓ Token Verified</div>
+            <div class="fw-bold text-success small">${method === 'card' ? '✓ Card Verified' : '✓ Token Verified'}</div>
             <code style="font-size:1rem;font-weight:900;letter-spacing:2px;color:#1562ab;">${escapeHtml(token)}</code>
             ${outletBadge}
           </div>
@@ -21228,7 +22152,7 @@ function _rtExecuteDistribute(r, method) {
             <div class="small text-muted mt-1">${bags} ${escapeHtml(fert)} bags given · Stock updated · VO notified · Farmer profile updated</div>
           </div>
         </div>`;
-        ['tokenNumberInput','tokenAadhaarInput'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+        ['cardNumberInput','cardAadhaarInput'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
         window._rtVerifiedRecord = null;
         loadRetailerStock();
         setTimeout(() => loadRetailerDistributions(), 1500);
@@ -21298,12 +22222,26 @@ function loadVillageProfile() {
     if (curLabel) curLabel.textContent = displayLabel;
     if (srcLabel) srcLabel.textContent = sourceDisplay;
 
+    // ── Village key for multi-village VOs ──
+    const _vpVillageSel = document.getElementById('vpVillageSelect');
+    const _vpVoVillages = typeof getVoVillages === 'function' ? getVoVillages() : [];
+    const vpVillage = (_vpVillageSel && _vpVillageSel.value) ? _vpVillageSel.value.trim()
+        : (_vpVoVillages.length === 1 ? _vpVoVillages[0] : '');
+    if (_vpVoVillages.length > 1 && !vpVillage) {
+        content.innerHTML = '<div class="alert alert-warning"><i class="fas fa-map-marker-alt me-2"></i>Please select a <strong>Village</strong> above.</div>';
+        return;
+    }
+    // Build the village-prefixed key if multi-village VO
+    const vpSourceKey = (vpVillage && _vpVoVillages.length > 1)
+        ? vpVillage.trim().replace(/[.#$\[\]\/]/g, '-') + '__' + sourceKey
+        : sourceKey;
+
     // ── Find the source report ───────────────────────────────────────────────
-    const report = allReportsCache[sourceKey];
+    const report = allReportsCache[vpSourceKey] || allReportsCache[sourceKey];
     if (!report) {
         // Try fuzzy match (case-insensitive)
         const fuzzyKey = Object.keys(allReportsCache).find(k =>
-            k.toLowerCase() === sourceKey.toLowerCase());
+            k.toLowerCase() === vpSourceKey.toLowerCase() || k.toLowerCase() === sourceKey.toLowerCase());
         if (!fuzzyKey) {
             content.innerHTML = `
             <div class="alert alert-warning d-flex gap-3 align-items-start" style="border-radius:14px;">
@@ -21325,14 +22263,14 @@ function loadVillageProfile() {
             return;
         }
         // Found with fuzzy match
-        return _renderVillageProfile(allReportsCache[fuzzyKey], displayLabel, sourceDisplay, displaySeason, content);
+        return _renderVillageProfile(allReportsCache[fuzzyKey], displayLabel, sourceDisplay, displaySeason, content, vpVillage);
     }
-    _renderVillageProfile(report, displayLabel, sourceDisplay, displaySeason, content);
+    _renderVillageProfile(report, displayLabel, sourceDisplay, displaySeason, content, vpVillage);
 }
 
-function _renderVillageProfile(report, displayLabel, sourceLabel, season, content) {
+function _renderVillageProfile(report, displayLabel, sourceLabel, season, content, villageOverride) {
     const profile = currentUserProfile || {};
-    const village  = escapeHtml(profile.village  || '—');
+    const village  = escapeHtml(villageOverride || profile.village  || '—');
     const mandal   = escapeHtml(profile.mandal   || '—');
     const district = escapeHtml(profile.district || '—');
 
@@ -22113,8 +23051,8 @@ function rejectDistribution(r, method, rejectionReason) {
         showRetailerToast(`Rejected: ${bags} ${escapeHtml(fert)} bag(s) for ${escapeHtml(name)}`, 'warning');
 
         // Clear inputs
-        const t = document.getElementById('tokenNumberInput');
-        const a = document.getElementById('tokenAadhaarInput');
+        const t = document.getElementById('cardNumberInput');
+        const a = document.getElementById('cardAadhaarInput');
         if (t) t.value = '';
         if (a) a.value = '';
 
@@ -22255,6 +23193,141 @@ function setSelectValue(selectId, value) {
         select.add(new Option(cleanValue, cleanValue));
     }
     select.value = cleanValue;
+}
+
+// ============================================================
+//  MULTI-VILLAGE HELPERS
+// ============================================================
+
+/**
+ * Returns the VO's assigned villages as an array (always lowercase-trimmed).
+ * Uses profile.villages array if available, falls back to single profile.village.
+ */
+function getVoVillages() {
+    if (!currentUserProfile) return [];
+    if (Array.isArray(currentUserProfile.villages) && currentUserProfile.villages.length) {
+        return currentUserProfile.villages.map(v => v.trim());
+    }
+    return currentUserProfile.village ? [currentUserProfile.village.trim()] : [];
+}
+
+/**
+ * Build the storage key used for allReportsCache entries (e-Panta reports).
+ * Single-village VOs (or VOs with no village picker shown) keep the legacy
+ * "<year>_<season>" key unchanged, so nothing changes for the common case.
+ * Multi-village VOs get a village-prefixed key "<village>__<year>_<season>"
+ * so each village's uploaded data is stored/retrieved separately.
+ */
+function buildReportKey(village, year, season) {
+    const villages = getVoVillages();
+    if (villages.length > 1 && village) {
+        // Firebase RTDB keys can't contain . # $ [ ] /  — sanitize defensively.
+        const safeVillage = village.trim().replace(/[.#$\[\]\/]/g, '-');
+        return `${safeVillage}__${year}_${season}`;
+    }
+    return `${year}_${season}`;
+}
+
+/** Inverse of buildReportKey — pulls {village, year, season} back out of a key. */
+function parseReportKey(key) {
+    if (!key) return { village: '', year: '', season: '' };
+    if (key.includes('__')) {
+        const idx = key.indexOf('__');
+        const village = key.slice(0, idx);
+        const rest = key.slice(idx + 2).split('_');
+        return { village, year: rest[0] || '', season: rest[1] || '' };
+    }
+    const parts = key.split('_');
+    return { village: '', year: parts[0] || '', season: parts[1] || '' };
+}
+
+/**
+ * Generic village-dropdown initializer used by Upload Report and e-Panta
+ * Report pages (and any other VO section that needs a village picker).
+ * Shows/populates the dropdown only when the VO handles more than one
+ * village; otherwise hides the row and silently uses the VO's single village.
+ */
+function initVillagePicker(rowId, selectId) {
+    const row = document.getElementById(rowId);
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const villages = getVoVillages();
+    if (villages.length <= 1) {
+        if (row) row.style.display = 'none';
+        sel.innerHTML = '<option value="">-- Select village --</option>' +
+            villages.map(v => `<option value="${escapeHtml(v)}" selected>${escapeHtml(v)}</option>`).join('');
+        if (villages.length === 1) sel.value = villages[0];
+        return;
+    }
+    const current = sel.value;
+    sel.innerHTML = '<option value="">-- Select village --</option>' +
+        villages.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    if (current && villages.includes(current)) sel.value = current;
+    if (row) row.style.display = '';
+}
+
+/**
+ * Render village tags inside #profileVillageTags.
+ * Tags stored in #profileVillagesHidden as comma-separated string.
+ */
+function renderProfileVillageTags(villageArray) {
+    const container = document.getElementById('profileVillageTags');
+    if (!container) return;
+    if (!villageArray || !villageArray.length) {
+        container.innerHTML = '<span class="text-muted small" style="line-height:2;">No village selected yet</span>';
+        return;
+    }
+    container.innerHTML = villageArray.map(v =>
+        `<span class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
+            style="background:#1862ab;color:#fff;border-radius:20px;font-size:0.8rem;font-weight:600;">
+            <i class="fas fa-map-marker-alt" style="font-size:0.7rem;"></i>${escapeHtml(v)}
+            <span role="button" style="cursor:pointer;opacity:0.75;font-size:0.85rem;line-height:1;"
+                onclick="removeProfileVillageTag('${v.replace(/'/g, "\\'")}')">✕</span>
+        </span>`
+    ).join('');
+}
+
+/** Add a village to the tag list (called by the village <select> onchange). */
+function addProfileVillageTag(village) {
+    if (!village) return;
+    const hiddenInput = document.getElementById('profileVillagesHidden');
+    if (!hiddenInput) return;
+    const current = hiddenInput.value ? hiddenInput.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+    if (!current.map(v => v.toLowerCase()).includes(village.trim().toLowerCase())) {
+        current.push(village.trim());
+        hiddenInput.value = current.join(',');
+        renderProfileVillageTags(current);
+    }
+}
+
+/** Remove a village from the tag list. */
+function removeProfileVillageTag(village) {
+    const hiddenInput = document.getElementById('profileVillagesHidden');
+    if (!hiddenInput) return;
+    let current = hiddenInput.value ? hiddenInput.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+    current = current.filter(v => v.toLowerCase() !== village.trim().toLowerCase());
+    hiddenInput.value = current.join(',');
+    renderProfileVillageTags(current);
+}
+
+/**
+ * Initialise the farmer-profile village picker (#fpVillageSelect).
+ * Called after profile is loaded. Shows row only when VO has > 1 village.
+ */
+function initFpVillagePicker() {
+    const row = document.getElementById('fpVillageRow');
+    const sel = document.getElementById('fpVillageSelect');
+    if (!row || !sel) return;
+    const villages = getVoVillages();
+    if (villages.length <= 1) {
+        row.style.display = 'none';
+        if (sel && villages.length === 1) sel.value = villages[0];
+        return;
+    }
+    // Populate dropdown
+    sel.innerHTML = '<option value="">-- Select village --</option>' +
+        villages.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    row.style.display = '';
 }
 
 function populateProfileLocationControls(districtName = '', mandalName = '', villageName = '', divisionName = '') {
@@ -23235,14 +24308,18 @@ function pollVoDeleteApprovals() {
           <label class="form-label fw-semibold">Mandal</label>
           <input type="text" id="editUserMandal" class="form-control" placeholder="Mandal">
         </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Village</label>
-          <input type="text" id="editUserVillage" class="form-control" placeholder="Village">
+        <div class="mb-3" id="editUserVillageRow">
+          <label class="form-label fw-semibold">
+            Villages Handled
+            <span class="badge bg-primary ms-1" style="font-size:0.62rem;" id="editVillageMultiBadge" style="display:none;">Multi-village</span>
+          </label>
+          <input type="text" id="editUserVillage" class="form-control" placeholder="e.g. Rampur, Kesavpur (comma-separated for multiple)">
+          <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Separate multiple villages with commas.</small>
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">New Password <span class="text-muted">(optional)</span></label>
           <input type="text" id="editUserPassword" class="form-control" placeholder="Leave blank to keep unchanged" minlength="6">
-          <small class="text-muted"><i class="fas fa-lock me-1"></i>Min 6 characters if changing password.</small>
+          <small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Password changes require server-side Admin SDK. Profile fields (name, role, location) can always be saved.</small>
         </div>
         <div id="editUserStatus"></div>
       </div>
@@ -23323,7 +24400,10 @@ function loadAdminAllUsersList() {
                 district: profile.district || '—',
                 division: profile.division || '—',
                 mandal: profile.mandal || '—',
-                village: profile.village || '—',
+                village: Array.isArray(profile.villages) && profile.villages.length
+                    ? profile.villages.join(', ')
+                    : (profile.village || '—'),
+                villages: Array.isArray(profile.villages) ? profile.villages : (profile.village ? [profile.village] : []),
                 createdAt: profile.createdAt || null,
                 roleLabel: roleMap[profile.role] || (profile.role || 'Village Officer'),
                 roleBadge: roleBadgeColor[profile.role] || 'bg-secondary'
@@ -23338,27 +24418,30 @@ function loadAdminAllUsersList() {
         // Sort by role then name
         users.sort((a, b) => a.role.localeCompare(b.role) || a.name.localeCompare(b.name));
 
+        // ── Store user data in a map so buttons can safely retrieve it by UID ──
+        window._adminUsersMap = {};
+        users.forEach(u => { window._adminUsersMap[u.uid] = u; });
+
         const rows = users.map((u, i) => `
             <tr data-search="${(u.name + u.email + u.roleLabel + u.mandal + u.village + u.district + u.division).toLowerCase()}">
-                <td class="fw-semibold small">${i + 1}</td>
-                <td>
+                <td class="fw-semibold small text-center">${i + 1}</td>
+                <td style="min-width:160px;">
                     <div class="fw-semibold">${escapeHtml(u.name)}</div>
-                    <div class="text-muted" style="font-size:0.78rem;">${escapeHtml(u.email)}</div>
+                    <div class="text-muted" style="font-size:0.75rem; word-break:break-all;">${escapeHtml(u.email)}</div>
                 </td>
-                <td><span class="badge ${u.roleBadge}" style="${u.role === 'divisional_officer' ? 'background:#8e44ad' : ''}">${escapeHtml(u.roleLabel)}</span></td>
+                <td style="white-space:nowrap;"><span class="badge ${u.roleBadge}" style="${u.role === 'divisional_officer' ? 'background:#8e44ad' : ''}">${escapeHtml(u.roleLabel)}</span></td>
                 <td class="small">${escapeHtml(u.district)}</td>
-                <td class="small">${escapeHtml(u.division)}</td>
                 <td class="small">${escapeHtml(u.mandal)}</td>
                 <td class="small">${escapeHtml(u.village)}</td>
-                <td class="small text-muted">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN') : '—'}</td>
-                <td>
+                <td class="small text-muted" style="white-space:nowrap;">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN') : '—'}</td>
+                <td style="white-space:nowrap;">
                     <div class="d-flex gap-1">
                         <button class="btn btn-outline-primary btn-sm px-2 py-1" title="Edit User"
-                            onclick="openEditUserModal('${escapeHtml(u.uid)}','${escapeHtml(u.name)}','${escapeHtml(u.email)}','${escapeHtml(u.role)}','${escapeHtml(u.district)}','${escapeHtml(u.division)}','${escapeHtml(u.mandal)}','${escapeHtml(u.village)}')">
-                            <i class="fas fa-edit"></i>
+                            onclick="openEditUserModal('${u.uid}')">
+                            <i class="fas fa-edit"></i> Edit
                         </button>
                         <button class="btn btn-outline-danger btn-sm px-2 py-1" title="Delete User"
-                            onclick="openDeleteUserModal('${escapeHtml(u.uid)}','${escapeHtml(u.name)}','${escapeHtml(u.email)}')">
+                            onclick="openDeleteUserModal('${u.uid}')">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
@@ -23367,14 +24450,13 @@ function loadAdminAllUsersList() {
 
         container.innerHTML = `
             <div class="table-responsive" style="border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.07);">
-                <table class="table table-hover table-sm mb-0" id="manageUsersTable">
+                <table class="table table-hover table-sm mb-0 align-middle" id="manageUsersTable">
                     <thead>
-                        <tr style="background:linear-gradient(135deg,#1862ab,#2980b9);color:white;">
-                            <th>#</th>
+                        <tr style="background:linear-gradient(135deg,#1862ab,#2980b9);color:white;font-size:0.82rem;">
+                            <th class="text-center" style="width:40px;">#</th>
                             <th>Name / Email</th>
                             <th>Role</th>
                             <th>District</th>
-                            <th>Division</th>
                             <th>Mandal</th>
                             <th>Village</th>
                             <th>Created</th>
@@ -23402,15 +24484,52 @@ function filterManageUsersTable() {
 // ============================================================
 //  ADMIN: OPEN EDIT USER MODAL
 // ============================================================
-function openEditUserModal(uid, name, email, role, district, division, mandal, village) {
+async function openEditUserModal(uid) {
+    let u = (window._adminUsersMap || {})[uid];
+
+    // ── If not in the in-memory map (e.g. called from a different tab), load from Firebase ──
+    if (!u) {
+        try {
+            const snap = await database.ref('users/' + uid).once('value');
+            const data = snap.val();
+            if (!data) { alert('User data not found. Please refresh the list.'); return; }
+            const profile = data.profile || {};
+            const roleMap = { village_officer: 'Village Officer', mandal_officer: 'Mandal Officer', divisional_officer: 'Divisional Officer', retailer: 'Retailer' };
+            const roleBadgeColor = { village_officer: 'bg-success', mandal_officer: 'bg-primary', divisional_officer: 'bg-purple', retailer: 'bg-warning text-dark' };
+            u = {
+                uid,
+                name: profile.name || data.displayName || '—',
+                email: data.userEmail || profile.email || uid,
+                role: profile.role || 'village_officer',
+                district: profile.district || '—',
+                division: profile.division || '—',
+                mandal: profile.mandal || '—',
+                village: profile.village || '—',
+                roleLabel: roleMap[profile.role] || profile.role || 'Village Officer',
+                roleBadge: roleBadgeColor[profile.role] || 'bg-secondary'
+            };
+            if (!window._adminUsersMap) window._adminUsersMap = {};
+            window._adminUsersMap[uid] = u;
+        } catch(e) {
+            alert('Error loading user data: ' + e.message);
+            return;
+        }
+    }
+
     document.getElementById('editUserUID').value = uid;
-    document.getElementById('editUserName').value = name;
-    document.getElementById('editUserEmail').value = email;
-    document.getElementById('editUserRole').value = role;
-    document.getElementById('editUserDistrict').value = district === '—' ? '' : district;
-    document.getElementById('editUserDivision').value = division === '—' ? '' : division;
-    document.getElementById('editUserMandal').value = mandal === '—' ? '' : mandal;
-    document.getElementById('editUserVillage').value = village === '—' ? '' : village;
+    document.getElementById('editUserName').value = u.name !== '—' ? u.name : '';
+    document.getElementById('editUserEmail').value = u.email;
+    document.getElementById('editUserRole').value = u.role || 'village_officer';
+    document.getElementById('editUserDistrict').value = u.district !== '—' ? u.district : '';
+    document.getElementById('editUserDivision').value = u.division !== '—' ? u.division : '';
+    document.getElementById('editUserMandal').value = u.mandal !== '—' ? u.mandal : '';
+    // ── Multi-village: show comma-separated list for VOs ──
+    const _editVillages = Array.isArray(u.villages) && u.villages.length
+        ? u.villages.join(', ')
+        : (u.village !== '—' ? u.village : '');
+    document.getElementById('editUserVillage').value = _editVillages;
+    const _editVBadge = document.getElementById('editVillageMultiBadge');
+    if (_editVBadge) _editVBadge.style.display = (u.villages && u.villages.length > 1) ? 'inline-block' : 'none';
     document.getElementById('editUserPassword').value = '';
     document.getElementById('editUserStatus').innerHTML = '';
     const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
@@ -23420,7 +24539,7 @@ function openEditUserModal(uid, name, email, role, district, division, mandal, v
 // ============================================================
 //  ADMIN: SAVE EDIT USER
 // ============================================================
-function saveEditUser() {
+async function saveEditUser() {
     const uid      = document.getElementById('editUserUID').value;
     const name     = document.getElementById('editUserName').value.trim();
     const role     = document.getElementById('editUserRole').value;
@@ -23431,6 +24550,7 @@ function saveEditUser() {
     const password = document.getElementById('editUserPassword').value.trim();
     const statusEl = document.getElementById('editUserStatus');
 
+    if (!uid) { alert('No user selected.'); return; }
     if (!name) {
         statusEl.innerHTML = '<div class="alert alert-warning py-2">Name is required.</div>';
         return;
@@ -23442,48 +24562,104 @@ function saveEditUser() {
 
     statusEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Saving changes...</div>';
 
-    const updates = { name, role, district, division, mandal, village };
+    // ── Multi-village: parse comma-separated input ──
+    const villageListEdit = village.split(',').map(v => v.trim()).filter(Boolean);
+    const primaryVillageEdit = villageListEdit[0] || '';
+    const updates = {
+        name, role, district, division, mandal,
+        village:  primaryVillageEdit,    // primary (backwards compat)
+        villages: villageListEdit        // full list
+    };
+    const u = (window._adminUsersMap || {})[uid];
+    if (u && u.email) updates.email = u.email;
 
-    database.ref('users/' + uid + '/profile').update(updates)
-        .then(() => {
-            // If password change requested, use Firebase REST API
-            if (password) {
-                // Get user's idToken by re-signing in is not possible without password
-                // We update password via Firebase Admin-equivalent REST call using current admin token
-                return firebase.auth().currentUser.getIdToken(true).then(idToken => {
-                    return fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseConfig.apiKey}`, {
+    try {
+        await database.ref('users/' + uid + '/profile').update(updates);
+
+        let pwMsg = '';
+        if (password) {
+            const proxyUrl = window.APFR_PROXY_URL;
+            if (proxyUrl) {
+                try {
+                    const r = await fetch(`${proxyUrl}/admin/set-password`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ idToken, password, returnSecureToken: false })
-                    }).then(r => r.json()).then(d => {
-                        if (d.error) {
-                            console.warn('Password update note:', d.error.message);
-                            // Not fatal — profile was saved
-                        }
+                        body: JSON.stringify({ uid, password })
                     });
-                });
+                    const d = await r.json();
+                    if (!d.success) {
+                        pwMsg = '<div class="alert alert-warning py-2 mt-2 small"><i class="fas fa-exclamation-triangle me-1"></i>Profile saved, but password could not be changed via server.</div>';
+                    } else {
+                        pwMsg = '<div class="alert alert-success py-2 mt-2 small"><i class="fas fa-key me-1"></i>Password changed successfully.</div>';
+                    }
+                } catch(e) {
+                    pwMsg = '<div class="alert alert-warning py-2 mt-2 small"><i class="fas fa-exclamation-triangle me-1"></i>Profile saved. Password change requires Admin SDK — contact system admin.</div>';
+                }
+            } else {
+                pwMsg = '<div class="alert alert-warning py-2 mt-2 small"><i class="fas fa-exclamation-triangle me-1"></i>Profile saved. Password change requires Admin SDK — contact system admin.</div>';
             }
-        })
-        .then(() => {
-            statusEl.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>User updated successfully!</div>';
-            setTimeout(() => {
-                bootstrap.Modal.getInstance(document.getElementById('editUserModal'))?.hide();
-                loadAdminAllUsersList();
-                loadAdminOfficersList();
-            }, 1200);
-        })
-        .catch(err => {
-            statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
-        });
+        }
+
+        statusEl.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>User updated successfully!</div>' + pwMsg;
+
+        // Update in-memory map
+        if (window._adminUsersMap && window._adminUsersMap[uid]) {
+            Object.assign(window._adminUsersMap[uid], {
+                name, role, district, division, mandal,
+                village:  primaryVillageEdit,
+                villages: villageListEdit
+            });
+        }
+
+        setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('editUserModal'))?.hide();
+            loadAdminAllUsersList();
+            if (typeof loadAdminOfficersList === 'function') loadAdminOfficersList();
+        }, 1600);
+
+    } catch(err) {
+        statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
+    }
 }
 
 // ============================================================
 //  ADMIN: OPEN DELETE USER MODAL
 // ============================================================
-function openDeleteUserModal(uid, name, email) {
+async function openDeleteUserModal(uid) {
+    let u = (window._adminUsersMap || {})[uid];
+
+    // ── If not in the in-memory map, load from Firebase ──
+    if (!u) {
+        try {
+            const snap = await database.ref('users/' + uid).once('value');
+            const data = snap.val();
+            if (!data) { alert('User data not found. Please refresh the list.'); return; }
+            const profile = data.profile || {};
+            const roleMap = { village_officer: 'Village Officer', mandal_officer: 'Mandal Officer', divisional_officer: 'Divisional Officer', retailer: 'Retailer' };
+            const roleBadgeColor = { village_officer: 'bg-success', mandal_officer: 'bg-primary', divisional_officer: 'bg-purple', retailer: 'bg-warning text-dark' };
+            u = {
+                uid,
+                name: profile.name || data.displayName || '—',
+                email: data.userEmail || profile.email || uid,
+                role: profile.role || 'village_officer',
+                district: profile.district || '—',
+                division: profile.division || '—',
+                mandal: profile.mandal || '—',
+                village: profile.village || '—',
+                roleLabel: roleMap[profile.role] || profile.role || 'Village Officer',
+                roleBadge: roleBadgeColor[profile.role] || 'bg-secondary'
+            };
+            if (!window._adminUsersMap) window._adminUsersMap = {};
+            window._adminUsersMap[uid] = u;
+        } catch(e) {
+            alert('Error loading user data: ' + e.message);
+            return;
+        }
+    }
+
     document.getElementById('deleteUserUID').value = uid;
-    document.getElementById('deleteUserName').textContent = name;
-    document.getElementById('deleteUserEmailDisplay').textContent = email;
+    document.getElementById('deleteUserName').textContent = u.name;
+    document.getElementById('deleteUserEmailDisplay').textContent = u.email;
     document.getElementById('deleteUserStatus').innerHTML = '';
     const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
     modal.show();
@@ -23492,27 +24668,50 @@ function openDeleteUserModal(uid, name, email) {
 // ============================================================
 //  ADMIN: CONFIRM DELETE USER
 // ============================================================
-function confirmDeleteUser() {
+async function confirmDeleteUser() {
     const uid      = document.getElementById('deleteUserUID').value;
     const statusEl = document.getElementById('deleteUserStatus');
 
     if (!uid) return;
 
-    statusEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Deleting user...</div>';
+    statusEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Deleting user data...</div>';
 
-    // Remove all user data from Firebase Realtime Database
-    database.ref('users/' + uid).remove()
-        .then(() => {
-            statusEl.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>User data deleted successfully!</div>';
-            setTimeout(() => {
-                bootstrap.Modal.getInstance(document.getElementById('deleteUserModal'))?.hide();
-                loadAdminAllUsersList();
-                loadAdminOfficersList();
-            }, 1200);
-        })
-        .catch(err => {
-            statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
-        });
+    try {
+        // 1. Remove all user data from Firebase Realtime Database
+        await database.ref('users/' + uid).remove();
+
+        // 2. Attempt to delete Firebase Auth account via proxy worker
+        let authMsg = '';
+        const proxyUrl = window.APFR_PROXY_URL;
+        if (proxyUrl) {
+            try {
+                const r = await fetch(`${proxyUrl}/admin/delete-user`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uid })
+                });
+                const d = await r.json();
+                if (!d.success) {
+                    authMsg = '<div class="alert alert-warning py-2 mt-1 small"><i class="fas fa-exclamation-triangle me-1"></i>Database data deleted. Auth account may still exist (requires Admin SDK).</div>';
+                }
+            } catch(e) {
+                authMsg = '<div class="alert alert-warning py-2 mt-1 small"><i class="fas fa-exclamation-triangle me-1"></i>Database data deleted. Auth account removal requires Admin SDK.</div>';
+            }
+        }
+
+        // 3. Remove from in-memory map
+        if (window._adminUsersMap) delete window._adminUsersMap[uid];
+
+        statusEl.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>User deleted successfully!</div>' + authMsg;
+        setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('deleteUserModal'))?.hide();
+            loadAdminAllUsersList();
+            if (typeof loadAdminOfficersList === 'function') loadAdminOfficersList();
+        }, 1400);
+
+    } catch(err) {
+        statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
+    }
 }
 
 // ============================================================
@@ -23711,6 +24910,23 @@ function openPrintFarmerProfilePanel() {
     document.getElementById('printFpCardContainer').innerHTML = '';
     document.getElementById('printFpAadhaar').value = '';
     const voDistC = document.getElementById('voDistDetailsContainer'); if(voDistC) voDistC.innerHTML = '';
+    // ── Init village picker for multi-village VOs ──
+    const _pfpWrap = document.getElementById('printFpVillageWrap');
+    const _pfpSel  = document.getElementById('printFpVillage');
+    if (_pfpSel) {
+        const _pfpVillages = typeof getVoVillages === 'function' ? getVoVillages() : [];
+        if (_pfpVillages.length > 1) {
+            _pfpSel.innerHTML = '<option value="">-- Select Village --</option>' +
+                _pfpVillages.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+            // Pre-select active village if set
+            const _active = window.voActiveVillage || sessionStorage.getItem('voActiveVillage');
+            if (_active && _pfpVillages.includes(_active)) _pfpSel.value = _active;
+            if (_pfpWrap) _pfpWrap.style.display = '';
+        } else {
+            if (_pfpWrap) _pfpWrap.style.display = 'none';
+            if (_pfpVillages.length === 1) _pfpSel.value = _pfpVillages[0];
+        }
+    }
 }
 
 function closePrintFarmerProfilePanel() {
@@ -23722,6 +24938,7 @@ async function loadPrintFarmerProfile() {
     const aadhaarRaw = (document.getElementById('printFpAadhaar')?.value || '').trim();
     const selYear    = (document.getElementById('printFpYear')?.value || '').trim();
     const selSeason  = (document.getElementById('printFpSeason')?.value || '').trim();
+    const selVillage = (document.getElementById('printFpVillage')?.value || '').trim();
     const statusEl   = document.getElementById('printFpStatus');
     const cardEl     = document.getElementById('printFpCardContainer');
 
@@ -23760,22 +24977,29 @@ async function loadPrintFarmerProfile() {
     }
 
     // ── Village-scope filter ──
-    // Each profile entry stores the village of the VO who created it.
-    // A farmer may cultivate in multiple villages — each village VO issues a
-    // separate card covering only that village's land. We filter here so only
-    // this VO's village lands appear on the card.
-    const _voVillage = (currentUserProfile && currentUserProfile.village) ? currentUserProfile.village.trim() : '';
-    const _otherVillageProfiles = _voVillage
-        ? profiles.filter(p => p.village && p.village.trim() !== _voVillage)
+    // currentUserProfile.villages = array of all villages this VO handles.
+    // Fall back to single profile.village for backwards compatibility.
+    const _voVillages = (currentUserProfile && Array.isArray(currentUserProfile.villages) && currentUserProfile.villages.length)
+        ? currentUserProfile.villages.map(v => v.trim().toLowerCase())
+        : (currentUserProfile && currentUserProfile.village ? [currentUserProfile.village.trim().toLowerCase()] : []);
+
+    // If a specific village is selected in the dropdown, use that; otherwise all VO villages
+    const _activeVillage = selVillage
+        ? selVillage.trim().toLowerCase()
+        : (window.voActiveVillage || sessionStorage.getItem('voActiveVillage') || '').toLowerCase();
+    const _voVillage = selVillage || window.voActiveVillage || sessionStorage.getItem('voActiveVillage')
+        || currentUserProfile?.village || '—';
+
+    const _otherVillageProfiles = _voVillages.length
+        ? profiles.filter(p => p.village && !_voVillages.includes(p.village.trim().toLowerCase()))
         : [];
-    if (_voVillage) {
+
+    if (_voVillages.length) {
+        // If a specific village is chosen in dropdown, filter to just that village
+        const _targetVillages = _activeVillage ? [_activeVillage] : _voVillages;
         const villageFiltered = profiles.filter(p =>
-            // Include if profile has no village tag (old entries created before this fix)
-            // OR if its village matches the current VO's village
-            !p.village || p.village.trim() === _voVillage
+            !p.village || _targetVillages.includes(p.village.trim().toLowerCase())
         );
-        // If filtering by village leaves something, use filtered set;
-        // otherwise fall back to all (backwards-compat for pre-fix entries)
         if (villageFiltered.length > 0) {
             profiles = villageFiltered;
         }
@@ -23807,7 +25031,7 @@ async function loadPrintFarmerProfile() {
     const farmerType  = base.farmerType || '—';
     const apfrNumber  = (profiles.map(p => p.apfrNumber).find(v => v && v !== 'NA')) || base.apfrNumber || '—';
     const mandalName  = (currentUserProfile && currentUserProfile.mandal)  ? currentUserProfile.mandal  : '—';
-    const villageName = (currentUserProfile && currentUserProfile.village) ? currentUserProfile.village : '—';
+    const villageName = selVillage || (currentUserProfile && currentUserProfile.village) ? (selVillage || currentUserProfile.village) : '—';
     const officerName = (currentUserProfile && currentUserProfile.name)    ? currentUserProfile.name    : '—';
 
     const _ownerByKhatha = {};
@@ -24002,7 +25226,6 @@ async function loadPrintFarmerProfile() {
                 ureaHistory.splice(_pi, 1);
             }
         }
-        console.log(`[loadPrintFarmerProfile] Purged ${_beforePurgeLen - ureaHistory.length} stale in-memory records for ${a} (${useYear}/${useSeason}). Fresh Firebase fetch follows.`);
 
         // 1. Fetch availedTransactions
         try {
@@ -25593,11 +26816,17 @@ async function voEditDistribution(recordKey, currentBags) {
         }, 600);
     }
     
-    // 3. Refresh history modal if open
+    // 3. Refresh history modal if open, or inline VO history view if visible
     const historyModal = document.getElementById('ureaHistoryModal');
     if (historyModal && historyModal.classList.contains('show')) {
         if (typeof showUreaHistory === 'function') {
             setTimeout(() => showUreaHistory(), 700);
+        }
+    }
+    const ureaSectionEl2 = document.getElementById('ureaSection');
+    if (ureaSectionEl2 && !ureaSectionEl2.classList.contains('hidden') && window._voHistoryFiltersApplied) {
+        if (typeof voLoadFertilizerHistory === 'function') {
+            setTimeout(() => voLoadFertilizerHistory(), 700);
         }
     }
 }
@@ -26239,7 +27468,6 @@ window.openEditAvailedBagsModal = async function(aadhaar, year, season, u1, u2, 
     };
 
     // Log for debugging
-    console.log('Edit Availed Bags State:', window._eabState);
 
     // ── SET INPUT VALUES WITH CURRENT VALUES ──
     const setVal = (id, val) => {
@@ -26578,7 +27806,6 @@ const EEB_MAX_EDITS = 3;
 // ============================================================
 
 window.openEditEligibleBagsModal = function(aadhaar, year, season, ureaTotal, dapTotal, u1, u2, u3, d1, d2, d3, editCount, sysUreaTotal, sysDapTotal) {
-    console.log("Opening Edit Eligible Bags Modal", {aadhaar, year, season});
     
     const modalEl = document.getElementById('editEligibleBagsModal');
     if (!modalEl) { 
@@ -26737,7 +27964,6 @@ window.openEditEligibleBagsModal = function(aadhaar, year, season, ureaTotal, da
     modalEl.addEventListener('click', outsideCloseHandler);
     modalEl._outsideClickHandler = outsideCloseHandler;
     
-    console.log("Modal displayed");
 };
 
 window.closeEditEligibleBagsModal = function() {
@@ -27193,7 +28419,95 @@ window.retailerEditVillage = async function(tokenKey, btnEl) {
 </script>
 
 
-<!-- ── COPYRIGHT FOOTER ── -->
+<!-- ── VO Active Village Picker Overlay (plain div — no Bootstrap modal to avoid backdrop lockout) ── -->
+<div id="voActiveVillageOverlay" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.55); align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:18px; width:100%; max-width:420px; margin:1rem; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="background:linear-gradient(135deg,#1862ab,#1a7a5e); padding:1.2rem 1.5rem;">
+      <h5 style="color:#fff; font-weight:700; margin:0; font-family:Poppins,sans-serif;">
+        <i class="fas fa-map-marker-alt me-2"></i>Select Working Village
+      </h5>
+      <p style="color:rgba(255,255,255,0.6); font-size:0.82rem; margin:4px 0 0; font-family:Poppins,sans-serif;">Choose the village you are working in today</p>
+    </div>
+    <div style="padding:1.5rem;">
+      <label style="font-weight:600; color:#1862ab; font-family:Poppins,sans-serif; display:block; margin-bottom:6px;">
+        <i class="fas fa-home me-1"></i>Your Villages
+      </label>
+      <select id="voActiveVillageSelect" class="form-select form-select-lg fw-semibold" style="border:2px solid #b3d1f0; border-radius:10px; font-family:Poppins,sans-serif;">
+        <option value="">-- Select Village --</option>
+      </select>
+      <div style="font-size:0.72rem; color:#7f8c8d; margin-top:6px; font-family:Poppins,sans-serif;">
+        <i class="fas fa-info-circle me-1"></i>You can change this anytime from the village selector in each section.
+      </div>
+      <div id="voActiveVillageAlert" style="display:none; background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:8px 12px; margin-top:10px; font-size:0.83rem; color:#856404; font-family:Poppins,sans-serif;">
+        <i class="fas fa-exclamation-triangle me-1"></i>Please select a village to continue.
+      </div>
+    </div>
+    <div style="padding:0 1.5rem 1.5rem;">
+      <button onclick="confirmVoActiveVillage()" style="width:100%; background:linear-gradient(135deg,#1862ab,#1a7a5e); color:#fff; border:none; border-radius:10px; padding:12px; font-size:1rem; font-weight:600; font-family:Poppins,sans-serif; cursor:pointer; letter-spacing:0.2px;">
+        <i class="fas fa-check me-2"></i>Confirm &amp; Continue
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── VO Active Village: plain overlay — zero Bootstrap modal dependency ──
+window.voActiveVillage = '';
+
+function showVoActiveVillageModal(villages) {
+    const sel = document.getElementById('voActiveVillageSelect');
+    const overlay = document.getElementById('voActiveVillageOverlay');
+    if (!sel || !overlay) return;
+    sel.innerHTML = '<option value="">-- Select Village --</option>' +
+        villages.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    const saved = sessionStorage.getItem('voActiveVillage');
+    if (saved && villages.includes(saved)) sel.value = saved;
+    overlay.style.display = 'flex';
+}
+
+function confirmVoActiveVillage() {
+    const sel = document.getElementById('voActiveVillageSelect');
+    const alertEl = document.getElementById('voActiveVillageAlert');
+    if (!sel || !sel.value) {
+        if (alertEl) alertEl.style.display = 'block';
+        return;
+    }
+    if (alertEl) alertEl.style.display = 'none';
+    window.voActiveVillage = sel.value;
+    sessionStorage.setItem('voActiveVillage', sel.value);
+
+    // Sync active village into all pickers
+    ['fpVillageSelect', 'oneBVillageSelect', 'uploadVillage', 'absVillage', 'vpVillageSelect', 'printFpVillage'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && sel.value) el.value = sel.value;
+    });
+
+    // Simply hide the overlay — no backdrop, no body class changes needed
+    const overlay = document.getElementById('voActiveVillageOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+// Init the 1B card village picker for multi-village VOs
+function initOneBVillagePicker() {
+    const row = document.getElementById('oneBVillagePickerRow');
+    const sel = document.getElementById('oneBVillageSelect');
+    if (!sel) return;
+    const villages = getVoVillages();
+    if (villages.length <= 1) {
+        if (row) row.style.display = 'none';
+        if (sel && villages.length === 1) sel.value = villages[0];
+        return;
+    }
+    sel.innerHTML = '<option value="">-- Select village --</option>' +
+        villages.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    if (row) { row.style.display = ''; row.style.background = '#eef5ff'; row.style.border = '1.5px solid #b3d1f0'; row.style.borderRadius = '8px'; row.style.padding = '0.75rem 1rem'; }
+    // Pre-select saved active village
+    const saved = window.voActiveVillage || sessionStorage.getItem('voActiveVillage');
+    if (saved && villages.includes(saved)) sel.value = saved;
+}
+</script>
+
+
 <footer style="
     background: linear-gradient(135deg, #0d1b2a 0%, #1a2f4a 100%);
     color: #a0b4c8;
