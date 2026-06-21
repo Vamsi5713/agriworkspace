@@ -4237,6 +4237,15 @@ function submitRejectDistribution() {
         &mdash; no need to upload separately for each fertilizer type.
       </p>
 
+      <!-- Prepare 1B File link — kept OUTSIDE oneBUploadBox so it stays visible
+           even after a 1B file is already loaded (oneBUploadBox gets hidden via
+           update1BFileStatusBar() in that case). -->
+      <div class="mb-3">
+        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="openKhathaAadhaarTool()" title="Open Khatha–Aadhaar Matcher in new tab">
+            <i class="fas fa-link me-1"></i> Prepare 1B File (Add Aadhaar to Land Summary)
+        </button>
+      </div>
+
       <!-- Current file status banner -->
       <div id="oneBCurrentFileBar" class="d-none mb-3 p-2 rounded border d-flex align-items-center justify-content-between gap-2"
            style="background:#e8f5e9; border-color:#a5d6a7;">
@@ -4262,13 +4271,8 @@ function submitRejectDistribution() {
       </div>
 
       <div id="oneBUploadBox" class="mb-3 p-3 border rounded bg-light">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-            <label for="ureaFileInput" class="form-label fw-semibold mb-0">📊 Upload 1B Excel File (click help in dashboard for guidance)</label>
-            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="openKhathaAadhaarTool()" title="Open Khatha–Aadhaar Matcher in new tab">
-                <i class="fas fa-link me-1"></i> Prepare 1B File (Add Aadhaar to Land Summary)
-            </button>
-        </div>
-        <input type="file" id="ureaFileInput" class="form-control" accept=".xlsx,.xls">
+        <label for="ureaFileInput" class="form-label fw-semibold mb-0">📊 Upload 1B Excel File (click help in dashboard for guidance)</label>
+        <input type="file" id="ureaFileInput" class="form-control mt-2" accept=".xlsx,.xls">
         <div id="fileStatus" class="mt-2"></div>
         <div id="uploadInfo" class="small text-muted mt-1">Status: waiting for file upload...</div>
       </div>
