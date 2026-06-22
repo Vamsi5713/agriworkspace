@@ -1363,6 +1363,21 @@
           </div>
         </div>
       </div>
+      <!-- Cloud Storage Used Card -->
+      <div class="col-6 col-md-4 col-xl-3">
+        <div class="dashboard-card" onclick="showVoCloudStorageModal()" style="min-height:0;padding:1rem;">
+          <div class="card-topline">
+            <div class="card-icon card-icon-purple" style="width:40px;height:40px;border-radius:12px;"><i class="fas fa-cloud fa-lg"></i></div>
+            <span class="card-badge" style="font-size:0.65rem;">Storage</span>
+          </div>
+          <h5 style="font-size:0.92rem;margin-bottom:0.25rem;">Cloud Storage Used</h5>
+          <p style="font-size:0.78rem;">Your account's cloud storage usage breakup.</p>
+          <div class="card-meta" style="padding-top:0.5rem;">
+            <span style="font-size:0.72rem;" id="voStorageUsedMini">Tap to view</span>
+            <span class="card-action" style="font-size:0.72rem;">View <i class="fas fa-arrow-right"></i></span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Search Farmer -->
@@ -1465,7 +1480,7 @@
          <div class="card p-4 mx-auto" style="max-width: 960px;">
             <h2>Upload Farmer / Booking Report (.csv or .xlsx)</h2>
             <div style="background: #eef6ff; border-left: 4px solid #2d6cdf; padding: 12px 16px; margin-bottom: 20px;">
-               <strong>Instructions:</strong> Ensure columns are named: <code>Booking ID</code>, <code>Survey Number</code>, <code>Khatha Number</code>, <code>Area</code>.
+               <strong>Instructions:</strong> Columns are auto-detected — naming doesn't need to be exact. e.g. <code>Khatha</code>/<code>Khata</code>/<code>Khata No</code>, <code>Survey Number</code>/<code>Survey No</code>, <code>Area</code>/<code>Extent</code>/<code>Occupant Extent</code>, <code>Crop</code>/<code>Crop Sown</code>, <code>Farmer Name</code>/<code>Occupant Name</code>. Any other/extra columns in the file are simply ignored.
             </div>
             <div class="row mb-3">
                <div class="col-md-6">
@@ -2531,6 +2546,19 @@
                      style="border-left:4px solid #0dcaf0 !important; border-radius:12px;">
                     <div class="display-6 fw-bold text-info" id="adminTotalDapBags">0</div>
                     <div class="text-muted small mt-1">🌿 DAP Bags</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center p-3 h-100"
+                     style="border-left:4px solid #8e44ad !important; border-radius:12px; cursor:pointer;"
+                     onclick="showCloudStorageModal()" title="Click to view card-wise cloud storage usage">
+                    <div class="display-6 fw-bold" style="color:#8e44ad;" id="adminTotalStorageUsed">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <div class="text-muted small mt-1">
+                        <i class="fas fa-database me-1"></i> Cloud Storage Used
+                        <div style="font-size:0.7rem;" class="mt-1"><i class="fas fa-hand-pointer me-1"></i>Tap for card-wise breakup</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3741,6 +3769,34 @@
          </div>
       </div>
    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CLOUD STORAGE USED — VO's own account popup
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="voCloudStorageModal" tabindex="-1" aria-labelledby="voCloudStorageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;">
+      <div class="modal-header" style="background:linear-gradient(135deg,#8e44ad,#6c3483);color:white;border-radius:16px 16px 0 0;">
+        <h5 class="modal-title fw-bold" id="voCloudStorageModalLabel"><i class="fas fa-cloud me-2"></i>Cloud Storage Used</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3">
+        <div id="voCloudStorageModalBody">
+          <div class="text-center text-muted py-5">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3 text-primary d-block"></i>
+            <p class="fw-semibold">Calculating your cloud storage usage…</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #e0e6ed;">
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold" onclick="renderVoCloudStorageBreakdown()">
+          <i class="fas fa-sync me-1"></i> Refresh
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="modal fade" id="aadhaarHistoryModal" tabindex="-1">
@@ -5711,6 +5767,26 @@ function _applyCloudSnapshot(snapshot) {
             ? _rawHist
             : (_rawHist ? Object.values(_rawHist).filter(v => v && typeof v === 'object' && !Array.isArray(v)) : []);
 
+        // ── FIX: Backfill village on existing records that are missing it ──
+        // Records created before the village fix don't have a village field.
+        // On login we know the VO's primary village from their profile, so fill it in.
+        // This ensures the abstract report village filter works for all historical records.
+        if (ureaHistory.length && data.profile) {
+            const _profileVillage = (data.profile.village || '').trim();
+            if (_profileVillage) {
+                let _needsSave = false;
+                ureaHistory = ureaHistory.map(h => {
+                    if (!h.village) { _needsSave = true; return { ...h, village: _profileVillage }; }
+                    return h;
+                });
+                if (_needsSave) {
+                    // Persist the backfill silently so future logins don't need to redo it
+                    const _bfUid = firebase.auth().currentUser?.uid;
+                    if (_bfUid) database.ref('users/' + _bfUid + '/voUreaHistory').set(ureaHistory).catch(() => {});
+                }
+            }
+        }
+
         // 4. Farmer Profiles
         if (data.farmerProfiles && typeof data.farmerProfiles === 'object') {
             farmerProfiles = {};
@@ -5960,6 +6036,8 @@ function _applyRetailerAction(action, actionKey) {
                 splitIndex:     action.splitIndex !== undefined ? action.splitIndex : 0,
                 printToken:     action.token          || '',
                 distributedVia: action.distributedVia || 'retailer',
+                // ── FIX: carry village from action (set by VO at issue time) ──
+                village:        action.village        || (window.currentUserProfile && window.currentUserProfile.village) || '',
                 _pendingKey:    true
             };
             // Prevent duplicates: check by printToken or content fingerprint before pushing
@@ -7743,39 +7821,69 @@ function validateAadhaar(aadhaar) {
          }
          
          // ══════════════════════════════════════════════════════════════
-         //  SMART COLUMN RESOLVER
-         //  Handles spelling mistakes, case mismatches, column swaps.
-         //  Real file uses: "Pattadar / Cultivator", "Mobile Number" etc.
+         //  SMART COLUMN RESOLVER  (shared by Upload Report AND the 1B
+         //  Farmer Profile upload — see smartFindColumn() usage there)
+         //
+         //  Real-world VO files spell the same field many different ways.
+         //  Matching is done on whole "words" inside the header (split on
+         //  spaces/._-/) so e.g. "Occupant Extent" is never confused with
+         //  "Occupant Name", and "Father Name" never matches Farmer Name.
+         //  Any OTHER/unexpected column in the file is simply ignored —
+         //  only recognised columns are pulled out:
+         //
+         //    Khatha  → Khatha Number, Khatha No, Khata, Khata No, KhathaNo, Katha...
+         //    Survey  → Survey Number, Survey No, Survey No/Lp No, SurveyNo...
+         //    Extent  → Extent, Area, Area Sown, Occupant Extent, Acres...
+         //    Crop    → Crop, Crop Name, Crop Sown...
+         //    Farmer  → Farmer Name, Occupant Name   (never Father Name)
          // ══════════════════════════════════════════════════════════════
+         function _smHeaderTokens(s) {
+             return (s || '').toString().toLowerCase().trim().split(/[^a-z0-9]+/).filter(Boolean);
+         }
+         const SMART_COLUMN_MATCHERS = {
+             bookingId:  t => t.some(w => w.startsWith('booking') || w === 'bkgid' || w === 'bkid' || w.startsWith('bkno') || w === 'bookid'),
+             // Khatha / Khata / Khatha No / Khata No / KhathaNo / Katha — covers all spellings
+             khatha:     t => t.some(w => /^kh?ath?a/.test(w)),
+             // Survey Number / Survey No / Survey No/Lp No / SurveyNo
+             survey:     t => t.some(w => w.startsWith('survey') || w.startsWith('lpno') || w === 'lp'),
+             // Extent / Area / Area Sown / Occupant Extent / Area Cultivated / Acres
+             extent:     t => t.some(w => w.startsWith('extent') || w.startsWith('area') || w.startsWith('acre')),
+             // Crop / Crop Name / Crop Sown
+             crop:       t => t.some(w => w.startsWith('crop')),
+             // Farmer Name / Occupant Name — but NEVER "Father Name"
+             farmerName: t => t.includes('name') &&
+                              t.some(w => w.startsWith('farmer') || w.startsWith('occupant')) &&
+                              !t.some(w => w.startsWith('father')),
+             fatherName: t => t.some(w => w.startsWith('father') || w.startsWith('husband')),
+             aadhaar:    t => t.some(w => w.startsWith('aadha') || w.startsWith('adha') || w === 'uid'),
+             village:    t => t.some(w => w.startsWith('village') || w.startsWith('gram') || w.startsWith('hamlet')),
+             mobile:     t => t.some(w => w.startsWith('mobile') || w.startsWith('phone') || w.startsWith('contact')),
+             // Real column in e-Panta file: "Pattadar / Cultivator"
+             pattadhar:  t => t.some(w => w.startsWith('pattad') || w.startsWith('cultivat') || w === 'patta' || w.startsWith('landholder')) ||
+                              (t.includes('farmer') && t.includes('type')),
+         };
+         // Finds the actual column name (from `keys`) matching the given `type`
+         // (one of the SMART_COLUMN_MATCHERS keys above). Returns null if none found.
+         function smartFindColumn(keys, type) {
+             const test = SMART_COLUMN_MATCHERS[type];
+             if (!test) return null;
+             return keys.find(k => test(_smHeaderTokens(k))) || null;
+         }
+         // Resolves ALL recognised columns at once for a sample row object.
          function resolveColumns(rawRow) {
-             const normalize = s => (s||'').toString().toLowerCase().replace(/[\s_\-\.\/]+/g,'');
-             const keys = Object.keys(rawRow);
-             const find = (...patterns) => {
-                 const pats = patterns.map(p => normalize(p));
-                 // 1) exact normalized match
-                 let k = keys.find(k => pats.includes(normalize(k)));
-                 if (k) return k;
-                 // 2) normalized key contains pattern or vice-versa
-                 k = keys.find(k => pats.some(p => normalize(k).includes(p) || p.includes(normalize(k))));
-                 return k || null;
-             };
+             const keys = Object.keys(rawRow || {});
              return {
-                 bookingIDCol:  find('Booking ID','BookingID','Booked ID','booking_id','bookid','bkgid','bkid','bkno','booking no'),
-                 farmerNameCol: find('Farmer Name','FarmerName','farmer_name','farmername'),
-                 fatherNameCol: find('Father Name','FatherName','fathername','father','husbandname','husband name'),
-                 aadhaarCol:    find('Aadhaar Number','AadhaarNumber','aadhaar','aadhar','adhaar','adhar number','uid'),
-                 khathaCol:     find('Khatha Number','KhathaNumber','khatha','katha','khatha no','khathanumber'),
-                 surveyCol:     find('Survey Number','SurveyNumber','survey','surveyno','survey no','survey_no'),
-                 cropNameCol:   find('Crop Name','CropName','crop','cropname','crop_name','cropsown','crop sown'),
-                 areaCol:       find('Area','extent','areasown','area sown','areacultivated','area cultivated','acres'),
-                 villageCol:    find('Village','village','gram','grama','hamlets'),
-                 mobileCol:     find('Mobile Number','Mobile Number','MobileNumber','mobile','phone','phonenumber','contact','contactno','mobileno'),
-                 // Real column in e-Panta file: "Pattadar / Cultivator"
-                 pattadharCol:  find('Pattadar / Cultivator','Pattadhar/Cultivator','Pattadar/Cultivator',
-                                     'Pattadhar Cultivator','Pattadar Cultivator',
-                                     'pattadar','pattadhar','cultivator','farmer type','farmertype',
-                                     'farmer_type','land holder','landholder','patta','pattadharcultivator',
-                                     'pattadarcultivator'),
+                 bookingIDCol:  smartFindColumn(keys, 'bookingId'),
+                 farmerNameCol: smartFindColumn(keys, 'farmerName'),
+                 fatherNameCol: smartFindColumn(keys, 'fatherName'),
+                 aadhaarCol:    smartFindColumn(keys, 'aadhaar'),
+                 khathaCol:     smartFindColumn(keys, 'khatha'),
+                 surveyCol:     smartFindColumn(keys, 'survey'),
+                 cropNameCol:   smartFindColumn(keys, 'crop'),
+                 areaCol:       smartFindColumn(keys, 'extent'),
+                 villageCol:    smartFindColumn(keys, 'village'),
+                 mobileCol:     smartFindColumn(keys, 'mobile'),
+                 pattadharCol:  smartFindColumn(keys, 'pattadhar'),
              };
          }
 
@@ -10572,7 +10680,7 @@ if (fileInput) {
                 //   with a "TOTAL EXTENT" / "మొత్తం విస్తీర్ణం" sub-total row after each khatha group.
                 // Simple/flat: named columns with "Khatha" header.
                 const allKeys       = rows.length ? Object.keys(rows[0]) : [];
-                const hasKhathaCol  = allKeys.some(k => /khatha/i.test(k));
+                const hasKhathaCol  = !!smartFindColumn(allKeys, 'khatha');
                 // Also detect via rawAoA header row
                 const headerRow     = rawAoA.length ? rawAoA[0].map(v => String(v || '')) : [];
                 const isRealOneBFormat = !hasKhathaCol || headerRow.some(h => /ఖాతా|khatha\s*నెంబరు/i.test(h));
@@ -10686,15 +10794,35 @@ if (fileInput) {
                     }
                 } else {
                     // ── Simple/flat format with named columns ──
+                    // Column names are auto-detected (tolerant of header
+                    // variants like Khata/Khatha/Khata No, Survey No/Lp No,
+                    // Extent/Area/Occupant Extent, Farmer/Occupant Name).
+                    // Any other/unexpected column in the file is ignored.
+                    const kKhathaCol  = smartFindColumn(allKeys, 'khatha');
+                    const kExtentCol  = smartFindColumn(allKeys, 'extent');
+                    const kSurveyCol  = smartFindColumn(allKeys, 'survey');
+                    const kFarmerCol  = smartFindColumn(allKeys, 'farmerName');
+                    const kFatherCol  = smartFindColumn(allKeys, 'fatherName');
+                    const kAadhaarCol = smartFindColumn(allKeys, 'aadhaar');
+
                     parsed = rows.reduce((acc, r) => {
-                        const k = String(r["Khatha"] || r["KhathaNo"] || r["Khatha Number"] || "").trim();
+                        const k = String((kKhathaCol && r[kKhathaCol]) || r["Khatha"] || r["KhathaNo"] || r["Khatha Number"] || "").trim();
                         if (!k) return acc;
                         if (!acc[k]) acc[k] = { khatha: k, extent: 0, bagsEligible: Number(r["Bags Eligible"] || 0), farmers: [], surveys: [] };
-                        acc[k].extent += Number(r["Extent"] || 0) || 0;
-                        acc[k].farmers.push(r);
-                        // Capture survey numbers from named columns
-                        const sv = String(r["Survey Number"] || r["SurveyNo"] || r["SurveyNumber"] || r["Survey No"] || r["survey_no"] || r["Survey"] || '').trim();
-                        const svExt = parseFloat(r["Extent"] || 0) || 0;
+                        const svExt = parseFloat((kExtentCol && r[kExtentCol]) || r["Extent"] || 0) || 0;
+                        acc[k].extent += svExt;
+                        // Normalize the row with canonical keys (Farmer Name / Father
+                        // Name / Aadhaar / Extent) so downstream lookups keep working
+                        // no matter what the source file's actual headers were named.
+                        const normRow = Object.assign({}, r, {
+                            'Farmer Name': (kFarmerCol && r[kFarmerCol]) || r['Farmer Name'] || '',
+                            'Father Name': (kFatherCol && r[kFatherCol]) || r['Father Name'] || '',
+                            'Aadhaar':     (kAadhaarCol && r[kAadhaarCol]) || r['Aadhaar'] || '',
+                            'Extent':      svExt,
+                        });
+                        acc[k].farmers.push(normRow);
+                        // Capture survey numbers from the resolved (or fallback) column
+                        const sv = String((kSurveyCol && r[kSurveyCol]) || r["Survey Number"] || r["SurveyNo"] || r["SurveyNumber"] || r["Survey No"] || r["survey_no"] || r["Survey"] || '').trim();
                         if (sv) {
                             sv.split(/[,\/]/).forEach(s => {
                                 s = s.trim();
@@ -11824,6 +11952,13 @@ function recordDistribution() {
     });
     const cropsDisplay = _allCropNames.length ? _allCropNames.join(', ') : crop;
 
+    // ── Resolve the active village for this VO at distribution time ──
+    const _distVillage = window.voActiveVillage
+        || sessionStorage.getItem('voActiveVillage')
+        || (typeof getVoVillages === 'function' && getVoVillages().length === 1 ? getVoVillages()[0] : '')
+        || (window.currentUserProfile && window.currentUserProfile.village)
+        || '';
+
     const newRec = {
         serialNo: sno, date: d, farmerName: n, fatherName: fn,
         aadhaar: a, mobile: m,
@@ -11840,6 +11975,7 @@ function recordDistribution() {
         tokenNumber: tokenNumber,
         authToken: tokenNumber,
         status: 'Pending',
+        village: _distVillage,   // ── FIX: include village so abstract report village filter works ──
         // Outlet / Retailer info (from dropdown or manual entry)
         outletId:   outletId,
         outletName: outletName,
@@ -11879,6 +12015,7 @@ function recordDistribution() {
             splitIndex:     sIdx,
             splitName:      splitName,
             status:         'Pending',
+            village:        _distVillage,  // ── FIX: store village so retailer actions can carry it back ──
             createdAt:      new Date().toISOString()
         }).catch(err => console.warn('fertilizerDistributions write failed:', err.message));
     }
@@ -14624,13 +14761,18 @@ function getSurveyNumbersForKhatha(khatha) {
         for (const fertData of Object.values(ureaData || {})) {
             const khathaEntry = fertData && fertData[k];
             if (!khathaEntry || !Array.isArray(khathaEntry.farmers)) continue;
+            // Resolve the actual survey/extent column names from this khatha's
+            // first row (tolerant of Khata/Survey No/Lp No/Occupant Extent etc.)
+            const sampleKeys = khathaEntry.farmers.length ? Object.keys(khathaEntry.farmers[0]) : [];
+            const smSurveyCol = typeof smartFindColumn === 'function' ? smartFindColumn(sampleKeys, 'survey') : null;
+            const smExtentCol = typeof smartFindColumn === 'function' ? smartFindColumn(sampleKeys, 'extent') : null;
             khathaEntry.farmers.forEach(row => {
                 if (!row || typeof row !== 'object') return;
-                let sv = '';
-                for (const key of surveyColKeys) { if (row[key]) { sv = String(row[key]).trim(); break; } }
+                let sv = smSurveyCol && row[smSurveyCol] ? String(row[smSurveyCol]).trim() : '';
+                if (!sv) for (const key of surveyColKeys) { if (row[key]) { sv = String(row[key]).trim(); break; } }
                 if (!sv) return;
-                let ext = 0;
-                for (const key of extColKeys) { if (row[key] != null) { ext = parseFloat(row[key]) || 0; break; } }
+                let ext = (smExtentCol && row[smExtentCol] != null) ? (parseFloat(row[smExtentCol]) || 0) : 0;
+                if (!ext) for (const key of extColKeys) { if (row[key] != null) { ext = parseFloat(row[key]) || 0; break; } }
                 sv.split(/[,\/]/).forEach(s => {
                     s = s.trim();
                     if (s) surveyMap[s] = (surveyMap[s] || 0) + ext;
@@ -16603,6 +16745,308 @@ function clearUserData(uid, userName, dataType) {
         })
         .catch(err => alert('❌ Error: ' + err.message));
 }
+// ============================================================
+//  ADMIN: CLOUD STORAGE USED — card-wise (per VO) breakup
+//  "Card" here = the same per-user card already shown in the
+//  Admin → User Data list (Mandal → Village → User cards).
+//  Size is estimated from the actual JSON payload stored under
+//  each user's node (UTF-8 byte size via Blob), which is the
+//  best client-side proxy for what's billed/used in the
+//  Firebase Realtime Database.
+// ============================================================
+let _cloudStorageRows = [];      // cached for export after a render
+let _cloudStorageGrandTotal = 0;
+
+function _csByteSize(obj) {
+    try { return new Blob([JSON.stringify(obj === undefined ? null : obj)]).size; }
+    catch (e) { return 0; }
+}
+function _csFormatBytes(bytes) {
+    if (!bytes) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0, n = bytes;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return (i === 0 ? n : n.toFixed(2)) + ' ' + units[i];
+}
+
+function showCloudStorageModal() {
+    const modalEl = document.getElementById('cloudStorageModal');
+    if (!modalEl) return;
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    renderCloudStorageBreakdown();
+}
+
+function renderCloudStorageBreakdown() {
+    const body = document.getElementById('cloudStorageModalBody');
+    if (!body) return;
+    body.innerHTML = `
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3 text-primary d-block"></i>
+            <p class="fw-semibold">Calculating cloud storage usage…</p>
+        </div>`;
+
+    const user = firebase.auth().currentUser;
+    if (!user || (typeof isAdmin === 'function' && !isAdmin())) {
+        body.innerHTML = '<div class="alert alert-danger mb-0">Access denied.</div>';
+        return;
+    }
+
+    database.ref('users').once('value')
+        .then(snapshot => {
+            if (!snapshot.exists()) {
+                body.innerHTML = '<div class="alert alert-warning mb-0">No user data found.</div>';
+                return;
+            }
+
+            const usersData = snapshot.val();
+            const CATS = {
+                'Farmer Profiles':         d => _csByteSize(d.farmerProfiles),
+                'Fertilizer Distribution': d => _csByteSize(d.ureaHistory) + _csByteSize(d.voUreaHistory),
+                'e-Panta Reports':         d => _csByteSize(d.allReports),
+                '1B Uploaded Data':        d => _csByteSize(d.ureaData),
+            };
+            const COLORS = {
+                'Farmer Profiles':         '#1862ab',
+                'Fertilizer Distribution': '#f39c12',
+                'e-Panta Reports':         '#27ae60',
+                '1B Uploaded Data':        '#8e44ad',
+                'Other':                   '#adb5bd',
+            };
+
+            const rows = [];
+            let grandTotal = 0;
+
+            Object.entries(usersData).forEach(([uid, data]) => {
+                if (!data || typeof data !== 'object') return;
+                const profile = data.profile || {};
+                const role    = (profile.role || '').toLowerCase();
+                if (role !== 'village_officer') return; // same population as the User Data cards
+
+                const name    = profile.name || data.displayName || data.userEmail || uid;
+                const email   = data.userEmail || profile.email || uid;
+                const mandal  = toTitleCase(profile.mandal  || 'Unknown Mandal');
+                const village = toTitleCase(profile.village || 'Unknown Village');
+
+                const breakdown = {};
+                let known = 0;
+                Object.keys(CATS).forEach(cat => { const sz = CATS[cat](data); breakdown[cat] = sz; known += sz; });
+                const total = _csByteSize(data);
+                breakdown['Other'] = Math.max(0, total - known);
+
+                grandTotal += total;
+                rows.push({ uid, name, email, mandal, village, total, breakdown });
+            });
+
+            if (!rows.length) {
+                body.innerHTML = '<div class="alert alert-warning mb-0">No Village Officer data found.</div>';
+                return;
+            }
+
+            rows.sort((a, b) => b.total - a.total);
+            _cloudStorageRows      = rows;
+            _cloudStorageGrandTotal = grandTotal;
+
+            const miniEl = document.getElementById('adminTotalStorageUsed');
+            if (miniEl) miniEl.textContent = _csFormatBytes(grandTotal);
+
+            let html = `
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+                    <div>
+                        <div class="text-muted small">Total cloud storage used across ${rows.length} card${rows.length > 1 ? 's' : ''}</div>
+                        <div class="fs-3 fw-bold" style="color:#8e44ad;">${_csFormatBytes(grandTotal)}</div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        ${Object.keys(COLORS).map(cat => `
+                            <span class="badge text-dark" style="background:${COLORS[cat]}22;border:1px solid ${COLORS[cat]};">
+                                <i class="fas fa-circle me-1" style="font-size:0.5rem;color:${COLORS[cat]};"></i>${cat}
+                            </span>`).join('')}
+                    </div>
+                </div>
+                <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:36px;">#</th>
+                            <th>Card (User)</th>
+                            <th>Mandal / Village</th>
+                            <th style="min-width:140px;">Composition</th>
+                            <th class="text-end">Storage Used</th>
+                            <th class="text-end" style="width:80px;">% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            rows.forEach((r, i) => {
+                const pct = grandTotal ? (r.total / grandTotal * 100) : 0;
+                const barSegments = Object.entries(r.breakdown).map(([cat, sz]) => {
+                    const w = r.total ? (sz / r.total * 100) : 0;
+                    if (w <= 0) return '';
+                    return `<div title="${cat}: ${_csFormatBytes(sz)}" style="width:${w}%;background:${COLORS[cat]};height:100%;"></div>`;
+                }).join('');
+
+                html += `
+                    <tr>
+                        <td class="text-muted">${i + 1}</td>
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(r.name)}</div>
+                            <div class="text-muted" style="font-size:0.78rem;">${escapeHtml(r.email)}</div>
+                        </td>
+                        <td class="small text-muted">${escapeHtml(r.mandal)}<br>${escapeHtml(r.village)}</td>
+                        <td>
+                            <div class="d-flex" style="height:10px;border-radius:5px;overflow:hidden;background:#eef2f5;">
+                                ${barSegments}
+                            </div>
+                        </td>
+                        <td class="text-end fw-semibold">${_csFormatBytes(r.total)}</td>
+                        <td class="text-end text-muted">${pct.toFixed(1)}%</td>
+                    </tr>`;
+            });
+
+            html += `
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light fw-bold">
+                            <td colspan="4" class="text-end">Grand Total</td>
+                            <td class="text-end">${_csFormatBytes(grandTotal)}</td>
+                            <td class="text-end">100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>`;
+
+            body.innerHTML = html;
+        })
+        .catch(err => {
+            body.innerHTML = `<div class="alert alert-danger mb-0">❌ Error loading storage data: ${escapeHtml(err.message)}</div>`;
+        });
+}
+
+function exportCloudStorageReport() {
+    if (!_cloudStorageRows.length) return alert('Nothing to export yet — open the Cloud Storage popup first.');
+    const headers = ['S.No','Name','Email','Mandal','Village','Farmer Profiles','Fertilizer Distribution','e-Panta Reports','1B Uploaded Data','Other','Total','% of Total'];
+    const rows = _cloudStorageRows.map((r, i) => [
+        i + 1, r.name, r.email, r.mandal, r.village,
+        _csFormatBytes(r.breakdown['Farmer Profiles']),
+        _csFormatBytes(r.breakdown['Fertilizer Distribution']),
+        _csFormatBytes(r.breakdown['e-Panta Reports']),
+        _csFormatBytes(r.breakdown['1B Uploaded Data']),
+        _csFormatBytes(r.breakdown['Other']),
+        _csFormatBytes(r.total),
+        _cloudStorageGrandTotal ? (r.total / _cloudStorageGrandTotal * 100).toFixed(1) + '%' : '0%'
+    ]);
+    rows.push(['', '', '', '', '', '', '', '', '', '', _csFormatBytes(_cloudStorageGrandTotal), '100%']);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Cloud_Storage_Usage');
+    XLSX.writeFile(wb, `Cloud_Storage_Usage_${formatToday()}.xlsx`);
+}
+
+// ============================================================
+//  VO DASHBOARD: CLOUD STORAGE USED — own account breakup
+//  (VOs generate the bulk of the data — Farmer Profiles, 1B
+//  uploads, Fertilizer Distribution, e-Panta Reports — so each
+//  VO can see exactly how much cloud storage their own account
+//  is using, broken down the same way as the Admin view.)
+// ============================================================
+const VO_STORAGE_CATS = {
+    'Farmer Profiles':         d => _csByteSize(d.farmerProfiles),
+    'Fertilizer Distribution': d => _csByteSize(d.ureaHistory) + _csByteSize(d.voUreaHistory),
+    'e-Panta Reports':         d => _csByteSize(d.allReports),
+    '1B Uploaded Data':        d => _csByteSize(d.ureaData),
+};
+const VO_STORAGE_COLORS = {
+    'Farmer Profiles':         '#1862ab',
+    'Fertilizer Distribution': '#f39c12',
+    'e-Panta Reports':         '#27ae60',
+    '1B Uploaded Data':        '#8e44ad',
+    'Other':                   '#adb5bd',
+};
+
+function showVoCloudStorageModal() {
+    const modalEl = document.getElementById('voCloudStorageModal');
+    if (!modalEl) return;
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    renderVoCloudStorageBreakdown();
+}
+
+function renderVoCloudStorageBreakdown() {
+    const body = document.getElementById('voCloudStorageModalBody');
+    if (!body) return;
+    body.innerHTML = `
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3 text-primary d-block"></i>
+            <p class="fw-semibold">Calculating your cloud storage usage…</p>
+        </div>`;
+
+    const user = firebase.auth().currentUser;
+    if (!user) {
+        body.innerHTML = '<div class="alert alert-danger mb-0">Please log in again.</div>';
+        return;
+    }
+
+    database.ref('users/' + user.uid).once('value')
+        .then(snapshot => {
+            const data = snapshot.val() || {};
+
+            const breakdown = {};
+            let known = 0;
+            Object.keys(VO_STORAGE_CATS).forEach(cat => {
+                const sz = VO_STORAGE_CATS[cat](data);
+                breakdown[cat] = sz;
+                known += sz;
+            });
+            const total = _csByteSize(data);
+            breakdown['Other'] = Math.max(0, total - known);
+
+            const miniEl = document.getElementById('voStorageUsedMini');
+            if (miniEl) miniEl.textContent = _csFormatBytes(total);
+
+            const barSegments = Object.entries(breakdown).map(([cat, sz]) => {
+                const w = total ? (sz / total * 100) : 0;
+                if (w <= 0) return '';
+                return `<div title="${cat}: ${_csFormatBytes(sz)}" style="width:${w}%;background:${VO_STORAGE_COLORS[cat]};height:100%;"></div>`;
+            }).join('');
+
+            const tableRows = Object.entries(breakdown).map(([cat, sz]) => {
+                const pct = total ? (sz / total * 100) : 0;
+                return `<tr>
+                    <td><i class="fas fa-circle me-2" style="font-size:0.55rem;color:${VO_STORAGE_COLORS[cat]};"></i>${cat}</td>
+                    <td class="text-end fw-semibold">${_csFormatBytes(sz)}</td>
+                    <td class="text-end text-muted">${pct.toFixed(1)}%</td>
+                </tr>`;
+            }).join('');
+
+            body.innerHTML = `
+                <div class="text-center mb-3">
+                    <div class="text-muted small">Your total cloud storage used</div>
+                    <div class="fs-2 fw-bold" style="color:#8e44ad;">${_csFormatBytes(total)}</div>
+                </div>
+                <div class="d-flex mb-3" style="height:14px;border-radius:7px;overflow:hidden;background:#eef2f5;">
+                    ${barSegments}
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>Category</th><th class="text-end">Storage Used</th><th class="text-end" style="width:70px;">%</th></tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                    <tfoot>
+                        <tr class="table-light fw-bold">
+                            <td>Total</td>
+                            <td class="text-end">${_csFormatBytes(total)}</td>
+                            <td class="text-end">100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <p class="text-muted small mt-3 mb-0">
+                    <i class="fas fa-info-circle me-1"></i>
+                    This is how much cloud storage your account (Farmer Profiles, Fertilizer Distribution,
+                    e-Panta Reports &amp; 1B Uploaded Data) is currently using.
+                </p>`;
+        })
+        .catch(err => {
+            body.innerHTML = `<div class="alert alert-danger mb-0">❌ Error loading storage data: ${escapeHtml(err.message)}</div>`;
+        });
+}
+
 function loadAdminData() {
     const user = firebase.auth().currentUser;
     if (!user || !isAdmin()) return alert('Access denied.');
@@ -18855,6 +19299,9 @@ function _rtExecuteDistributeFromList(r, rowIdx) {
                 aadhaar: r.aadhaar||'', farmerName: r.farmerName||'', date: r.date||'',
                 bags, fertilizerType: fert, crop: r.crop||'', season: r.season||'', year: r.year||'',
                 splitIndex: r.splitIndex !== undefined ? r.splitIndex : 0,
+                splitName: r.splitName||'', fatherName: r.fatherName||'', mobile: r.mobile||'',
+                khatha: r.khatha||'', extent: r.extent||'',
+                village: r.village||'',  // ── FIX: carry village so VO abstract report filter works ──
                 retailerUid: uid||'', outletId: outletId||'', outletName: outletName||'',
                 verifiedAt: now, status: 'Distributed', token, distributedVia: 'pendingList'
             }));
@@ -18988,7 +19435,7 @@ async function retailerMarkDistributed(tokenKey, farmerName, bags) {
     );
     if (!confirmed) return;
 
-    const { uid: currentUid, outletId, outletName } = getRetailerInfo();
+    const { uid: currentUid, outletId, outletName, mandalKey } = getRetailerInfo();
     const now = new Date().toISOString();
     const today = now.slice(0, 10);
 
@@ -18997,7 +19444,24 @@ async function retailerMarkDistributed(tokenKey, farmerName, bags) {
         const record = snap.val();
         if (!record) { alert('Record not found in database.'); return; }
 
+        const fert = record.fertilizerType || 'Urea';
+        const numBags = Number(bags);
+
+        // ── FIX 1: Deduct retailer stock (same logic as _rtExecuteDistributeFromList) ──
+        const balPath = outletId
+            ? `mandals/${mandalKey}/retailers/${outletId}/stock/${fert}`
+            : `users/${currentUid}/retailerStock/balance/${fert}`;
+        const stockSnap = await database.ref(balPath).once('value');
+        const currentStock = Number(stockSnap.val()) || 0;
+        if (currentStock < numBags) {
+            alert(`🚫 Insufficient stock!\nAvailable: ${currentStock} ${fert} bag(s)\nRequired: ${numBags} bag(s)\n\nPlease add stock before distributing.`);
+            return;
+        }
+
         const ops = [];
+
+        // Deduct stock
+        ops.push(database.ref(balPath).set(currentStock - numBags));
 
         // 1. Update fertilizerDistributions record to Distributed
         ops.push(database.ref('fertilizerDistributions/' + tokenKey).update({
@@ -19012,7 +19476,11 @@ async function retailerMarkDistributed(tokenKey, farmerName, bags) {
             confirmedByRetailerUid: currentUid || ''
         }));
 
-        // 2. Write a distributionUpdates action so the VO's local ureaHistory gets updated
+        // ── FIX 2: Only write distributionUpdates (NOT a push-key to ureaHistory).
+        //    The VO's _applyRetailerAction listener processes distributionUpdates and
+        //    calls saveToCloud() which writes the correct voUreaHistory blob.
+        //    The old push-key write to users/${voUid}/ureaHistory was being ignored
+        //    on VO login because login prefers voUreaHistory over ureaHistory. ──
         const voUid = record.voUid;
         if (voUid) {
             const actionKey = database.ref('distributionUpdates/' + voUid).push().key;
@@ -19023,10 +19491,14 @@ async function retailerMarkDistributed(tokenKey, farmerName, bags) {
                     histIdx: record.histIdx !== undefined ? record.histIdx : -1,
                     aadhaar: record.aadhaar || '',
                     farmerName: record.farmerName || '',
+                    fatherName: record.fatherName || '',
+                    mobile: record.mobile || '',
+                    cardNumber: record.cardNumber || '',
                     date: record.date || today,
-                    bags: Number(bags),
-                    fertilizerType: record.fertilizerType || 'Urea',
+                    bags: numBags,
+                    fertilizerType: fert,
                     crop: record.crop || '',
+                    splitName: record.splitName || '',
                     season: record.season || '',
                     year: record.year || '',
                     splitIndex: record.splitIndex !== undefined ? record.splitIndex : 0,
@@ -19037,29 +19509,6 @@ async function retailerMarkDistributed(tokenKey, farmerName, bags) {
                     status: 'Distributed',
                     token: tokenKey,
                     distributedVia: 'retailerConfirmed'
-                }));
-            }
-            // 3. Also write to VO's ureaHistory so it shows distributed on their dashboard
-            const histKey = database.ref('users/' + voUid + '/ureaHistory').push().key;
-            if (histKey) {
-                ops.push(database.ref('users/' + voUid + '/ureaHistory/' + histKey).set({
-                    aadhaar:          record.aadhaar || '',
-                    farmerName:       record.farmerName || '',
-                    date:             record.date || today,
-                    bags:             Number(bags),
-                    fertilizerType:   record.fertilizerType || 'Urea',
-                    crop:             record.crop || '',
-                    season:           record.season || '',
-                    year:             record.year || '',
-                    status:           'Distributed',
-                    retailerVerified: true,
-                    verifiedAt:       now,
-                    verifiedBy:       currentUid || '',
-                    outletId:         outletId || '',
-                    outletName:       outletName || '',
-                    splitIndex:       record.splitIndex !== undefined ? record.splitIndex : 0,
-                    printToken:       tokenKey,
-                    distributedVia:   'retailerConfirmed'
                 }));
             }
         }
@@ -19085,6 +19534,7 @@ async function retailerMarkDistributed(tokenKey, farmerName, bags) {
         await Promise.all(ops);
         alert('\u2705 Marked as Distributed successfully!\nThe VO record has been updated.');
         searchRetailerHistoryByAadhaar(); // Refresh
+        loadRetailerStock(); // ── Refresh retailer stock display after deduction ──
     } catch(err) {
         console.error('Mark distributed error:', err);
         alert('\u274C Failed: ' + err.message);
@@ -24360,6 +24810,37 @@ function pollVoDeleteApprovals() {
       <div class="modal-footer justify-content-center" style="border-top:1px solid #e0e6ed;">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-danger fw-semibold px-4" onclick="confirmDeleteUser()"><i class="fas fa-trash-alt me-2"></i>Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CLOUD STORAGE USED — POPUP (card-wise breakup)
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="cloudStorageModal" tabindex="-1" aria-labelledby="cloudStorageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:16px;">
+      <div class="modal-header" style="background:linear-gradient(135deg,#8e44ad,#6c3483);color:white;border-radius:16px 16px 0 0;">
+        <h5 class="modal-title fw-bold" id="cloudStorageModalLabel"><i class="fas fa-cloud me-2"></i>Cloud Storage Used — Card-wise Breakup</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3">
+        <div id="cloudStorageModalBody">
+          <div class="text-center text-muted py-5">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3 text-primary d-block"></i>
+            <p class="fw-semibold">Calculating cloud storage usage…</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #e0e6ed;">
+        <button type="button" class="btn btn-outline-success btn-sm fw-semibold" onclick="exportCloudStorageReport()">
+          <i class="fas fa-file-excel me-1"></i> Export
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold" onclick="renderCloudStorageBreakdown()">
+          <i class="fas fa-sync me-1"></i> Refresh
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
