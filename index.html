@@ -14030,15 +14030,32 @@ function addFpCropRow() {
     const cropList  = Object.keys(fertilizerDosage);
     const idx       = container.querySelectorAll('.fp-crop-row').length + 1;
 
-    const khatha     = document.getElementById('fpKhatha')?.value?.trim() || '';
-    const surveyOpts = getSurveyNumbersForKhatha(khatha);
+    const khatha       = document.getElementById('fpKhatha')?.value?.trim() || '';
+    const currentAadhaar = cleanAadhaar(document.getElementById('fpAadhaar')?.value || '');
+    const rawSurveyOpts = getSurveyNumbersForKhatha(khatha);
+
+    // Extent already used within THIS form's other crop rows (same farmer profile)
+    const usedInFormExtents = getUsedSurveyExtents();
+
+    // ── Show a survey number as long as it still has unallocated extent left:
+    //    - subtract extent already FULLY/PARTLY allocated to OTHER farmers'
+    //      saved profiles for this khatha (cross-profile)
+    //    - subtract extent already used by OTHER crop rows in this same
+    //      farmer profile (so a survey cultivated with more than one crop
+    //      keeps showing up here until its extent is exhausted)
+    //    Only once a survey number's full extent is used up (by either of the
+    //    above) is it dropped from the list. ──
+    const surveyOpts = rawSurveyOpts
+        .map(o => {
+            const allocatedByOthers = getSurveyAllocatedExtentByOthers(khatha, o.surveyNo, currentAadhaar);
+            const usedInForm        = usedInFormExtents[o.surveyNo] || 0;
+            const remaining = parseFloat(Math.max(0, o.extent - allocatedByOthers - usedInForm).toFixed(2));
+            return { surveyNo: o.surveyNo, extent: remaining };
+        })
+        .filter(o => o.extent > 0.001); // drop fully-allotted survey numbers
+
     const totalSurveyExtent = surveyOpts.reduce((s, o) => s + (o.extent || 0), 0);
-
-    // Get already used survey numbers from other crop rows
-    const usedSurveyNumbers = getUsedSurveyNumbers();
-
-    // Filter out already used survey numbers
-    const availableSurveyOpts = surveyOpts.filter(o => !usedSurveyNumbers.has(o.surveyNo));
+    const availableSurveyOpts = surveyOpts;
 
     // Format crop names for display
     const formattedCrops = cropList.map(c => ({
@@ -14141,35 +14158,62 @@ function addFpCropRow() {
     container.appendChild(row);
 }
 // Global function declarations for survey blocking
-function getUsedSurveyNumbers() {
-    const used = new Set();
+// Returns { surveyNo: extentAlreadyConsumedWithinThisForm } across all crop rows
+// currently in the Farmer Profile form. This is extent-aware (not a simple
+// used/unused flag) so a survey number that's only PARTLY consumed by one crop
+// row keeps showing up — with its remaining extent — for ANOTHER crop row in the
+// same farmer profile (multi-cropping the same survey number), instead of being
+// blocked outright after its first use.
+function getUsedSurveyExtents() {
+    const used = {};
     const rows = document.querySelectorAll('.fp-crop-row');
-    
+
     rows.forEach(row => {
         const panel = row.querySelector('.fp-survey-panel');
         if (panel) {
-            const checkedItems = panel.querySelectorAll('.fp-survey-item:checked');
-            checkedItems.forEach(cb => {
-                used.add(cb.value);
-            });
+            const checkedItems = Array.from(panel.querySelectorAll('.fp-survey-item:checked'));
+            if (!checkedItems.length) return;
+            const rowExt = parseFloat(row.querySelector('.fp-crop-extent')?.value || 0);
+
+            if (checkedItems.length === 1) {
+                // Single survey selected for this crop row — attribute exactly what
+                // the user entered (or up to the survey's available extent), so any
+                // leftover stays free for another crop on the same survey number.
+                const sv     = checkedItems[0].value;
+                const avail  = parseFloat(checkedItems[0].dataset.extent || 0);
+                const consumed = rowExt > 0 ? Math.min(rowExt, avail) : avail;
+                used[sv] = (used[sv] || 0) + consumed;
+            } else {
+                // Multiple surveys combined into one crop row ("All" / multi-select):
+                // treat each selected survey's full available extent as consumed by
+                // this row, since the single extent field can't be unambiguously
+                // split back out across several survey numbers.
+                checkedItems.forEach(cb => {
+                    const sv    = cb.value;
+                    const avail = parseFloat(cb.dataset.extent || 0);
+                    used[sv] = (used[sv] || 0) + avail;
+                });
+            }
         } else {
+            // Legacy <select>/text fallback — no per-survey extent info available,
+            // so treat the survey number as fully consumed by this row.
             const select = row.querySelector('.fp-crop-survey');
             if (select && select.value) {
                 select.value.split(',').forEach(s => {
                     const trimmed = s.trim();
-                    if (trimmed) used.add(trimmed);
+                    if (trimmed) used[trimmed] = Infinity;
                 });
             }
             const textInput = row.querySelector('.fp-crop-survey-text');
             if (textInput && textInput.value) {
                 textInput.value.split(',').forEach(s => {
                     const trimmed = s.trim();
-                    if (trimmed) used.add(trimmed);
+                    if (trimmed) used[trimmed] = Infinity;
                 });
             }
         }
     });
-    
+
     return used;
 }
 
@@ -14582,6 +14626,38 @@ function getKhathaAllocatedExtentByOthers(khatha, currentAadhaar) {
             );
 
             allocated += cropExtent;
+        });
+    });
+
+    return parseFloat(allocated.toFixed(2));
+}
+
+/**
+ * Returns the total extent already allocated to OTHER farmers (different Aadhaar)
+ * for a given SURVEY NUMBER within a khatha, across all saved farmerProfiles.
+ * Excludes the current farmer's own profile (by Aadhaar) so editing an existing
+ * profile doesn't count its own previously-saved allocation against itself.
+ */
+function getSurveyAllocatedExtentByOthers(khatha, surveyNo, currentAadhaar) {
+    let allocated = 0;
+    const sv = String(surveyNo || '').trim();
+    if (!sv) return 0;
+
+    Object.entries(farmerProfiles || {}).forEach(([aadhaar, profiles]) => {
+        if (String(aadhaar) === String(currentAadhaar)) return;
+
+        (profiles || []).forEach(profile => {
+            if (String(profile.khatha) !== String(khatha)) return;
+
+            (profile.crops || []).forEach(crop => {
+                const cropSurveys = String(crop.surveyNos || '')
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean);
+                if (cropSurveys.includes(sv)) {
+                    allocated += (parseFloat(crop.extent) || 0);
+                }
+            });
         });
     });
 
