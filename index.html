@@ -9884,44 +9884,24 @@ function getSplitName(crop, splitIdx, shortForm) {
 function getDeterministicSplitEligibilities(totalEligible, crop, fert) {
     crop = (crop || '').toLowerCase().trim();
 
-    // SPECIAL CASE: Paddy Urea -> 2 equal splits (1/2 N at Basal, Tillering)
-    // NOTE: DAP for paddy is 'Full' at basal — handled correctly by the general logic below.
+    // DAP: always 1 split (full basal dose) for ALL crops
+    if (fert === 'DAP') {
+        return [totalEligible];
+    }
+
+    // PADDY Urea: 2 equal splits (Basal + Tillering)
     if (crop === 'paddy' && (!fert || fert === 'Urea')) {
-        // Urea: 2 equal splits (ceil first, remainder in last)
         const s0 = Math.ceil(totalEligible / 2);
         const s1 = Math.max(0, totalEligible - s0);
         return [s0, s1];
     }
 
-    // DEFAULT LOGIC FOR ALL CROPS (uses fertilizer schedule fractions)
-    const sch = fertilizerSchedule[crop];
-
-    if (!sch || sch.length === 0) {
-        return [totalEligible];
-    }
-
-    let accumulatedBags = 0;
-    const eligibilities = [];
-
-    for (let i = 0; i < sch.length; i++) {
-        let actual;
-        if (i === sch.length - 1) {
-            // Last split always gets the exact remainder to avoid rounding drift
-            actual = Math.max(0, totalEligible - accumulatedBags);
-        } else {
-            let frac = getSplitFraction(crop, i, fert);
-            let base = Math.round(totalEligible * frac);
-            actual = Math.max(
-                0,
-                Math.min(base, totalEligible - accumulatedBags)
-            );
-        }
-
-        eligibilities.push(actual);
-        accumulatedBags += actual;
-    }
-
-    return eligibilities;
+    // ALL OTHER CROPS (Urea/MOP): 3 equal splits
+    // Any rounding remainder goes to the last split
+    const s0 = Math.floor(totalEligible / 3);
+    const s1 = Math.floor(totalEligible / 3);
+    const s2 = Math.max(0, totalEligible - s0 - s1);
+    return [s0, s1, s2];
 }
 
 function populateSplitDropdown() {
@@ -9961,53 +9941,27 @@ function populateSplitDropdown() {
 
     if (!crop) return;
 
-    // PADDY: Urea has 2 splits (Basal, Tillering)
-    //         DAP/MOP → determined by schedule (P:'Full' at basal only = 1 split)
-    if (crop === 'paddy') {
-        if (!fert || fert === 'Urea') {
-            splitSel.innerHTML += `
-                <option value="0">Split 1: Basal Dose</option>
-                <option value="1">Split 2: Tillering</option>
-            `;
-        } else {
-            // DAP/MOP for paddy: full dose at basal only
-            splitSel.innerHTML += `<option value="0">Split 1: Basal Dose (Full)</option>`;
-        }
+    // DAP: always 1 split (full basal dose) for ALL crops
+    if (fert === 'DAP') {
+        splitSel.innerHTML += `<option value="0">Split 1: Basal Dose (Full)</option>`;
         return;
     }
 
-    // DEFAULT LOGIC FOR OTHER CROPS
-    const sch = fertilizerSchedule[crop];
-
-    if (!sch || sch.length === 0) {
+    // PADDY Urea: 2 splits (Basal + Tillering)
+    if (crop === 'paddy' && (!fert || fert === 'Urea')) {
         splitSel.innerHTML += `
-            <option value="0">
-                Split 1: Full Dose
-            </option>
+            <option value="0">Split 1: Basal Dose</option>
+            <option value="1">Split 2: Tillering</option>
         `;
         return;
     }
 
-    sch.forEach((stage, idx) => {
-        const fraction =
-            getSplitFraction(crop, idx, fert);
-
-        if (fraction > 0) {
-            splitSel.innerHTML += `
-                <option value="${idx}">
-                    Split ${idx + 1}: ${stage.stage}
-                </option>
-            `;
-        }
-    });
-
-    if (splitSel.options.length === 1) {
-        splitSel.innerHTML += `
-            <option value="0">
-                Split 1: Basal/All
-            </option>
-        `;
-    }
+    // ALL OTHER CROPS (Urea/MOP): 3 equal splits
+    splitSel.innerHTML += `
+        <option value="0">Split 1: Basal Dose</option>
+        <option value="1">Split 2: Top Dressing 1</option>
+        <option value="2">Split 3: Top Dressing 2</option>
+    `;
 }
 
 function getTotalBagsTakenByAadhaarCropAndSplit(aadhaar, fert, crop, season, year, splitIdx) {
