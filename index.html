@@ -249,6 +249,12 @@
          *     "apfrRegistry": {
          *       ".read": "auth != null",
          *       ".write": "auth != null"
+         *     },
+         *     "voRestrictions": {
+         *       "$voUid": {
+         *         ".read": "auth != null",
+         *         ".write": "auth != null && auth.uid == $voUid"
+         *       }
          *     }
          *   }
          * }
@@ -1726,6 +1732,154 @@
             </div>
         </div>
     </div><!-- /card -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     FERTILIZER RESTRICTION CONTROL CARD — VO ONLY
+     Firebase path: voRestrictions/{voUid}/{safeVillage}/
+       bagRule    → { active, tiers:[{from,to,bags}], updatedAt, updatedBy }
+       splitLocks → { s0:{locked,updatedAt,updatedBy}, s1:{...}, s2:{...} }
+     ══════════════════════════════════════════════════════════════ -->
+<div class="card p-0 mx-auto mt-4" id="fertRestrictionCard" style="max-width:900px;border-radius:16px;overflow:hidden;">
+  <!-- top accent bar -->
+  <div style="height:5px;background:linear-gradient(90deg,#e74c3c 0%,#e67e22 40%,#f39c12 100%);"></div>
+  <div style="padding:1.4rem 1.6rem;">
+
+    <!-- Card header -->
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span style="background:linear-gradient(135deg,#e74c3c,#c0392b);width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="fas fa-lock text-white" style="font-size:0.9rem;"></i>
+      </span>
+      <div>
+        <div style="font-size:0.84rem;font-weight:800;color:#c0392b;text-transform:uppercase;letter-spacing:0.8px;">Fertilizer Distribution Restrictions</div>
+        <div style="font-size:0.72rem;color:#7f8c8d;">Bag limits by extent &amp; split-wise locks — affects all farmers in the selected village</div>
+      </div>
+    </div>
+
+    <!-- Village selector for restriction -->
+    <div class="row g-2 mb-3">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold mb-1" style="font-size:0.82rem;color:#1862ab;">
+          <i class="fas fa-map-marker-alt me-1"></i>Select Village
+        </label>
+        <select id="rctVillage" class="form-select form-select-sm" onchange="loadFertRestrictions()">
+          <option value="">-- Select Village --</option>
+        </select>
+      </div>
+      <div class="col-md-6 d-flex align-items-end">
+        <div id="rctVillageStatus" style="font-size:0.78rem;color:#7f8c8d;padding-bottom:2px;">
+          <i class="fas fa-info-circle me-1"></i>Select a village to view or edit restrictions.
+        </div>
+      </div>
+
+      <!-- Firebase rules reminder -->
+      <div style="background:#eaf4fb;border:1px solid #a9cce3;border-radius:8px;padding:0.55rem 0.85rem;margin-bottom:1rem;font-size:0.72rem;color:#1a5276;">
+        <i class="fas fa-database me-1" style="color:#1862ab;"></i>
+        <strong>Firebase Rules required:</strong> Add <code style="background:#d6eaf8;border-radius:4px;padding:1px 5px;">"voRestrictions": { "$voUid": { ".read":"auth != null", ".write":"auth != null && auth.uid == $voUid" } }</code> to your Realtime Database rules.
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────
+         SECTION A: BAG LIMIT BY EXTENT (ACREAGE)
+         ───────────────────────────────────────── -->
+    <div style="border:1.5px solid #fad7a0;border-radius:12px;overflow:hidden;margin-bottom:1.2rem;">
+      <div style="background:linear-gradient(135deg,#fef5e7,#fdebd0);padding:0.7rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <i class="fas fa-wheat-awn" style="color:#e67e22;"></i>
+          <span style="font-weight:800;font-size:0.83rem;color:#a04000;">Section A — Bag Limit by Extent (Low Stock)</span>
+          <span id="bagRuleActiveBadge" style="display:none;font-size:0.65rem;background:#e74c3c;color:#fff;border-radius:20px;padding:1px 8px;font-weight:700;">🔒 ACTIVE</span>
+        </div>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" id="bagRuleToggle" onchange="toggleBagRule()" style="width:2.4em;height:1.3em;cursor:pointer;">
+          <label class="form-check-label fw-bold" for="bagRuleToggle" style="font-size:0.78rem;color:#a04000;cursor:pointer;">Enable Limit</label>
+        </div>
+      </div>
+      <div style="padding:1rem;background:#fffbf5;">
+        <!-- Fertilizer type selector -->
+        <div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap;margin-bottom:0.9rem;padding:0.65rem 0.9rem;background:#fff3e0;border:1.5px solid #f0b27a;border-radius:10px;">
+          <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">
+            <i class="fas fa-flask" style="color:#e67e22;font-size:0.85rem;"></i>
+            <span style="font-weight:700;font-size:0.8rem;color:#a04000;">Apply Rule To:</span>
+          </div>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:600;color:#7d4e00;cursor:pointer;padding:3px 10px;border:1.5px solid #f0b27a;border-radius:20px;background:#fff;user-select:none;" id="bagFertLblUrea">
+              <input type="radio" name="bagRuleFert" id="bagRuleFertUrea" value="Urea" onchange="onBagFertChange()" style="accent-color:#f39c12;cursor:pointer;">
+              🌿 Urea
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:600;color:#7d4e00;cursor:pointer;padding:3px 10px;border:1.5px solid #f0b27a;border-radius:20px;background:#fff;user-select:none;" id="bagFertLblDAP">
+              <input type="radio" name="bagRuleFert" id="bagRuleFertDAP" value="DAP" onchange="onBagFertChange()" style="accent-color:#0277bd;cursor:pointer;">
+              🌱 DAP
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:600;color:#7d4e00;cursor:pointer;padding:3px 10px;border:1.5px solid #f0b27a;border-radius:20px;background:#fff3cd;user-select:none;" id="bagFertLblBoth">
+              <input type="radio" name="bagRuleFert" id="bagRuleFertBoth" value="Both" checked onchange="onBagFertChange()" style="accent-color:#e67e22;cursor:pointer;">
+              🌾 Both (Urea &amp; DAP)
+            </label>
+          </div>
+          <div id="bagFertHint" style="font-size:0.71rem;color:#997a00;width:100%;">
+            <i class="fas fa-info-circle me-1"></i>Applies the same tier limits to <strong>both Urea and DAP</strong>. Select a single fertilizer to restrict only that type.
+          </div>
+        </div>
+        <div style="font-size:0.75rem;color:#7f8c8d;margin-bottom:0.8rem;">
+          <i class="fas fa-info-circle me-1" style="color:#f39c12;"></i>
+          When enabled, the retailer will see <strong>only the allowed bag count</strong> for each farmer's extent instead of the full eligible amount.
+          Use this when stock is low. Each row defines an extent range → max bags allowed.
+          <strong>Example:</strong> 0.00–1.50 acres → 0 bags &nbsp;|&nbsp; 1.70–2.50 → 1 bag &nbsp;|&nbsp; etc.
+        </div>
+        <!-- Tier rows -->
+        <div id="bagRuleTiersWrap" style="margin-bottom:0.8rem;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+            <thead>
+              <tr style="background:#fdebd0;font-size:0.72rem;font-weight:700;color:#7d4e00;">
+                <th style="padding:5px 8px;border-radius:6px 0 0 0;">#</th>
+                <th style="padding:5px 8px;">Extent From (acres)</th>
+                <th style="padding:5px 8px;">Extent To (acres)</th>
+                <th style="padding:5px 8px;" id="bagRuleBagsHeader">Max Bags (Urea &amp; DAP)</th>
+                <th style="padding:5px 8px;border-radius:0 6px 0 0;"></th>
+              </tr>
+            </thead>
+            <tbody id="bagRuleTierBody">
+              <!-- rows injected by JS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <button onclick="addBagRuleTier()" style="padding:0.35rem 0.9rem;font-size:0.78rem;font-weight:700;border:1.5px dashed #e67e22;background:#fff;color:#e67e22;border-radius:8px;cursor:pointer;">
+            <i class="fas fa-plus me-1"></i>Add Tier
+          </button>
+          <button onclick="saveBagRule()" style="padding:0.35rem 1rem;font-size:0.78rem;font-weight:700;background:linear-gradient(135deg,#e67e22,#c0392b);color:#fff;border:none;border-radius:8px;cursor:pointer;">
+            <i class="fas fa-save me-1"></i>Save Bag Rule
+          </button>
+          <button onclick="clearBagRule()" style="padding:0.35rem 0.9rem;font-size:0.78rem;font-weight:700;background:#fff;color:#e74c3c;border:1.5px solid #e74c3c;border-radius:8px;cursor:pointer;">
+            <i class="fas fa-trash-alt me-1"></i>Clear All Tiers
+          </button>
+        </div>
+        <div id="bagRuleSaveStatus" style="margin-top:0.5rem;font-size:0.76rem;"></div>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────
+         SECTION B: SPLIT-WISE LOCKS
+         ───────────────────────────────────────── -->
+    <div style="border:1.5px solid #a9cce3;border-radius:12px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#eaf4fb,#d6eaf8);padding:0.7rem 1rem;display:flex;align-items:center;gap:0.5rem;">
+        <i class="fas fa-layer-group" style="color:#1862ab;"></i>
+        <span style="font-weight:800;font-size:0.83rem;color:#1a5276;">Section B — Split-Wise Distribution Lock</span>
+      </div>
+      <div style="padding:1rem;background:#f4f9fd;">
+        <div style="font-size:0.75rem;color:#7f8c8d;margin-bottom:0.9rem;">
+          <i class="fas fa-info-circle me-1" style="color:#1862ab;"></i>
+          Enable <strong>Split 1</strong> so retailers can distribute it. Lock <strong>Split 2 &amp; Split 3</strong> to prevent distribution until you manually unlock each one.
+          <br>This is independent of the automatic 15-day timer — it is a manual VO override.
+        </div>
+        <div class="row g-3" id="splitLockRows">
+          <!-- Three split toggles rendered by JS -->
+        </div>
+        <div id="splitLockSaveStatus" style="margin-top:0.6rem;font-size:0.76rem;"></div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /fertRestrictionCard -->
+
 </div><!-- /ureaSection -->
 
 
@@ -5045,6 +5199,8 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
     <!-- Status + Card output -->
     <div id="printFpStatus" style="margin-top:1rem;"></div>
     <div id="printFpCardContainer" style="margin-top:1rem;"></div>
+
+
 
     <!-- VO: SHOW FERTILIZER DISTRIBUTION DETAILS (Delete / Restore) -->
     <div style="background:#fff; border-radius:16px; box-shadow:0 2px 16px rgba(0,0,0,0.07); overflow:hidden; margin-top:1.5rem; margin-bottom:2rem;">
@@ -19632,13 +19788,61 @@ function _rtExecuteDistributeFromList(r, rowIdx) {
         ? `mandals/${mandalKey}/retailers/${outletId}/stock/${fert}`
         : `users/${uid}/retailerStock/balance/${fert}`;
 
-    database.ref(balPath).once('value').then(snap => {
+    database.ref(balPath).once('value').then(async snap => {
         const stock = Number(snap.val()) || 0;
         if (stock < bags) {
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Distribute'; }
             _rtShowRowError(rowIdx, `Insufficient stock! Available: <strong>${stock}</strong> ${escapeHtml(fert)}, needed: <strong>${bags}</strong>.`);
             return Promise.reject('__handled__');
         }
+
+        // ── VO BAG-CAP GUARD (token / pending-list path) ──
+        // Re-fetch voRestrictions server-side so the VO's bag rule is enforced
+        // even on the token path (not just the Farmer Card QR path).
+        if (voUid && r.village) {
+            let _rtVoRestr = {};
+            try { _rtVoRestr = (await window._fetchFertRestrictions(voUid, r.village)) || {}; } catch(_e) {}
+            const _rtExtent = parseFloat(r.extent || 0) || 0;
+            const _splitIdx = r.splitIndex !== undefined ? Number(r.splitIndex) : 0;
+            const _rtEval = (typeof window._evalFertRestrictions === 'function')
+                ? window._evalFertRestrictions(_rtVoRestr, _rtExtent, _splitIdx, fert)
+                : { bagCap: null, splitLocked: false };
+
+            if (_rtEval.splitLocked) {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Distribute'; }
+                _rtShowRowError(rowIdx, `🔒 Split Locked by Village Officer — ${escapeHtml(fert)} Split ${_splitIdx + 1} cannot be distributed. Contact your VO.`);
+                return Promise.reject('__handled__');
+            }
+            if (_rtEval.bagCap !== null) {
+                // Fetch how many bags already issued to this farmer for this fert+split
+                let _rtAlreadyIssued = 0;
+                try {
+                    const _rtLiveSnap = await database.ref('fertilizerDistributions')
+                        .orderByChild('aadhaar').equalTo(r.aadhaar || '').once('value');
+                    if (_rtLiveSnap.exists()) {
+                        _rtLiveSnap.forEach(child => {
+                            const v = child.val();
+                            if (!v) return;
+                            if (v.status === 'Cancelled' || v.status === 'Rejected') return;
+                            if (!((v.status === 'Distributed' || v.retailerVerified === true) &&
+                                  v.year === r.year && v.season === r.season)) return;
+                            if ((v.fertilizerType || v.fert) === fert &&
+                                (v.splitIndex !== undefined ? v.splitIndex : 0) === _splitIdx) {
+                                _rtAlreadyIssued += Number(v.bags || 0);
+                            }
+                        });
+                    }
+                } catch(_e) {}
+                const _rtCapRem = Math.max(0, _rtEval.bagCap - _rtAlreadyIssued);
+                if (bags > _rtCapRem) {
+                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Distribute'; }
+                    _rtShowRowError(rowIdx, `⛔ VO Bag Limit Exceeded — Cap: <strong>${_rtEval.bagCap}</strong> bags for this farmer's extent (${_rtExtent} ac). Already issued: <strong>${_rtAlreadyIssued}</strong>. Cap remaining: <strong>${_rtCapRem}</strong>. Requested: <strong>${bags}</strong>.`);
+                    return Promise.reject('__handled__');
+                }
+            }
+        }
+        // ── END VO BAG-CAP GUARD ──
+
         const now = new Date().toISOString();
         const ops = [ database.ref(balPath).set(stock - bags) ];
         if (voUid) {
@@ -21409,12 +21613,14 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
     const fcKey = a + '_' + (year || '').replace(/[^a-zA-Z0-9]/g,'') + '_' + (season || '');
     const voUidClean = String(voUid || '').trim();
     
+    // We'll fetch voRestrictions after we know the village from fc.village (loaded in snap).
+    // For now include a placeholder so we can fetch it inside the then() block.
     Promise.all([
         database.ref('fertilizerCards/' + fcKey).once('value'),
         database.ref('ureaHistory').orderByChild('aadhaar').equalTo(a).once('value'),
         voUidClean ? database.ref('users/' + voUidClean + '/ureaHistory').once('value') : Promise.resolve(null),
         database.ref('fertilizerDistributions').orderByChild('aadhaar').equalTo(a).once('value')
-    ]).then(([snap, histSnap, voHistSnap, fdSnap]) => {
+    ]).then(async ([snap, histSnap, voHistSnap, fdSnap]) => {
         // ── Build already-issued map from fertilizerDistributions ──
         const fdIssuedRecords = [];
         if (fdSnap && fdSnap.exists()) {
@@ -21493,6 +21699,18 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         const splits = fc.splits || {};
         const uElig = [splits.Urea?.s0||0, splits.Urea?.s1||0, splits.Urea?.s2||0];
         const dElig = [splits.DAP?.s0||0,  splits.DAP?.s1||0,  splits.DAP?.s2||0];
+
+        // ── Fetch village-level VO restrictions (bag rule + split locks) ──
+        const _voUidForRestrict = voUidClean || (fc.voUid || '');
+        const _villageForRestrict = fc.village || '';
+        let _voRestrictions = {};
+        if (_voUidForRestrict && _villageForRestrict) {
+            try {
+                _voRestrictions = (await window._fetchFertRestrictions(_voUidForRestrict, _villageForRestrict)) || {};
+            } catch(_e) { _voRestrictions = {}; }
+        }
+
+
         // Crop-aware split label helper for retailer view
         const _rtCrop = (fc.crops || fc.crop || '').split(',')[0].trim().toLowerCase().replace(/\s+/g,'_');
         const _rtSch = fertilizerSchedule[_rtCrop] || [];
@@ -21580,6 +21798,53 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         const splitNames = [_rtSplitName(0), _rtSplitName(1), _rtSplitName(2)];
         const splitBadges = ['#1862ab','#27ae60','#f39c12'];
         let splitRowsHtml = '';
+
+        // ── Village Bag Rule Banner (shown once, above splits) ──
+        let _villageBagRuleBanner = '';
+        const _vbr = _voRestrictions.bagRule;
+        if (_vbr && _vbr.active === true && Array.isArray(_vbr.tiers) && _vbr.tiers.length > 0) {
+            const _farmerExtent2 = parseFloat(fc.extent || fc.totalExtent || 0) || 0;
+            const _ruleFert  = _vbr.fertType || 'Both';
+            const _fertLabel = _ruleFert === 'Both' ? 'Urea & DAP' : _ruleFert + ' only';
+            const _fertColor = _ruleFert === 'DAP' ? '#0277bd' : _ruleFert === 'Urea' ? '#f39c12' : '#e67e22';
+            // Use _evalFertRestrictions for consistent tier matching (gap fallback + fertType filter)
+            const _reprFert  = _ruleFert === 'Urea' ? 'Urea' : 'DAP';
+            const _bannerEval = (typeof _evalFertRestrictions === 'function')
+                ? _evalFertRestrictions(_voRestrictions, _farmerExtent2, 0, _reprFert)
+                : { bagCap: null };
+            // Only show banner if the rule actually applies to this fertilizer
+            if (_bannerEval.bagCap !== null) {
+                const _capBags = _bannerEval.bagCap;
+            _villageBagRuleBanner = `
+            <div style="background:linear-gradient(135deg,#fef5e7,#fdebd0);border:2px solid ${_fertColor};border-radius:10px;padding:10px 14px;margin-bottom:10px;">
+                <div style="font-weight:800;font-size:0.82rem;color:#a04000;margin-bottom:4px;">
+                    <i class="fas fa-boxes-stacked me-1"></i>📦 Stock Restriction Active — Village: ${escapeHtml(fc.village||'—')}
+                </div>
+                <div style="font-size:0.75rem;color:#7d4e00;line-height:1.7;">
+                    Farmer Extent: <strong>${_farmerExtent2.toFixed(2)} acres</strong> &nbsp;|&nbsp;
+                    Applies To: <strong style="color:${_fertColor};">${_fertLabel}</strong> &nbsp;|&nbsp;
+                    Allowed Bags: <strong style="color:${_capBags===0?'#e74c3c':_fertColor};">${_capBags} bag${_capBags!==1?'s':''}</strong>
+                    <br><span style="font-size:0.7rem;"><i class="fas fa-info-circle me-1"></i>Due to low stock, the Village Officer has limited <strong>${_fertLabel}</strong> bags per extent. Contact VO when stock is replenished.</span>
+                </div>
+            </div>`;
+            }
+        }
+
+        // ── Village Split Lock Summary Banner ──
+        let _villageSplitLockBanner = '';
+        const _vsl = _voRestrictions.splitLocks || {};
+        const _lockedSplitNums = [0,1,2].filter(si => _vsl['s'+si] && _vsl['s'+si].locked === true);
+        const _openSplitNums   = [0,1,2].filter(si => !(_vsl['s'+si] && _vsl['s'+si].locked === true));
+        if (_lockedSplitNums.length > 0 || Object.keys(_vsl).length > 0) {
+            _villageSplitLockBanner = `
+            <div style="background:linear-gradient(135deg,#eaf4fb,#d6eaf8);border:1.5px solid #1862ab;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:0.75rem;">
+                <div style="font-weight:800;color:#1a5276;margin-bottom:3px;"><i class="fas fa-layer-group me-1"></i>VO Split Control Active</div>
+                <div style="color:#1a5276;line-height:1.7;">
+                    ${_openSplitNums.length>0 ? `<span style="color:#27ae60;font-weight:700;">🔓 Open: Split${_openSplitNums.length>1?'s':''} ${_openSplitNums.map(s=>s+1).join(', ')}</span>` : ''}
+                    ${_lockedSplitNums.length>0 ? `&nbsp; <span style="color:#e74c3c;font-weight:700;">🔒 Locked: Split${_lockedSplitNums.length>1?'s':''} ${_lockedSplitNums.map(s=>s+1).join(', ')}</span>` : ''}
+                </div>
+            </div>`;
+        }
 
         // ── 15-DAY NEXT-SPLIT LOCK ──
         // A split is never locked by ITS OWN first-avail date — the farmer can take
@@ -21772,8 +22037,57 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                         }
                     }
 
+                    // ── VO Village-level Split Lock (manual override from VO panel) ──
+                    const _revalU = typeof _evalFertRestrictions === 'function'
+                        ? _evalFertRestrictions(_voRestrictions, fc.extent || fc.totalExtent || 0, si, 'Urea')
+                        : { bagCap: null, splitLocked: false };
+                    const _revalD = typeof _evalFertRestrictions === 'function'
+                        ? _evalFertRestrictions(_voRestrictions, fc.extent || fc.totalExtent || 0, si, 'DAP')
+                        : { bagCap: null, splitLocked: false };
+                    // Split lock blocks each fertilizer independently
+                    if (!lockedU && remU > 0 && _revalU.splitLocked) {
+                        lockedU = true;
+                        lockedReasonU = `__VOSPLITLOCK__Urea__${si}`;
+                    }
+                    if (!lockedD && remD > 0 && _revalD.splitLocked) {
+                        lockedD = true;
+                        lockedReasonD = `__VOSPLITLOCK__DAP__${si}`;
+                    }
+
+                    // ── VO Bag Cap (bag rule by extent) — per fertilizer type ──
+                    const _bagCapU = _revalU.bagCap; // null = no cap
+                    const _bagCapD = _revalD.bagCap;
+
+                    // Build bag cap banners per fertilizer
+                    let _bagCapBannerHtml = '';
+                    const farmerExtent = parseFloat(fc.extent || fc.totalExtent || 0) || 0;
+                    function _buildBagCapBanner(cap, fertLabel, fertColor) {
+                        if (cap === null || cap === undefined) return '';
+                        if (cap === 0) return `
+                            <div style="background:#fdebd0;border:2px solid #e67e22;border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:0.76rem;">
+                                <div style="font-weight:800;color:#a04000;margin-bottom:3px;"><i class="fas fa-box-open me-1"></i>🔒 Stock Limit — 0 ${fertLabel} Bags Allowed</div>
+                                <div style="color:#7d4e00;line-height:1.6;">
+                                    Extent: <strong>${farmerExtent.toFixed(2)} acres</strong> — Stock allocation: <strong>0 bags</strong> for this extent.<br>
+                                    <span style="font-size:0.7rem;"><i class="fas fa-info-circle me-1"></i>VO will update when stock is replenished.</span>
+                                </div>
+                            </div>`;
+                        return `
+                            <div style="background:#e8f4fd;border:1.5px solid ${fertColor};border-radius:8px;padding:7px 10px;margin-bottom:6px;font-size:0.75rem;">
+                                <i class="fas fa-info-circle me-1" style="color:${fertColor};"></i>
+                                <strong>Stock Limit (${fertLabel}):</strong> ${farmerExtent.toFixed(2)} acres → max <strong>${cap} bag${cap!==1?'s':''}</strong> allowed.
+                            </div>`;
+                    }
+                    if (!lockedU && _bagCapU !== null) _bagCapBannerHtml += _buildBagCapBanner(_bagCapU, 'Urea', '#f39c12');
+                    if (!lockedD && _bagCapD !== null) _bagCapBannerHtml += _buildBagCapBanner(_bagCapD, 'DAP', '#0277bd');
+
+                    const _bagCapForSplit = null; // legacy var kept for compat — individual caps used above
+
                     const showU = remU > 0 && !lockedU;
+                    // DAP: blocked entirely if old per-card VO restriction active; otherwise normal lock check
                     const showD = remD > 0 && !lockedD;
+                    // Effective bag caps for inputs (apply village-level bag cap if set)
+                    const _effRemU = (showU && _bagCapU !== null) ? Math.min(remU, _bagCapU) : remU;
+                    const _effRemD = (showD && _bagCapD !== null) ? Math.min(remD, _bagCapD) : remD;
                     let lockNoticesHtml = '';
 
                     function _lockHtml(reason, fertColor) {
@@ -21793,6 +22107,19 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                                 <div style="margin-top:5px;font-size:0.72rem;color:#856404;"><i class="fas fa-info-circle me-1"></i>This split unlocks 15 days after the previous split was first availed.</div>
                             </div>`;
                         }
+                        if (reason.startsWith('__VOSPLITLOCK__')) {
+                            const parts = reason.split('__').filter(Boolean);
+                            const fertLabel = parts[1]; // 'Urea' or 'DAP'
+                            const splitNum  = Number(parts[2]) + 1;
+                            return `<div style="background:#fdecea;border:2px solid #e74c3c;border-radius:10px;padding:10px 14px;margin-bottom:4px;font-size:0.78rem;flex:1 1 auto;">
+                                <div style="font-weight:800;color:#c0392b;margin-bottom:4px;"><i class="fas fa-lock me-1"></i>🔒 Split ${splitNum} Locked by Village Officer — ${escapeHtml(fertLabel)}</div>
+                                <div style="color:#922b21;line-height:1.6;">
+                                    Village Officer has locked <strong>Split ${splitNum}</strong> for this village.<br>
+                                    Distribution will be enabled once VO unlocks this split from the VO panel.
+                                </div>
+                                <div style="margin-top:5px;font-size:0.7rem;color:#922b21;"><i class="fas fa-info-circle me-1"></i>Contact your Village Officer to unlock Split ${splitNum}.</div>
+                            </div>`;
+                        }
                         return `<div class="alert alert-warning py-2 mb-0" style="font-size:0.78rem; flex:1 1 auto;">
                             <i class="fas fa-lock me-1"></i> <strong>${fertColor} Locked:</strong> ${escapeHtml(reason)}.
                         </div>`;
@@ -21800,22 +22127,22 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
 
                     if (remU > 0 && lockedU) lockNoticesHtml += _lockHtml(lockedReasonU, 'Urea');
                     if (remD > 0 && lockedD) lockNoticesHtml += _lockHtml(lockedReasonD, 'DAP');
-
                     return `
+                  ${_bagCapBannerHtml}
                   ${lockNoticesHtml}
                   ${showU ? `<div data-fert-block="Urea">
-                    <label style="font-size:0.72rem; font-weight:600; color:#1862ab; display:block; margin-bottom:3px;">Urea Bags Now (max ${remU})</label>
-                    <input type="number" id="fcBagsU_${si}" min="0" max="${remU}" value="0"
-                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remU})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remU})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remU})"
+                    <label style="font-size:0.72rem; font-weight:600; color:#1862ab; display:block; margin-bottom:3px;">Urea Bags Now (max ${_effRemU}${_effRemU < remU ? ` <span style="color:#e67e22;font-size:0.66rem;font-weight:600;">stock limit</span>` : ''})</label>
+                    <input type="number" id="fcBagsU_${si}" min="0" max="${_effRemU}" value="0"
+                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemU})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemU})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemU})"
                       style="width:90px; padding:5px 8px; border:1.5px solid #1862ab; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:center;">
                   </div>` : `<input type="hidden" id="fcBagsU_${si}" value="0">`}
                   ${showD ? `<div data-fert-block="DAP">
-                    <label style="font-size:0.72rem; font-weight:600; color:#27ae60; display:block; margin-bottom:3px;">DAP Bags Now (max ${remD})</label>
-                    <input type="number" id="fcBagsD_${si}" min="0" max="${remD}" value="0"
-                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remD})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remD})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${remD})"
+                    <label style="font-size:0.72rem; font-weight:600; color:#27ae60; display:block; margin-bottom:3px;">DAP Bags Now (max ${_effRemD}${_effRemD < remD ? ` <span style="color:#e67e22;font-size:0.66rem;font-weight:600;">stock limit</span>` : ''})</label>
+                    <input type="number" id="fcBagsD_${si}" min="0" max="${_effRemD}" value="0"
+                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemD})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemD})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemD})"
                       style="width:90px; padding:5px 8px; border:1.5px solid #27ae60; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:center;">
-                  </div>` : `<input type="hidden" id="fcBagsD_${si}" value="0">`}`;
-                  })()}
+                  </div>` : `<input type="hidden" id="fcBagsD_${si}" value="0">`}
+                  `; })()}
                 </div>`}
               </div>
             </div>`;
@@ -21923,6 +22250,8 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             </div>
           </div>
           <div style="padding:12px 16px; background:#fff;">
+            ${_villageBagRuleBanner}
+            ${_villageSplitLockBanner}
             ${availedOverrideDisplay}
             ${alreadyIssuedHtml}
             ${totalRemU === 0 && totalRemD === 0
@@ -22330,6 +22659,63 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         }
         // ══════════════════════════════════════════════════════════════════════
         //  END SERVER-SIDE GUARD
+        // ══════════════════════════════════════════════════════════════════════
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  VO BAG-CAP GUARD (server-side enforcement of voRestrictions.bagRule)
+        //  The display side already sets input max to _effRemD/_effRemU, but
+        //  that can be bypassed if the page is stale or inputs are manipulated.
+        //  Re-fetch voRestrictions here and hard-block / cap any entry that
+        //  exceeds the VO's bag-rule limit for the farmer's extent.
+        // ══════════════════════════════════════════════════════════════════════
+        if (voUidForHist && village) {
+            let _serverVoRestrictions = {};
+            try {
+                _serverVoRestrictions = (await window._fetchFertRestrictions(voUidForHist, village)) || {};
+            } catch(_e) { _serverVoRestrictions = {}; }
+
+            const _farmerExtent = parseFloat(extent) || 0;
+            for (const entry of entries) {
+                const _eval = (typeof window._evalFertRestrictions === 'function')
+                    ? window._evalFertRestrictions(_serverVoRestrictions, _farmerExtent, entry.splitIdx, entry.fert)
+                    : { bagCap: null, splitLocked: false };
+
+                // Split lock check (catches any bypass of the DOM lock)
+                if (_eval.splitLocked) {
+                    if (resultEl) resultEl.innerHTML = `<div class="alert alert-danger fw-bold" style="border-radius:14px;">
+                        🔒 Distribution Blocked — Split Locked by Village Officer<br>
+                        <small>${escapeHtml(entry.fert)} Split ${entry.splitIdx + 1} is currently locked by the VO for this village. Contact your Village Officer.</small>
+                    </div>`;
+                    return;
+                }
+
+                // Bag-cap check
+                if (_eval.bagCap !== null) {
+                    // How many bags of this fert+split have already been issued to this farmer?
+                    const _alreadyIssuedCap = _serverAvailed(entry.fert, entry.splitIdx);
+                    const _capRemaining = Math.max(0, _eval.bagCap - _alreadyIssuedCap);
+                    if (entry.bags > _capRemaining) {
+                        if (resultEl) resultEl.innerHTML = `<div class="alert alert-danger fw-bold" style="border-radius:14px;">
+                            ⛔ Distribution Blocked — VO Bag Limit Exceeded<br>
+                            <small>
+                                ${escapeHtml(entry.fert)} Split ${entry.splitIdx + 1}:<br>
+                                VO Bag Cap for this farmer's extent (${_farmerExtent} ac): <strong>${_eval.bagCap}</strong> bags<br>
+                                Already Issued: <strong>${_alreadyIssuedCap}</strong> bags &nbsp;|&nbsp;
+                                Remaining under cap: <strong>${_capRemaining}</strong> bags<br>
+                                Requested: <strong>${entry.bags}</strong> bags —
+                                <span style="color:#c0392b;">exceeds VO cap by ${entry.bags - _capRemaining} bag(s).</span><br><br>
+                                Contact your Village Officer if you believe this is incorrect.
+                            </small>
+                        </div>`;
+                        return;
+                    }
+                    // Also hard-cap the bags actually written (safety net)
+                    entry.bags = Math.min(entry.bags, _capRemaining);
+                }
+            }
+        }
+        // ══════════════════════════════════════════════════════════════════════
+        //  END VO BAG-CAP GUARD
         // ══════════════════════════════════════════════════════════════════════
 
         // ══════════════════════════════════════════════════════════════════════
@@ -26887,6 +27273,8 @@ async function loadPrintFarmerProfile() {
 
     cardEl.innerHTML = _crossVillageBanner + displayCard;
 
+
+
     // ── Generate QR code ──
     const qrHolderEl = document.getElementById('fcQrCode_' + a);
     if (qrHolderEl && typeof QRCode !== 'undefined') {
@@ -29387,6 +29775,415 @@ function initOneBVillagePicker() {
 }
 </script>
 
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+</script>
+
+<!-- ══════════════════════════════════════════════════════════
+     FERTILIZER RESTRICTION CONTROL — JS
+     Firebase schema:
+       voRestrictions/{voUid}/{safeVillage}/bagRule
+         → { active:bool, tiers:[{from,to,bags}], updatedAt, updatedBy }
+       voRestrictions/{voUid}/{safeVillage}/splitLocks
+         → { s0:{locked:bool,updatedAt,updatedBy},
+             s1:{locked:bool,...}, s2:{locked:bool,...} }
+     ══════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+'use strict';
+
+/* ── helpers ── */
+function _safeVillage(v) {
+    return (v || '').trim().replace(/[.#$\[\]/]/g, '_');
+}
+function _rctBase() {
+    const u = firebase.auth().currentUser;
+    if (!u) return null;
+    const v = (document.getElementById('rctVillage') || {}).value || '';
+    if (!v) return null;
+    return database.ref('voRestrictions/' + u.uid + '/' + _safeVillage(v));
+}
+
+/* ── Populate village selects on ureaSection open ── */
+function _populateRctVillage() {
+    const sel  = document.getElementById('rctVillage');
+    const src  = document.getElementById('absVillage');
+    if (!sel) return;
+    // Mirror villages from the absVillage select (already populated by existing code)
+    const opts = src ? Array.from(src.options) : [];
+    sel.innerHTML = '<option value="">-- Select Village --</option>';
+    opts.forEach(o => {
+        if (!o.value) return;
+        const opt = document.createElement('option');
+        opt.value = o.value; opt.textContent = o.textContent;
+        sel.appendChild(opt);
+    });
+    // If only one village, auto-select it
+    const voProfile = window._currentVoProfile || window.currentUserProfile || {};
+    const villages  = voProfile.villages || (voProfile.village ? [voProfile.village] : []);
+    if (villages.length === 1 && sel.options.length === 2) {
+        sel.value = villages[0];
+        loadFertRestrictions();
+    }
+}
+
+/* Hook into showSection so we populate when ureaSection is opened */
+const _origShowSection = window.showSection;
+if (_origShowSection) {
+    window.showSection = function(id) {
+        _origShowSection.apply(this, arguments);
+        if (id === 'ureaSection') {
+            setTimeout(_populateRctVillage, 400);
+        }
+    };
+}
+
+/* ═══════════════════════════════════════════════════════
+   LOAD — read both bagRule + splitLocks from Firebase
+   ═══════════════════════════════════════════════════════ */
+window.loadFertRestrictions = async function() {
+    const base = _rctBase();
+    const villSel = document.getElementById('rctVillage');
+    const villName = villSel ? villSel.value : '';
+    const statusEl = document.getElementById('rctVillageStatus');
+    if (!base) {
+        if (statusEl) statusEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Please select a village first.</span>';
+        return;
+    }
+    if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Loading…';
+    try {
+        const snap = await base.once('value');
+        const data = snap.val() || {};
+
+        // ── A: Bag Rule ──
+        const br = data.bagRule || {};
+        const bagToggle  = document.getElementById('bagRuleToggle');
+        const bagBadge   = document.getElementById('bagRuleActiveBadge');
+        if (bagToggle) bagToggle.checked = br.active === true;
+        if (bagBadge)  bagBadge.style.display = br.active ? '' : 'none';
+        // Restore saved fertilizer selection
+        const savedFert = br.fertType || 'Both';
+        const fertRadio = document.querySelector(`input[name="bagRuleFert"][value="${savedFert}"]`);
+        if (fertRadio) { fertRadio.checked = true; onBagFertChange(); }
+        _renderBagRuleTiers(br.tiers || _defaultTiers());
+
+        // ── B: Split Locks ──
+        const sl = data.splitLocks || {};
+        _renderSplitLocks(sl);
+
+        if (statusEl) statusEl.innerHTML = `<span style="color:#27ae60;"><i class="fas fa-check-circle me-1"></i>Loaded restrictions for <strong>${escapeHtml(villName)}</strong>.</span>`;
+    } catch(e) {
+        if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Error: ${escapeHtml(e.message)}</span>`;
+    }
+};
+
+/* ═══════════════════════════════════════════════════════
+   BAG RULE — default tiers
+   ═══════════════════════════════════════════════════════ */
+function _defaultTiers() {
+    return [
+        { from: 0.00, to: 1.50, bags: 0 },
+        { from: 1.70, to: 2.50, bags: 1 },
+        { from: 2.70, to: 4.00, bags: 2 },
+        { from: 4.70, to: 6.00, bags: 3 },
+        { from: 6.70, to: 8.00, bags: 4 },
+        { from: 8.70, to: 10.00, bags: 5 }
+    ];
+}
+
+/* ── Render tier table rows ── */
+function _renderBagRuleTiers(tiers) {
+    const tbody = document.getElementById('bagRuleTierBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    (tiers || []).forEach((t, i) => {
+        tbody.insertAdjacentHTML('beforeend', `
+        <tr id="bagTierRow_${i}" style="border-bottom:1px solid #fad7a0;">
+          <td style="padding:4px 8px;color:#7f8c8d;font-size:0.75rem;font-weight:700;">${i+1}</td>
+          <td style="padding:4px 8px;">
+            <input type="number" step="0.01" min="0" value="${t.from}"
+              id="bagFrom_${i}" style="width:90px;padding:3px 6px;border:1px solid #f0b27a;border-radius:6px;font-size:0.78rem;text-align:center;"
+              title="Extent from (acres)">
+          </td>
+          <td style="padding:4px 8px;">
+            <input type="number" step="0.01" min="0" value="${t.to}"
+              id="bagTo_${i}" style="width:90px;padding:3px 6px;border:1px solid #f0b27a;border-radius:6px;font-size:0.78rem;text-align:center;"
+              title="Extent to (acres)">
+          </td>
+          <td style="padding:4px 8px;">
+            <input type="number" step="1" min="0" value="${t.bags}"
+              id="bagBags_${i}" style="width:70px;padding:3px 6px;border:1px solid #f0b27a;border-radius:6px;font-size:0.78rem;text-align:center;font-weight:700;color:#e67e22;"
+              title="Max bags for this extent range">
+          </td>
+          <td style="padding:4px 8px;">
+            <button onclick="removeBagTierRow(${i})" style="background:#e74c3c;color:#fff;border:none;border-radius:6px;padding:2px 8px;font-size:0.72rem;cursor:pointer;" title="Remove row">
+              <i class="fas fa-times"></i>
+            </button>
+          </td>
+        </tr>`);
+    });
+}
+
+window.addBagRuleTier = function() {
+    const tbody = document.getElementById('bagRuleTierBody');
+    if (!tbody) return;
+    const count = tbody.querySelectorAll('tr').length;
+    const tiers = _collectTierRows();
+    tiers.push({ from: 0, to: 0, bags: 0 });
+    _renderBagRuleTiers(tiers);
+};
+
+window.removeBagTierRow = function(idx) {
+    const tiers = _collectTierRows();
+    tiers.splice(idx, 1);
+    _renderBagRuleTiers(tiers);
+};
+
+window.clearBagRule = function() {
+    if (!confirm('Clear all extent tiers and reset the bag rule?')) return;
+    _renderBagRuleTiers([]);
+};
+
+function _collectTierRows() {
+    const tbody = document.getElementById('bagRuleTierBody');
+    if (!tbody) return [];
+    return Array.from(tbody.querySelectorAll('tr')).map((row, i) => ({
+        from: parseFloat(document.getElementById('bagFrom_' + i)?.value || 0) || 0,
+        to:   parseFloat(document.getElementById('bagTo_'   + i)?.value || 0) || 0,
+        bags: parseInt( document.getElementById('bagBags_'  + i)?.value || 0) || 0
+    }));
+}
+
+window.toggleBagRule = function() {
+    // Just a visual cue — actual save happens on saveBagRule
+    const active = (document.getElementById('bagRuleToggle') || {}).checked;
+    const badge  = document.getElementById('bagRuleActiveBadge');
+    if (badge) badge.style.display = active ? '' : 'none';
+};
+
+window.onBagFertChange = function() {
+    const fert = _getSelectedBagFert();
+    const header = document.getElementById('bagRuleBagsHeader');
+    const hint   = document.getElementById('bagFertHint');
+    const badge  = document.getElementById('bagRuleActiveBadge');
+    const fertColors = { Urea: '#f39c12', DAP: '#0277bd', Both: '#e67e22' };
+    const fertLabels = { Urea: 'Max Urea Bags', DAP: 'Max DAP Bags', Both: 'Max Bags (Urea & DAP)' };
+    const hintTexts = {
+        Urea: 'Only <strong>Urea</strong> bags will be capped by this rule. DAP remains at full eligibility.',
+        DAP:  'Only <strong>DAP</strong> bags will be capped by this rule. Urea remains at full eligibility.',
+        Both: 'Applies the same tier limits to <strong>both Urea and DAP</strong>. Select a single fertilizer to restrict only that type.'
+    };
+    if (header) header.textContent = fertLabels[fert] || 'Max Bags';
+    if (hint) hint.innerHTML = `<i class="fas fa-info-circle me-1"></i>${hintTexts[fert] || ''}`;
+    // Highlight the selected radio label
+    ['Urea','DAP','Both'].forEach(f => {
+        const lbl = document.getElementById('bagFertLbl' + f);
+        if (lbl) {
+            lbl.style.background = fert === f ? (f === 'Urea' ? '#fff8e1' : f === 'DAP' ? '#e3f2fd' : '#fff3cd') : '#fff';
+            lbl.style.borderColor = fert === f ? (fertColors[f] || '#f0b27a') : '#f0b27a';
+            lbl.style.fontWeight = fert === f ? '800' : '600';
+        }
+    });
+};
+
+function _getSelectedBagFert() {
+    const r = document.querySelector('input[name="bagRuleFert"]:checked');
+    return r ? r.value : 'Both';
+}
+
+window.saveBagRule = async function() {
+    const base = _rctBase();
+    const stEl = document.getElementById('bagRuleSaveStatus');
+    if (!base) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger">Select a village first.</span>';
+        return;
+    }
+    const active   = (document.getElementById('bagRuleToggle') || {}).checked;
+    const fertType = _getSelectedBagFert();
+    const tiers    = _collectTierRows();
+    if (active && tiers.length === 0) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Add at least one tier before enabling the rule.</span>';
+        return;
+    }
+    const user = firebase.auth().currentUser;
+    if (stEl) stEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+    try {
+        await base.child('bagRule').set({
+            active,
+            fertType,   // 'Urea' | 'DAP' | 'Both'
+            tiers,
+            updatedAt:    Date.now(),
+            updatedBy:    user ? user.uid : '',
+            updatedEmail: user ? (user.email||'') : ''
+        });
+        const badge = document.getElementById('bagRuleActiveBadge');
+        if (badge) {
+            badge.style.display = active ? '' : 'none';
+            badge.textContent   = active ? `🔒 ACTIVE — ${fertType}` : '🔒 ACTIVE';
+        }
+        const fertLabel = fertType === 'Both' ? 'Urea & DAP' : fertType;
+        if (stEl) stEl.innerHTML = `<span style="color:#27ae60;"><i class="fas fa-check-circle me-1"></i>Bag rule saved!${active ? ` 🔒 <strong>Limit ACTIVE for ${fertLabel}</strong> — retailer will see capped bags.` : ' 🔓 Limit is OFF — retailer sees full eligible bags.'}</span>`;
+    } catch(e) {
+        if (stEl) stEl.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Save failed: ${escapeHtml(e.message)}</span>`;
+    }
+};
+
+/* ═══════════════════════════════════════════════════════
+   SPLIT LOCKS — render 3 toggle cards
+   ═══════════════════════════════════════════════════════ */
+function _renderSplitLocks(sl) {
+    const container = document.getElementById('splitLockRows');
+    if (!container) return;
+    const labels = ['Split 1 — Basal', 'Split 2 — Top-dress', 'Split 3 — Final'];
+    const icons  = ['fa-seedling', 'fa-tint', 'fa-star'];
+    const colors = ['#1862ab', '#27ae60', '#f39c12'];
+    container.innerHTML = '';
+
+    [0, 1, 2].forEach(si => {
+        const key    = 's' + si;
+        const locked = sl[key] ? sl[key].locked === true : (si !== 0); // default: Split 1 open, 2&3 locked
+        const updAt  = sl[key] && sl[key].updatedAt ? new Date(sl[key].updatedAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        container.insertAdjacentHTML('beforeend', `
+        <div class="col-md-4">
+          <div style="border:2px solid ${locked ? '#e74c3c' : colors[si]};border-radius:12px;overflow:hidden;transition:border-color 0.3s;" id="splitLockCard_${si}">
+            <div style="background:${locked ? 'linear-gradient(135deg,#fdecea,#fbeaea)' : 'linear-gradient(135deg,#e8f8f5,#eafaf1)'};padding:0.6rem 0.9rem;display:flex;align-items:center;justify-content:space-between;gap:0.4rem;">
+              <div style="display:flex;align-items:center;gap:0.5rem;">
+                <i class="fas ${icons[si]}" style="color:${colors[si]};font-size:0.85rem;"></i>
+                <span style="font-weight:800;font-size:0.78rem;color:${locked ? '#c0392b' : colors[si]};">${labels[si]}</span>
+              </div>
+              <span style="font-size:0.65rem;font-weight:700;background:${locked ? '#e74c3c' : '#27ae60'};color:#fff;border-radius:12px;padding:1px 8px;" id="splitLockBadge_${si}">
+                ${locked ? '🔒 LOCKED' : '🔓 OPEN'}
+              </span>
+            </div>
+            <div style="padding:0.7rem 0.9rem;background:#fff;">
+              <div style="font-size:0.71rem;color:#7f8c8d;margin-bottom:0.6rem;">
+                ${locked
+                  ? `Retailer <strong style="color:#e74c3c;">CANNOT</strong> distribute bags for this split.`
+                  : `Retailer <strong style="color:#27ae60;">CAN</strong> distribute bags for this split.`}
+                <br><span style="font-size:0.67rem;">Last updated: ${updAt}</span>
+              </div>
+              <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                <button onclick="setSplitLock(${si}, false)"
+                  style="flex:1;padding:0.3rem 0.5rem;font-size:0.72rem;font-weight:700;background:${!locked ? '#27ae60' : '#e0e0e0'};color:${!locked ? '#fff' : '#555'};border:none;border-radius:7px;cursor:pointer;transition:all 0.2s;"
+                  id="splitUnlockBtn_${si}">
+                  <i class="fas fa-unlock me-1"></i>Unlock
+                </button>
+                <button onclick="setSplitLock(${si}, true)"
+                  style="flex:1;padding:0.3rem 0.5rem;font-size:0.72rem;font-weight:700;background:${locked ? '#e74c3c' : '#e0e0e0'};color:${locked ? '#fff' : '#555'};border:none;border-radius:7px;cursor:pointer;transition:all 0.2s;"
+                  id="splitLockBtn_${si}">
+                  <i class="fas fa-lock me-1"></i>Lock
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>`);
+    });
+}
+
+window.setSplitLock = async function(si, locked) {
+    const base = _rctBase();
+    const stEl = document.getElementById('splitLockSaveStatus');
+    if (!base) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger">Select a village first.</span>';
+        return;
+    }
+    const user = firebase.auth().currentUser;
+    const action = locked ? 'LOCK' : 'UNLOCK';
+    const labels = ['Split 1', 'Split 2', 'Split 3'];
+    if (!confirm(`${action} ${labels[si]} for the selected village?\n\n${locked ? 'Retailers will NOT be able to distribute bags for this split.' : 'Retailers WILL be able to distribute bags for this split.'}\n\nContinue?`)) return;
+    if (stEl) stEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+    try {
+        await base.child('splitLocks/s' + si).set({
+            locked,
+            updatedAt:    Date.now(),
+            updatedBy:    user ? user.uid : '',
+            updatedEmail: user ? (user.email||'') : ''
+        });
+        // Re-render this one card
+        const snap = await base.child('splitLocks').once('value');
+        _renderSplitLocks(snap.val() || {});
+        if (stEl) stEl.innerHTML = `<span style="color:${locked ? '#e74c3c' : '#27ae60'};"><i class="fas fa-${locked ? 'lock' : 'unlock'} me-1"></i><strong>${labels[si]} ${action}ED</strong> successfully!</span>`;
+    } catch(e) {
+        if (stEl) stEl.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Save failed: ${escapeHtml(e.message)}</span>`;
+    }
+};
+
+/* ═══════════════════════════════════════════════════════
+   RETAILER-SIDE ENFORCEMENT — called during QR scan
+   Returns { bagCap: null|number, splitLocked: bool }
+   for given (voUid, villageName, extent, splitIndex, fertType)
+   ═══════════════════════════════════════════════════════ */
+window._fetchFertRestrictions = async function(voUid, villageName) {
+    try {
+        const snap = await database.ref('voRestrictions/' + voUid + '/' + _safeVillage(villageName)).once('value');
+        return snap.val() || {};
+    } catch(e) { return {}; }
+};
+
+/**
+ * Given the VO restrictions object (from _fetchFertRestrictions),
+ * the farmer's total cultivated extent (acres), a split index,
+ * and the fertilizer type being checked ('Urea' or 'DAP'),
+ * returns:
+ *   { bagCap: number|null, splitLocked: bool }
+ *
+ * bagCap = null means "no bag-rule restriction, show full eligible"
+ * bagCap = 0..N means "retailer can issue at most N bags regardless of eligibility"
+ * splitLocked = true means this split is locked by VO — show lock notice
+ */
+window._evalFertRestrictions = function(restrictions, extent, splitIndex, fertType) {
+    const result = { bagCap: null, splitLocked: false };
+    if (!restrictions) return result;
+
+    // ── Split lock ──
+    const sl = (restrictions.splitLocks || {})['s' + splitIndex];
+    if (sl && sl.locked === true) {
+        result.splitLocked = true;
+    }
+
+    // ── Bag rule ──
+    const br = restrictions.bagRule;
+    if (br && br.active === true && Array.isArray(br.tiers) && br.tiers.length > 0) {
+        // Check if this rule applies to the requested fertilizer type
+        const ruleFert = br.fertType || 'Both'; // 'Urea' | 'DAP' | 'Both'
+        const applies = ruleFert === 'Both' || ruleFert === fertType;
+        if (applies) {
+            const ext = parseFloat(extent) || 0;
+            let cap = null;
+
+            // Primary match: exact range (from <= extent <= to)
+            for (const t of br.tiers) {
+                if (ext >= (parseFloat(t.from)||0) && ext <= (parseFloat(t.to)||0)) {
+                    cap = parseInt(t.bags) || 0;
+                    break;
+                }
+            }
+
+            // Fallback: if extent falls in a gap between tiers (e.g. tiers are 6.7–8 and 8.7–10
+            // and farmer has 8.3 ac), use the highest tier whose 'from' is <= extent.
+            // This ensures no farmer is penalised to 0 bags just because of a gap in tier definitions.
+            if (cap === null) {
+                const sorted = [...br.tiers].sort((a, b) => (parseFloat(a.from)||0) - (parseFloat(b.from)||0));
+                for (let i = sorted.length - 1; i >= 0; i--) {
+                    if (ext >= (parseFloat(sorted[i].from)||0)) {
+                        cap = parseInt(sorted[i].bags) || 0;
+                        break;
+                    }
+                }
+            }
+
+            // If still no tier matches (extent is below every tier's 'from'), cap = 0
+            result.bagCap = cap !== null ? cap : 0;
+        }
+        // If rule doesn't apply to this fertilizer, bagCap stays null (no restriction)
+    }
+
+    return result;
+};
+
+})(); // end IIFE
+</script>
 
 <footer style="
     background: linear-gradient(135deg, #0d1b2a 0%, #1a2f4a 100%);
