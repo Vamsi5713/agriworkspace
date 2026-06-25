@@ -3614,7 +3614,7 @@
           <div id="rtHistAadhaarStatus" style="margin-top:0.5rem;"></div>
         </div>
 
-        <!-- Village Filter Bar -->
+        <!-- Village & Fertilizer Filter Bar -->
         <div id="rtVillageFilterBar" style="background:#f0f7ff; border:1.5px solid #b3d1f0; border-radius:12px; padding:0.75rem 1.2rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
             <i class="fas fa-map-marker-alt" style="color:#1862ab; font-size:0.9rem;"></i>
             <span style="font-size:0.78rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.8px; white-space:nowrap;">Filter by Village</span>
@@ -3627,7 +3627,16 @@
             <button id="rtBulkVillageBtn" class="hidden btn btn-sm fw-bold" style="background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:20px;font-size:0.78rem;padding:4px 14px;white-space:nowrap;" onclick="bulkSetMissingVillage()" title="Set the same village name for all 116 missing records in one click">
                 <i class="fas fa-bolt me-1"></i>Update All <span id="rtBulkMissingCount">0</span> Missing → 1 Click
             </button>
-            <button class="btn btn-outline-secondary btn-sm" id="rtVillageClearBtn" onclick="applyRetailerVillageFilter('')" style="border-radius:20px; font-size:0.75rem; padding:3px 12px; display:none;">
+
+            <span style="width:1.5px;height:22px;background:#b3d1f0;display:inline-block;margin:0 2px;"></span>
+
+            <i class="fas fa-flask" style="color:#1862ab; font-size:0.9rem;"></i>
+            <span style="font-size:0.78rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.8px; white-space:nowrap;">Filter by Fertilizer</span>
+            <select id="rtFertFilterSelect" class="form-select form-select-sm" style="max-width:170px; border-radius:8px; border:1.5px solid #b3d1f0; font-size:0.83rem; font-weight:600; color:#2c3e50;" onchange="applyRetailerFertFilter()">
+                <option value="">— All Fertilizers —</option>
+            </select>
+
+            <button class="btn btn-outline-secondary btn-sm" id="rtVillageClearBtn" onclick="clearRetailerHistoryFilters()" style="border-radius:20px; font-size:0.75rem; padding:3px 12px; display:none;">
                 <i class="fas fa-times me-1"></i>Clear Filter
             </button>
         </div>
@@ -4073,22 +4082,22 @@ function submitRejectDistribution() {
                 </div>
 
                 <!-- Details Table -->
-                <table style="width:100%; border-collapse:collapse; font-size:10.5px;">
+                <table style="width:100%; border-collapse:collapse; font-size:10.5px; table-layout:fixed;">
                     <tr>
-                        <td style="padding:3px 6px; border:1px solid #333; width:50%;"><strong>S.No:</strong> <span id="printSerialNo" style="font-weight:600; color:#1976d2;"></span></td>
-                        <td style="padding:3px 6px; border:1px solid #333;"><strong>Fertilizer:</strong> <span id="printFertilizer" style="font-weight:600; color:#d32f2f;"></span></td>
+                        <td style="padding:3px 6px; border:1px solid #333; width:50%; overflow-wrap:break-word; word-break:break-word;"><strong>S.No:</strong> <span id="printSerialNo" style="font-weight:600; color:#1976d2;"></span></td>
+                        <td style="padding:3px 6px; border:1px solid #333; overflow-wrap:break-word; word-break:break-word;"><strong>Fertilizer:</strong> <span id="printFertilizer" style="font-weight:600; color:#d32f2f;"></span></td>
                     </tr>
                     <tr>
-                        <td colspan="2" style="padding:3px 6px; border:1px solid #333; background:#fffbf0;"><strong>Retailer:</strong> <span id="printRetailerName" style="font-weight:700;">—</span></td>
+                        <td colspan="2" style="padding:3px 6px; border:1px solid #333; background:#fffbf0; overflow-wrap:break-word; word-break:break-word;"><strong>Retailer:</strong> <span id="printRetailerName" style="font-weight:700;">—</span></td>
                     </tr>
                     <tr>
-                        <td colspan="2" style="padding:3px 6px; border:1px solid #333; background:#e8f5e9;">
+                        <td colspan="2" style="padding:3px 6px; border:1px solid #333; background:#e8f5e9; overflow-wrap:break-word; word-break:break-word;">
                             <strong>🪪 Card No:</strong> <span id="printCardNumber" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:11px; letter-spacing:1px;">—</span>
                         </td>
                     </tr>
                     <tr>
-                        <td style="padding:3px 6px; border:1px solid #333;"><strong>Name:</strong> <span id="printFarmerName" style="font-weight:600;"></span></td>
-                        <td style="padding:3px 6px; border:1px solid #333;"><strong>Father:</strong> <span id="printFatherName"></span></td>
+                        <td style="padding:3px 6px; border:1px solid #333; overflow-wrap:break-word; word-break:break-word; vertical-align:top;"><strong>Name:</strong> <span id="printFarmerName" style="font-weight:600; word-break:break-word;"></span></td>
+                        <td style="padding:3px 6px; border:1px solid #333; overflow-wrap:break-word; word-break:break-word; vertical-align:top;"><strong>Father:</strong> <span id="printFatherName" style="word-break:break-word;"></span></td>
                     </tr>
                     <tr>
                         <td style="padding:3px 6px; border:1px solid #333;"><strong>Mobile:</strong> <span id="printMobile"></span></td>
@@ -4188,22 +4197,22 @@ function submitRejectDistribution() {
                     </p>
                 </div>
 
-                <table style="width:100%; border-collapse:collapse; font-size:10.5px;">
+                <table style="width:100%; border-collapse:collapse; font-size:10.5px; table-layout:fixed;">
                     <tr>
-                        <td style="padding:3px 6px; border:1px solid #333; width:50%;"><strong>S.No:</strong> <span id="printSerialNoOfficer" style="font-weight:600; color:#1976d2;"></span></td>
-                        <td style="padding:3px 6px; border:1px solid #333;"><strong>Fertilizer:</strong> <span id="printFertilizerOfficer" style="font-weight:600; color:#d32f2f;"></span></td>
+                        <td style="padding:3px 6px; border:1px solid #333; width:50%; overflow-wrap:break-word; word-break:break-word;"><strong>S.No:</strong> <span id="printSerialNoOfficer" style="font-weight:600; color:#1976d2;"></span></td>
+                        <td style="padding:3px 6px; border:1px solid #333; overflow-wrap:break-word; word-break:break-word;"><strong>Fertilizer:</strong> <span id="printFertilizerOfficer" style="font-weight:600; color:#d32f2f;"></span></td>
                     </tr>
                     <tr>
-                        <td colspan="2" style="padding:3px 6px; border:1px solid #333; background:#fffbf0;"><strong>Retailer:</strong> <span id="printRetailerNameOfficer" style="font-weight:700;">—</span></td>
+                        <td colspan="2" style="padding:3px 6px; border:1px solid #333; background:#fffbf0; overflow-wrap:break-word; word-break:break-word;"><strong>Retailer:</strong> <span id="printRetailerNameOfficer" style="font-weight:700;">—</span></td>
                     </tr>
                     <tr>
-                        <td colspan="2" style="padding:3px 6px; border:1px solid #333; background:#e8f5e9;">
+                        <td colspan="2" style="padding:3px 6px; border:1px solid #333; background:#e8f5e9; overflow-wrap:break-word; word-break:break-word;">
                             <strong>🪪 Card No:</strong> <span id="printCardNumberOfficer" style="font-weight:700; color:#1562ab; font-family:monospace; font-size:11px; letter-spacing:1px;">—</span>
                         </td>
                     </tr>
                     <tr>
-                        <td style="padding:3px 6px; border:1px solid #333;"><strong>Name:</strong> <span id="printFarmerNameOfficer" style="font-weight:600;"></span></td>
-                        <td style="padding:3px 6px; border:1px solid #333;"><strong>Father:</strong> <span id="printFatherNameOfficer"></span></td>
+                        <td style="padding:3px 6px; border:1px solid #333; overflow-wrap:break-word; word-break:break-word; vertical-align:top;"><strong>Name:</strong> <span id="printFarmerNameOfficer" style="font-weight:600; word-break:break-word;"></span></td>
+                        <td style="padding:3px 6px; border:1px solid #333; overflow-wrap:break-word; word-break:break-word; vertical-align:top;"><strong>Father:</strong> <span id="printFatherNameOfficer" style="word-break:break-word;"></span></td>
                     </tr>
                     <tr>
                         <td style="padding:3px 6px; border:1px solid #333;"><strong>Mobile:</strong> <span id="printMobileOfficer"></span></td>
@@ -4805,6 +4814,23 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
                           <i class="fas fa-id-card me-1"></i>Card-wise
                       </button>
                   </div>
+              </div>
+          </div>
+          <!-- Category stat pills -->
+          <div class="row g-2 mb-2" id="fpStatPillsRow">
+              <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
+                  <button id="fpPillAll"         onclick="setFpCategoryFilter('all')"          class="btn btn-sm fw-semibold fp-stat-pill active-pill" style="border-radius:20px;background:#1862ab;color:#fff;border:none;">
+                      👥 Total: <span id="fpCountAll">0</span>
+                  </button>
+                  <button id="fpPillOwner"       onclick="setFpCategoryFilter('owner')"        class="btn btn-sm fw-semibold fp-stat-pill" style="border-radius:20px;background:#e8f4fd;color:#1862ab;border:1.5px solid #b3d7f5;">
+                      🏠 Pattadhar: <span id="fpCountOwner">0</span>
+                  </button>
+                  <button id="fpPillTenant"      onclick="setFpCategoryFilter('tenant')"       class="btn btn-sm fw-semibold fp-stat-pill" style="border-radius:20px;background:#fef9e7;color:#d68910;border:1.5px solid #f9e79f;">
+                      🌾 Tenant: <span id="fpCountTenant">0</span>
+                  </button>
+                  <button id="fpPillOwnerTenant" onclick="setFpCategoryFilter('owner-tenant')" class="btn btn-sm fw-semibold fp-stat-pill" style="border-radius:20px;background:#eafaf1;color:#1e8449;border:1.5px solid #a9dfbf;">
+                      ✅ Pattadhar-cum-Cultivator: <span id="fpCountOwnerTenant">0</span>
+                  </button>
               </div>
           </div>
           <div class="row g-2 mb-2">
@@ -15714,8 +15740,43 @@ function showAllFarmerProfiles() {
     if (!panel) return;
     panel.style.display = 'block';
     document.body.style.overflow = 'hidden';
+    fpCategoryFilter = 'all';
+    setFpCategoryFilter('all');   // resets pill highlights + calls filterAllFarmerProfiles
+    updateFpStatPills();
     setFpProfilesViewMode('normal');
     renderAllFarmerProfilesTable();
+}
+
+// ══════════════════════════════════════════════════════════
+// Pattadhar-cum-Cultivator detection (Aadhaar-based, cumulative)
+// A person (identified by Aadhaar number = one record) qualifies as
+// Pattadhar-cum-Cultivator if they have AT LEAST ONE 'owner' entry on
+// some khatha AND AT LEAST ONE 'tenant' entry on a DIFFERENT khatha.
+// Each qualifying Aadhaar is counted exactly ONCE, no matter how many
+// khathas they own/cultivate.
+// ══════════════════════════════════════════════════════════
+function computePccAadhaarSet() {
+    const pccSet = new Set();
+    if (!farmerProfiles) return pccSet;
+    Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
+        const profs = (Array.isArray(profiles) ? profiles : Object.values(profiles)).filter(p =>
+            p && p.savedAt && (p.farmerName || '').trim() && (p.khatha || '').trim() &&
+            Array.isArray(p.crops) && p.crops.length > 0
+        );
+        const ownerKhathas  = new Set(profs.filter(p => p.farmerType === 'owner').map(p => String(p.khatha)));
+        const tenantKhathas = new Set(profs.filter(p => p.farmerType !== 'owner').map(p => String(p.khatha)));
+        if (!ownerKhathas.size || !tenantKhathas.size) return;
+        // Qualifies if any owner khatha differs from any tenant khatha
+        let isPCC = false;
+        for (const ok of ownerKhathas) {
+            for (const tk of tenantKhathas) {
+                if (ok !== tk) { isPCC = true; break; }
+            }
+            if (isPCC) break;
+        }
+        if (isPCC) pccSet.add(aadhaar);
+    });
+    return pccSet;
 }
 
 function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter = '') {
@@ -15762,6 +15823,23 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
         });
     }
 
+    // Pattadhar-cum-Cultivator: one Aadhaar with an owner entry on one khatha
+    // AND a tenant entry on a DIFFERENT khatha (cumulative, 1 per Aadhaar)
+    const _pccSet = computePccAadhaarSet();
+
+    // ── Category filter (owner / tenant / owner-cum-tenant) ──
+    if (fpCategoryFilter && fpCategoryFilter !== 'all') {
+        allProfiles = allProfiles.filter(p => {
+            const isOwner  = p.farmerType === 'owner';
+            const isTenant = !isOwner;
+            const isPCC    = _pccSet.has(p.aadhaar);
+            if (fpCategoryFilter === 'owner')        return isOwner && !isPCC;   // pure Pattadhar only
+            if (fpCategoryFilter === 'tenant')       return isTenant;             // all tenant entries
+            if (fpCategoryFilter === 'owner-tenant') return isPCC;                // Pattadhar-cum-Cultivator (owner + tenant entries)
+            return true;
+        });
+    }
+
     if (countEl) countEl.textContent = `${allProfiles.length} profile${allProfiles.length !== 1 ? 's' : ''}`;
 
     if (!allProfiles.length) {
@@ -15782,9 +15860,13 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
             `<span class="badge bg-primary me-1 mb-1" style="font-size:0.72rem">${escapeHtml(ys)}</span>`
         ).join('') || '<span class="text-muted small">—</span>';
 
-        const typeBadge = p.farmerType === 'owner'
-            ? `<span class="badge bg-primary" style="font-size:0.7rem">Owner</span>`
-            : `<span class="badge bg-secondary" style="font-size:0.7rem">Tenant</span>`;
+        // Detect Pattadhar-cum-Cultivator for this profile (Aadhaar-based, owner+tenant on different khathas)
+        const _isPCC = _pccSet.has(p.aadhaar);
+        const typeBadge = _isPCC
+            ? `<span class="badge" style="font-size:0.7rem;background:#1e8449;color:#fff;">Pattadhar-cum-Cultivator</span>`
+            : p.farmerType === 'owner'
+                ? `<span class="badge bg-primary" style="font-size:0.7rem">Pattadhar</span>`
+                : `<span class="badge bg-secondary" style="font-size:0.7rem">Tenant</span>`;
 
         // Collect unique survey numbers across all crops for this khatha entry
         const surveyNoSet = new Set();
@@ -15990,12 +16072,59 @@ function deleteFarmerProfile(aadhaar, khatha) {
     });
 }
 
+function setFpCategoryFilter(cat) {
+    fpCategoryFilter = cat;
+    // Update pill active styles
+    ['all','owner','tenant','owner-tenant'].forEach(c => {
+        const btn = document.getElementById('fpPill' + c.replace('-','').replace('ownertenant','OwnerTenant').replace('owner','Owner').replace('tenant','Tenant').replace('all','All'));
+        if (!btn) return;
+        if (c === cat) {
+            btn.style.background = c === 'all' ? '#1862ab' : c === 'owner' ? '#1862ab' : c === 'tenant' ? '#d68910' : '#1e8449';
+            btn.style.color = '#fff';
+            btn.style.border = 'none';
+        } else {
+            btn.style.background = c === 'all' ? '#e8f4fd' : c === 'owner' ? '#e8f4fd' : c === 'tenant' ? '#fef9e7' : '#eafaf1';
+            btn.style.color      = c === 'all' ? '#1862ab' : c === 'owner' ? '#1862ab' : c === 'tenant' ? '#d68910'  : '#1e8449';
+            btn.style.border     = c === 'all' ? '1.5px solid #b3d7f5' : c === 'owner' ? '1.5px solid #b3d7f5' : c === 'tenant' ? '1.5px solid #f9e79f' : '1.5px solid #a9dfbf';
+        }
+    });
+    filterAllFarmerProfiles();
+}
+
+function updateFpStatPills() {
+    if (!farmerProfiles) return;
+    let total = 0, owners = 0, tenants = 0;
+
+    Object.values(farmerProfiles).forEach(profiles => {
+        (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
+            const isSaved = p && p.savedAt && (p.farmerName||'').trim() && (p.khatha||'').trim() && Array.isArray(p.crops) && p.crops.length > 0;
+            if (!isSaved) return;
+            total++;
+            if (p.farmerType === 'owner') owners++;
+            else tenants++;
+        });
+    });
+
+    // Pattadhar-cum-Cultivator: one Aadhaar number = one record. A farmer counts
+    // here if they have an 'owner' entry on one khatha AND a 'tenant' entry on a
+    // DIFFERENT khatha. Cumulative — counted once per Aadhaar even if they
+    // cultivate/own multiple khathas.
+    const ownerTenants = computePccAadhaarSet().size;
+
+    const setCount = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setCount('fpCountAll', total);
+    setCount('fpCountOwner', owners);
+    setCount('fpCountTenant', tenants);
+    setCount('fpCountOwnerTenant', ownerTenants);
+}
+
 function filterAllFarmerProfiles() {
     const search = document.getElementById('fpAllProfilesSearch')?.value || '';
     const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
     const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+    // Always refresh both tables so switching modes shows up-to-date data
     renderAllFarmerProfilesTable(search, season, year);
-    if (fpProfilesViewMode === 'card') renderFpCardWiseTable(search, season, year);
+    renderFpCardWiseTable(search, season, year);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -16005,6 +16134,7 @@ let fpProfilesViewMode = 'normal';   // 'normal' | 'card'
 let fpCardWiseData = [];             // last built dataset (for sorting)
 let fpCardWiseSortKey = 'sno';
 let fpCardWiseSortDir = 'asc';
+let fpCategoryFilter = 'all';        // 'all' | 'owner' | 'tenant' | 'owner-tenant'
 
 function setFpProfilesViewMode(mode) {
     fpProfilesViewMode = mode;
@@ -16034,7 +16164,12 @@ function setFpProfilesViewMode(mode) {
         normalWrap.classList.remove('d-none');
         document.getElementById('fpCardWiseFertSelect')?.classList.add('d-none');
         if (hint) hint.textContent = 'Sorted by registration date (newest first)';
-        if (exportBtn) exportBtn.innerHTML = '<i class="fas fa-file-excel me-1"></i> Export Excel';
+        if (exportBtn) exportBtn.innerHTML = '<i class="fas fa-file-excel me-1"></i> Export Card-wise Excel';
+        // Render normal table when switching to normal mode
+        const _s  = document.getElementById('fpAllProfilesSearch')?.value || '';
+        const _se = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
+        const _y  = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+        renderAllFarmerProfilesTable(_s, _se, _y);
     }
 }
 
@@ -16255,6 +16390,142 @@ function renderFpCardWiseTable(filter = '', seasonFilter = '', yearFilter = '') 
     `).join('');
 }
 
+// ── Normal view export: matches exactly what is shown in the Normal table ──
+// Columns: S.No | Card No. | Farmer ID (APFR) | Farmer Name | Father Name | Aadhaar | Mobile | Village | Khatha | Survey No | Extent (Ac) | Year·Season | Crops
+function exportNormalProfilesView() {
+    if (!farmerProfiles || !Object.keys(farmerProfiles).length)
+        return alert('No profiles to export.');
+
+    const search = document.getElementById('fpAllProfilesSearch')?.value || '';
+    const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
+    const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+
+    let allProfiles = [];
+    Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
+        (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
+            const isSaved = p &&
+                p.savedAt &&
+                (p.farmerName || '').trim() &&
+                (p.khatha || '').trim() &&
+                Array.isArray(p.crops) && p.crops.length > 0;
+            if (isSaved) allProfiles.push({ ...p, aadhaar });
+        });
+    });
+
+    // Apply same sort as screen: newest savedAt first
+    allProfiles.sort((a, b) => {
+        const ta = a.savedAt ? new Date(a.savedAt).getTime() : 0;
+        const tb = b.savedAt ? new Date(b.savedAt).getTime() : 0;
+        return tb - ta;
+    });
+
+    // Apply same filters as screen
+    const f = search.toLowerCase();
+    if (f || season || year) {
+        allProfiles = allProfiles.filter(p => {
+            const matchText = !f || [p.farmerName, p.fatherName, p.aadhaar, p.mobile, p.khatha]
+                .some(v => (v || '').toLowerCase().includes(f));
+            const matchSeason = !season || (p.crops || []).some(c => c.season === season);
+            const matchYear   = !year   || (p.crops || []).some(c => c.year   === year);
+            return matchText && matchSeason && matchYear;
+        });
+    }
+
+    if (!allProfiles.length) return alert('No profiles to export for current filter.');
+
+    const headers = [
+        'S.No',
+        'Card No.',
+        'Farmer ID (APFR)',
+        'Farmer Name',
+        'Father Name',
+        'Aadhaar',
+        'Mobile',
+        'Village',
+        'Khatha',
+        'Survey No',
+        'Extent (Ac)',
+        'Year · Season',
+        'Crops'
+    ];
+
+    const dataRows = allProfiles.map((p, idx) => {
+        // Survey numbers - same logic as table
+        const surveyNoSet = new Set();
+        (p.crops || []).forEach(c => {
+            if (c.surveyNos) {
+                String(c.surveyNos).split(',').forEach(s => {
+                    const sv = s.trim();
+                    if (sv) surveyNoSet.add(sv);
+                });
+            }
+        });
+        const surveyNos = Array.from(surveyNoSet).join(', ') || '—';
+
+        // Extent - same logic as table (sum crop extents, fallback to p.extent)
+        const cropSum = (p.crops || []).reduce((s, c) => s + Number(c.extent || 0), 0);
+        const extent  = cropSum > 0 ? cropSum.toFixed(2) : (p.extent || '—');
+
+        // Year·Season combos - same as table
+        const yearSeasonSet = new Set((p.crops || []).map(c => [c.year, c.season].filter(Boolean).join(' · ')));
+        const yearSeason = Array.from(yearSeasonSet).join(', ') || '—';
+
+        // Crops list - same as table
+        const cropsStr = (p.crops || []).map(c => `${c.crop} ${c.extent}ac`).join(', ') || '—';
+
+        return [
+            idx + 1,
+            p.cardNumber  || '—',
+            p.apfrNumber  || 'NA',
+            p.farmerName  || '—',
+            p.fatherName  || '—',
+            p.aadhaar     || '—',
+            p.mobile      || '—',
+            p.village     || '—',
+            p.khatha      || '—',
+            surveyNos,
+            extent,
+            yearSeason,
+            cropsStr
+        ];
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+
+    // Bold blue header row
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let C = range.s.c; C <= range.e.c; C++) {
+        const cell = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!ws[cell]) continue;
+        ws[cell].s = {
+            font:      { bold: true, color: { rgb: 'FFFFFF' } },
+            fill:      { fgColor: { rgb: '1862AB' } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+        };
+    }
+
+    ws['!cols'] = [
+        { wch: 6  }, // S.No
+        { wch: 18 }, // Card No.
+        { wch: 16 }, // Farmer ID (APFR)
+        { wch: 22 }, // Farmer Name
+        { wch: 22 }, // Father Name
+        { wch: 16 }, // Aadhaar
+        { wch: 14 }, // Mobile
+        { wch: 16 }, // Village
+        { wch: 12 }, // Khatha
+        { wch: 20 }, // Survey No
+        { wch: 12 }, // Extent
+        { wch: 18 }, // Year · Season
+        { wch: 30 }  // Crops
+    ];
+
+    const today  = new Date().toISOString().slice(0, 10);
+    XLSX.utils.book_append_sheet(wb, ws, 'FarmerProfiles');
+    XLSX.writeFile(wb, `FarmerProfiles_Normal_${today}.xlsx`);
+}
+
 function exportAllFarmerProfiles() {
     if (!farmerProfiles || !Object.keys(farmerProfiles).length)
         return alert('No profiles to export.');
@@ -16349,6 +16620,7 @@ function exportAllFarmerProfiles() {
 
     const headers = [
         'S.No',
+        'Owner / Tenant',
         'Card Number',
         'Khatha Number',
         'Owner Name',
@@ -16358,6 +16630,7 @@ function exportAllFarmerProfiles() {
         'Tenant Father Name',
         'Tenant Aadhaar Number',
         'Tenant Mobile Number',
+        'APFR ID',
         'Crop',
         'Extent (Ac)',
         'Season',
@@ -16374,7 +16647,8 @@ function exportAllFarmerProfiles() {
         'DAP Total Bags Given'
     ];
 
-    const rows = [headers];
+    // dataRows stores { values: [...], green: bool } for styling
+    const dataRows = [];
 
     let allProfiles = [];
     Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
@@ -16428,6 +16702,20 @@ function exportAllFarmerProfiles() {
         const tenantAadhaar = p.aadhaar || '';
         const tenantMobile  = p.mobile   || '';
 
+        // ── Green row: owner name matches tenant name (self-cultivating owner) ──
+        const namesMatch = ownerName.trim().toLowerCase() === tenantName.trim().toLowerCase() && ownerName.trim() !== '';
+
+        // Pattadhar-cum-Cultivator: owner entry where the same person ALSO has a tenant entry on the same khatha
+        const tenantEntriesForKhatha = allProfiles.filter(x =>
+            x.farmerType === 'tenant' &&
+            String(x.khatha) === khatha &&
+            (x.farmerName || '').trim().toLowerCase() === (p.farmerName || '').trim().toLowerCase()
+        );
+        const isPattadharCumCultivator = isOwner && tenantEntriesForKhatha.length > 0;
+        const ownerTenantLabel = isPattadharCumCultivator
+            ? 'Pattadhar-cum-Cultivator'
+            : isOwner ? 'Pattadhar' : 'Tenant';
+
         const cropList = p.crops?.length ? p.crops : [{ crop: '', extent: '', season: '', year: '' }];
 
         cropList.forEach((c) => {
@@ -16442,42 +16730,81 @@ function exportAllFarmerProfiles() {
             const ureaTotal = ureaSplits.reduce((s, x) => s + (x ? x.bags : 0), 0);
             const dapTotal  = dapSplits.reduce((s, x)  => s + (x ? x.bags : 0), 0);
 
-            rows.push([
-                sno,
-                p.cardNumber || '',
-                khatha,
-                ownerName,
-                ownerFather,
-                ownerAadhaar,
-                tenantName,
-                tenantFather,
-                tenantAadhaar,
-                tenantMobile,
-                c.crop   || '',
-                c.extent || '',
-                season,
-                year,
-                // Urea splits
-                formatSplitCell(ureaSplits[0]),
-                formatSplitCell(ureaSplits[1]),
-                formatSplitCell(ureaSplits[2]),
-                ureaTotal || '',
-                // DAP splits
-                formatSplitCell(dapSplits[0]),
-                formatSplitCell(dapSplits[1]),
-                formatSplitCell(dapSplits[2]),
-                dapTotal || ''
-            ]);
+            dataRows.push({
+                values: [
+                    sno,
+                    ownerTenantLabel,
+                    p.cardNumber || '',
+                    khatha,
+                    ownerName,
+                    ownerFather,
+                    ownerAadhaar,
+                    tenantName,
+                    tenantFather,
+                    tenantAadhaar,
+                    tenantMobile,
+                    p.apfrNumber || 'NA',
+                    c.crop   || '',
+                    c.extent || '',
+                    season,
+                    year,
+                    // Urea splits
+                    formatSplitCell(ureaSplits[0]),
+                    formatSplitCell(ureaSplits[1]),
+                    formatSplitCell(ureaSplits[2]),
+                    ureaTotal || '',
+                    // DAP splits
+                    formatSplitCell(dapSplits[0]),
+                    formatSplitCell(dapSplits[1]),
+                    formatSplitCell(dapSplits[2]),
+                    dapTotal || ''
+                ],
+                green: namesMatch
+            });
         });
         sno++;
     });
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows.map(r => r.values)]);
+
+    // ── Style header row: blue background, white bold text ──
+    const totalCols = headers.length;
+    for (let C = 0; C < totalCols; C++) {
+        const addr = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!ws[addr]) ws[addr] = { v: headers[C] };
+        ws[addr].s = {
+            font:      { bold: true, color: { rgb: 'FFFFFF' } },
+            fill:      { fgColor: { rgb: '1862AB' } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+        };
+    }
+
+    // ── Style data rows: green fill where owner name == tenant name ──
+    dataRows.forEach((row, ri) => {
+        const excelRow = ri + 1; // +1 for header
+        if (!row.green) return;
+        for (let C = 0; C < totalCols; C++) {
+            const addr = XLSX.utils.encode_cell({ r: excelRow, c: C });
+            if (!ws[addr]) ws[addr] = { v: '' };
+            ws[addr].s = {
+                fill: { fgColor: { rgb: 'C6EFCE' } }, // light green
+                font: { color: { rgb: '276221' } }     // dark green text
+            };
+        }
+        // Bold the Owner/Tenant label cell specifically
+        const labelAddr = XLSX.utils.encode_cell({ r: excelRow, c: 1 });
+        if (ws[labelAddr]) ws[labelAddr].s = {
+            fill: { fgColor: { rgb: 'C6EFCE' } },
+            font: { bold: true, color: { rgb: '276221' } },
+            alignment: { horizontal: 'center' }
+        };
+    });
 
     // Column widths
     ws['!cols'] = [
         { wch: 6 },   // S.No
+        { wch: 12 },  // Owner / Tenant
         { wch: 18 },  // Card Number
         { wch: 14 },  // Khatha
         { wch: 22 },  // Owner Name
@@ -16487,6 +16814,7 @@ function exportAllFarmerProfiles() {
         { wch: 22 },  // Tenant Father
         { wch: 16 },  // Tenant Aadhaar
         { wch: 15 },  // Tenant Mobile
+        { wch: 16 },  // APFR ID
         { wch: 18 },  // Crop
         { wch: 12 },  // Extent
         { wch: 10 },  // Season
@@ -16523,49 +16851,26 @@ function exportCardWiseExcel() {
     if (!farmerProfiles || !Object.keys(farmerProfiles).length)
         return alert('No profiles to export.');
 
-    const search = document.getElementById('fpAllProfilesSearch')?.value || '';
-    const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
-    const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+    // ── Use exactly the same rows that are currently rendered on screen ──
+    // fpCardWiseData is populated by renderFpCardWiseTable and reflects the
+    // current filter, search, sort and fertilizer selection — identical to what the user sees.
+    const rows = (typeof fpCardWiseData !== 'undefined' && fpCardWiseData && fpCardWiseData.length)
+        ? fpCardWiseData
+        : (() => {
+            // Fallback: rebuild with current filter state if table hasn't been rendered yet
+            const search = document.getElementById('fpAllProfilesSearch')?.value || '';
+            const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
+            const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+            const built  = buildFpCardWiseData(search, season, year);
+            built.sort((a, b) => String(a.cardNumber).localeCompare(String(b.cardNumber)));
+            built.forEach((r, i) => { r.sno = i + 1; });
+            return built;
+        })();
 
-    let rows = buildFpCardWiseData(search, season, year);
     if (!rows.length) return alert('No data to export for current filter.');
 
-    // Sort by card number, re-number
-    rows.sort((a, b) => String(a.cardNumber).localeCompare(String(b.cardNumber)));
-    rows.forEach((r, i) => { r.sno = i + 1; });
-
-    // ── Urea availed bags per farmer ──
-    function getUreaAvailed(aadhaar) {
-        const a = String(aadhaar || '').replace(/\D/g, '');
-        return (ureaHistory || [])
-            .filter(h =>
-                String(h.aadhaar || '').replace(/\D/g, '') === a &&
-                String(h.fertilizerType || h.fert || 'Urea').trim() === 'Urea' &&
-                h.status !== 'Rejected' && h.status !== 'Cancelled'
-            )
-            .reduce((s, h) => s + Number(h.bags || 0), 0);
-    }
-
-    // ── Urea eligible bags per farmer (from dosage formula) ──
-    function getUreaEligible(aadhaar) {
-        const profs = farmerProfiles[aadhaar] || [];
-        let bags = 0;
-        profs.forEach(p => {
-            (p.crops || []).forEach(c => {
-                if (season && c.season !== season) return;
-                if (year   && c.year   !== year)   return;
-                const cropName  = (c.crop || '').toLowerCase().trim();
-                const cropExt   = Number(c.extent || p.extent || 0);
-                const csn       = c.season || 'Kharif';
-                const dosage    = typeof fertilizerDosage !== 'undefined' ? fertilizerDosage[cropName] : null;
-                if (!dosage) return;
-                const seasonDose = dosage.seasons?.[csn] || dosage.seasons?.['Kharif'] || { N: 0 };
-                const nKg = (seasonDose.N || 0) * cropExt;
-                if (typeof getUreaBagsFromN === 'function') bags += getUreaBagsFromN(nKg);
-            });
-        });
-        return bags;
-    }
+    // ── Fertilizer label for column headers (matches what's shown in table headers) ──
+    const selectedFert = document.getElementById('fpCardWiseFertSelect')?.value || 'Urea';
 
     const headers = [
         'S.No',
@@ -16578,38 +16883,41 @@ function exportCardWiseExcel() {
         'Khatha Number(s)',
         'Extent',
         'Crops',
-        'Urea Bags Eligible',
-        'Urea Bags Availed',
-        'Urea Available Bags'
+        `${selectedFert} Bags Eligible`,
+        `${selectedFert} Bags Availed`,
+        `${selectedFert} Available Bags`
     ];
 
-    const dataRows = rows.map(r => {
-        const ureaElig = getUreaEligible(r.aadhaar);
-        const ureaAvld = getUreaAvailed(r.aadhaar);
-        const ureaAvbl = Math.max(0, ureaElig - ureaAvld);
-
-        // Strip extent from khatha string — keep only khatha numbers
-        const khathaOnly = r.khathaNumbers.replace(/\([\d.]+\)/g, '').replace(/,\s*/g, ', ').trim();
-
-        return [
-            r.sno,
-            r.cardNumber,
-            r.farmerName,
-            r.fatherName,
-            r.aadhaar,
-            r.apfrNumber || 'NA',
-            r.mobile,
-            khathaOnly,
-            r.totalExtent.toFixed(2),
-            r.cropsText,
-            ureaElig,
-            ureaAvld,
-            ureaAvbl
-        ];
-    });
+    const dataRows = rows.map(r => [
+        r.sno,
+        r.cardNumber,
+        r.farmerName,
+        r.fatherName,
+        r.aadhaar,
+        r.apfrNumber || 'NA',
+        r.mobile,
+        r.khathaNumbers,          // exact same value shown in the table column
+        r.totalExtent.toFixed(2),
+        r.cropsText,
+        r.bagsEligible,           // pre-computed by buildFpCardWiseData — same as table
+        r.bagsAvailed,
+        r.bagsAvailable
+    ]);
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+
+    // ── Style: bold + coloured header row ──
+    const headerRange = XLSX.utils.decode_range(ws['!ref']);
+    for (let C = headerRange.s.c; C <= headerRange.e.c; C++) {
+        const cellAddr = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!ws[cellAddr]) continue;
+        ws[cellAddr].s = {
+            font:      { bold: true, color: { rgb: 'FFFFFF' } },
+            fill:      { fgColor: { rgb: '1862AB' } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+        };
+    }
 
     ws['!cols'] = [
         { wch: 6  }, // S.No
@@ -16619,15 +16927,17 @@ function exportCardWiseExcel() {
         { wch: 16 }, // Aadhar Number
         { wch: 16 }, // APFR ID
         { wch: 14 }, // Mobile Number
-        { wch: 20 }, // Khatha Number(s)
+        { wch: 22 }, // Khatha Number(s)
         { wch: 10 }, // Extent
         { wch: 28 }, // Crops
-        { wch: 18 }, // Urea Bags Eligible
-        { wch: 18 }, // Urea Bags Availed
-        { wch: 18 }  // Urea Available Bags
+        { wch: 20 }, // Bags Eligible
+        { wch: 20 }, // Bags Availed
+        { wch: 20 }  // Available Bags
     ];
 
-    const today = new Date().toISOString().slice(0, 10);
+    const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
+    const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+    const today  = new Date().toISOString().slice(0, 10);
     const suffix = [season, year].filter(Boolean).join('_');
     XLSX.utils.book_append_sheet(wb, ws, 'CardWise_Profiles');
     XLSX.writeFile(wb, `CardWise_Profiles${suffix ? '_' + suffix : ''}_${today}.xlsx`);
@@ -19094,8 +19404,9 @@ function loadRetailerDistributions() {
                     return;
                 }
 
-                // Skip rejected
-                if (r.status === 'Rejected') return;
+                // Skip rejected, cancelled, or deleted records — these are terminal
+                // states and must never reappear in the Pending Distributions list.
+                if (r.status === 'Rejected' || r.status === 'Cancelled' || r.deletedByRetailer) return;
                 // Only include strictly-pending records for this outlet
                 if ((r.outletId || '').trim() !== outletId.trim()) return;
                 pending.push({ ...r, printToken: tk, tokenKey: tk });
@@ -19303,6 +19614,14 @@ function _rtExecuteDistributeFromList(r, rowIdx) {
     const fert  = r.fertilizerType || 'Urea';
     const bags  = Number(r.bags) || 0;
     const voUid = r.voUid;
+    // `token` is a human-readable/normalized label only — it must NOT be used as the
+    // database path. `realKey` is the ACTUAL fertilizerDistributions node key (set by
+    // loadRetailerDistributions as printToken/tokenKey = child.key). Using the
+    // re-derived uppercase token as a path previously created a brand-new stray
+    // sibling node (with no bags/village) whenever the real key wasn't already in
+    // that exact uppercase-no-dash format — leaving the original record un-updated
+    // and a phantom duplicate behind.
+    const realKey = r.printToken || r.tokenKey || r._key || '';
     const token = String(r.printToken || r.tokenKey || r.tokenNumber || r.authToken || '').replace(/[^A-Z0-9]/gi,'').toUpperCase();
 
     const row = document.getElementById(`rtPendRow_${rowIdx}`);
@@ -19336,12 +19655,12 @@ function _rtExecuteDistributeFromList(r, rowIdx) {
                 verifiedAt: now, status: 'Distributed', token, distributedVia: 'pendingList'
             }));
         }
-        if (token) ops.push(database.ref('fertilizerDistributions/' + token).update({
+        if (realKey) ops.push(database.ref('fertilizerDistributions/' + realKey).update({
             status: 'Distributed', retailerVerified: true,
             verifiedAt: now, verifiedBy: uid||'',
             retailerUid: uid||'',
             outletId: outletId||'', outletName: outletName||'',
-            distributedBags: bags, fertilizerType: fert,
+            distributedBags: bags, bags: bags, fertilizerType: fert,
             aadhaar: r.aadhaar||'', farmerName: r.farmerName||'',
             date: r.date||'', crop: r.crop||'', season: r.season||'', year: r.year||''
         }));
@@ -19909,6 +20228,17 @@ function loadRetailerHistory() {
                 + [...villageSet].sort().map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
             if (prevVal && [...villageSet].includes(prevVal)) sel.value = prevVal;
         }
+
+        // ── Populate fertilizer type filter dropdown ──
+        const fertSet = new Set();
+        records.forEach(r => fertSet.add((r.fertilizerType || 'Urea').trim()));
+        const fertSel = document.getElementById('rtFertFilterSelect');
+        if (fertSel) {
+            const prevFertVal = fertSel.value;
+            fertSel.innerHTML = '<option value="">— All Fertilizers —</option>'
+                + [...fertSet].sort().map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+            if (prevFertVal && [...fertSet].includes(prevFertVal)) fertSel.value = prevFertVal;
+        }
         const missingBadge = document.getElementById('rtVillageMissingBadge');
         const missingCountEl = document.getElementById('rtMissingVillageCount');
         const bulkBtn = document.getElementById('rtBulkVillageBtn');
@@ -19965,7 +20295,7 @@ function loadRetailerHistory() {
                         <i class="fas fa-map-marker-alt me-1"></i>Set Village
                     </button>`;
 
-            return `<tr class="${isRejected ? 'table-danger bg-opacity-25' : ''}" data-village="${escapeHtml(villageVal).toLowerCase()}">
+            return `<tr class="${isRejected ? 'table-danger bg-opacity-25' : ''}" data-village="${escapeHtml(villageVal).toLowerCase()}" data-fert="${escapeHtml((r.fertilizerType||'Urea').trim().toLowerCase())}">
                 <td class="text-muted">${i+1}</td>
                 <td>${statusBadge}</td>
                 <td class="small">${escapeHtml(r.date||'')}</td>
@@ -28683,20 +29013,49 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// ── Retailer: Village Filter ─────────────────────────────────────────────────
+// ── Retailer: Village + Fertilizer Type Filters (combined, AND logic) ──────────
 window.applyRetailerVillageFilter = function(forceValue) {
     const sel = document.getElementById('rtVillageFilterSelect');
-    const clearBtn = document.getElementById('rtVillageClearBtn');
-    const filterVal = (forceValue !== undefined ? forceValue : (sel ? sel.value : '')).toLowerCase().trim();
 
-    // Update dropdown to match forced value
-    if (forceValue !== undefined && sel) {
-        if (forceValue === '__missing__' || forceValue === '') {
-            sel.value = '';
+    if (forceValue !== undefined) {
+        if (forceValue === '__missing__') {
+            window._rtVillageMissingOnly = true;
+            if (sel) sel.value = '';
         } else {
-            sel.value = forceValue;
+            window._rtVillageMissingOnly = false;
+            if (sel) sel.value = forceValue;
         }
+    } else {
+        window._rtVillageMissingOnly = false;
     }
+
+    applyRetailerHistoryFilters();
+};
+
+window.applyRetailerFertFilter = function() {
+    // Selecting a specific fertilizer overrides the "missing village" quick-filter
+    window._rtVillageMissingOnly = false;
+    applyRetailerHistoryFilters();
+};
+
+window.clearRetailerHistoryFilters = function() {
+    const sel = document.getElementById('rtVillageFilterSelect');
+    const fertSel = document.getElementById('rtFertFilterSelect');
+    if (sel) sel.value = '';
+    if (fertSel) fertSel.value = '';
+    window._rtVillageMissingOnly = false;
+    applyRetailerHistoryFilters();
+};
+
+function applyRetailerHistoryFilters() {
+    const sel        = document.getElementById('rtVillageFilterSelect');
+    const fertSel     = document.getElementById('rtFertFilterSelect');
+    const clearBtn    = document.getElementById('rtVillageClearBtn');
+
+    const villageFilterVal = window._rtVillageMissingOnly
+        ? '__missing__'
+        : (sel ? sel.value.toLowerCase().trim() : '');
+    const fertFilterVal = fertSel ? fertSel.value.toLowerCase().trim() : '';
 
     const tbody = document.querySelector('#rtHistoryTable tbody');
     if (!tbody) return;
@@ -28705,19 +29064,22 @@ window.applyRetailerVillageFilter = function(forceValue) {
     let shown = 0;
     rows.forEach(row => {
         const rowVillage = (row.getAttribute('data-village') || '').trim();
-        let show = false;
-        if (filterVal === '') {
-            show = true;
-        } else if (filterVal === '__missing__') {
-            show = !rowVillage;
-        } else {
-            show = rowVillage === filterVal;
-        }
+        const rowFert    = (row.getAttribute('data-fert') || '').trim();
+
+        let villageMatch;
+        if (villageFilterVal === '') villageMatch = true;
+        else if (villageFilterVal === '__missing__') villageMatch = !rowVillage;
+        else villageMatch = rowVillage === villageFilterVal;
+
+        const fertMatch = (fertFilterVal === '') || (rowFert === fertFilterVal);
+
+        const show = villageMatch && fertMatch;
         row.style.display = show ? '' : 'none';
         if (show) shown++;
     });
 
-    if (clearBtn) clearBtn.style.display = (filterVal && filterVal !== '') ? '' : 'none';
+    const anyFilterActive = (villageFilterVal !== '') || (fertFilterVal !== '');
+    if (clearBtn) clearBtn.style.display = anyFilterActive ? '' : 'none';
 
     // Update row numbers
     let visIdx = 1;
@@ -28730,13 +29092,14 @@ window.applyRetailerVillageFilter = function(forceValue) {
 
     // ── Recompute abstract report KPIs for visible rows ──
     const allRecords = window._rtHistoryRecords || [];
-    let filteredRecords;
-    if (filterVal === '') {
-        filteredRecords = allRecords.filter(r => r.status !== 'Rejected');
-    } else if (filterVal === '__missing__') {
-        filteredRecords = allRecords.filter(r => r.status !== 'Rejected' && !(r.village||'').trim());
-    } else {
-        filteredRecords = allRecords.filter(r => r.status !== 'Rejected' && (r.village||'').trim().toLowerCase() === filterVal);
+    let filteredRecords = allRecords.filter(r => r.status !== 'Rejected');
+    if (villageFilterVal === '__missing__') {
+        filteredRecords = filteredRecords.filter(r => !(r.village||'').trim());
+    } else if (villageFilterVal !== '') {
+        filteredRecords = filteredRecords.filter(r => (r.village||'').trim().toLowerCase() === villageFilterVal);
+    }
+    if (fertFilterVal !== '') {
+        filteredRecords = filteredRecords.filter(r => (r.fertilizerType||'Urea').trim().toLowerCase() === fertFilterVal);
     }
 
     const kpiDist    = document.getElementById('kpiDistCount');
@@ -28754,21 +29117,23 @@ window.applyRetailerVillageFilter = function(forceValue) {
     if (kpiBag)    { kpiBag.textContent    = bags;     kpiBag.style.transition='color .3s';    kpiBag.style.color='#e67e22'; }
 
     if (labelEl) {
-        if (filterVal === '') {
-            labelEl.textContent = 'All Villages · Distributed Records Only';
-        } else if (filterVal === '__missing__') {
-            labelEl.textContent = 'Filtered: Records Missing Village · Distributed Only';
-        } else {
-            const selText = sel ? (sel.options[sel.selectedIndex]?.text || filterVal) : filterVal;
-            labelEl.textContent = `Filtered: ${selText} · Distributed Records Only`;
-        }
+        let villagePart;
+        if (villageFilterVal === '') villagePart = 'All Villages';
+        else if (villageFilterVal === '__missing__') villagePart = 'Missing Village';
+        else villagePart = sel ? (sel.options[sel.selectedIndex]?.text || villageFilterVal) : villageFilterVal;
+
+        const fertPart = fertFilterVal !== ''
+            ? (fertSel ? (fertSel.options[fertSel.selectedIndex]?.text || fertFilterVal) : fertFilterVal)
+            : '';
+
+        labelEl.textContent = (fertPart ? `${villagePart} · ${fertPart}` : villagePart) + ' · Distributed Records Only';
     }
 
-    // Hide village breakdown when a single village is filtered — no point showing one row
+    // Hide village breakdown when any filter narrows the result — no point showing one row
     if (villageTableEl) {
-        villageTableEl.style.display = (filterVal === '') ? '' : 'none';
+        villageTableEl.style.display = !anyFilterActive ? '' : 'none';
     }
-};
+}
 
 // ── Retailer: Bulk-set village for ALL records missing a village name ─────────
 window.bulkSetMissingVillage = async function() {
