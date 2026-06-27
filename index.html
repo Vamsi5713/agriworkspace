@@ -4909,22 +4909,29 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
       
       <!-- Sticky Header -->
       <div style="position:sticky; top:0; z-index:10; background:#1862ab; color:white; 
-                  padding:0.9rem 1.2rem; display:flex; justify-content:space-between; 
+                  padding:0.75rem 1.2rem; display:flex; justify-content:space-between; 
                   align-items:center; flex-wrap:wrap; gap:0.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-          <span style="font-size:1.1rem; font-weight:700;">
-              <i class="fas fa-list me-2"></i>All Registered Profiles
-          </span>
-          <div class="d-flex gap-2 align-items-center">
-              <span id="fpAllProfilesCount" class="badge bg-light text-primary fs-6">0 profiles</span>
-              <button class="btn btn-sm btn-success" id="fpExportExcelBtn" onclick="exportFpSmartExcel()">
-                  <i class="fas fa-file-excel me-1"></i> Export Excel
+          <!-- Left: Title + Count Badge -->
+          <div class="d-flex align-items-center gap-2">
+              <span style="font-size:1.1rem; font-weight:700;">
+                  <i class="fas fa-list me-2"></i>All Registered Profiles
+              </span>
+              <span id="fpAllProfilesCount" class="badge bg-light text-primary" style="font-size:0.85rem; padding:0.35em 0.75em; border-radius:20px;">0 profiles</span>
+          </div>
+          <!-- Right: Action Buttons -->
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+              <button class="btn btn-sm btn-success fw-semibold" id="fpExportExcelBtn" onclick="exportFpSmartExcel()" title="Export to Excel">
+                  <i class="fas fa-file-excel me-1"></i> Export Card-wise Excel
               </button>
               <button class="btn btn-sm btn-warning text-dark fw-semibold" onclick="rearrangeCardNumbers()" title="Reset all card numbers from 0001 in order">
                   <i class="fas fa-sort-numeric-up me-1"></i> Rearrange Card Nos
               </button>
-              <button class="btn btn-sm btn-outline-light" 
-                  onclick="document.getElementById('fpAllProfilesPanel').style.display='none'; document.body.style.overflow=''">
-                  ✕ Close
+              <button class="btn btn-sm fw-semibold" 
+                  style="background:rgba(255,255,255,0.15); border:1.5px solid rgba(255,255,255,0.5); color:#fff; border-radius:8px;"
+                  onmouseover="this.style.background='rgba(255,255,255,0.28)'"
+                  onmouseout="this.style.background='rgba(255,255,255,0.15)'"
+                  onclick="document.getElementById('fpAllProfilesPanel').style.display='none'; document.body.style.overflow=''; document.documentElement.style.overflow='';">
+                  <i class="fas fa-times me-1"></i> Close
               </button>
           </div>
       </div>
@@ -4932,43 +4939,64 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
       <!-- Body -->
       <div class="p-3">
 
-          <!-- Search Filter -->
-          <div class="row g-2 mb-3">
-              <div class="col-md-4">
-                  <input type="text" id="fpAllProfilesSearch" class="form-control"
+          <!-- ── Toolbar: Search + Filters + View Toggle (single row) ── -->
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+
+              <!-- Search type + input -->
+              <div style="display:flex; flex:1 1 260px; min-width:220px; max-width:420px;">
+                  <select id="fpAllProfilesSearchType" onchange="fpSearchTypeChanged()"
+                      class="form-select form-select-sm fw-semibold"
+                      style="width:130px;flex:0 0 130px;border-radius:8px 0 0 8px;border-right:none;background:#eef3fc;color:#1862ab;font-size:0.8rem;cursor:pointer;">
+                      <option value="all">🔍 All Fields</option>
+                      <option value="khatha">📋 Khatha No.</option>
+                      <option value="aadhaar">🪪 Aadhaar</option>
+                      <option value="name">👤 Farmer Name</option>
+                      <option value="phone">📞 Phone No.</option>
+                  </select>
+                  <input type="text" id="fpAllProfilesSearch" class="form-control form-control-sm"
                       placeholder="🔍 Search by name, Aadhaar, khatha, mobile..."
-                      oninput="filterAllFarmerProfiles()">
+                      oninput="filterAllFarmerProfiles()"
+                      style="border-radius:0 8px 8px 0;border-left:none;font-size:0.82rem;">
               </div>
-              <div class="col-md-2">
-                  <select id="fpAllProfilesYearFilter" class="form-select" onchange="filterAllFarmerProfiles()">
-                      <option value="">-- All Years --</option>
-                      <option value="2025-26">2025-26</option>
-                      <option value="2026-27">2026-27</option>
-                      <option value="2027-28">2027-28</option>
-                  </select>
+
+              <!-- Year filter -->
+              <select id="fpAllProfilesYearFilter" class="form-select form-select-sm" onchange="filterAllFarmerProfiles()"
+                  style="width:130px;flex:0 0 130px;font-size:0.82rem;">
+                  <option value="">-- All Years --</option>
+                  <option value="2025-26">2025-26</option>
+                  <option value="2026-27">2026-27</option>
+                  <option value="2027-28">2027-28</option>
+              </select>
+
+              <!-- Season filter -->
+              <select id="fpAllProfilesSeasonFilter" class="form-select form-select-sm" onchange="filterAllFarmerProfiles()"
+                  style="width:130px;flex:0 0 130px;font-size:0.82rem;">
+                  <option value="">-- All Seasons --</option>
+                  <option value="Kharif">Kharif</option>
+                  <option value="Rabi">Rabi</option>
+                  <option value="Summer">Summer</option>
+              </select>
+
+              <!-- Spacer -->
+              <div style="flex:1 1 0;"></div>
+
+              <!-- Fert select (card-wise only) -->
+              <select id="fpCardWiseFertSelect" class="form-select form-select-sm d-none" onchange="onFpCardWiseFertChange()"
+                  style="width:110px;flex:0 0 110px;font-size:0.82rem;">
+                  <option value="Urea">Urea</option>
+                  <option value="DAP">DAP</option>
+              </select>
+
+              <!-- Normal / Card-wise toggle -->
+              <div class="btn-group" role="group" style="flex:0 0 auto;">
+                  <button type="button" class="btn btn-sm btn-primary fw-semibold" id="fpViewModeNormalBtn" onclick="setFpProfilesViewMode('normal')" style="font-size:0.82rem;padding:0.3rem 0.85rem;">
+                      <i class="fas fa-list me-1"></i>Normal
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="fpViewModeCardBtn" onclick="setFpProfilesViewMode('card')" style="font-size:0.82rem;padding:0.3rem 0.85rem;">
+                      <i class="fas fa-id-card me-1"></i>Card-wise
+                  </button>
               </div>
-              <div class="col-md-2">
-                  <select id="fpAllProfilesSeasonFilter" class="form-select" onchange="filterAllFarmerProfiles()">
-                      <option value="">-- All Seasons --</option>
-                      <option value="Kharif">Kharif</option>
-                      <option value="Rabi">Rabi</option>
-                      <option value="Summer">Summer</option>
-                  </select>
-              </div>
-              <div class="col-md-4 text-end d-flex align-items-center justify-content-end gap-2">
-                  <select id="fpCardWiseFertSelect" class="form-select form-select-sm d-none" style="max-width:140px" onchange="onFpCardWiseFertChange()">
-                      <option value="Urea">Urea</option>
-                      <option value="DAP">DAP</option>
-                  </select>
-                  <div class="btn-group" role="group">
-                      <button type="button" class="btn btn-sm btn-primary" id="fpViewModeNormalBtn" onclick="setFpProfilesViewMode('normal')">
-                          <i class="fas fa-list me-1"></i>Normal
-                      </button>
-                      <button type="button" class="btn btn-sm btn-outline-primary" id="fpViewModeCardBtn" onclick="setFpProfilesViewMode('card')">
-                          <i class="fas fa-id-card me-1"></i>Card-wise
-                      </button>
-                  </div>
-              </div>
+
           </div>
           <!-- Category stat pills -->
           <div class="row g-2 mb-2" id="fpStatPillsRow">
@@ -12526,6 +12554,19 @@ function populateAbstractCropDropdown() {
 // FERTILIZER DISTRIBUTION HISTORY & ABSTRACT REPORT - COMPLETE FIX
 // ============================================================
 
+// ── Close history list & abstract ──
+window.voCloseHistoryList = function() {
+    var c = document.getElementById('voHistoryContainer');
+    if (c) {
+        c.innerHTML = '<div class="text-center text-muted py-5">'
+            + '<i class="fas fa-filter fa-3x mb-3 opacity-25"></i>'
+            + '<p>Select Crop Year &amp; Season above and click <strong>Show</strong> to view the abstract and distribution list.</p>'
+            + '</div>';
+    }
+    window._voHistoryFiltersApplied = false;
+};
+
+
 // ── Get history status label ──
 window.getHistoryStatusLabel = function(r) {
     if (r.retailerVerified || r.status === 'Distributed') return 'Distributed';
@@ -12940,6 +12981,15 @@ window.voLoadFertilizerHistory = function() {
         }).join('');
 
         container.innerHTML = `
+        <!-- ── Close Button Bar ── -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+            <button onclick="voCloseHistoryList()"
+              style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:22px;padding:8px 20px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(231,76,60,0.3);transition:all .2s;"
+              onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 5px 14px rgba(231,76,60,0.4)'"
+              onmouseout="this.style.transform='';this.style.boxShadow='0 3px 10px rgba(231,76,60,0.3)'">
+              <i class="fas fa-times-circle"></i> Close List &amp; Abstract
+            </button>
+        </div>
         <!-- ── Abstract Report ── -->
         <div id="voAbstractReport" style="background:linear-gradient(135deg,#f8f9ff,#eef3ff);border:1.5px solid #c5d5f0;border-radius:16px;padding:1.1rem 1.3rem;margin-bottom:1.1rem;">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
@@ -15935,7 +15985,8 @@ function computePccAadhaarSet() {
     return pccSet;
 }
 
-function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter = '') {
+function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter = '', searchType = '') {
+    if (!searchType) searchType = _fpGetSearchType ? _fpGetSearchType() : 'all';
     const tbody   = document.getElementById('fpAllProfilesTbody');
     const countEl = document.getElementById('fpAllProfilesCount');
     if (!tbody) return;
@@ -15966,11 +16017,31 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
         return tb - ta;
     });
 
-    const f = filter.toLowerCase();
+    const f    = (filter || '').trim();
+    const fLow = f.toLowerCase();
     if (f || seasonFilter || yearFilter) {
         allProfiles = allProfiles.filter(p => {
-            const matchText = !f || [p.farmerName, p.fatherName, p.aadhaar, p.mobile, p.khatha]
-                .some(v => (v || '').toLowerCase().includes(f));
+            let matchText = true;
+            if (f) {
+                if (searchType === 'khatha') {
+                    // Normalise both sides: lowercase, trim, strip trailing .0
+                    const norm = v => String(v || '').toLowerCase().trim().replace(/\.0+$/, '');
+                    const qk   = norm(f);
+                    // p.khatha may be a comma-separated list (e.g. "123, 456")
+                    const kList = String(p.khatha || '').split(',').map(norm).filter(Boolean);
+                    matchText = kList.includes(qk) || kList.some(k => k.includes(qk));
+                } else if (searchType === 'aadhaar') {
+                    matchText = (p.aadhaar || '').replace(/\s/g,'').includes(f.replace(/\s/g,''));
+                } else if (searchType === 'name') {
+                    matchText = (p.farmerName || '').toLowerCase().includes(fLow) ||
+                                (p.fatherName || '').toLowerCase().includes(fLow);
+                } else if (searchType === 'phone') {
+                    matchText = (p.mobile || '').replace(/\D/g,'') === f.replace(/\D/g,'');
+                } else {
+                    matchText = [p.farmerName, p.fatherName, p.aadhaar, p.mobile, p.khatha]
+                        .some(v => (v || '').toLowerCase().includes(fLow));
+                }
+            }
             const matchSeason = !seasonFilter ||
                 (p.crops || []).some(c => c.season === seasonFilter);
             const matchYear = !yearFilter ||
@@ -15993,6 +16064,20 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
             if (fpCategoryFilter === 'tenant')       return isTenant;             // all tenant entries
             if (fpCategoryFilter === 'owner-tenant') return isPCC;                // Pattadhar-cum-Cultivator (owner + tenant entries)
             return true;
+        });
+    }
+
+    // ── When khatha search type is active, always sort numerically low → high ──
+    if (searchType === 'khatha') {
+        allProfiles.sort((a, b) => {
+            const parseKhatha = v => {
+                const s = String(v || '').trim();
+                const m = s.match(/^(\d+)(.*)/);
+                return m ? { num: parseInt(m[1], 10), rest: m[2] } : { num: Infinity, rest: s };
+            };
+            const pa = parseKhatha(a.khatha), pb = parseKhatha(b.khatha);
+            if (pa.num !== pb.num) return pa.num - pb.num;
+            return pa.rest.localeCompare(pb.rest);
         });
     }
 
@@ -16223,8 +16308,8 @@ function deleteFarmerProfile(aadhaar, khatha) {
         const _s = document.getElementById('fpAllProfilesSearch')?.value || '';
         const _se = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
         const _y = document.getElementById('fpAllProfilesYearFilter')?.value || '';
-        renderAllFarmerProfilesTable(_s, _se, _y);
-        if (fpProfilesViewMode === 'card') renderFpCardWiseTable(_s, _se, _y);
+        renderAllFarmerProfilesTable(_s, _se, _y, _fpGetSearchType());
+        if (fpProfilesViewMode === 'card') renderFpCardWiseTable(_s, _se, _y, _fpGetSearchType());
     });
 }
 
@@ -16274,13 +16359,52 @@ function updateFpStatPills() {
     setCount('fpCountOwnerTenant', ownerTenants);
 }
 
+function fpSearchTypeChanged() {
+    const type = document.getElementById('fpAllProfilesSearchType').value;
+    const inp  = document.getElementById('fpAllProfilesSearch');
+    inp.value = '';
+    const cfg = {
+        all:     { ph: '🔍 Search by name, Aadhaar, khatha, mobile...', num: false, max: 80 },
+        khatha:  { ph: '📋 Type Khatha Number (sorted: 1 → 10 → 100...)', num: false, max: 30 },
+        aadhaar: { ph: '🪪 Enter 12-digit Aadhaar',                    num: true,  max: 12 },
+        name:    { ph: '👤 Enter Farmer Name',                          num: false, max: 60 },
+        phone:   { ph: '📞 Enter 10-digit Mobile',                     num: true,  max: 10 },
+    };
+    const s = cfg[type] || cfg.all;
+    inp.placeholder = s.ph;
+    inp.maxLength   = s.max;
+    inp.inputMode   = s.num ? 'numeric' : 'text';
+    // Update the sort hint text
+    const hint = document.getElementById('fpViewModeHint');
+    if (hint && fpProfilesViewMode !== 'card') {
+        hint.textContent = type === 'khatha'
+            ? '🔢 Sorted by Khatha number: low → high (1, 10, 100, 1000…)'
+            : 'Sorted by registration date (newest first)';
+    }
+    if (s.num) {
+        inp.oninput = function() {
+            this.value = this.value.replace(/[^0-9]/g,'').slice(0, s.max);
+            filterAllFarmerProfiles();
+        };
+    } else {
+        inp.oninput = function() { filterAllFarmerProfiles(); };
+    }
+    inp.focus();
+    filterAllFarmerProfiles();
+}
+
+function _fpGetSearchType() {
+    return document.getElementById('fpAllProfilesSearchType')?.value || 'all';
+}
+
 function filterAllFarmerProfiles() {
     const search = document.getElementById('fpAllProfilesSearch')?.value || '';
     const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
     const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+    const stype  = _fpGetSearchType();
     // Always refresh both tables so switching modes shows up-to-date data
-    renderAllFarmerProfilesTable(search, season, year);
-    renderFpCardWiseTable(search, season, year);
+    renderAllFarmerProfilesTable(search, season, year, stype);
+    renderFpCardWiseTable(search, season, year, stype);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -16312,7 +16436,7 @@ function setFpProfilesViewMode(mode) {
         const search = document.getElementById('fpAllProfilesSearch')?.value || '';
         const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
         const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
-        renderFpCardWiseTable(search, season, year);
+        renderFpCardWiseTable(search, season, year, _fpGetSearchType());
     } else {
         cardBtn.classList.remove('btn-primary'); cardBtn.classList.add('btn-outline-primary');
         normalBtn.classList.remove('btn-outline-primary'); normalBtn.classList.add('btn-primary');
@@ -16325,7 +16449,7 @@ function setFpProfilesViewMode(mode) {
         const _s  = document.getElementById('fpAllProfilesSearch')?.value || '';
         const _se = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
         const _y  = document.getElementById('fpAllProfilesYearFilter')?.value || '';
-        renderAllFarmerProfilesTable(_s, _se, _y);
+        renderAllFarmerProfilesTable(_s, _se, _y, _fpGetSearchType());
     }
 }
 
@@ -16333,11 +16457,12 @@ function onFpCardWiseFertChange() {
     const search = document.getElementById('fpAllProfilesSearch')?.value || '';
     const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
     const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
-    renderFpCardWiseTable(search, season, year);
+    renderFpCardWiseTable(search, season, year, _fpGetSearchType());
 }
 
 // Build one row per Card Number, merging all khathas/profiles that share that card.
-function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '') {
+function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '', searchType = '') {
+    if (!searchType) searchType = _fpGetSearchType ? _fpGetSearchType() : 'all';
     if (!farmerProfiles || !Object.keys(farmerProfiles).length) return [];
 
     let allProfiles = [];
@@ -16353,11 +16478,29 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '') {
         });
     });
 
-    const f = (filter || '').toLowerCase();
+    const f    = (filter || '').trim();
+    const fLow = f.toLowerCase();
     if (f || seasonFilter || yearFilter) {
         allProfiles = allProfiles.filter(p => {
-            const matchText = !f || [p.farmerName, p.fatherName, p.aadhaar, p.mobile, p.khatha, p.cardNumber, p.apfrNumber]
-                .some(v => (v || '').toLowerCase().includes(f));
+            let matchText = true;
+            if (f) {
+                if (searchType === 'khatha') {
+                    const norm = v => String(v || '').toLowerCase().trim().replace(/\.0+$/, '');
+                    const qk   = norm(f);
+                    const kList = String(p.khatha || '').split(',').map(norm).filter(Boolean);
+                    matchText = kList.includes(qk) || kList.some(k => k.includes(qk));
+                } else if (searchType === 'aadhaar') {
+                    matchText = (p.aadhaar || '').replace(/\s/g,'').includes(f.replace(/\s/g,''));
+                } else if (searchType === 'name') {
+                    matchText = (p.farmerName || '').toLowerCase().includes(fLow) ||
+                                (p.fatherName || '').toLowerCase().includes(fLow);
+                } else if (searchType === 'phone') {
+                    matchText = (p.mobile || '').replace(/\D/g,'') === f.replace(/\D/g,'');
+                } else {
+                    matchText = [p.farmerName, p.fatherName, p.aadhaar, p.mobile, p.khatha, p.cardNumber, p.apfrNumber]
+                        .some(v => (v || '').toLowerCase().includes(fLow));
+                }
+            }
             const matchSeason = !seasonFilter ||
                 (p.crops || []).some(c => c.season === seasonFilter);
             const matchYear = !yearFilter ||
@@ -16471,15 +16614,16 @@ function sortFpCardWise(key) {
     const search = document.getElementById('fpAllProfilesSearch')?.value || '';
     const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
     const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
-    renderFpCardWiseTable(search, season, year);
+    renderFpCardWiseTable(search, season, year, _fpGetSearchType());
 }
 
-function renderFpCardWiseTable(filter = '', seasonFilter = '', yearFilter = '') {
+function renderFpCardWiseTable(filter = '', seasonFilter = '', yearFilter = '', searchType = '') {
+    if (!searchType) searchType = _fpGetSearchType ? _fpGetSearchType() : 'all';
     const tbody = document.getElementById('fpCardWiseTbody');
     const countEl = document.getElementById('fpAllProfilesCount');
     if (!tbody) return;
 
-    let rows = buildFpCardWiseData(filter, seasonFilter, yearFilter);
+    let rows = buildFpCardWiseData(filter, seasonFilter, yearFilter, searchType);
 
     const selectedFert = document.getElementById('fpCardWiseFertSelect')?.value || 'Urea';
     const elH = document.getElementById('fpHdrEligible');
@@ -21974,6 +22118,16 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             </div>`;
         }
 
+        // ── Determine active split: lowest-indexed split with remaining bags ──
+        let _activeSplitIdx = -1;
+        for (let si = 0; si < 3; si++) {
+            const _eU = uElig[si], _eD = dElig[si];
+            if (_eU === 0 && _eD === 0) continue;
+            const _aU = _availed('Urea', si), _aD = _availed('DAP', si);
+            const _rU = Math.max(0, _eU - _aU), _rD = Math.max(0, _eD - _aD);
+            if (!((_eU === 0 || _rU === 0) && (_eD === 0 || _rD === 0))) { _activeSplitIdx = si; break; }
+        }
+
         for (let si = 0; si < 3; si++) {
             const eU = uElig[si], eD = dElig[si];
             if (eU === 0 && eD === 0) continue;
@@ -21986,20 +22140,88 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             const doneU = eU > 0 && remU === 0;
             const doneD = eD > 0 && remD === 0;
             const allDone = (eU === 0 || doneU) && (eD === 0 || doneD);
-            
+
+            // Collapse logic:
+            //  - Active split (first incomplete) → expanded
+            //  - Completed splits → collapsed (tap header to view history)
+            //  - Future splits (beyond active) → collapsed (not yet unlocked)
+            const isActive  = si === _activeSplitIdx;
+            const isFuture  = _activeSplitIdx !== -1 && si > _activeSplitIdx;
+            const isCollapsed = !isActive; // only active split is open by default
+            const _collapseId = 'splitCollapse_' + fcKey + '_' + si;
+
+            let _headerBadge = '';
+            if (allDone)        _headerBadge = '<span style="background:rgba(255,255,255,0.22);padding:2px 10px;border-radius:20px;font-size:0.7rem;font-weight:700;">✅ Completed</span>';
+            else if (isFuture)  _headerBadge = '<span style="background:rgba(255,255,255,0.15);padding:2px 10px;border-radius:20px;font-size:0.7rem;font-weight:700;opacity:0.9;">🔜 Upcoming</span>';
+            else                _headerBadge = '<span style="background:rgba(255,255,255,0.25);padding:2px 10px;border-radius:20px;font-size:0.7rem;font-weight:800;">🟢 Active</span>';
+
+            const _headerBg = allDone
+                ? 'linear-gradient(135deg,#2e7d32,#388e3c)'
+                : isFuture
+                    ? 'linear-gradient(135deg,#546e7a,#78909c)'
+                    : 'linear-gradient(135deg,' + splitBadges[si] + ',' + splitBadges[si] + 'cc)';
+
             splitRowsHtml += `
-            <div data-split-card data-elig-urea="${eU}" data-elig-dap="${eD}" style="border:1.5px solid #dee2e6; border-radius:10px; margin-bottom:0.7rem; overflow:hidden;">
-              <div style="background:${allDone ? '#1b5e20' : splitBadges[si]}; color:#fff; padding:6px 12px; font-size:0.82rem; font-weight:700; display:flex; justify-content:space-between; align-items:center;">
-                <span>🌿 ${splitNames[si]}</span>
-                ${allDone ? '<span style="background:rgba(255,255,255,0.25);padding:1px 8px;border-radius:8px;font-size:0.72rem;">✅ Fully Distributed</span>' : ''}
+            <div data-split-card data-elig-urea="${eU}" data-elig-dap="${eD}" style="border:2px solid ${allDone?'#66bb6a':isFuture?'#b0bec5':'#e0e6ed'}; border-radius:12px; margin-bottom:10px; overflow:hidden;">
+              <!-- Split header — click to toggle collapse -->
+              <div onclick="(function(){var b=document.getElementById('${_collapseId}');var ch=document.getElementById('${_collapseId}_ch');if(!b)return;var hidden=b.style.display==='none';b.style.display=hidden?'':'none';if(ch)ch.textContent=hidden?'▲ Hide':'▼ View';})()" style="background:${_headerBg}; color:#fff; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;">
+                <span style="font-weight:800; font-size:0.88rem;">🌿 ${splitNames[si]}</span>
+                <div style="display:flex;align-items:center;gap:6px;">${_headerBadge} <span id="${_collapseId}_ch" style="font-size:0.72rem;opacity:0.8;">${isCollapsed ? '▼ View' : '▲ Hide'}</span></div>
               </div>
-              <div style="padding:10px 12px; background:#f8fbff;">
-                <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:8px; font-size:0.8rem;">
-                  <div data-fert-block="Urea"><strong>Urea Eligible:</strong> ${eU} bags &nbsp; <strong style="color:#e74c3c;">Availed:</strong> ${avU} &nbsp; <strong style="color:${remU===0?'#c0392b':'#27ae60'};">Remaining: ${remU}</strong></div>
-                  <div data-fert-block="DAP"><strong>DAP Eligible:</strong> ${eD} bags &nbsp; <strong style="color:#e74c3c;">Availed:</strong> ${avD} &nbsp; <strong style="color:${remD===0?'#c0392b':'#27ae60'};">Remaining: ${remD}</strong></div>
-                </div>
-                ${allDone ? `<div class="alert alert-success py-1 mb-0 small">All bags for this split have been distributed.</div>` : `
-                <div style="display:flex; gap:0.8rem; flex-wrap:wrap; align-items:flex-end;">
+              <!-- Collapsible split body -->
+              <div id="${_collapseId}" style="display:${isCollapsed?'none':''};">
+              <!-- Eligible / availed / remaining row -->
+              <div style="background:#f8fbff; padding:10px 14px 4px;">
+                ${eU > 0 ? `
+                <div data-fert-block="Urea" style="margin-bottom:8px;">
+                  <div style="font-size:0.72rem;font-weight:700;color:#a04000;margin-bottom:5px;display:flex;align-items:center;gap:5px;">
+                    <span style="background:#fff8e1;border:1.5px solid #f39c12;border-radius:20px;padding:2px 9px;">🌿 Urea</span>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:70px;background:linear-gradient(135deg,#e3f2fd,#bbdefb);border:2px solid #1565c0;border-radius:10px;padding:7px 10px;text-align:center;">
+                      <div style="font-size:0.62rem;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">✅ Eligible</div>
+                      <div style="font-size:1.4rem;font-weight:900;color:#0d3c77;line-height:1;">${eU}</div>
+                      <div style="font-size:0.58rem;color:#1565c0;margin-top:1px;">bags</div>
+                    </div>
+                    <div style="flex:1;min-width:70px;background:linear-gradient(135deg,#fff3e0,#ffe0b2);border:2px solid #e65100;border-radius:10px;padding:7px 10px;text-align:center;">
+                      <div style="font-size:0.62rem;font-weight:700;color:#bf360c;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">📦 Availed</div>
+                      <div style="font-size:1.4rem;font-weight:900;color:#bf360c;line-height:1;">${avU}</div>
+                      <div style="font-size:0.58rem;color:#e65100;margin-top:1px;">bags</div>
+                    </div>
+                    <div style="flex:1;min-width:70px;background:${remU===0?'linear-gradient(135deg,#fce4ec,#f8bbd0)':'linear-gradient(135deg,#e8f5e9,#c8e6c9)'};border:2px solid ${remU===0?'#c62828':'#2e7d32'};border-radius:10px;padding:7px 10px;text-align:center;">
+                      <div style="font-size:0.62rem;font-weight:700;color:${remU===0?'#c62828':'#1b5e20'};text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">${remU===0?'🚫 Done':'🟢 Left'}</div>
+                      <div style="font-size:1.4rem;font-weight:900;color:${remU===0?'#c62828':'#1b5e20'};line-height:1;">${remU}</div>
+                      <div style="font-size:0.58rem;color:${remU===0?'#c62828':'#2e7d32'};margin-top:1px;">bags</div>
+                    </div>
+                  </div>
+                </div>` : ''}
+                ${eD > 0 ? `
+                <div data-fert-block="DAP" style="margin-bottom:6px;">
+                  <div style="font-size:0.72rem;font-weight:700;color:#01579b;margin-bottom:5px;display:flex;align-items:center;gap:5px;">
+                    <span style="background:#e3f2fd;border:1.5px solid #0277bd;border-radius:20px;padding:2px 9px;">🌱 DAP</span>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:70px;background:linear-gradient(135deg,#e3f2fd,#bbdefb);border:2px solid #1565c0;border-radius:10px;padding:7px 10px;text-align:center;">
+                      <div style="font-size:0.62rem;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">✅ Eligible</div>
+                      <div style="font-size:1.4rem;font-weight:900;color:#0d3c77;line-height:1;">${eD}</div>
+                      <div style="font-size:0.58rem;color:#1565c0;margin-top:1px;">bags</div>
+                    </div>
+                    <div style="flex:1;min-width:70px;background:linear-gradient(135deg,#fff3e0,#ffe0b2);border:2px solid #e65100;border-radius:10px;padding:7px 10px;text-align:center;">
+                      <div style="font-size:0.62rem;font-weight:700;color:#bf360c;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">📦 Availed</div>
+                      <div style="font-size:1.4rem;font-weight:900;color:#bf360c;line-height:1;">${avD}</div>
+                      <div style="font-size:0.58rem;color:#e65100;margin-top:1px;">bags</div>
+                    </div>
+                    <div style="flex:1;min-width:70px;background:${remD===0?'linear-gradient(135deg,#fce4ec,#f8bbd0)':'linear-gradient(135deg,#e8f5e9,#c8e6c9)'};border:2px solid ${remD===0?'#c62828':'#2e7d32'};border-radius:10px;padding:7px 10px;text-align:center;">
+                      <div style="font-size:0.62rem;font-weight:700;color:${remD===0?'#c62828':'#1b5e20'};text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">${remD===0?'🚫 Done':'🟢 Left'}</div>
+                      <div style="font-size:1.4rem;font-weight:900;color:${remD===0?'#c62828':'#1b5e20'};line-height:1;">${remD}</div>
+                      <div style="font-size:0.58rem;color:${remD===0?'#c62828':'#2e7d32'};margin-top:1px;">bags</div>
+                    </div>
+                  </div>
+                </div>` : ''}
+              </div>
+              <div style="padding:8px 14px 12px; background:#f8fbff;">
+                ${allDone ? `<div style="text-align:center;font-size:0.8rem;color:#2e7d32;font-weight:700;padding:4px 0;">All bags for this split have been distributed.</div>` : `
+                <div style="display:flex; flex-direction:column; gap:8px;">
                   ${(() => {
                     let lockedU = false, lockedD = false;
                     let lockedReasonU = '', lockedReasonD = '';
@@ -22058,36 +22280,49 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                     const _bagCapU = _revalU.bagCap; // null = no cap
                     const _bagCapD = _revalD.bagCap;
 
+                    // ── Compute cap-remaining: cap minus already availed under restriction ──
+                    // This ensures a farmer who already received the full restricted quantity
+                    // cannot receive more bags until the VO lifts the restriction.
+                    const _capRemU = (_bagCapU !== null) ? Math.max(0, _bagCapU - avU) : null;
+                    const _capRemD = (_bagCapD !== null) ? Math.max(0, _bagCapD - avD) : null;
+
+                    // Detect when restriction cap is fully exhausted (availed >= cap)
+                    const _capExhaustedU = (_bagCapU !== null) && avU >= _bagCapU;
+                    const _capExhaustedD = (_bagCapD !== null) && avD >= _bagCapD;
+
                     // Build bag cap banners per fertilizer
                     let _bagCapBannerHtml = '';
                     const farmerExtent = parseFloat(fc.extent || fc.totalExtent || 0) || 0;
-                    function _buildBagCapBanner(cap, fertLabel, fertColor) {
+                    function _buildBagCapBanner(cap, capRem, availed, fertLabel, fertColor) {
                         if (cap === null || cap === undefined) return '';
-                        if (cap === 0) return `
-                            <div style="background:#fdebd0;border:2px solid #e67e22;border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:0.76rem;">
-                                <div style="font-weight:800;color:#a04000;margin-bottom:3px;"><i class="fas fa-box-open me-1"></i>🔒 Stock Limit — 0 ${fertLabel} Bags Allowed</div>
-                                <div style="color:#7d4e00;line-height:1.6;">
-                                    Extent: <strong>${farmerExtent.toFixed(2)} acres</strong> — Stock allocation: <strong>0 bags</strong> for this extent.<br>
-                                    <span style="font-size:0.7rem;"><i class="fas fa-info-circle me-1"></i>VO will update when stock is replenished.</span>
+                        if (cap === 0 || (availed >= cap)) return `
+                            <div style="background:#fdecea;border:2px solid #e74c3c;border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:0.76rem;">
+                                <div style="font-weight:800;color:#c0392b;margin-bottom:3px;"><i class="fas fa-check-circle me-1"></i>⛔ Already Availed Restricted Quantity — ${fertLabel}</div>
+                                <div style="color:#922b21;line-height:1.6;">
+                                    Extent: <strong>${farmerExtent.toFixed(2)} acres</strong> — Restricted to: <strong>${cap} bag${cap!==1?'s':''}</strong> — Already availed: <strong>${availed} bag${availed!==1?'s':''}</strong>.<br>
+                                    <span style="font-size:0.7rem;"><i class="fas fa-info-circle me-1"></i>Farmer has received the full restricted quantity. No more ${fertLabel} bags can be issued until VO lifts the restriction.</span>
                                 </div>
                             </div>`;
                         return `
                             <div style="background:#e8f4fd;border:1.5px solid ${fertColor};border-radius:8px;padding:7px 10px;margin-bottom:6px;font-size:0.75rem;">
                                 <i class="fas fa-info-circle me-1" style="color:${fertColor};"></i>
-                                <strong>Stock Limit (${fertLabel}):</strong> ${farmerExtent.toFixed(2)} acres → max <strong>${cap} bag${cap!==1?'s':''}</strong> allowed.
+                                <strong>Stock Limit (${fertLabel}):</strong> ${farmerExtent.toFixed(2)} acres → max <strong>${cap} bag${cap!==1?'s':''}</strong> allowed
+                                ${availed > 0 ? `&nbsp;·&nbsp; Availed: <strong>${availed}</strong> &nbsp;·&nbsp; Remaining under limit: <strong style="color:${capRem===0?'#c0392b':fertColor};">${capRem}</strong>` : ''}.
                             </div>`;
                     }
-                    if (!lockedU && _bagCapU !== null) _bagCapBannerHtml += _buildBagCapBanner(_bagCapU, 'Urea', '#f39c12');
-                    if (!lockedD && _bagCapD !== null) _bagCapBannerHtml += _buildBagCapBanner(_bagCapD, 'DAP', '#0277bd');
+                    if (!lockedU && _bagCapU !== null) _bagCapBannerHtml += _buildBagCapBanner(_bagCapU, _capRemU, avU, 'Urea', '#f39c12');
+                    if (!lockedD && _bagCapD !== null) _bagCapBannerHtml += _buildBagCapBanner(_bagCapD, _capRemD, avD, 'DAP', '#0277bd');
 
                     const _bagCapForSplit = null; // legacy var kept for compat — individual caps used above
 
-                    const showU = remU > 0 && !lockedU;
+                    // showU/showD: only show distribute input if there are bags remaining AND
+                    // the restriction cap (if active) has not been fully exhausted yet
+                    const showU = remU > 0 && !lockedU && !_capExhaustedU;
                     // DAP: blocked entirely if old per-card VO restriction active; otherwise normal lock check
-                    const showD = remD > 0 && !lockedD;
-                    // Effective bag caps for inputs (apply village-level bag cap if set)
-                    const _effRemU = (showU && _bagCapU !== null) ? Math.min(remU, _bagCapU) : remU;
-                    const _effRemD = (showD && _bagCapD !== null) ? Math.min(remD, _bagCapD) : remD;
+                    const showD = remD > 0 && !lockedD && !_capExhaustedD;
+                    // Effective bag caps for inputs: min of (bags remaining) and (cap remaining under restriction)
+                    const _effRemU = (showU && _capRemU !== null) ? Math.min(remU, _capRemU) : remU;
+                    const _effRemD = (showD && _capRemD !== null) ? Math.min(remD, _capRemD) : remD;
                     let lockNoticesHtml = '';
 
                     function _lockHtml(reason, fertColor) {
@@ -22130,21 +22365,36 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                     return `
                   ${_bagCapBannerHtml}
                   ${lockNoticesHtml}
-                  ${showU ? `<div data-fert-block="Urea">
-                    <label style="font-size:0.72rem; font-weight:600; color:#1862ab; display:block; margin-bottom:3px;">Urea Bags Now (max ${_effRemU}${_effRemU < remU ? ` <span style="color:#e67e22;font-size:0.66rem;font-weight:600;">stock limit</span>` : ''})</label>
-                    <input type="number" id="fcBagsU_${si}" min="0" max="${_effRemU}" value="0"
-                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemU})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemU})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemU})"
-                      style="width:90px; padding:5px 8px; border:1.5px solid #1862ab; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:center;">
+                  ${showU ? `<div data-fert-block="Urea" style="background:#fff8e1;border:2px solid #f39c12;border-radius:10px;padding:10px 12px;">
+                    <div style="font-size:0.75rem;font-weight:700;color:#a04000;margin-bottom:6px;">🌿 Urea Bags to Give Now <span style="font-weight:400;color:#777;">(max ${_effRemU}${_effRemU < remU ? ' — stock limit' : ''})</span></div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <button type="button" onclick="(function(){const inp=document.getElementById('fcBagsU_${si}');const v=Math.max(0,(parseInt(inp.value)||0)-1);inp.value=v;inp.dispatchEvent(new Event('change'));})()"
+                        style="width:40px;height:40px;border-radius:50%;border:2px solid #f39c12;background:#fff;font-size:1.2rem;font-weight:700;color:#a04000;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+                      <input type="number" id="fcBagsU_${si}" min="0" max="${_effRemU}" value="0"
+                        oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemU})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemU})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemU})"
+                        style="width:70px;height:44px;border:2.5px solid #f39c12;border-radius:10px;font-size:1.3rem;font-weight:800;text-align:center;color:#a04000;background:#fff;">
+                      <button type="button" onclick="(function(){const inp=document.getElementById('fcBagsU_${si}');const v=Math.min(${_effRemU},(parseInt(inp.value)||0)+1);inp.value=v;inp.dispatchEvent(new Event('change'));})()"
+                        style="width:40px;height:40px;border-radius:50%;border:2px solid #f39c12;background:#fff;font-size:1.2rem;font-weight:700;color:#a04000;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+                      <span style="font-size:0.78rem;color:#888;">of ${_effRemU} left</span>
+                    </div>
                   </div>` : `<input type="hidden" id="fcBagsU_${si}" value="0">`}
-                  ${showD ? `<div data-fert-block="DAP">
-                    <label style="font-size:0.72rem; font-weight:600; color:#27ae60; display:block; margin-bottom:3px;">DAP Bags Now (max ${_effRemD}${_effRemD < remD ? ` <span style="color:#e67e22;font-size:0.66rem;font-weight:600;">stock limit</span>` : ''})</label>
-                    <input type="number" id="fcBagsD_${si}" min="0" max="${_effRemD}" value="0"
-                      oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemD})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemD})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemD})"
-                      style="width:90px; padding:5px 8px; border:1.5px solid #27ae60; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:center;">
+                  ${showD ? `<div data-fert-block="DAP" style="background:#e3f2fd;border:2px solid #0277bd;border-radius:10px;padding:10px 12px;">
+                    <div style="font-size:0.75rem;font-weight:700;color:#01579b;margin-bottom:6px;">🌱 DAP Bags to Give Now <span style="font-weight:400;color:#777;">(max ${_effRemD}${_effRemD < remD ? ' — stock limit' : ''})</span></div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <button type="button" onclick="(function(){const inp=document.getElementById('fcBagsD_${si}');const v=Math.max(0,(parseInt(inp.value)||0)-1);inp.value=v;inp.dispatchEvent(new Event('change'));})()"
+                        style="width:40px;height:40px;border-radius:50%;border:2px solid #0277bd;background:#fff;font-size:1.2rem;font-weight:700;color:#01579b;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+                      <input type="number" id="fcBagsD_${si}" min="0" max="${_effRemD}" value="0"
+                        oninput="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemD})" onchange="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemD})" onblur="this.value=Math.min(Math.max(0,parseInt(this.value)||0),${_effRemD})"
+                        style="width:70px;height:44px;border:2.5px solid #0277bd;border-radius:10px;font-size:1.3rem;font-weight:800;text-align:center;color:#01579b;background:#fff;">
+                      <button type="button" onclick="(function(){const inp=document.getElementById('fcBagsD_${si}');const v=Math.min(${_effRemD},(parseInt(inp.value)||0)+1);inp.value=v;inp.dispatchEvent(new Event('change'));})()"
+                        style="width:40px;height:40px;border-radius:50%;border:2px solid #0277bd;background:#fff;font-size:1.2rem;font-weight:700;color:#01579b;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+                      <span style="font-size:0.78rem;color:#888;">of ${_effRemD} left</span>
+                    </div>
                   </div>` : `<input type="hidden" id="fcBagsD_${si}" value="0">`}
                   `; })()}
                 </div>`}
               </div>
+              </div><!-- /collapsible split body -->
             </div>`;
         }
 
@@ -22234,55 +22484,147 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
 
         // Store primary crop so confirm functions can derive correct split labels
         resultEl.dataset.fcCrop = _rtCrop || '';
+        // ── Build compact summary pills for Urea & DAP ──
+        const _pillU = uElig.some(v=>v>0) ? (() => {
+            const tot = uElig.reduce((s,v)=>s+v,0);
+            const av  = [0,1,2].reduce((s,si)=>s+_availed('Urea',si),0);
+            const rem = Math.max(0,tot-av);
+            return `<span style="display:inline-flex;align-items:center;gap:5px;background:${rem===0?'#e8f5e9':'#fff8e1'};border:1.5px solid ${rem===0?'#66bb6a':'#f39c12'};border-radius:20px;padding:4px 10px;font-size:0.78rem;font-weight:700;color:${rem===0?'#2e7d32':'#a04000'};">
+                <span style="font-size:0.9rem;">🌿</span> Urea ${rem===0?'✅ Done':'— '+rem+' bag'+(rem!==1?'s':'')+' left'}
+            </span>`;
+        })() : '';
+        const _pillD = dElig.some(v=>v>0) ? (() => {
+            const tot = dElig.reduce((s,v)=>s+v,0);
+            const av  = [0,1,2].reduce((s,si)=>s+_availed('DAP',si),0);
+            const rem = Math.max(0,tot-av);
+            return `<span style="display:inline-flex;align-items:center;gap:5px;background:${rem===0?'#e8f5e9':'#e3f2fd'};border:1.5px solid ${rem===0?'#66bb6a':'#0277bd'};border-radius:20px;padding:4px 10px;font-size:0.78rem;font-weight:700;color:${rem===0?'#2e7d32':'#01579b'};">
+                <span style="font-size:0.9rem;">🌱</span> DAP ${rem===0?'✅ Done':'— '+rem+' bag'+(rem!==1?'s':'')+' left'}
+            </span>`;
+        })() : '';
+
+        // ── Compact already-issued chips (instead of a big table) ──
+        let _issuedChips = '';
+        if (fdRecs.length > 0) {
+            _issuedChips = fdRecs.map(r => {
+                const fert2 = r.fertilizerType || r.fert || 'Urea';
+                const bg = fert2==='DAP'?'#e3f2fd':'#fff8e1';
+                const col = fert2==='DAP'?'#01579b':'#a04000';
+                const border = fert2==='DAP'?'#90caf9':'#ffe082';
+                const splitLabel = r.splitName || `S${(r.splitIndex!==undefined?Number(r.splitIndex):0)+1}`;
+                const date = r.verifiedAt||r.distributedAt||r.date||'';
+                const dStr = date ? new Date(date).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : '—';
+                const ONE_HOUR_MS = 60*60*1000;
+                const actionMs = date ? new Date(date).getTime() : 0;
+                const canDel = actionMs>0 && (Date.now()-actionMs)<=ONE_HOUR_MS;
+                const delBtn = canDel
+                    ? `<button onclick="(async()=>{await deleteDistribution('${r._tokenKey}');window._fcQrIssuedRecords=(window._fcQrIssuedRecords||[]).filter(x=>x._tokenKey!=='${r._tokenKey}');loadRetailerHistory();const resEl=document.getElementById('qrScanResult');if(resEl&&resEl.dataset.lastQr){const p=resEl.dataset.lastQr.split('|');if(p[0]==='FC'&&p[1]&&p[2]&&p[3]&&p[4])processFarmerCardQr(p[1],p[2],p[3],p[4],resEl);}})()"
+                       style="border:none;background:none;color:#c0392b;font-size:0.72rem;cursor:pointer;padding:0 2px;" title="Delete (within 1 hr)"><i class="fas fa-trash-alt"></i></button>`
+                    : '';
+                return `<div style="display:inline-flex;align-items:center;gap:5px;background:${bg};border:1.5px solid ${border};border-radius:8px;padding:4px 9px;font-size:0.74rem;font-weight:700;color:${col};margin:2px;">
+                    <span>${escapeHtml(fert2)}</span><span style="font-weight:400;color:#555;">${escapeHtml(splitLabel)} · ${Number(r.bags||0)} bag${Number(r.bags||0)!==1?'s':''} · ${dStr}</span>${delBtn}
+                </div>`;
+            }).join('');
+        }
+
+        // ── Build STEP 2 fertilizer tab buttons (instead of dropdown) ──
+        const _hasUrea = uElig.some(v=>v>0);
+        const _hasDAP  = dElig.some(v=>v>0);
+        const _fertTabsHtml = `
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            ${_hasUrea ? `<button id="fcTabUrea_${fcKey}" onclick="onFcFertTabClick('${escapeHtml(fcKey)}','Urea')"
+                style="flex:1;padding:10px 0;border-radius:10px;border:2px solid #f39c12;background:#fff8e1;color:#a04000;font-weight:800;font-size:0.9rem;cursor:pointer;transition:all .2s;"
+                class="fc-fert-tab">
+                🌿 Urea${totalRemU===0?' ✅':''}
+            </button>` : ''}
+            ${_hasDAP ? `<button id="fcTabDAP_${fcKey}" onclick="onFcFertTabClick('${escapeHtml(fcKey)}','DAP')"
+                style="flex:1;padding:10px 0;border-radius:10px;border:2px solid #90caf9;background:#e3f2fd;color:#01579b;font-weight:800;font-size:0.9rem;cursor:pointer;transition:all .2s;"
+                class="fc-fert-tab">
+                🌱 DAP${totalRemD===0?' ✅':''}
+            </button>` : ''}
+        </div>
+        <select id="fcFertSelect_${fcKey}" onchange="onFcFertSelectChange('${escapeHtml(fcKey)}')" style="display:none;">
+            <option value="Urea">Urea</option>
+            <option value="DAP">DAP</option>
+        </select>`;
+
         resultEl.innerHTML = `
-        <div style="border:2px solid #1862ab; border-radius:14px; overflow:hidden; margin-top:0.5rem;">
-          <div style="background:linear-gradient(135deg,#1862ab,#0d4d86); color:#fff; padding:10px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-            <div>
-  <div style="font-weight:800; font-size:0.95rem;">🌾 Fertilizer Card — Retailer Distribution</div>
-  <div style="font-size:0.75rem; opacity:0.85; margin-top:2px;">
-    <span style="font-weight:600;">Farmer Name:</span> ${escapeHtml(fc.farmerName||fc.farmer_name||'—')} &nbsp;|&nbsp; 
-    <span style="font-weight:600;">Father / Husband:</span> ${escapeHtml(fc.fatherName||fc.father_name||fc.husbandName||'—')}
-  </div>
-</div>
-            <div style="text-align:right; font-size:0.72rem;">
-              <div style="font-weight:700;">${escapeHtml(year)} · ${escapeHtml(season)}</div>
-              <div style="opacity:0.8;">Aadhaar: ••••${escapeHtml(a.slice(-4))} &nbsp;|&nbsp; ${escapeHtml(fc.village||'—')}</div>
+        <div style="border-radius:18px;overflow:hidden;box-shadow:0 4px 24px rgba(24,98,171,0.13);margin-top:0.5rem;border:none;">
+
+          <!-- ── STEP 1 : Farmer Identity Card ── -->
+          <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%);color:#fff;padding:14px 16px 12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:44px;height:44px;background:rgba(255,255,255,0.18);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">👨‍🌾</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:800;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(fc.farmerName||fc.farmer_name||'—')}</div>
+                <div style="font-size:0.75rem;opacity:0.85;margin-top:1px;">${escapeHtml(fc.fatherName||fc.father_name||fc.husbandName||'—')} &nbsp;·&nbsp; ••••${escapeHtml(a.slice(-4))}</div>
+                <div style="font-size:0.72rem;opacity:0.75;margin-top:1px;">📍 ${escapeHtml(fc.village||'—')} &nbsp;·&nbsp; ${escapeHtml(year)} ${escapeHtml(season)}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;">
+                <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;font-size:0.72rem;font-weight:700;">${escapeHtml(fc.extent||fc.totalExtent||'—')} ac</div>
+                <div style="font-size:0.65rem;opacity:0.7;margin-top:2px;">Extent</div>
+              </div>
+            </div>
+            <!-- Fertilizer status pills -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                ${_pillU}${_pillD}
             </div>
           </div>
-          <div style="padding:12px 16px; background:#fff;">
-            ${_villageBagRuleBanner}
-            ${_villageSplitLockBanner}
-            ${availedOverrideDisplay}
-            ${alreadyIssuedHtml}
+
+          <!-- ── Warnings / Restrictions (collapsible) ── -->
+          ${(_villageBagRuleBanner || _villageSplitLockBanner || availedOverrideDisplay) ? `
+          <div style="background:#fffbef;border-bottom:1px solid #ffe082;padding:10px 14px;">
+            ${_villageBagRuleBanner}${_villageSplitLockBanner}${availedOverrideDisplay}
+          </div>` : ''}
+
+          <!-- ── Already issued (compact chips) ── -->
+          ${_issuedChips ? `
+          <div style="background:#f8f9fa;border-bottom:1px solid #e9ecef;padding:9px 14px;">
+            <div style="font-size:0.72rem;font-weight:700;color:#555;margin-bottom:5px;"><i class="fas fa-history me-1 text-warning"></i>Already Distributed This Season</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">${_issuedChips}</div>
+          </div>` : ''}
+
+          <!-- ── STEP 2 : Distribution Entry ── -->
+          <div style="padding:14px 14px 16px;background:#fff;">
+
             ${totalRemU === 0 && totalRemD === 0
-              ? '<div class="alert alert-success fw-bold text-center">✅ All fertilizer bags have been fully distributed for this card.</div>'
-              : `<div style="font-size:0.75rem; color:#555; margin-bottom:0.7rem; font-weight:600;">Enter the number of bags being distributed now for each split below. Cannot exceed remaining eligible.</div>`
-            }
-            <div class="mb-3" style="background:#f1f7ff; border:1.5px solid #b9d8f5; border-radius:10px; padding:10px 12px;">
-              <label style="font-size:0.78rem; font-weight:700; color:#1862ab; display:block; margin-bottom:5px;">
-                <i class="fas fa-flask me-1"></i>Select Fertilizer Type
-              </label>
-              <select id="fcFertSelect_${fcKey}" onchange="onFcFertSelectChange('${escapeHtml(fcKey)}')"
-                style="width:100%; max-width:220px; padding:7px 10px; border:1.5px solid #1862ab; border-radius:8px; font-size:0.88rem; font-weight:700; color:#1862ab; background:#fff;">
-                <option value="Urea">🌿 Urea</option>
-                <option value="DAP">🌿 DAP</option>
-              </select>
-              <div style="font-size:0.72rem; color:#666; margin-top:4px;">Only the splits for the selected fertilizer will be shown for distribution.</div>
+              ? `<div style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:2px solid #66bb6a;border-radius:12px;padding:16px;text-align:center;">
+                   <div style="font-size:1.8rem;margin-bottom:4px;">✅</div>
+                   <div style="font-weight:800;font-size:1rem;color:#2e7d32;">All Bags Distributed!</div>
+                   <div style="font-size:0.78rem;color:#388e3c;margin-top:4px;">This farmer has received all eligible fertilizer for this season.</div>
+                 </div>`
+              : `
+            <!-- Step label -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <div style="width:26px;height:26px;background:#1862ab;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;flex-shrink:0;">2</div>
+              <div style="font-weight:700;font-size:0.9rem;color:#1862ab;">Select Fertilizer &amp; Enter Bags</div>
             </div>
+
+            <!-- Fertilizer tab toggle -->
+            ${_fertTabsHtml}
+
+            <!-- Split rows (filtered by tab) -->
             <div id="fcSplitRows_${fcKey}">
-            ${splitRowsHtml}
+              ${splitRowsHtml}
             </div>
-            <div id="fcDistError_${fcKey}" class="text-danger small d-none mb-2"></div>
-            ${totalRemU > 0 || totalRemD > 0 ? `
+
+            <div id="fcDistError_${fcKey}" class="d-none" style="background:#fdecea;border:1.5px solid #e57373;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#c62828;font-weight:600;margin-top:8px;"></div>
+
+            <!-- Confirm button -->
             <button onclick="askConfirmFarmerCardDistribution('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}',[${uElig}],[${dElig}])"
-              style="background:linear-gradient(135deg,#27ae60,#1b5e20); color:#fff; border:none; padding:9px 24px; border-radius:10px; font-weight:700; font-size:0.88rem; cursor:pointer; width:100%; margin-top:4px;">
-              <i class="fas fa-check-circle me-2"></i>Confirm Distribution
-            </button>` : ''}
+              style="width:100%;margin-top:14px;background:linear-gradient(135deg,#27ae60,#1a7a44);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(39,174,96,0.3);letter-spacing:0.3px;">
+              <i class="fas fa-check-circle me-2"></i>Give Bags to Farmer
+            </button>`
+            }
           </div>
         </div>`;
         
-        // Apply initial fertilizer filter (default Urea)
-        setTimeout(() => onFcFertSelectChange(fcKey), 0);
+        // Apply initial fertilizer filter — auto-select the first fert that still has remaining bags
+        setTimeout(() => {
+            const _initFert = (totalRemU > 0) ? 'Urea' : (totalRemD > 0 ? 'DAP' : 'Urea');
+            const sel = document.getElementById('fcFertSelect_' + fcKey);
+            if (sel) sel.value = _initFert;
+            onFcFertSelectChange(fcKey);
+        }, 0);
     }).catch(err => {
         resultEl.innerHTML = _rtAuthErr('Database error: ' + escapeHtml(err.message));
     });
@@ -22302,6 +22644,28 @@ function onFcFertSelectChange(fcKey) {
         const elig = Number(card.getAttribute(fert === 'Urea' ? 'data-elig-urea' : 'data-elig-dap')) || 0;
         card.style.display = elig > 0 ? '' : 'none';
     });
+    // Sync tab button styles
+    const tabU = document.getElementById('fcTabUrea_' + fcKey);
+    const tabD = document.getElementById('fcTabDAP_' + fcKey);
+    if (tabU) {
+        tabU.style.background  = fert === 'Urea' ? '#f39c12' : '#fff8e1';
+        tabU.style.color       = fert === 'Urea' ? '#fff'    : '#a04000';
+        tabU.style.borderColor = '#f39c12';
+        tabU.style.transform   = fert === 'Urea' ? 'scale(1.03)' : 'scale(1)';
+    }
+    if (tabD) {
+        tabD.style.background  = fert === 'DAP' ? '#0277bd' : '#e3f2fd';
+        tabD.style.color       = fert === 'DAP' ? '#fff'    : '#01579b';
+        tabD.style.borderColor = '#90caf9';
+        tabD.style.transform   = fert === 'DAP' ? 'scale(1.03)' : 'scale(1)';
+    }
+}
+
+// Tab click: set hidden select value then trigger change
+function onFcFertTabClick(fcKey, fert) {
+    const sel = document.getElementById('fcFertSelect_' + fcKey);
+    if (sel) { sel.value = fert; }
+    onFcFertSelectChange(fcKey);
 }
 
 // Step 1: show a reconfirmation prompt before actually distributing
@@ -22379,24 +22743,44 @@ function askConfirmFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr
     window._fcCardHtmlBackup = resultEl.innerHTML;
 
     resultEl.innerHTML = `
-    <div style="border:2px solid #f39c12; border-radius:14px; overflow:hidden; margin-top:0.5rem;">
-      <div style="background:linear-gradient(135deg,#f39c12,#d68910); color:#fff; padding:10px 16px;">
-        <div style="font-weight:800; font-size:0.95rem;"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Bag Distribution</div>
+    <div style="border-radius:18px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12);margin-top:0.5rem;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#f39c12,#d68910);color:#fff;padding:14px 16px;text-align:center;">
+        <div style="font-size:2rem;margin-bottom:4px;">📋</div>
+        <div style="font-weight:800;font-size:1.05rem;">Confirm Bag Distribution</div>
+        <div style="font-size:0.78rem;opacity:0.9;margin-top:2px;">Please verify before giving bags to farmer</div>
       </div>
-      <div style="padding:14px 16px; background:#fff;">
-        <div class="mb-2" style="font-size:0.85rem;">You are about to distribute the following bags to <strong>${escapeHtml(aadhaar.slice(0,4))}••••${escapeHtml(aadhaar.slice(-4))}</strong> (${escapeHtml(year)} · ${escapeHtml(season)}):</div>
-        <ul style="font-size:0.85rem; margin-bottom:0.8rem;">${summaryHtml}</ul>
-        <div class="alert alert-warning py-2 mb-3" style="font-size:0.78rem;">
-          <i class="fas fa-info-circle me-1"></i>This action cannot be undone once confirmed.
+      <!-- Farmer identity -->
+      <div style="background:#fff7e6;border-bottom:1px solid #ffe0b2;padding:12px 16px;">
+        <div style="font-size:0.75rem;color:#888;margin-bottom:2px;">Farmer</div>
+        <div style="font-weight:800;font-size:1rem;color:#212121;">••••${escapeHtml(aadhaar.slice(-4))} — ${escapeHtml(year)} · ${escapeHtml(season)}</div>
+      </div>
+      <!-- Summary -->
+      <div style="background:#fff;padding:14px 16px;">
+        <div style="font-size:0.8rem;color:#555;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Bags to be given</div>
+        ${entries.map(e => `
+        <div style="display:flex;align-items:center;justify-content:space-between;background:${e.fert==='DAP'?'#e3f2fd':'#fff8e1'};border:2px solid ${e.fert==='DAP'?'#0277bd':'#f39c12'};border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+          <div>
+            <div style="font-weight:800;font-size:0.95rem;color:${e.fert==='DAP'?'#01579b':'#a04000'};">${e.fert==='DAP'?'🌱':'🌿'} ${escapeHtml(e.fert)}</div>
+            <div style="font-size:0.78rem;color:#666;margin-top:2px;">${escapeHtml(e.splitName)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:2rem;font-weight:900;color:${e.fert==='DAP'?'#0277bd':'#f39c12'};line-height:1;">${e.bags}</div>
+            <div style="font-size:0.72rem;color:#888;">bag${e.bags>1?'s':''}</div>
+          </div>
+        </div>`).join('')}
+        <div style="background:#fce4ec;border:1.5px solid #ef9a9a;border-radius:10px;padding:10px 12px;font-size:0.8rem;color:#c62828;margin-top:4px;">
+          <i class="fas fa-exclamation-triangle me-1"></i><strong>Cannot be undone</strong> — once confirmed, this distribution is recorded.
         </div>
-        <div style="display:flex; gap:0.6rem;">
+        <!-- Action buttons -->
+        <div style="display:flex;gap:10px;margin-top:14px;">
           <button onclick="cancelFarmerCardDistribution()"
-            style="flex:1; background:#fff; color:#555; border:1.5px solid #ccc; padding:9px 16px; border-radius:10px; font-weight:700; font-size:0.88rem; cursor:pointer;">
-            <i class="fas fa-times me-1"></i>Cancel
+            style="flex:1;padding:13px 0;border-radius:12px;border:2px solid #ccc;background:#f5f5f5;color:#555;font-weight:700;font-size:0.95rem;cursor:pointer;">
+            <i class="fas fa-arrow-left me-1"></i>Go Back
           </button>
           <button onclick="confirmFarmerCardDistribution()"
-            style="flex:1; background:linear-gradient(135deg,#27ae60,#1b5e20); color:#fff; border:none; padding:9px 16px; border-radius:10px; font-weight:700; font-size:0.88rem; cursor:pointer;">
-            <i class="fas fa-check-circle me-1"></i>Yes, Distribute
+            style="flex:2;padding:13px 0;border-radius:12px;border:none;background:linear-gradient(135deg,#27ae60,#1a7a44);color:#fff;font-weight:800;font-size:0.95rem;cursor:pointer;box-shadow:0 4px 14px rgba(39,174,96,0.3);">
+            <i class="fas fa-check-circle me-1"></i>Yes, Give Bags ✓
           </button>
         </div>
       </div>
