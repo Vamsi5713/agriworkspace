@@ -1386,14 +1386,18 @@
       </div>
     </div>
 
-    <!-- Search Farmer -->
-    <div class="search-farmer-card mt-3 mx-auto" style="max-width:700px;padding:1rem 1.25rem;">
-      <h5 class="mb-2" style="font-size:0.92rem;"><i class="fas fa-search me-2 text-primary"></i>Search Farmer by Aadhaar</h5>
+    <!-- Search Farmer (Multi-Mode) -->
+    <div class="search-farmer-card mt-3 mx-auto" style="max-width:760px;padding:1rem 1.25rem;">
+      <h5 class="mb-3" style="font-size:0.95rem; color:#1862ab; font-weight:700;">
+        <i class="fas fa-search me-2"></i>Search Farmer
+      </h5>
+
+      <!-- Row 1: Year + Season -->
       <div class="row g-2 mb-2">
-        <div class="col-sm-4">
+        <div class="col-sm-6">
           <select id="searchCropYear" class="form-select form-select-sm"></select>
         </div>
-        <div class="col-sm-4">
+        <div class="col-sm-6">
           <select id="searchSeason" class="form-select form-select-sm">
             <option value="">-- Season --</option>
             <option value="Kharif">Kharif</option>
@@ -1402,12 +1406,35 @@
             <option value="Other">Other</option>
           </select>
         </div>
+      </div>
+
+      <!-- Row 2: Search Type dropdown + dynamic input -->
+      <div class="row g-2 mb-2 align-items-center">
         <div class="col-sm-4">
+          <select id="searchTypeSelect" class="form-select form-select-sm fw-semibold" onchange="onSearchTypeChange()">
+            <option value="aadhaar">🪪 Aadhaar (Last 4 Digits)</option>
+            <option value="khatha">📋 Khatha Number</option>
+            <option value="survey">🗺️ Survey Number</option>
+          </select>
+        </div>
+        <div class="col-sm-8">
+          <!-- Aadhaar input (default shown) -->
           <input type="text" id="aadhaarLast4Input" class="form-control form-control-sm"
-                 placeholder="Last 4 digits of Aadhaar…" maxlength="12" />
+                 placeholder="Enter last 4 digits of Aadhaar…" maxlength="12" />
+          <!-- Khatha input (hidden by default) -->
+          <input type="text" id="khathaSearchInput" class="form-control form-control-sm hidden"
+                 placeholder="Enter Khatha Number (e.g. 123)…" />
+          <!-- Survey input (hidden by default) -->
+          <input type="text" id="surveySearchInput" class="form-control form-control-sm hidden"
+                 placeholder="Enter Survey Number (e.g. 32 — shows 32, 32-1, 32-2…)…" />
         </div>
       </div>
+
+      <!-- Search results area -->
       <div id="searchResults" class="search-results"></div>
+
+      <!-- Khatha / Survey expanded results panel -->
+      <div id="khathaOrSurveyResults" class="hidden mt-3"></div>
     </div>
   </div>
 </div>
@@ -5611,6 +5638,98 @@ let parsedData = {};
 let pageStateStack = [];
 let allReportsCache = {};
 let ureaData = { Urea: {}, DAP: {} };
+
+/**
+ * Sanitize any string for use as a Firebase Realtime Database key.
+ * Firebase forbids: . # $ / [ ] and empty strings.
+ * Also removes | and whitespace which appear in fallback name+village keys.
+ */
+function toFirebaseKey(raw) {
+    if (!raw) return 'unknown';
+    return String(raw)
+        .replace(/[.#$\[\]|\/]/g, '_')  // forbidden Firebase chars + pipe/slash
+        .replace(/\s+/g, '_')              // spaces
+        .replace(/_+/g, '_')               // collapse multiple underscores
+        .replace(/^_+|_+$/g, '')           // trim edges
+        || 'unknown';
+}
+
+/**
+ * Derive the farmer lookup key the same way it was saved:
+ * use Aadhaar if present, else sanitized "name_village".
+ */
+function farmerKeyFor(aadhaar, farmerName, village) {
+    const raw = (aadhaar && aadhaar !== '-') ? aadhaar : ((farmerName || '') + '_' + (village || ''));
+    return toFirebaseKey(raw);
+}
+
+/**
+ * Strip surrounding quotes from a cell value.
+ * Excel sometimes wraps text in single quotes e.g. '90-3' → 90-3
+ */
+function stripCellQuotes(v) {
+    return String(v || '').trim()
+        .replace(/^[‘’“”'"]+|[‘’“”'"]+$/g, '')
+        .trim();
+}
+
+/**
+ * Find a farmer object from uniqueFarmers by the stored farmerKey.
+ * Tries Aadhaar match first, then name+village sanitised key match.
+ */
+function findFarmerByKey(uniqueFarmers, farmerKey) {
+    if (!Array.isArray(uniqueFarmers) || !farmerKey) return null;
+    // 1. Direct Aadhaar match
+    let f = uniqueFarmers.find(f => f.aadhaarNumber === farmerKey);
+    if (f) return f;
+    // 2. Sanitised key match (handles name_village keys)
+    f = uniqueFarmers.find(f => farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village) === farmerKey);
+    if (f) return f;
+    // 3. Loose: just match on aadhaar last-4 if key looks like aadhaar
+    if (/^\d{12}$/.test(farmerKey)) {
+        f = uniqueFarmers.find(f => (f.aadhaarNumber || '').replace(/\D/g,'') === farmerKey);
+    }
+    return f || null;
+}
+
+/**
+ * Sanitise allReportsCache in-place after loading from localStorage or Firebase.
+ * Fixes two classes of problem in old saved data:
+ *  1. surveyNo / khathaNo stored with surrounding quotes  e.g. '114-3'
+ *  2. farmerDetails keys that used pipe | as separator (now sanitized to _)
+ *     — re-key them so lookups against uniqueFarmers work
+ */
+function sanitiseReportsCache() {
+    if (!allReportsCache || typeof allReportsCache !== 'object') return;
+    Object.keys(allReportsCache).forEach(reportKey => {
+        const report = allReportsCache[reportKey];
+        if (!report) return;
+
+        // ── 1. Strip quotes from surveyNo and khathaNo in farmerDetails ──
+        if (report.farmerDetails && typeof report.farmerDetails === 'object') {
+            const newDetails = {};
+            Object.entries(report.farmerDetails).forEach(([fKey, rows]) => {
+                // Re-sanitise the farmer key itself (old data may have used | or .)
+                const cleanKey = toFirebaseKey(fKey);
+                const cleanRows = Array.isArray(rows) ? rows.map(row => ({
+                    ...row,
+                    surveyNo: row.surveyNo ? stripCellQuotes(row.surveyNo) : row.surveyNo,
+                    khathaNo: row.khathaNo ? stripCellQuotes(row.khathaNo) : row.khathaNo,
+                })) : rows;
+                // Merge if key already exists after sanitisation
+                if (newDetails[cleanKey]) {
+                    newDetails[cleanKey] = newDetails[cleanKey].concat(cleanRows);
+                } else {
+                    newDetails[cleanKey] = cleanRows;
+                }
+            });
+            report.farmerDetails = newDetails;
+        }
+
+        // ── 2. Re-sanitise uniqueFarmers aadhaarNumber used as lookup key ──
+        //    (no structural change needed — the values are display values, not keys)
+    });
+}
 let ureaHistory = [];
 let farmerProfiles = {};
 let isDataLoaded = false;
@@ -5791,6 +5910,7 @@ function loadFromLocalCache(uid) {
         if (fp) farmerProfiles  = JSON.parse(fp);
         if (ar) allReportsCache = JSON.parse(ar);
         if (ud) ureaData        = JSON.parse(ud);
+        sanitiseReportsCache(); // fix quotes & bad keys in old saved data
         const t = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
         return true;
     } catch(e) { console.warn('LocalCache read failed', e); return false; }
@@ -5952,6 +6072,7 @@ function _applyCloudSnapshot(snapshot) {
 
         // 1. e-Panta Reports
         allReportsCache = data.allReports || {};
+        sanitiseReportsCache(); // fix quotes & bad keys in old saved data
 
         // 2. 1B Uploaded Data
         let rawUreaData = {};
@@ -8048,29 +8169,112 @@ function validateAadhaar(aadhaar) {
          //    Farmer  → Farmer Name, Occupant Name   (never Father Name)
          // ══════════════════════════════════════════════════════════════
          function _smHeaderTokens(s) {
+             // Lowercase, strip all non-alphanumeric separators → array of word tokens
              return (s || '').toString().toLowerCase().trim().split(/[^a-z0-9]+/).filter(Boolean);
          }
+
+         // ─────────────────────────────────────────────────────────────────────
+         // SMART COLUMN MATCHERS — handles uppercase, mixed case, abbreviations,
+         // alternate spellings common in AP e-Panta / karshak / land records files.
+         //
+         // Each matcher receives an array of lowercase word-tokens from the header.
+         // e.g. "FARMER NAME" → ['farmer','name']
+         //      "Occupant Name" → ['occupant','name']
+         //      "Aadhaar No." → ['aadhaar','no']
+         //      "Survey No/LP No" → ['survey','no','lp','no']
+         //      "S.No" → ['s','no']   ← ambiguous; handled carefully
+         // ─────────────────────────────────────────────────────────────────────
          const SMART_COLUMN_MATCHERS = {
-             bookingId:  t => t.some(w => w.startsWith('booking') || w === 'bkgid' || w === 'bkid' || w.startsWith('bkno') || w === 'bookid'),
-             // Khatha / Khata / Khatha No / Khata No / KhathaNo / Katha — covers all spellings
-             khatha:     t => t.some(w => /^kh?ath?a/.test(w)),
-             // Survey Number / Survey No / Survey No/Lp No / SurveyNo
-             survey:     t => t.some(w => w.startsWith('survey') || w.startsWith('lpno') || w === 'lp'),
-             // Extent / Area / Area Sown / Occupant Extent / Area Cultivated / Acres
-             extent:     t => t.some(w => w.startsWith('extent') || w.startsWith('area') || w.startsWith('acre')),
-             // Crop / Crop Name / Crop Sown
-             crop:       t => t.some(w => w.startsWith('crop')),
-             // Farmer Name / Occupant Name — but NEVER "Father Name"
-             farmerName: t => t.includes('name') &&
-                              t.some(w => w.startsWith('farmer') || w.startsWith('occupant')) &&
-                              !t.some(w => w.startsWith('father')),
-             fatherName: t => t.some(w => w.startsWith('father') || w.startsWith('husband')),
-             aadhaar:    t => t.some(w => w.startsWith('aadha') || w.startsWith('adha') || w === 'uid'),
-             village:    t => t.some(w => w.startsWith('village') || w.startsWith('gram') || w.startsWith('hamlet')),
-             mobile:     t => t.some(w => w.startsWith('mobile') || w.startsWith('phone') || w.startsWith('contact')),
-             // Real column in e-Panta file: "Pattadar / Cultivator"
-             pattadhar:  t => t.some(w => w.startsWith('pattad') || w.startsWith('cultivat') || w === 'patta' || w.startsWith('landholder')) ||
-                              (t.includes('farmer') && t.includes('type')),
+
+             // ── Booking ID ──
+             // "Booking ID", "Booking No", "Bkg ID", "BkgNo", "BookID", "Reg No", "Application No"
+             bookingId: t =>
+                 t.some(w => w.startsWith('booking') || w === 'bkgid' || w === 'bkid' ||
+                             w.startsWith('bkno') || w === 'bookid' || w === 'regid') ||
+                 (t.includes('reg') && t.some(w => w === 'no' || w === 'num' || w === 'id')) ||
+                 (t.includes('application') && t.some(w => w === 'no' || w === 'num' || w === 'id')),
+
+             // ── Khatha / Khata / Katha / Hissa No ──
+             // "Khatha", "Khata", "Khata No", "KhathaNo", "Katha", "Khata Number"
+             khatha: t =>
+                 t.some(w => /^kh?ath?a/.test(w) || /^kath?a/.test(w)),
+
+             // ── Survey Number ──
+             // "Survey Number", "Survey No", "Survey No/LP No", "SurveyNo", "Survey",
+             // "Sy No", "Sy.No", "S.No" (only when paired with no/num — else too ambiguous)
+             survey: t =>
+                 t.some(w => w.startsWith('survey') || w === 'syno' || w.startsWith('lpno')) ||
+                 (t.includes('sy')  && t.some(w => w === 'no' || w === 'num' || w === 'number')) ||
+                 (t.includes('lp')  && t.some(w => w === 'no' || w === 'num')),
+
+             // ── Extent / Area ──
+             // "Extent", "Area", "Area Sown", "Occupant Extent", "Cultivated Area",
+             // "Acres", "Area (Acres)", "Sown Area", "Crop Area"
+             extent: t =>
+                 t.some(w => w.startsWith('extent') || w.startsWith('area') || w.startsWith('acre') ||
+                             w === 'sown' || w === 'hectare' || w === 'ha'),
+
+             // ── Crop Name ──
+             // "Crop", "Crop Name", "Crop Sown", "Crop Type", "Crop Booked"
+             crop: t =>
+                 t.some(w => w.startsWith('crop')),
+
+             // ── Farmer Name ──
+             // "Farmer Name", "FARMER NAME", "Farmer", "Occupant Name",
+             // "Applicant Name", "Holder Name", "Beneficiary Name", "Land Holder",
+             // "Owner Name", "Ryot Name"
+             // NEVER match "Father Name", "Husband Name"
+             farmerName: t =>
+                 !t.some(w => w.startsWith('father') || w.startsWith('husband') || w.startsWith('guardian')) &&
+                 t.some(w =>
+                     w.startsWith('farmer')      ||  // farmer, farmername
+                     w.startsWith('occupant')    ||  // occupant name
+                     w.startsWith('applicant')   ||  // applicant name
+                     w.startsWith('beneficiary') ||  // beneficiary name
+                     w.startsWith('holder')      ||  // holder name / landholder
+                     w === 'ryot'                ||  // ryot name
+                     w === 'owner'               ||  // owner name
+                     w === 'cultivator'          ||  // cultivator name (single token match)
+                     (w === 'name' && t.length === 1) // bare "Name" column
+                 ),
+
+             // ── Father / Husband Name ──
+             fatherName: t =>
+                 t.some(w => w.startsWith('father') || w.startsWith('husband') || w.startsWith('guardian')),
+
+             // ── Aadhaar ──
+             // "Aadhaar", "Aadhar", "Adhar", "AADHAAR NO", "Aadhar No", "UID", "UID No",
+             // "Aadhaar Number", "Adhaar", "Adhar No"
+             aadhaar: t =>
+                 t.some(w =>
+                     w.startsWith('aadha') ||   // aadhaar, aadhar
+                     w.startsWith('adha')  ||   // adhar, adhaar
+                     w.startsWith('adhar') ||   // adhar
+                     w === 'uid'           ||   // UID
+                     w === 'uidno'              // UIDNO
+                 ),
+
+             // ── Village ──
+             // "Village", "Village Name", "Gram", "Hamlet", "Habitation", "Revenue Village"
+             village: t =>
+                 t.some(w => w.startsWith('village') || w.startsWith('gram') ||
+                             w.startsWith('hamlet') || w.startsWith('habitation') ||
+                             w === 'rev'),
+
+             // ── Mobile ──
+             // "Mobile", "Mobile No", "Phone", "Contact", "Ph No"
+             mobile: t =>
+                 t.some(w => w.startsWith('mobile') || w.startsWith('phone') ||
+                             w.startsWith('contact') || w === 'ph'),
+
+             // ── Pattadar / Cultivator role ──
+             // "Pattadar / Cultivator", "Pattadhar", "Patta", "Land Holder Type",
+             // "Farmer Type", "Category"
+             pattadhar: t =>
+                 t.some(w => w.startsWith('pattad') || w.startsWith('cultivat') ||
+                             w === 'patta' || w.startsWith('landholder')) ||
+                 (t.includes('farmer') && t.some(w => w === 'type' || w === 'category')) ||
+                 (t.includes('land')   && t.some(w => w === 'type' || w === 'category')),
          };
          // Finds the actual column name (from `keys`) matching the given `type`
          // (one of the SMART_COLUMN_MATCHERS keys above). Returns null if none found.
@@ -8169,8 +8373,8 @@ function validateAadhaar(aadhaar) {
                const aadhaar    = getCol(r, colMap.aadhaarCol).trim();
                const farmerName = getCol(r, colMap.farmerNameCol).trim();
                const village    = getCol(r, colMap.villageCol).trim();
-               const key        = aadhaar || (farmerName + '|' + village);
-               if (!key) return;
+               const key        = farmerKeyFor(aadhaar, farmerName, village);
+               if (!key || key === 'unknown') return;
 
                farmersSet.add(key);
 
@@ -8193,12 +8397,15 @@ function validateAadhaar(aadhaar) {
                    if (mob) farmerMeta[key].mobileNumber = mob;
                }
 
-               // Booking details per farmer
+               // Helper: strip surrounding quotes from cell values (e.g. Excel exports '90-3')
+               const stripQ = v => String(v||'').trim().replace(/^['"\u2018\u2019]+|['"\u2018\u2019]+$/g,'').trim();
+
+               // Booking details per farmer — strip quotes from survey/khatha at save time
                farmerDetails[key] = farmerDetails[key] || [];
                farmerDetails[key].push({
-                   bookingID:     getCol(r, colMap.bookingIDCol),
-                   khathaNo:      getCol(r, colMap.khathaCol),
-                   surveyNo:      getCol(r, colMap.surveyCol),
+                   bookingID:     stripQ(getCol(r, colMap.bookingIDCol)),
+                   khathaNo:      stripQ(getCol(r, colMap.khathaCol)),
+                   surveyNo:      stripQ(getCol(r, colMap.surveyCol)),
                    cropName:      getCol(r, colMap.cropNameCol),
                    area:          parseFloat(getCol(r, colMap.areaCol)) || 0,
                    rowRole:       rawRole   // raw role from this specific row
@@ -8571,7 +8778,7 @@ function validateAadhaar(aadhaar) {
 
              let rows = '';
              filtered.forEach((f, idx) => {
-                 const farmerKey = (f.aadhaarNumber && f.aadhaarNumber !== '-') ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''));
+                 const farmerKey = farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village);
                  const details = report.farmerDetails[farmerKey] || [];
                  const totalArea = details.reduce((s, d) => s + (Number(d.area)||0), 0);
                  const crops = [...new Set(details.map(d => d.cropName).filter(Boolean))].join(', ') || '-';
@@ -8648,7 +8855,7 @@ function validateAadhaar(aadhaar) {
              const catLabel = { pure_pattadhar:'Pure Pattadhar', pattadhar_cum_cultivator:'Pattadhar cum Cultivator', cultivator:'Cultivator' };
              const rows = [['S.No','Farmer Name','Father Name','Aadhaar Number','Mobile Number','Village','Khatha Number','Survey Number','Crop Name','Area (Acres)','Pattadhar/Cultivator']];
              filtered.forEach((f, idx) => {
-                 const farmerKey = (f.aadhaarNumber && f.aadhaarNumber !== '-') ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''));
+                 const farmerKey = farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village);
                  const details = report.farmerDetails[farmerKey] || [];
                  const totalArea = details.reduce((s, d) => s + (Number(d.area)||0), 0);
                  const crops = [...new Set(details.map(d => d.cropName).filter(Boolean))].join(', ') || '-';
@@ -8689,7 +8896,7 @@ function validateAadhaar(aadhaar) {
     report.uniqueFarmers.forEach(farmer => {
         const farmerKey = (farmer.aadhaarNumber && farmer.aadhaarNumber !== '-')
             ? farmer.aadhaarNumber
-            : (farmer.farmerName + '|' + (farmer.village || ''));
+            : farmerKeyFor(farmer.aadhaarNumber, farmer.farmerName, farmer.village);
         const details = report.farmerDetails[farmerKey] || [];
         
         // Sum area only for records of this crop
@@ -8877,7 +9084,7 @@ function validateAadhaar(aadhaar) {
              const details = report.farmerDetails[farmerKey] || [];
              if(!details.length) return content.innerHTML = '<p>No bookings found.</p>';
              
-             const uf = report.uniqueFarmers.find(f => ((f.aadhaarNumber && f.aadhaarNumber !== '-') ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''))) === farmerKey);
+             const uf = report.uniqueFarmers.find(f => (farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village)) === farmerKey);
              let cropTotals = {}; details.forEach(d => cropTotals[d.cropName||'(Unknown)'] = (cropTotals[d.cropName||'(Unknown)']||0) + (d.area||0));
              
              title.textContent = `Cultivation Details for Farmer: ${uf ? uf.farmerName : '(Unknown)'}`;
@@ -8888,29 +9095,344 @@ function validateAadhaar(aadhaar) {
              content.innerHTML = html + '</tbody></table></div>';
          }
          
-         // --- QUICK SEARCH / MODAL AADHAAR POPUP ---
-         document.getElementById('aadhaarLast4Input').addEventListener('input', e => {
-             const val = e.target.value.trim(), div = document.getElementById('searchResults');
-             div.innerHTML = ''; if (val.length < 1) return;
-             const yr = document.getElementById('searchCropYear').value, szn = document.getElementById('searchSeason').value;
-             if (!yr || !szn) return div.innerHTML = '<p class="text-danger">Select Crop Year and Season first.</p>';
+         // ─────────────────────────────────────────────────────────────
+         // MULTI-MODE SEARCH: Aadhaar / Khatha / Survey Number
+         // ─────────────────────────────────────────────────────────────
+
+         // Helper: escape HTML
+         function _esc(s){ return escapeHtml ? escapeHtml(s||'') : String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+         // Switch visible input when search type changes
+         window.onSearchTypeChange = function() {
+             const t = document.getElementById('searchTypeSelect').value;
+             document.getElementById('aadhaarLast4Input').classList.toggle('hidden', t !== 'aadhaar');
+             document.getElementById('khathaSearchInput').classList.toggle('hidden', t !== 'khatha');
+             document.getElementById('surveySearchInput').classList.toggle('hidden', t !== 'survey');
+             document.getElementById('searchResults').innerHTML = '';
+             document.getElementById('khathaOrSurveyResults').innerHTML = '';
+             document.getElementById('khathaOrSurveyResults').classList.add('hidden');
+         };
+
+         // ── Helper: get current report ──
+         function _getSearchReport() {
+             const yr  = document.getElementById('searchCropYear').value;
+             const szn = document.getElementById('searchSeason').value;
+             const div = document.getElementById('searchResults');
+             if (!yr || !szn) { div.innerHTML = '<p class="text-danger small">Select Crop Year and Season first.</p>'; return null; }
              const rep = allReportsCache[yr+'_'+szn];
-             if(!rep) return;
-             
+             if (!rep)        { div.innerHTML = '<p class="text-muted small">No report found for selected year/season.</p>'; return null; }
+             div.innerHTML = '';
+             return { rep, key: yr+'_'+szn };
+         }
+
+         // ── AADHAAR SEARCH ──
+         document.getElementById('aadhaarLast4Input').addEventListener('input', e => {
+             const val = e.target.value.trim();
+             const div = document.getElementById('searchResults');
+             div.innerHTML = '';
+             document.getElementById('khathaOrSurveyResults').innerHTML = '';
+             document.getElementById('khathaOrSurveyResults').classList.add('hidden');
+             if (val.length < 1) return;
+             const ctx = _getSearchReport(); if (!ctx) return;
+             const { rep } = ctx;
              const matches = rep.uniqueFarmers.filter(f => (f.aadhaarNumber||'').toString() !== '-' && (f.aadhaarNumber||'').toString().endsWith(val));
              const ul = document.createElement('ul'); ul.className = 'list-group list-group-flush';
              matches.forEach(m => {
-               const li = document.createElement('li'); li.className = 'list-group-item list-group-item-action'; li.textContent = `${m.farmerName} (${m.aadhaarNumber})`;
-               li.onclick = () => { renderFarmerDetailsModal(yr+'_'+szn, m.aadhaarNumber); };
+               const li = document.createElement('li'); li.className = 'list-group-item list-group-item-action small';
+               li.textContent = `${m.farmerName} (${m.aadhaarNumber})`;
+               li.onclick = () => { renderFarmerDetailsModal(ctx.key, m.aadhaarNumber); };
                ul.appendChild(li);
              });
+             if (!matches.length) ul.innerHTML = '<li class="list-group-item text-muted small">No farmer found.</li>';
              div.appendChild(ul);
+         });
+
+         // ── KHATHA SEARCH ──
+         document.getElementById('khathaSearchInput').addEventListener('input', e => {
+             const val = e.target.value.trim();
+             const div = document.getElementById('searchResults');
+             const panel = document.getElementById('khathaOrSurveyResults');
+             div.innerHTML = ''; panel.innerHTML = ''; panel.classList.add('hidden');
+             if (val.length < 1) return;
+             const ctx = _getSearchReport(); if (!ctx) return;
+             const { rep } = ctx;
+             const details = rep.farmerDetails || {};
+
+             // Collect all booking rows whose khathaNo starts with (or equals) entered value
+             const norm = v => String(v||'').trim().toLowerCase();
+             const searchVal = norm(val);
+
+             // Build: khathaNo → [ { farmerKey, bookingRow } ]
+             const khathaMap = {};
+             Object.entries(details).forEach(([farmerKey, rows]) => {
+                 rows.forEach(row => {
+                     const k = norm(row.khathaNo||'');
+                     if (!k || k === '-') return;
+                     if (k === searchVal || k.startsWith(searchVal)) {
+                         if (!khathaMap[row.khathaNo]) khathaMap[row.khathaNo] = [];
+                         khathaMap[row.khathaNo].push({ farmerKey, row });
+                     }
+                 });
+             });
+
+             const khathaList = Object.keys(khathaMap).sort();
+             if (!khathaList.length) {
+                 div.innerHTML = '<p class="text-muted small">No bookings found for this Khatha.</p>'; return;
+             }
+
+             // Suggest matching khathas
+             const ul = document.createElement('ul'); ul.className = 'list-group list-group-flush';
+             khathaList.forEach(k => {
+                 const li = document.createElement('li'); li.className = 'list-group-item list-group-item-action small d-flex justify-content-between align-items-center';
+                 const cnt = khathaMap[k].length;
+                 li.innerHTML = `<span>📋 Khatha <strong>${_esc(k)}</strong></span><span class="badge bg-primary rounded-pill">${cnt} booking${cnt>1?'s':''}</span>`;
+                 li.onclick = () => renderKhathaDetails(k, khathaMap[k], ctx, rep);
+                 ul.appendChild(li);
+             });
+             div.appendChild(ul);
+         });
+
+         function renderKhathaDetails(khathaNo, entries, ctx, rep) {
+             const panel = document.getElementById('khathaOrSurveyResults');
+             panel.classList.remove('hidden');
+
+             // Unique survey numbers in this khatha
+             const surveys = [...new Set(entries.map(e => e.row.surveyNo).filter(v => v && v !== '-'))].sort();
+
+             // Group by survey
+             const surveyMap = {};
+             entries.forEach(({ farmerKey, row }) => {
+                 const sv = row.surveyNo || '-';
+                 if (!surveyMap[sv]) surveyMap[sv] = [];
+                 const farmer = findFarmerByKey(rep.uniqueFarmers, farmerKey) || {};
+                 surveyMap[sv].push({ farmer, row });
+             });
+
+             let html = `<div style="border:2px solid #1862ab;border-radius:14px;overflow:hidden;">
+               <div style="background:#1862ab;color:#fff;padding:10px 16px;font-weight:700;font-size:0.95rem;">
+                 📋 Khatha <strong>${_esc(khathaNo)}</strong> — Survey Numbers &amp; Crop Booking Details
+               </div>
+               <div class="table-responsive"><table class="table table-bordered table-sm mb-0" style="font-size:0.82rem;">
+               <thead style="background:#e8f0fe;">
+                 <tr>
+                   <th>Survey No.</th><th>Farmer Name</th><th>Aadhaar</th>
+                   <th>Crop</th><th>Area (Acres)</th><th>Booking ID</th>
+                 </tr>
+               </thead><tbody>`;
+
+             const sortedSurveys = Object.keys(surveyMap).sort((a,b) => {
+                 const na = parseFloat(a) || 0, nb = parseFloat(b) || 0;
+                 return na !== nb ? na - nb : a.localeCompare(b);
+             });
+             sortedSurveys.forEach(sv => {
+                 surveyMap[sv].forEach(({ farmer, row }, idx) => {
+                     html += `<tr>
+                       ${idx === 0 ? `<td rowspan="${surveyMap[sv].length}" style="background:#f0f5ff;font-weight:700;vertical-align:middle;">${_esc(sv)}</td>` : ''}
+                       <td>${_esc(farmer.farmerName||row.farmerName||'-')}</td>
+                       <td style="font-family:monospace;">${_esc(farmer.aadhaarNumber||'-')}</td>
+                       <td>${_esc(row.cropName||'-')}</td>
+                       <td>${(parseFloat(row.area)||0).toFixed(2)}</td>
+                       <td>${_esc(row.bookingID||'-')}</td>
+                     </tr>`;
+                 });
+             });
+
+             html += `</tbody></table></div>
+               <div style="background:#f8f9fa;padding:8px 16px;font-size:0.78rem;color:#555;">
+                 <strong>${entries.length}</strong> booking(s) across <strong>${sortedSurveys.length}</strong> survey number(s) under Khatha ${_esc(khathaNo)}
+               </div></div>`;
+
+             panel.innerHTML = html;
+             panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+         }
+
+         // ── SURVEY NUMBER SEARCH — shows ALL sub-divisions immediately in one block ──
+         document.getElementById('surveySearchInput').addEventListener('input', e => {
+             const val = e.target.value.trim();
+             const div = document.getElementById('searchResults');
+             const panel = document.getElementById('khathaOrSurveyResults');
+             div.innerHTML = ''; panel.innerHTML = ''; panel.classList.add('hidden');
+             if (val.length < 1) return;
+             const ctx = _getSearchReport(); if (!ctx) return;
+             const { rep } = ctx;
+             const details = rep.farmerDetails || {};
+
+             // Normalise a raw survey value: strip surrounding quotes/spaces,
+             // remove invisible chars, collapse whitespace — return clean lowercase string
+             const normSv = v => String(v || '')
+                 .trim()
+                 .replace(/^['"\u2018\u2019\u201c\u201d]+|['"\u2018\u2019\u201c\u201d]+$/g, '') // strip surrounding quotes
+                 .replace(/\s+/g, ' ')
+                 .trim()
+                 .toLowerCase();
+
+             const searchVal = normSv(val);
+
+             // Match exact OR any sub-division:
+             // 32 → 32, 32-1, 32-4A, 32-2B, 32/1, 32A etc.
+             // Rule: typed base must be followed by a non-digit (-, /, letter) — not another digit
+             // e.g. typing 32 must NOT match 321 or 3200
+             const matchSurvey = sv => {
+                 const n = normSv(sv);
+                 if (!n || n === '-') return false;
+                 if (n === searchVal) return true;
+                 if (!n.startsWith(searchVal)) return false;
+                 const charAfter = n[searchVal.length];
+                 return charAfter !== undefined && !/[0-9]/.test(charAfter);
+             };
+
+             // Collect all matching rows: cleanSurveyNo → [{ farmerKey, row }]
+             // Use the cleaned value as the map key so duplicates (e.g. '90-3' vs 90-3) merge
+             const surveyMap = {};
+             const svDisplayMap = {}; // cleanKey → original display value (prefer no quotes)
+             Object.entries(details).forEach(([farmerKey, rows]) => {
+                 rows.forEach(row => {
+                     const rawSv = String(row.surveyNo || '').trim();
+                     const cleanSv = normSv(rawSv);
+                     if (!cleanSv || cleanSv === '-') return;
+                     if (matchSurvey(cleanSv)) {
+                         if (!surveyMap[cleanSv]) {
+                             surveyMap[cleanSv] = [];
+                             // Prefer display value without surrounding quotes
+                             svDisplayMap[cleanSv] = rawSv.replace(/^['"]|['"]$/g, '').trim() || rawSv;
+                         }
+                         surveyMap[cleanSv].push({ farmerKey, row });
+                     }
+                 });
+             });
+
+             // Natural sort: 32-1 < 32-2 < 32-4A etc.
+             const surveyList = Object.keys(surveyMap).sort((a, b) => {
+                 const splitParts = s => s.split(/[-\/]/).map((p, i) => i === 0 ? (parseFloat(p)||0) : p);
+                 const pa = splitParts(a), pb = splitParts(b);
+                 for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                     const va = pa[i] ?? '', vb = pb[i] ?? '';
+                     const na = parseFloat(va), nb = parseFloat(vb);
+                     if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+                     if (String(va) !== String(vb)) return String(va).localeCompare(String(vb));
+                 }
+                 return 0;
+             });
+
+             if (!surveyList.length) {
+                 div.innerHTML = '<p class="text-muted small mt-2"><i class="fas fa-info-circle me-1"></i>No bookings found for this Survey Number.</p>';
+                 return;
+             }
+
+             // Build the combined result table — only show columns that have actual data
+             let totalBookings = 0;
+             let totalArea = 0;
+
+             // First pass: collect all rows and detect which columns have any real data
+             // Use svDisplayMap to show clean display values (no surrounding quotes)
+             const allRows = [];
+             surveyList.forEach(sv => {
+                 const displaySv = (typeof svDisplayMap !== 'undefined' && svDisplayMap[sv]) ? svDisplayMap[sv] : sv;
+                 (surveyMap[sv] || []).forEach(({ farmerKey, row }) => {
+                     const farmer = findFarmerByKey(rep.uniqueFarmers, farmerKey) || {};
+                     allRows.push({ sv: displaySv, svKey: sv, farmer, row });
+                 });
+             });
+
+             const hasData = field => allRows.some(r => {
+                 const v = r[field] !== undefined ? r[field] :
+                           (field === 'khathaNo'    ? r.row.khathaNo    :
+                            field === 'farmerName'  ? (r.farmer.farmerName || r.row.farmerName) :
+                            field === 'aadhaar'     ? r.farmer.aadhaarNumber :
+                            field === 'cropName'    ? r.row.cropName    :
+                            field === 'area'        ? r.row.area        :
+                            field === 'bookingID'   ? r.row.bookingID   : null);
+                 return v && String(v).trim() !== '' && String(v).trim() !== '-' && String(v).trim() !== '0';
+             });
+
+             const cols = [
+                 { key: 'khathaNo',   label: 'Khatha No.',       show: hasData('khathaNo'),   align: '' },
+                 { key: 'farmerName', label: 'Farmer Name',       show: hasData('farmerName'), align: '' },
+                 { key: 'aadhaar',    label: 'Aadhaar',           show: hasData('aadhaar'),    align: '', mono: true },
+                 { key: 'cropName',   label: 'Crop',              show: hasData('cropName'),   align: '' },
+                 { key: 'area',       label: 'Area (Acres)',      show: hasData('area'),       align: 'text-align:right;' },
+                 { key: 'bookingID',  label: 'Booking ID',        show: hasData('bookingID'),  align: '', small: true },
+             ].filter(c => c.show);
+
+             // Second pass: build tbody
+             let tbody = '';
+             let prevSv = null, svRowCount = 0, svStartIdx = 0, pendingRows = [];
+
+             // We need rowspan per sv — precompute
+             const svCounts = {};
+             allRows.forEach(r => { svCounts[r.sv] = (svCounts[r.sv] || 0) + 1; });
+
+             const seenSv = {};
+             allRows.forEach(({ sv, farmer, row }) => {
+                 const area = parseFloat(row.area) || 0;
+                 totalBookings++;
+                 totalArea += area;
+                 const isFirstOfSv = !seenSv[sv];
+                 if (isFirstOfSv) seenSv[sv] = true;
+
+                 const getCellVal = key => {
+                     if (key === 'khathaNo')   return _esc(row.khathaNo || '');
+                     if (key === 'farmerName') return _esc(farmer.farmerName || row.farmerName || '');
+                     if (key === 'aadhaar')    return _esc(farmer.aadhaarNumber || '');
+                     if (key === 'cropName')   return _esc(row.cropName || '');
+                     if (key === 'area')       return area > 0 ? area.toFixed(2) : '';
+                     if (key === 'bookingID')  return _esc(row.bookingID || '');
+                     return '';
+                 };
+
+                 let tr = '<tr>';
+                 if (isFirstOfSv) {
+                     tr += `<td rowspan="${svCounts[sv]}" style="background:#eafaf1;font-weight:700;vertical-align:middle;white-space:nowrap;">${_esc(sv)}</td>`;
+                 }
+                 cols.forEach(c => {
+                     const v = getCellVal(c.key);
+                     const style = [c.align, c.mono ? 'font-family:monospace;font-size:0.78rem;' : '', c.small ? 'font-size:0.78rem;' : ''].filter(Boolean).join('');
+                     tr += `<td style="${style}">${v || '<span style="color:#bbb;font-size:0.75rem;">—</span>'}</td>`;
+                 });
+                 tbody += tr + '</tr>';
+             });
+
+             const theadCols = [`<th>Survey No.</th>`, ...cols.map(c =>
+                 `<th${c.align ? ' style="' + c.align + '"' : ''}>${c.label}</th>`)].join('');
+
+             const hasBookings = totalBookings > 0;
+             const footerNote = !hasBookings
+                 ? '<span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Survey number found in land records but no e-Crop booking details available.</span>'
+                 : `<span><strong>${totalBookings}</strong> booking(s) across <strong>${surveyList.length}</strong> survey number(s)</span>
+                    <span>Total Area: <strong>${totalArea.toFixed(2)} Acres</strong></span>`;
+
+             panel.classList.remove('hidden');
+             panel.innerHTML = `
+               <div style="border:2px solid #27ae60;border-radius:14px;overflow:hidden;">
+                 <div style="background:#27ae60;color:#fff;padding:10px 16px;font-weight:700;font-size:0.95rem;">
+                   🗺️ Survey Number <strong>${_esc(val)}</strong> — All Sub-Divisions &amp; Available Details
+                   <span style="float:right;font-size:0.78rem;font-weight:400;opacity:0.9;">
+                     ${surveyList.length} survey no${surveyList.length > 1 ? 's' : ''}${hasBookings ? ' &nbsp;|&nbsp; ' + totalBookings + ' booking' + (totalBookings > 1 ? 's' : '') : ''}
+                   </span>
+                 </div>
+                 ${cols.length === 0 ? `
+                   <div style="padding:1.2rem 1rem;color:#555;font-size:0.85rem;">
+                     <i class="fas fa-info-circle me-2 text-warning"></i>
+                     Survey number(s) <strong>${surveyList.join(', ')}</strong> found, but no additional details (Khatha, Farmer, Crop, Booking) are available in this report.
+                   </div>` : `
+                 <div class="table-responsive">
+                   <table class="table table-bordered table-sm mb-0" style="font-size:0.82rem;">
+                     <thead style="background:#e9f7ef;"><tr>${theadCols}</tr></thead>
+                     <tbody>${tbody}</tbody>
+                   </table>
+                 </div>`}
+                 <div style="background:#f8f9fa;padding:8px 16px;font-size:0.78rem;color:#555;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
+                   ${footerNote}
+                 </div>
+               </div>`;
+
+             panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
          });
          
          function renderFarmerDetailsModal(reportKey, farmerKey) {
              const report = allReportsCache[reportKey];
              if (!report) return;
-             const farmer = report.uniqueFarmers.find(f => f.aadhaarNumber === farmerKey);
+             const farmer = findFarmerByKey(report.uniqueFarmers, farmerKey);
              const detailsList = report.farmerDetails[farmerKey] || [];
              if (!farmer || !detailsList.length) return;
              
@@ -12405,6 +12927,8 @@ function getHistoryStatusBadge(r) {
 }
 
 function renderHistoryRows(rec) {
+    // Safety: never render Cancelled or Deleted records on the farmer card
+    rec = (rec || []).filter(r => r.status !== 'Cancelled' && r.status !== 'Deleted');
     return rec.map(r => {
         // ── Enrich missing fields from farmerProfiles at render time ──
         const _rAad = String(r.aadhaar || '').replace(/\s/g, '');
@@ -12494,14 +13018,16 @@ function renderHistoryRows(rec) {
 }
 
 function openHistoryModal(recs) {
-    document.getElementById("recordCount").textContent = `${recs.length} records`;
-    if (!recs.length) {
+    // Filter out Cancelled/Deleted records — retailer-deleted distributions should not show
+    const activeRecs = recs.filter(r => r.status !== 'Cancelled' && r.status !== 'Deleted');
+    document.getElementById("recordCount").textContent = `${activeRecs.length} records`;
+    if (!activeRecs.length) {
         document.querySelector("#modalHistoryTable tbody").innerHTML = "";
         document.getElementById("noHistoryMsg").classList.remove("hidden");
     } else {
         document.getElementById("noHistoryMsg").classList.add("hidden");
         // Sort newest-first: by date desc, then serialNo desc
-        const sorted = [...recs].sort((a, b) => {
+        const sorted = [...activeRecs].sort((a, b) => {
             const da = a.date || a.verifiedAt || '';
             const db = b.date || b.verifiedAt || '';
             if (db > da) return 1;
@@ -12598,6 +13124,9 @@ window.getHistoryStatusBadge = function(r) {
 // ── Render history rows ──
 window.renderHistoryRows = function(rec) {
     if (!rec || !rec.length) return '';
+    // Safety: never render Cancelled or Deleted records on the farmer card
+    rec = rec.filter(r => r.status !== 'Cancelled' && r.status !== 'Deleted');
+    if (!rec.length) return '';
     
     return rec.map((r, index) => {
         const _rAad = String(r.aadhaar || '').replace(/\s/g, '');
@@ -12740,7 +13269,8 @@ window.openHistoryModal = function(recs) {
     
     if (noMsgEl) noMsgEl.classList.add('hidden');
     
-    const sorted = [...recs].sort((a, b) => {
+    // Only show non-cancelled, non-rejected records in the table
+    const sorted = [...validRecords].sort((a, b) => {
         const da = a.date || a.verifiedAt || '';
         const db = b.date || b.verifiedAt || '';
         if (db > da) return 1;
@@ -14966,7 +15496,7 @@ function getKhathaOwnerName(khathaNo) {
                     if (role && (role.toLowerCase().includes('pattadar') || role.toLowerCase().includes('pattadhar') || role.toLowerCase().includes('patta'))) {
                         // Find the farmer name from uniqueFarmers
                         const farmer = report.uniqueFarmers?.find(f => {
-                            const fKey = f.aadhaarNumber || (f.farmerName + '|' + (f.village || ''));
+                            const fKey = farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village);
                             return fKey === farmerKey;
                         });
                         if (farmer?.farmerName) return farmer.farmerName;
@@ -21045,11 +21575,15 @@ async function deleteDistribution(recordKey) {
                         const tx = child.val();
                         if (!tx || tx.status === 'Cancelled') return;
                         const txDate = tx.date || (tx.verifiedAt ? tx.verifiedAt.substring(0, 10) : '') || '';
-                        const keyMatch  = child.key === recordKey || child.key === ('availedTx_' + recordKey);
+                        // Match by key (most reliable) — also check _tokenKey stored inside tx
+                        const keyMatch = child.key === recordKey ||
+                                         child.key === ('availedTx_' + recordKey) ||
+                                         (tx._tokenKey && tx._tokenKey === recordKey);
+                        // Content match: fert + split + date only
+                        // NOTE: do NOT match on bags count — VO may have corrected it to a different value
                         const contentMatch =
                             (tx.fert || 'Urea') === fert &&
                             Number(tx.splitIndex) === splitIdx &&
-                            Number(tx.bags || 0) === bags &&
                             (!recDate || !txDate || txDate === recDate);
                         if (keyMatch || contentMatch) {
                             cancelOps.push(
@@ -21076,14 +21610,17 @@ async function deleteDistribution(recordKey) {
                         if (!v || v.status === 'Cancelled') return;
                         if (String(v.aadhaar || '').replace(/\s/g, '') !== a) return;
                         const vDate = v.date || (v.verifiedAt ? v.verifiedAt.substring(0, 10) : '') || '';
+                        // Key match (most reliable)
+                        const keyMatch = child.key === recordKey;
+                        // Content match: fert + split + year + season + date
+                        // NOTE: do NOT require exact bag count — VO may have corrected it
                         const contentMatch =
                             (v.fertilizerType || v.fert || 'Urea') === fert &&
                             Number(v.splitIndex) === splitIdx &&
-                            Number(v.bags || 0) === bags &&
                             String(v.year || '') === String(year) &&
                             String(v.season || '') === String(season) &&
                             (!recDate || !vDate || vDate === recDate);
-                        if (contentMatch) {
+                        if (keyMatch || contentMatch) {
                             cancelOps.push(
                                 database.ref(`users/${voUid}/ureaHistory/${child.key}`).update({
                                     status: 'Cancelled',
@@ -21167,10 +21704,10 @@ async function deleteDistribution(recordKey) {
             const hKey  = h._key || '';
             const hA    = String(h.aadhaar || '').replace(/\s/g, '');
             const hFert = String(h.fertilizerType || h.fert || 'Urea').trim();
-            const keyMatch     = hKey === recordKey;
+            const keyMatch     = hKey === recordKey || hKey === ('availedTx_' + recordKey);
+            // NOTE: do NOT match on bags — VO may have corrected the count in memory
             const contentMatch = hA === a && hFert === fert &&
                                  parseInt(h.splitIndex) === splitIdx &&
-                                 Number(h.bags || 0) === bags &&
                                  String(h.year   || '') === String(year) &&
                                  String(h.season || '') === String(season) &&
                                  h.status !== 'Cancelled';
@@ -23887,7 +24424,7 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
     farmers.forEach(f => {
         const key = f.aadhaarNumber && f.aadhaarNumber !== '-'
             ? f.aadhaarNumber
-            : (f.farmerName + '|' + (f.village || ''));
+            : farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village);
         const area = farmerAreas[key] || 0;
         if (area < 2.5)         marginal++; // MF: below 2.5 acres
         else if (area <= 5.0)   small++;    // SF: 2.5 to 5.0 acres
@@ -24446,7 +24983,7 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
         const colors = { small: '#27ae60', marginal: '#f39c12', other: '#e74c3c' };
         const filtered = farmers.filter(f => {
             const key = f.aadhaarNumber && f.aadhaarNumber !== '-'
-                ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''));
+                ? f.aadhaarNumber : farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village);
             const area = farmerAreas[key] || 0;
             if (sizeCategory === 'marginal') return area < 2.5;   // MF: below 2.5
             if (sizeCategory === 'small')    return area >= 2.5 && area <= 5.0; // SF: 2.5–5.0
@@ -24460,7 +24997,7 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
             else {
                 const rows = filtered.map((f, i) => {
                     const key = f.aadhaarNumber && f.aadhaarNumber !== '-'
-                        ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''));
+                        ? f.aadhaarNumber : farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village);
                     const area = (farmerAreas[key] || 0).toFixed(2);
                     // Use farmerDetails for rich khatha/survey/crop data
                     const details = (farmerDetails && farmerDetails[key]) ? (Array.isArray(farmerDetails[key]) ? farmerDetails[key] : Object.values(farmerDetails[key])) : [];
@@ -24514,7 +25051,7 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
             else {
                 const rows = filtered.map((f, i) => {
                     const key = f.aadhaarNumber && f.aadhaarNumber !== '-'
-                        ? f.aadhaarNumber : (f.farmerName + '|' + (f.village || ''));
+                        ? f.aadhaarNumber : farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village);
                     const area = ((farmerAreas || {})[key] || 0).toFixed(2);
                     // Use farmerDetails for rich khatha/survey/crop data
                     const details = (farmerDetails && farmerDetails[key]) ? (Array.isArray(farmerDetails[key]) ? farmerDetails[key] : Object.values(farmerDetails[key])) : [];
