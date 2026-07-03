@@ -5257,31 +5257,30 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
 
 
 
-    <!-- VO: SHOW FERTILIZER DISTRIBUTION DETAILS (Delete / Restore) -->
+    <!-- VO: CARDS PRINTED ABSTRACT (summary KPIs + day-wise cards printed, based on the print log) -->
     <div style="background:#fff; border-radius:16px; box-shadow:0 2px 16px rgba(0,0,0,0.07); overflow:hidden; margin-top:1.5rem; margin-bottom:2rem;">
-      <div style="height:4px; background:linear-gradient(90deg,#e74c3c,#f39c12,#1862ab);"></div>
+      <div style="height:4px; background:linear-gradient(90deg,#8e44ad,#e67e22,#1862ab);"></div>
       <div style="padding:1.2rem 1.5rem;">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
           <div style="display:flex; align-items:center; gap:0.5rem;">
-            <i class="fas fa-history" style="color:#e74c3c; font-size:0.85rem;"></i>
-            <span style="font-size:0.78rem; font-weight:700; color:#e74c3c; text-transform:uppercase; letter-spacing:0.8px;">Fertilizer Distribution Details</span>
-            <span style="font-size:0.68rem; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:20px; padding:1px 8px; font-weight:600;">VO Delete &amp; Restore</span>
+            <i class="fas fa-print" style="color:#8e44ad; font-size:0.85rem;"></i>
+            <span style="font-size:0.78rem; font-weight:700; color:#8e44ad; text-transform:uppercase; letter-spacing:0.8px;">Cards Printed Abstract</span>
           </div>
-          <button onclick="loadDistributionDetailsForVO()"
-                  id="voDistSearchBtn"
-                  style="padding:0.4rem 1.1rem; background:linear-gradient(135deg,#e74c3c,#c0392b);
+          <button onclick="pfpLoadCardsAbstract()"
+                  id="pfpCardsAbstractBtn"
+                  style="padding:0.4rem 1.1rem; background:linear-gradient(135deg,#8e44ad,#6c3483);
                          color:#fff; font-weight:700; font-size:0.82rem; border:none;
                          border-radius:8px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:0.4rem;"
-                  onmouseover="this.style.background='linear-gradient(135deg,#c0392b,#96281b)'"
-                  onmouseout="this.style.background='linear-gradient(135deg,#e74c3c,#c0392b)'">
-            <i class="fas fa-search"></i>&nbsp;Load Distribution Details
+                  onmouseover="this.style.background='linear-gradient(135deg,#6c3483,#5b2c6f)'"
+                  onmouseout="this.style.background='linear-gradient(135deg,#8e44ad,#6c3483)'">
+            <i class="fas fa-sync-alt"></i>&nbsp;Load Cards Abstract
           </button>
         </div>
         <div style="font-size:0.73rem; color:#6c757d; margin-bottom:0.9rem; padding:0.5rem 0.75rem; background:#fef9f0; border-left:3px solid #f39c12; border-radius:0 6px 6px 0;">
           <i class="fas fa-info-circle me-1" style="color:#f39c12;"></i>
-          Uses the <strong>Aadhaar, Crop Year &amp; Season</strong> entered above. VO can delete a QR-based distribution to restore bags back to the farmer account.
+          Uses the <strong>Crop Year, Season &amp; Village</strong> selected above (leave blank for all). Shows fertilizer cards printed totals, first prints vs reprints, and a day-wise breakdown for the picked date. Click any tile to see the farmer list.
         </div>
-        <div id="voDistDetailsContainer"></div>
+        <div id="pfpCardsAbstractContainer"></div>
       </div>
     </div>
 
@@ -5733,6 +5732,10 @@ function sanitiseReportsCache() {
 let ureaHistory = [];
 let farmerProfiles = {};
 let isDataLoaded = false;
+// ── Fertilizer Card print log: one entry per time a fertilizer card is
+// printed (Print / Save as PDF button on the farmer profile card). Used to
+// answer "how many fertilizer cards were printed today" incl. reprints. ──
+window.cardPrintLog = window.cardPrintLog || [];
 
 /**
  * Automatically initializes and hooks generation context when editing 
@@ -5893,6 +5896,7 @@ function saveToLocalCache(uid) {
         localStorage.setItem(LS_KEY(uid, 'farmerProfiles'), JSON.stringify(farmerProfiles || {}));
         localStorage.setItem(LS_KEY(uid, 'allReports'),     JSON.stringify(allReportsCache || {}));
         localStorage.setItem(LS_KEY(uid, 'ureaData'),       JSON.stringify(ureaData       || {}));
+        localStorage.setItem(LS_KEY(uid, 'cardPrintLog'),   JSON.stringify(window.cardPrintLog || []));
         localStorage.setItem(LS_KEY(uid, 'cachedAt'),       new Date().toISOString());
     } catch(e) { console.warn('LocalCache write failed', e); }
 }
@@ -5905,11 +5909,13 @@ function loadFromLocalCache(uid) {
         const fp = localStorage.getItem(LS_KEY(uid, 'farmerProfiles'));
         const ar = localStorage.getItem(LS_KEY(uid, 'allReports'));
         const ud = localStorage.getItem(LS_KEY(uid, 'ureaData'));
+        const cl = localStorage.getItem(LS_KEY(uid, 'cardPrintLog'));
         if (!h && !fp) return false;           // nothing cached yet
         if (h)  ureaHistory     = JSON.parse(h);
         if (fp) farmerProfiles  = JSON.parse(fp);
         if (ar) allReportsCache = JSON.parse(ar);
         if (ud) ureaData        = JSON.parse(ud);
+        if (cl) window.cardPrintLog = JSON.parse(cl);
         sanitiseReportsCache(); // fix quotes & bad keys in old saved data
         const t = localStorage.getItem(LS_KEY(uid, 'cachedAt'));
         return true;
@@ -6117,6 +6123,12 @@ function _applyCloudSnapshot(snapshot) {
                 }
             }
         }
+
+        // 3b. Fertilizer Card Print Log (how many times each card was printed/reprinted)
+        const _rawCardPrintLog = data.cardPrintLog;
+        window.cardPrintLog = Array.isArray(_rawCardPrintLog)
+            ? _rawCardPrintLog.filter(v => v && typeof v === 'object')
+            : (_rawCardPrintLog ? Object.values(_rawCardPrintLog).filter(v => v && typeof v === 'object') : []);
 
         // 4. Farmer Profiles
         if (data.farmerProfiles && typeof data.farmerProfiles === 'object') {
@@ -8655,13 +8667,17 @@ function validateAadhaar(aadhaar) {
   document.addEventListener('click', function (e) {
     const cropBtn = e.target.closest('.crop-btn');
     if (cropBtn) {
-      showCropPage(decodeURIComponent(cropBtn.dataset.crop), reportKey);
+      sessionStorage.setItem('selectedCropName', decodeURIComponent(cropBtn.dataset.crop));
+      sessionStorage.setItem('selectedReportKey', reportKey);
+      showCropFarmersPage();
       return;
     }
 
     const farmerBtn = e.target.closest('.farmer-btn');
     if (farmerBtn) {
-      showFarmerPage(decodeURIComponent(farmerBtn.dataset.key), reportKey);
+      sessionStorage.setItem('selectedFarmerKey', decodeURIComponent(farmerBtn.dataset.key));
+      sessionStorage.setItem('selectedReportKey', reportKey);
+      showFarmerDetailsPage();
       return;
     }
   });
@@ -13510,6 +13526,8 @@ window.voLoadFertilizerHistory = function() {
         const voTodayRecords = records.filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === voTodayStr);
         const voTodayDistCount = voTodayRecords.length;
         const voTodayBagCount = voTodayRecords.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+        window._voHistoryRecords = records; // make available before computing cards-printed stat
+        const voTodayCardsStat = voComputeCardsPrintedForDate(voTodayStr);
 
         // ── Main table rows ──
         const rows = records.map((r, i) => {
@@ -13622,6 +13640,11 @@ window.voLoadFertilizerHistory = function() {
                 <div class="text-center">
                     <div style="font-size:1.5rem;font-weight:800;color:#e67e22;line-height:1;font-family:'Poppins',sans-serif;" id="voDayDistBags">${voTodayBagCount}</div>
                     <div style="font-size:0.65rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Bags</div>
+                </div>
+                <div class="text-center" title="Fertilizer cards printed on this date, including reprints">
+                    <div style="font-size:1.5rem;font-weight:800;color:#8e44ad;line-height:1;font-family:'Poppins',sans-serif;" id="voDayDistCardsCount">${voTodayCardsStat.total}</div>
+                    <div style="font-size:0.65rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Cards Printed</div>
+                    <div style="font-size:0.6rem;color:#8e44ad;font-weight:600;margin-top:1px;" id="voDayDistCardsSub">${voFormatCardsSub(voTodayCardsStat)}</div>
                 </div>
             </div>
 
@@ -13741,6 +13764,40 @@ window.voFilterHistoryTable = function() {
     });
 };
 
+// ── Fertilizer cards printed on a given date, including reprints ──
+// Primary source: cardPrintLog (every click of the Print/Save-as-PDF button
+// is logged there — see logFertilizerCardPrint()).
+// Fallback (for dates before this tracking existed, i.e. no log entries
+// found for that date): use the fertilizer distribution history — every
+// farmer the retailer scanned a QR for / distributed bags to on that date
+// was necessarily given a fertilizer card, so count of unique farmers
+// distributed that day stands in for "cards given/printed". Reprint
+// information isn't available for this fallback, so it is reported as 0
+// and flagged as an estimate.
+window.voComputeCardsPrintedForDate = function(dateStr, recordsOverride) {
+    const log = (window.cardPrintLog || []).filter(e => e && e.date === dateStr);
+    if (log.length > 0) {
+        const total = log.length;
+        const reprints = log.filter(e => e.isReprint).length;
+        return { total, reprints, source: 'log' };
+    }
+    const records = recordsOverride || window._voHistoryRecords || [];
+    const dayRecords = records.filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === dateStr);
+    const uniqueFarmers = new Set(
+        dayRecords.map(r => (r.aadhaar || r.farmerName || '').trim()).filter(Boolean)
+    );
+    return { total: uniqueFarmers.size, reprints: 0, source: 'history' };
+};
+
+// ── Small caption under the Cards Printed tile ──
+window.voFormatCardsSub = function(stat) {
+    if (!stat || !stat.total) return '';
+    if (stat.source === 'log') {
+        return stat.reprints > 0 ? `incl. ${stat.reprints} reprint${stat.reprints !== 1 ? 's' : ''}` : 'all fresh prints';
+    }
+    return 'est. from distribution history';
+};
+
 // ── VO: recompute Day-wise Distribution count for the picked date ──
 window.voUpdateDayDistribution = function() {
     const dateInput = document.getElementById('voDayDistDate');
@@ -13752,6 +13809,15 @@ window.voUpdateDayDistribution = function() {
     const dayRecords = records.filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === dateStr);
     countEl.textContent = dayRecords.length;
     bagsEl.textContent = dayRecords.reduce((s, r) => s + (Number(r.bags) || 0), 0);
+
+    const cardsEl = document.getElementById('voDayDistCardsCount');
+    const cardsSubEl = document.getElementById('voDayDistCardsSub');
+    if (cardsEl) {
+        const cardsStat = window.voComputeCardsPrintedForDate(dateStr);
+        cardsEl.textContent = cardsStat.total;
+        if (cardsSubEl) cardsSubEl.textContent = window.voFormatCardsSub(cardsStat);
+    }
+
     const listWrap = document.getElementById('voDayDistFarmerListWrap');
     if (listWrap && listWrap.style.display !== 'none') {
         window.voToggleDayDistFarmerList(true);
@@ -22070,17 +22136,58 @@ function loadAdminOfficersList() {
     if (!container) return;
     container.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin me-2 text-primary"></i> Loading...</div>';
 
-    database.ref('users').once('value').then(snap => {
-        if (!snap.exists()) { container.innerHTML = '<div class="alert alert-info">No users found.</div>'; return; }
-        const all = snap.val();
-        const officers = [];
-        Object.entries(all).forEach(([uid, data]) => {
-            const role = data?.profile?.role;
-            if (role === 'mandal_officer' || role === 'divisional_officer' || role === 'village_officer') {
-                officers.push({ uid, ...data.profile, userEmail: data.userEmail || data.profile?.email || '' });
-            }
-        });
+    // ⚠️ PERF FIX: `users/{uid}` also stores each Village Officer's full
+    // farmerProfiles + ureaHistory (can be many MB per officer). The old code
+    // did `database.ref('users').once('value')`, which downloads and JSON-parses
+    // that ENTIRE tree for every officer statewide just to show a name/role/
+    // mandal list — this was the main cause of the admin panel freezing right
+    // after login. Instead: list just the UIDs (shallow), then fetch only each
+    // user's small `profile` (+ `userEmail`) sub-nodes, in small batches, so the
+    // main thread never has to handle a multi-MB payload at once.
+    _adminFetchOfficersLight(container);
+}
 
+async function _adminFetchOfficersLight(container) {
+    try {
+        const idToken = await firebase.auth().currentUser?.getIdToken().catch(() => '');
+        const shallowUrl = `${firebaseConfig.databaseURL}/users.json?shallow=true&auth=${encodeURIComponent(idToken || '')}`;
+        const shallowResp = await fetch(shallowUrl);
+        if (!shallowResp.ok) throw new Error('Failed to list users (HTTP ' + shallowResp.status + ')');
+        const shallowKeys = await shallowResp.json();
+        const uids = shallowKeys ? Object.keys(shallowKeys) : [];
+
+        if (!uids.length) { container.innerHTML = '<div class="alert alert-info">No users found.</div>'; return; }
+
+        // Fetch only `profile` + `userEmail` per user, in small parallel batches —
+        // avoids one giant payload while still avoiding thousands of sequential
+        // round-trips for large deployments.
+        const BATCH_SIZE = 25;
+        const officers = [];
+
+        for (let i = 0; i < uids.length; i += BATCH_SIZE) {
+            const batch = uids.slice(i, i + BATCH_SIZE);
+            const results = await Promise.all(batch.map(uid =>
+                Promise.all([
+                    database.ref('users/' + uid + '/profile').once('value').then(s => s.val()).catch(() => null),
+                    database.ref('users/' + uid + '/userEmail').once('value').then(s => s.val()).catch(() => null)
+                ]).then(([profile, userEmail]) => ({ uid, profile, userEmail }))
+            ));
+            results.forEach(({ uid, profile, userEmail }) => {
+                if (!profile) return;
+                const role = profile.role;
+                if (role === 'mandal_officer' || role === 'divisional_officer' || role === 'village_officer') {
+                    officers.push({ uid, ...profile, userEmail: userEmail || profile.email || '' });
+                }
+            });
+        }
+
+        _adminRenderOfficersList(container, officers);
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function _adminRenderOfficersList(container, officers) {
         if (!officers.length) { container.innerHTML = '<div class="alert alert-info">No officer accounts found.</div>'; return; }
 
         // ── Register officers into _adminUsersMap so modals can read them ──
@@ -22154,7 +22261,6 @@ function loadAdminOfficersList() {
             </tr>`).join('')}
             </tbody></table></div>
             <div class="mt-2 text-muted small"><i class="fas fa-users me-1"></i> Total: <strong>${officers.length}</strong> officers</div>`;
-    }).catch(e => container.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`);
 }
 
 // ============================================================
@@ -26571,45 +26677,71 @@ function loadAdminAllUsersList() {
     if (!container) return;
     container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin me-2 text-primary"></i> Loading users...</div>';
 
-    database.ref('users').once('value').then(snap => {
-        if (!snap.exists()) {
-            container.innerHTML = '<div class="alert alert-info">No users found.</div>';
-            return;
-        }
-        const all = snap.val();
+    // ⚠️ PERF FIX: same issue as the Officers List — `users/{uid}` also holds
+    // each Village Officer's full farmerProfiles + ureaHistory (can be many MB
+    // per officer). Downloading the whole `users` tree here froze the Manage
+    // Users tab, and since Edit/Delete fall back to a live fetch when a user
+    // isn't already in the in-memory map, it froze those too. Fetch only UIDs
+    // (shallow) + each user's small `profile`/`userEmail` sub-nodes instead.
+    _adminFetchAllUsersLight(container);
+}
+
+async function _adminFetchAllUsersLight(container) {
+    try {
+        const idToken = await firebase.auth().currentUser?.getIdToken().catch(() => '');
+        const shallowUrl = `${firebaseConfig.databaseURL}/users.json?shallow=true&auth=${encodeURIComponent(idToken || '')}`;
+        const shallowResp = await fetch(shallowUrl);
+        if (!shallowResp.ok) throw new Error('Failed to list users (HTTP ' + shallowResp.status + ')');
+        const shallowKeys = await shallowResp.json();
+        const uids = shallowKeys ? Object.keys(shallowKeys) : [];
+
+        if (!uids.length) { container.innerHTML = '<div class="alert alert-info">No users found.</div>'; return; }
+
+        const roleMap = {
+            village_officer: 'Village Officer',
+            mandal_officer: 'Mandal Officer',
+            divisional_officer: 'Divisional Officer',
+            retailer: 'Retailer'
+        };
+        const roleBadgeColor = {
+            village_officer: 'bg-success',
+            mandal_officer: 'bg-primary',
+            divisional_officer: 'bg-purple',
+            retailer: 'bg-warning text-dark'
+        };
+
+        const BATCH_SIZE = 25;
         const users = [];
-        Object.entries(all).forEach(([uid, data]) => {
-            if (!data || typeof data !== 'object') return;
-            const profile = data.profile || {};
-            const roleMap = {
-                village_officer: 'Village Officer',
-                mandal_officer: 'Mandal Officer',
-                divisional_officer: 'Divisional Officer',
-                retailer: 'Retailer'
-            };
-            const roleBadgeColor = {
-                village_officer: 'bg-success',
-                mandal_officer: 'bg-primary',
-                divisional_officer: 'bg-purple',
-                retailer: 'bg-warning text-dark'
-            };
-            users.push({
-                uid,
-                name: profile.name || data.displayName || '—',
-                email: data.userEmail || profile.email || uid,
-                role: profile.role || 'village_officer',
-                district: profile.district || '—',
-                division: profile.division || '—',
-                mandal: profile.mandal || '—',
-                village: Array.isArray(profile.villages) && profile.villages.length
-                    ? profile.villages.join(', ')
-                    : (profile.village || '—'),
-                villages: Array.isArray(profile.villages) ? profile.villages : (profile.village ? [profile.village] : []),
-                createdAt: profile.createdAt || null,
-                roleLabel: roleMap[profile.role] || (profile.role || 'Village Officer'),
-                roleBadge: roleBadgeColor[profile.role] || 'bg-secondary'
+
+        for (let i = 0; i < uids.length; i += BATCH_SIZE) {
+            const batch = uids.slice(i, i + BATCH_SIZE);
+            const results = await Promise.all(batch.map(uid =>
+                Promise.all([
+                    database.ref('users/' + uid + '/profile').once('value').then(s => s.val()).catch(() => null),
+                    database.ref('users/' + uid + '/userEmail').once('value').then(s => s.val()).catch(() => null),
+                    database.ref('users/' + uid + '/displayName').once('value').then(s => s.val()).catch(() => null)
+                ]).then(([profile, userEmail, displayName]) => ({ uid, profile, userEmail, displayName }))
+            ));
+            results.forEach(({ uid, profile, userEmail, displayName }) => {
+                if (!profile) return;
+                users.push({
+                    uid,
+                    name: profile.name || displayName || '—',
+                    email: userEmail || profile.email || uid,
+                    role: profile.role || 'village_officer',
+                    district: profile.district || '—',
+                    division: profile.division || '—',
+                    mandal: profile.mandal || '—',
+                    village: Array.isArray(profile.villages) && profile.villages.length
+                        ? profile.villages.join(', ')
+                        : (profile.village || '—'),
+                    villages: Array.isArray(profile.villages) ? profile.villages : (profile.village ? [profile.village] : []),
+                    createdAt: profile.createdAt || null,
+                    roleLabel: roleMap[profile.role] || (profile.role || 'Village Officer'),
+                    roleBadge: roleBadgeColor[profile.role] || 'bg-secondary'
+                });
             });
-        });
+        }
 
         if (!users.length) {
             container.innerHTML = '<div class="alert alert-info">No users found.</div>';
@@ -26668,9 +26800,9 @@ function loadAdminAllUsersList() {
                 </table>
             </div>
             <div class="mt-2 text-muted small"><i class="fas fa-users me-1"></i> Total: <strong>${users.length}</strong> users</div>`;
-    }).catch(e => {
+    } catch (e) {
         container.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${escapeHtml(e.message)}</div>`;
-    });
+    }
 }
 
 function filterManageUsersTable() {
@@ -26691,21 +26823,29 @@ async function openEditUserModal(uid) {
     // ── If not in the in-memory map (e.g. called from a different tab), load from Firebase ──
     if (!u) {
         try {
-            const snap = await database.ref('users/' + uid).once('value');
-            const data = snap.val();
-            if (!data) { alert('User data not found. Please refresh the list.'); return; }
-            const profile = data.profile || {};
+            // ⚠️ PERF FIX: fetch only `profile` + `userEmail`, not the whole
+            // `users/{uid}` node (which also holds that officer's full
+            // farmerProfiles/ureaHistory and could be many MB) — this was
+            // freezing the Edit modal when the user wasn't already cached.
+            const [profileSnap, userEmailSnap] = await Promise.all([
+                database.ref('users/' + uid + '/profile').once('value'),
+                database.ref('users/' + uid + '/userEmail').once('value')
+            ]);
+            const profile = profileSnap.val();
+            const userEmail = userEmailSnap.val();
+            if (!profile) { alert('User data not found. Please refresh the list.'); return; }
             const roleMap = { village_officer: 'Village Officer', mandal_officer: 'Mandal Officer', divisional_officer: 'Divisional Officer', retailer: 'Retailer' };
             const roleBadgeColor = { village_officer: 'bg-success', mandal_officer: 'bg-primary', divisional_officer: 'bg-purple', retailer: 'bg-warning text-dark' };
             u = {
                 uid,
-                name: profile.name || data.displayName || '—',
-                email: data.userEmail || profile.email || uid,
+                name: profile.name || '—',
+                email: userEmail || profile.email || uid,
                 role: profile.role || 'village_officer',
                 district: profile.district || '—',
                 division: profile.division || '—',
                 mandal: profile.mandal || '—',
                 village: profile.village || '—',
+                villages: Array.isArray(profile.villages) ? profile.villages : (profile.village ? [profile.village] : []),
                 roleLabel: roleMap[profile.role] || profile.role || 'Village Officer',
                 roleBadge: roleBadgeColor[profile.role] || 'bg-secondary'
             };
@@ -26832,16 +26972,21 @@ async function openDeleteUserModal(uid) {
     // ── If not in the in-memory map, load from Firebase ──
     if (!u) {
         try {
-            const snap = await database.ref('users/' + uid).once('value');
-            const data = snap.val();
-            if (!data) { alert('User data not found. Please refresh the list.'); return; }
-            const profile = data.profile || {};
+            // ⚠️ PERF FIX: fetch only `profile` + `userEmail`, not the whole
+            // `users/{uid}` node — see same fix in openEditUserModal.
+            const [profileSnap, userEmailSnap] = await Promise.all([
+                database.ref('users/' + uid + '/profile').once('value'),
+                database.ref('users/' + uid + '/userEmail').once('value')
+            ]);
+            const profile = profileSnap.val();
+            const userEmail = userEmailSnap.val();
+            if (!profile) { alert('User data not found. Please refresh the list.'); return; }
             const roleMap = { village_officer: 'Village Officer', mandal_officer: 'Mandal Officer', divisional_officer: 'Divisional Officer', retailer: 'Retailer' };
             const roleBadgeColor = { village_officer: 'bg-success', mandal_officer: 'bg-primary', divisional_officer: 'bg-purple', retailer: 'bg-warning text-dark' };
             u = {
                 uid,
-                name: profile.name || data.displayName || '—',
-                email: data.userEmail || profile.email || uid,
+                name: profile.name || '—',
+                email: userEmail || profile.email || uid,
                 role: profile.role || 'village_officer',
                 district: profile.district || '—',
                 division: profile.division || '—',
@@ -27110,7 +27255,7 @@ function openPrintFarmerProfilePanel() {
     document.getElementById('printFpStatus').innerHTML = '';
     document.getElementById('printFpCardContainer').innerHTML = '';
     document.getElementById('printFpAadhaar').value = '';
-    const voDistC = document.getElementById('voDistDetailsContainer'); if(voDistC) voDistC.innerHTML = '';
+    const pfpAbsC = document.getElementById('pfpCardsAbstractContainer'); if(pfpAbsC) pfpAbsC.innerHTML = '';
     // ── Init village picker for multi-village VOs ──
     const _pfpWrap = document.getElementById('printFpVillageWrap');
     const _pfpSel  = document.getElementById('printFpVillage');
@@ -27234,6 +27379,9 @@ async function loadPrintFarmerProfile() {
     const mandalName  = (currentUserProfile && currentUserProfile.mandal)  ? currentUserProfile.mandal  : '—';
     const villageName = selVillage || (currentUserProfile && currentUserProfile.village) ? (selVillage || currentUserProfile.village) : '—';
     const officerName = (currentUserProfile && currentUserProfile.name)    ? currentUserProfile.name    : '—';
+
+    // ── Remember who this card belongs to, so the Print button can log the print event ──
+    window._lastPrintCardMeta = { aadhaar: a, farmerName, village: villageName, mandal: mandalName, year: selYear, season: selSeason };
 
     const _ownerByKhatha = {};
     Object.values(farmerProfiles || {}).forEach(pGroup => {
@@ -28282,6 +28430,338 @@ async function loadPrintFarmerProfile() {
 } // ← THIS CLOSES THE FUNCTION
 
 
+/**
+ * Logs one "fertilizer card printed" event every time the Print / Save as PDF
+ * button is used. The first time a given Aadhaar's card is printed it is
+ * counted as a fresh print; every time after that (any day) it is counted
+ * as a reprint. Persists to Firebase (users/{uid}/cardPrintLog) so the count
+ * survives reloads and is available for the "cards printed today" report.
+ */
+function logFertilizerCardPrint(aadhaar, meta) {
+    if (!aadhaar) return;
+    window.cardPrintLog = window.cardPrintLog || [];
+
+    const alreadyPrintedBefore = window.cardPrintLog.some(e => e && e.aadhaar === aadhaar);
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const entry = {
+        aadhaar:     aadhaar,
+        farmerName:  (meta && meta.farmerName) || '',
+        village:     (meta && meta.village)    || '',
+        mandal:      (meta && meta.mandal)     || '',
+        year:        (meta && meta.year)       || '',
+        season:      (meta && meta.season)     || '',
+        date:        todayStr,
+        timestamp:   Date.now(),
+        isReprint:   alreadyPrintedBefore
+    };
+
+    window.cardPrintLog.push(entry);
+
+    try {
+        const user = firebase.auth().currentUser;
+        if (user && typeof database !== 'undefined') {
+            database.ref('users/' + user.uid + '/cardPrintLog').push(entry)
+                .catch(e => console.warn('cardPrintLog cloud save failed:', e.message));
+            localStorage.setItem(`epanta_${user.uid}_cardPrintLog`, JSON.stringify(window.cardPrintLog));
+        }
+    } catch (e) { console.warn('logFertilizerCardPrint error:', e); }
+
+    // Live-refresh the "Fertilizer Cards Printed" stat if it's currently on screen
+    if (typeof window.voUpdateDayDistribution === 'function') {
+        try { window.voUpdateDayDistribution(); } catch (e) {}
+    }
+    // Live-refresh the Cards Printed Abstract inside the Print Fertilizer Card panel,
+    // but only if it's already been loaded (don't force-open it on every print).
+    if (document.getElementById('pfpCardsAbstractContainer')?.innerHTML.trim()
+        && typeof window.pfpLoadCardsAbstract === 'function') {
+        try { window.pfpLoadCardsAbstract(); } catch (e) {}
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+// VO: CARDS PRINTED ABSTRACT — embedded inside the Print Fertilizer Card panel.
+// Merges two sources so the "till now" totals are complete:
+//   1. window.cardPrintLog — one entry per Print/Save-as-PDF click, with
+//      accurate first-print / reprint tracking (see logFertilizerCardPrint()).
+//   2. Fertilizer distribution history — any record distributed with
+//      distributedVia === 'farmerCardQR' (shown elsewhere as the
+//      "📲 Card QR" badge) proves the retailer scanned that farmer's
+//      *physical* fertilizer card, i.e. a card was printed for them even
+//      though it predates click-tracking. These are backfilled as
+//      "confirmed via distribution history" entries (source: 'history') so
+//      they aren't missed, but since we don't know the exact print date or
+//      reprint count for them, they're always counted as a single first
+//      print, dated to their earliest such distribution record.
+// Uses the Village selected at the top of the panel (optional) + shows
+// KPI totals + a day-wise breakdown (Printed / First Prints / Reprints)
+// for a picked date.
+// ══════════════════════════════════════════════════════════
+window.pfpLoadCardsAbstract = function() {
+    const container = document.getElementById('pfpCardsAbstractContainer');
+    if (!container) return;
+
+    const year    = (document.getElementById('printFpYear')?.value    || '').trim();
+    const season  = (document.getElementById('printFpSeason')?.value  || '').trim();
+    const village = (document.getElementById('printFpVillage')?.value || '').trim()
+        || window.voActiveVillage || sessionStorage.getItem('voActiveVillage') || '';
+
+    container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-secondary"></i><p class="mt-2">Loading cards printed abstract…</p></div>';
+
+    const buildMergedLog = (distHistory) => {
+        // 1. Actual print-button clicks — accurate reprint tracking.
+        const log = (window.cardPrintLog || []).filter(e => e && e.aadhaar).map(e => ({
+            aadhaar:    String(e.aadhaar).trim(),
+            farmerName: e.farmerName || '',
+            village:    e.village || '',
+            year:       e.year || '',
+            season:     e.season || '',
+            date:       e.date || '',
+            timestamp:  e.timestamp || 0,
+            isReprint:  !!e.isReprint,
+            source:     'log'
+        }));
+        const loggedAadhaars = new Set(log.map(e => e.aadhaar));
+
+        // 2. Backfill farmers proven to already hold a printed card via a
+        //    "Card QR" distribution, but with no matching print-log entry.
+        //    Use the EARLIEST such record per farmer as the inferred print date.
+        const earliestByAadhaar = {};
+        (Array.isArray(distHistory) ? distHistory : []).forEach(r => {
+            if (!r || r.status === 'Cancelled' || r.status === 'Deleted') return;
+            const isCardQr = r.distributedVia === 'farmerCardQR' || r.distributedByRetailer === true || r.retailerDistributedViaFarmerCard === true;
+            if (!isCardQr) return;
+            const aadhaar = String(r.aadhaar || '').trim();
+            if (!aadhaar || loggedAadhaars.has(aadhaar)) return;
+            const dateStr = rtGetRecordDateStr(r);
+            const ts = dateStr ? new Date(dateStr).getTime() : 0;
+            const key = `${aadhaar}||${r.year || ''}||${r.season || ''}`;
+            const existing = earliestByAadhaar[key];
+            if (!existing || ts < existing.timestamp) {
+                earliestByAadhaar[key] = {
+                    aadhaar, farmerName: r.farmerName || '', village: r.village || '',
+                    year: r.year || '', season: r.season || '',
+                    date: dateStr, timestamp: ts, isReprint: false, source: 'history'
+                };
+            }
+        });
+
+        return log.concat(Object.values(earliestByAadhaar));
+    };
+
+    const finish = (distHistory) => {
+        let log = buildMergedLog(distHistory);
+
+        if (year)    log = log.filter(e => String(e.year   || '').trim() === year);
+        if (season)  log = log.filter(e => String(e.season || '').trim() === season);
+        if (village) log = log.filter(e => String(e.village || '').trim().toLowerCase() === village.toLowerCase());
+
+        window._pfpCardsLog = log;
+
+        const filterBits = [
+            year    ? 'Year: ' + escapeHtml(year) : '',
+            season  ? 'Season: ' + escapeHtml(season) : '',
+            village ? 'Village: ' + escapeHtml(village) : ''
+        ].filter(Boolean).join(' · ');
+
+        if (!log.length) {
+            container.innerHTML = `
+            <div class="alert alert-secondary d-flex align-items-center gap-3" style="border-radius:10px;">
+                <i class="fas fa-info-circle fa-2x text-secondary flex-shrink-0"></i>
+                <div>
+                    <div class="fw-bold">No Fertilizer Cards Printed Yet</div>
+                    <div class="small text-muted">${filterBits || 'All Years · All Seasons · All Villages'}</div>
+                </div>
+            </div>`;
+            return;
+        }
+
+        const totalPrinted  = log.length;
+        const totalReprints = log.filter(e => e.isReprint).length;
+        const totalFirst    = totalPrinted - totalReprints;
+        const totalFromHistory = log.filter(e => e.source === 'history').length;
+
+        const pfpTodayStr = new Date().toISOString().slice(0, 10);
+        window._pfpCardsTodayDate = pfpTodayStr;
+        const pfpTodayEntries = log.filter(e => e.date === pfpTodayStr);
+        const pfpTodayCount = pfpTodayEntries.length;
+        const pfpTodayReprints = pfpTodayEntries.filter(e => e.isReprint).length;
+
+        container.innerHTML = `
+        <div class="row g-2 mb-3">
+            <div class="col-6 col-md-3">
+                <div id="pfpCardsTileTotal" onclick="pfpShowCardsAbstractList('all')" style="cursor:pointer;background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #e6d6f5;text-align:center;height:100%;transition:all .15s;" onmouseover="this.style.borderColor='#8e44ad'" onmouseout="this.style.borderColor='#e6d6f5'">
+                    <div style="font-size:1.6rem;font-weight:800;color:#8e44ad;line-height:1;font-family:'Poppins',sans-serif;">${totalPrinted}</div>
+                    <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;"><i class="fas fa-print me-1" style="color:#8e44ad;"></i>Total Printed</div>
+                    <div style="font-size:0.6rem;color:#8e44ad;font-weight:700;text-decoration:underline;margin-top:2px;">View list</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div id="pfpCardsTileFirst" onclick="pfpShowCardsAbstractList('first')" style="cursor:pointer;background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #c8f5d8;text-align:center;height:100%;transition:all .15s;" onmouseover="this.style.borderColor='#1a7a3c'" onmouseout="this.style.borderColor='#c8f5d8'">
+                    <div style="font-size:1.6rem;font-weight:800;color:#1a7a3c;line-height:1;font-family:'Poppins',sans-serif;">${totalFirst}</div>
+                    <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;"><i class="fas fa-check-circle me-1 text-success"></i>First Prints</div>
+                    <div style="font-size:0.6rem;color:#1a7a3c;font-weight:700;text-decoration:underline;margin-top:2px;">View list</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div id="pfpCardsTileReprint" onclick="pfpShowCardsAbstractList('reprint')" style="cursor:pointer;background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #ffe8c0;text-align:center;height:100%;transition:all .15s;" onmouseover="this.style.borderColor='#e67e22'" onmouseout="this.style.borderColor='#ffe8c0'">
+                    <div style="font-size:1.6rem;font-weight:800;color:#e67e22;line-height:1;font-family:'Poppins',sans-serif;">${totalReprints}</div>
+                    <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;"><i class="fas fa-redo me-1" style="color:#e67e22;"></i>Reprints</div>
+                    <div style="font-size:0.6rem;color:#e67e22;font-weight:700;text-decoration:underline;margin-top:2px;">View list</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div id="pfpCardsTileToday" style="background:#fff;border-radius:12px;padding:0.75rem 1rem;border:1.5px solid #d0e8ff;text-align:center;height:100%;">
+                    <div style="font-size:1.6rem;font-weight:800;color:#1862ab;line-height:1;font-family:'Poppins',sans-serif;" id="pfpCardsTodayCount">${pfpTodayCount}</div>
+                    <div style="font-size:0.68rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-top:3px;"><i class="fas fa-calendar-day me-1 text-primary"></i>Printed <span id="pfpCardsTodayLabel">Today</span></div>
+                    <input type="date" id="pfpCardsTodayDate" value="${pfpTodayStr}" max="${pfpTodayStr}" onchange="pfpUpdateCardsTodayTile()"
+                           style="margin-top:5px;width:100%;font-size:0.68rem;padding:2px 4px;border-radius:6px;border:1px solid #d0e8ff;color:#1862ab;">
+                    <div style="cursor:pointer;font-size:0.6rem;color:#1862ab;font-weight:700;text-decoration:underline;margin-top:3px;" onclick="pfpShowCardsAbstractList('today')">View list</div>
+                </div>
+            </div>
+        </div>
+        <div class="small text-muted mb-3">
+            <i class="fas fa-info-circle me-1"></i>${log.length} card record${log.length !== 1 ? 's' : ''}${filterBits ? ' · ' + filterBits : ' · All Years · All Seasons · All Villages'}${totalFromHistory > 0 ? ` · <span title="No print-log entry found; inferred because the retailer scanned this farmer's physical card QR during a distribution">${totalFromHistory} confirmed via distribution history</span>` : ''}
+        </div>
+
+        <div id="pfpCardsAbstractListWrap" style="display:none;margin-bottom:1rem;"></div>`;
+    };
+
+    let history = window.ureaHistory || [];
+    if (history && history.length) { finish(history); return; }
+
+    const user = firebase.auth().currentUser;
+    if (user) {
+        database.ref('users/' + user.uid + '/ureaHistory').once('value').then(snap => {
+            if (snap.exists()) {
+                const data = snap.val();
+                const arr = Array.isArray(data) ? data : Object.values(data).filter(v => v && typeof v === 'object');
+                window.ureaHistory = arr;
+                finish(arr);
+            } else {
+                finish([]);
+            }
+        }).catch(err => {
+            console.error('pfpLoadCardsAbstract error:', err);
+            finish([]);
+        });
+    } else {
+        finish([]);
+    }
+};
+
+// ── Show the filtered farmer list for a Cards Printed Abstract KPI tile.
+//    category: 'all' | 'first' | 'reprint' | 'today'. Clicking the same
+//    tile's category again hides the list (unless forceShow is passed, used
+//    to live-refresh an already-open list, e.g. after changing the date on
+//    the Printed Today tile). Respects the Year/Season/Village filters
+//    already applied to window._pfpCardsLog by pfpLoadCardsAbstract. ──
+window.pfpShowCardsAbstractList = function(category, forceShow) {
+    const wrap = document.getElementById('pfpCardsAbstractListWrap');
+    if (!wrap) return;
+
+    const alreadyShowingSame = wrap.style.display !== 'none' && wrap.dataset.category === category;
+    if (alreadyShowingSame && !forceShow) {
+        wrap.style.display = 'none';
+        wrap.dataset.category = '';
+        return;
+    }
+
+    const log = window._pfpCardsLog || [];
+    const todayTileDate = window._pfpCardsTodayDate || new Date().toISOString().slice(0, 10);
+    let entries;
+    let title;
+    if (category === 'first') {
+        entries = log.filter(e => !e.isReprint);
+        title = 'First Prints';
+    } else if (category === 'reprint') {
+        entries = log.filter(e => e.isReprint);
+        title = 'Reprints';
+    } else if (category === 'today') {
+        entries = log.filter(e => e.date === todayTileDate);
+        title = 'Printed on ' + todayTileDate;
+    } else {
+        entries = log.slice();
+        title = 'Total Cards Printed';
+    }
+    entries = entries.slice().sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    const rows = entries.map((e, i) => {
+        const dt = e.timestamp ? new Date(e.timestamp) : null;
+        const dateStr = e.date || (dt ? dt.toLocaleDateString('en-IN') : '—');
+        const timeStr = e.source === 'history' ? '—' : (dt ? dt.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}) : '—');
+        const typeBadge = e.source === 'history'
+            ? '<span class="badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;" title="No print-log entry; inferred from a Farmer Card QR distribution">📲 Confirmed (history)</span>'
+            : (e.isReprint
+                ? '<span class="badge bg-warning text-dark" title="Reprinted">🖨️ Reprint</span>'
+                : '<span class="badge bg-success">First Print</span>');
+        const cropTag = [e.year, e.season].filter(Boolean).join(' ');
+        return `<tr>
+            <td class="text-muted small">${i + 1}</td>
+            <td class="fw-semibold small">${escapeHtml(e.farmerName || '—')}</td>
+            <td class="small" style="font-family:monospace;">${escapeHtml(e.aadhaar || '—')}</td>
+            <td class="small text-muted">${escapeHtml(e.village || '—')}</td>
+            <td class="small text-muted">${escapeHtml(cropTag || '—')}</td>
+            <td class="small text-muted">${dateStr}</td>
+            <td class="small text-muted">${timeStr}</td>
+            <td>${typeBadge}</td>
+        </tr>`;
+    }).join('') || `<tr><td colspan="8" class="text-center text-muted py-3">No records in this category.</td></tr>`;
+
+    wrap.innerHTML = `
+        <div style="font-size:0.75rem; font-weight:700; color:#495057; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.5rem;">
+            <i class="fas fa-list me-1"></i>${title} <span class="text-muted" style="font-weight:500;">(${entries.length})</span>
+        </div>
+        <div class="table-responsive" style="border-radius:10px; overflow:hidden; border:1px solid #dee2e6; max-height:320px; overflow-y:auto;">
+            <table class="table table-sm mb-0" style="font-size:0.8rem;">
+                <thead style="background:linear-gradient(135deg,#8e44ad,#6c3483); color:#fff; position:sticky; top:0;">
+                    <tr>
+                        <th style="padding:7px 10px; width:32px;">#</th>
+                        <th style="padding:7px 8px;">Farmer Name</th>
+                        <th style="padding:7px 8px;">Aadhaar</th>
+                        <th style="padding:7px 8px;">Village</th>
+                        <th style="padding:7px 8px;">Crop Yr/Season</th>
+                        <th style="padding:7px 8px;">Date</th>
+                        <th style="padding:7px 8px;">Time</th>
+                        <th style="padding:7px 8px;">Type</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+
+    wrap.style.display = '';
+    wrap.dataset.category = category;
+};
+
+// ── Recompute the "Printed <date>" tile when its date picker changes
+//    (Print Fertilizer Card panel). Replaces the old separate Day-wise row —
+//    the calendar now lives directly on the tile. ──
+window.pfpUpdateCardsTodayTile = function() {
+    const dateInput = document.getElementById('pfpCardsTodayDate');
+    const countEl   = document.getElementById('pfpCardsTodayCount');
+    const labelEl   = document.getElementById('pfpCardsTodayLabel');
+    if (!dateInput || !countEl) return;
+
+    const dateStr = dateInput.value;
+    window._pfpCardsTodayDate = dateStr;
+
+    const log = window._pfpCardsLog || [];
+    const dayEntries = log.filter(e => e.date === dateStr);
+    countEl.textContent = dayEntries.length;
+
+    if (labelEl) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        labelEl.textContent = dateStr === todayStr ? 'Today' : new Date(dateStr).toLocaleDateString('en-IN');
+    }
+
+    // If the list is currently open on the 'today' tile, keep it in sync
+    const wrap = document.getElementById('pfpCardsAbstractListWrap');
+    if (wrap && wrap.style.display !== 'none' && wrap.dataset.category === 'today') {
+        window.pfpShowCardsAbstractList('today', true);
+    }
+};
+
 function printFertilizerCard() {
     const cardEl = document.getElementById('fertCardPrintArea');
     if (!cardEl) { alert('No profile card to print. Please search for a farmer first.'); return; }
@@ -28294,6 +28774,9 @@ function printFertilizerCard() {
     const villageName = (currentUserProfile && currentUserProfile.village) ? currentUserProfile.village : '';
     const docTitle    = ['Fertilizer Card', villageName, mandalName, yearVal, seasonVal, aadhaarVal]
                           .filter(Boolean).join(' — ');
+
+    // ── Log this print event (counts as a reprint if this Aadhaar's card was printed before) ──
+    logFertilizerCardPrint(aadhaarVal, window._lastPrintCardMeta);
 
     const printWin = window.open('', '_blank', 'width=820,height=1060');
     if (!printWin) {
