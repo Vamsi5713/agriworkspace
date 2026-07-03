@@ -11572,7 +11572,29 @@ function extentFloor(x) {
 }
 
 function getUreaBagsFromN(nKg) { return bagRound(Number(nKg || 0) / (45 * 0.46)); }
-function getDapBagsFromP(pKg)  { return bagRound(Number(pKg || 0) / (50 * 0.46)); }
+function getDapBagsFromP(pKg, cropName, extent)  {
+    let bags = bagRound(Number(pKg || 0) / (50 * 0.46));
+    return capPaddyDapBags(cropName, bags, extent);
+}
+
+// ⚠️ Paddy-specific rule: DAP bags must never exceed the cultivated extent
+// (max 1 DAP bag per acre for paddy). The acre-cap itself uses a 0.60
+// threshold: e.g. 11.98 acres → cap 12 bags, 11.55 acres → cap 11 bags.
+// Applied everywhere DAP bags are calculated so the recommendation can
+// never cross the acreage.
+function paddyAcreBagCap(extent) {
+    const ext   = Number(extent) || 0;
+    const whole = Math.floor(ext);
+    const frac  = ext - whole;
+    return frac >= 0.60 ? whole + 1 : whole;
+}
+
+function capPaddyDapBags(cropName, bags, extent) {
+    if (String(cropName || '').toLowerCase().trim() === 'paddy' && extent !== undefined && extent !== null) {
+        return Math.min(Number(bags) || 0, paddyAcreBagCap(extent));
+    }
+    return bags;
+}
 
 function enforceBagLimit(input) {
     let v = Math.abs(Math.floor(Number(input.value) || 0));
@@ -11677,7 +11699,7 @@ function buildCropCumulativeSummary(aadhaar) {
             const DAP_P  = 23;   // kg P per 50-kg DAP  bag (46% P₂O₅)
             const effExt = cropExtent;
             const eligUrea = rec ? bagRound((Number(rec.N) || 0) * effExt / UREA_N) : 0;
-            const eligDAP  = rec ? bagRound((Number(rec.P) || 0) * effExt / DAP_P)  : 0;
+            const eligDAP  = rec ? capPaddyDapBags(crop, bagRound((Number(rec.P) || 0) * effExt / DAP_P), effExt)  : 0;
 
             if (!cropMap[crop]) {
                 cropMap[crop] = {
@@ -11816,7 +11838,7 @@ function updateBagRecommendation() {
 
     const dapBags = blocked
         ? 0
-        : bagRound((rec.P * effectiveExtent) / 46 * 100 / 50);
+        : capPaddyDapBags(crop, bagRound((rec.P * effectiveExtent) / 46 * 100 / 50), effectiveExtent);
 
     const fert = getSelectedFertilizer();
     const totalEligible = fert === 'Urea' ? ureaBags : dapBags;
@@ -12124,7 +12146,7 @@ function buildPrintCropSummaryHTML(aadhaar, currentKhatha, currentCrop, currentB
 
             const effExt = cropExtent;
             const eligUrea = rec ? bagRound((rec.N * effExt) / 46 * 100 / 45) : 0;
-            const eligDAP  = rec ? bagRound((rec.P * effExt) / 46 * 100 / 50) : 0;
+            const eligDAP  = rec ? capPaddyDapBags(crop, bagRound((rec.P * effExt) / 46 * 100 / 50), effExt) : 0;
 
             if (!cropMap[crop]) cropMap[crop] = {
                 khathas: new Set(), extentMap: {}, eligUrea: 0, eligDAP: 0, givenUrea: 0, givenDAP: 0,
@@ -13465,7 +13487,22 @@ window.voLoadFertilizerHistory = function() {
         const totalDistFarmers = new Set(records.filter(r => r.status !== 'Rejected').map(r => (r.aadhaar || r.farmerName || '').trim())).size;
         const totalDistCount = records.filter(r => r.status !== 'Rejected').length;
         const totalDistMts = records.filter(r => r.status !== 'Rejected').reduce((s, r) => s + ((Number(r.bags) || 0) * getFertBagWeightKg(r.fertilizerType || r.fert || 'Urea')) / 1000, 0);
-        const totalDistExtent = records.filter(r => r.status !== 'Rejected').reduce((s, r) => s + (Number(r.extent) || 0), 0);
+        // ── FIX: A farmer's extent for a given crop is the same across every one
+        // of their distribution records (splits, repeat visits, multiple fertilizer
+        // types, etc). Dedupe by farmer+crop so extent is counted once, not summed
+        // per record. ──
+        const _distExtentMap = {};
+        records.filter(r => r.status !== 'Rejected').forEach(r => {
+            const _a = (r.aadhaar || r.farmerName || '').trim();
+            if (!_a) return;
+            const _crop = (r.crop || r.crops || '').trim().toLowerCase();
+            const _key = `${_a}||${_crop}`;
+            const _ext = Number(r.extent) || 0;
+            if (!(_key in _distExtentMap) || _ext > _distExtentMap[_key]) {
+                _distExtentMap[_key] = _ext;
+            }
+        });
+        const totalDistExtent = Object.values(_distExtentMap).reduce((s, v) => s + v, 0);
         const bagsPerAcre = totalDistExtent > 0 ? (totalDistBags / totalDistExtent).toFixed(2) : 'N/A';
 
         // ── Day-wise distribution (defaults to today; VO can pick any date) ──
@@ -13848,8 +13885,8 @@ window.generateUreaAbstractReport = function() {
     const farmerSet = new Set();
     let totalBags = 0;
     let totalMts = 0;
-    let totalExtentFromRecords = 0;
-    const farmerExtentMap = {}; // key: aadhaar -> extent from records
+    const cropExtentMap = {};    // key: aadhaar|crop -> extent (deduped, not cumulated across repeat records)
+    const farmerExtentMap = {};  // key: aadhaar -> sum of that farmer's distinct crop extents
     const farmerDetailsMap = {};
 
     filtered.forEach(h => {
@@ -13861,17 +13898,18 @@ window.generateUreaAbstractReport = function() {
         totalBags += bags;
         totalMts += (bags * getFertBagWeightKg(hFert)) / 1000;
 
-        // ── CRITICAL FIX: Use extent from the distribution record itself ──
-        // Each record has an 'extent' field that represents the acres for this distribution
+        // ── FIX: A farmer can appear in multiple distribution records (e.g. split
+        // issues, repeat visits). The extent for a given farmer+crop is the same
+        // each time — it must be counted ONCE, not summed per record. ──
         const extentFromRecord = Number(h.extent || 0);
-        totalExtentFromRecords += extentFromRecord;
+        const cropKey = (h.crop || '').toLowerCase().trim();
 
-        // Store extent per farmer (use the max extent found for this farmer)
         if (a) {
-            if (!farmerExtentMap[a] || extentFromRecord > farmerExtentMap[a]) {
-                farmerExtentMap[a] = extentFromRecord;
+            const dedupeKey = `${a}||${cropKey}`;
+            if (!(dedupeKey in cropExtentMap) || extentFromRecord > cropExtentMap[dedupeKey]) {
+                cropExtentMap[dedupeKey] = extentFromRecord;
             }
-            
+
             // Store farmer details
             if (!farmerDetailsMap[a]) {
                 farmerDetailsMap[a] = {
@@ -13885,10 +13923,21 @@ window.generateUreaAbstractReport = function() {
         }
     });
 
+    // Recompute farmerExtentMap (per-farmer total) from the deduped crop-level map,
+    // and totalExtent as the sum of unique farmer+crop extents (no repeat-record double counting).
+    let totalExtentFromRecords = 0;
+    Object.keys(cropExtentMap).forEach(key => {
+        const a = key.split('||')[0];
+        const ext = cropExtentMap[key];
+        farmerExtentMap[a] = (farmerExtentMap[a] || 0) + ext;
+        totalExtentFromRecords += ext;
+    });
+
     const farmerCount = farmerSet.size;
     
     // ── Use the extent from records, not from farmerProfiles ──
     // If totalExtentFromRecords is 0, fallback to sum of farmerExtentMap values
+
     let totalExtent = totalExtentFromRecords;
     if (totalExtent === 0) {
         totalExtent = Object.values(farmerExtentMap).reduce((s, v) => s + v, 0);
@@ -17094,7 +17143,7 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '', se
                     bagsEligible  += getUreaBagsFromN(nKgTotal);
                 } else if (selectedFert === 'DAP') {
                     const pKgTotal = (seasonDose.P || 0) * cropExt;
-                    bagsEligible  += getDapBagsFromP(pKgTotal);
+                    bagsEligible  += getDapBagsFromP(pKgTotal, cropName, cropExt);
                 }
             });
         });
@@ -24541,7 +24590,7 @@ function _renderVillageProfile(report, displayLabel, sourceLabel, season, conten
         const totalP  = P * area;
         const totalK  = K * area;
         const ureaBags = bagRound(totalN / UREA_N_PER_BAG);
-        const dapBags  = bagRound(totalP / DAP_P_PER_BAG);
+        const dapBags  = capPaddyDapBags(recKey, bagRound(totalP / DAP_P_PER_BAG), area);
 
         totalN_kg += totalN;
         totalP_kg += totalP;
@@ -27270,7 +27319,7 @@ async function loadPrintFarmerProfile() {
         const nKgTotal  = (seasonDose.N || 0) * cropExt;
         const pKgTotal  = (seasonDose.P || 0) * cropExt;
         const ureaTotal = getUreaBagsFromN(nKgTotal);
-        const dapTotal  = getDapBagsFromP(pKgTotal);
+        const dapTotal  = getDapBagsFromP(pKgTotal, cropName, cropExt);
 
         const ureaSplits = getDeterministicSplitEligibilities(ureaTotal, cropName, 'Urea');
         const dapSplits = getDeterministicSplitEligibilities(dapTotal, cropName, 'DAP');
