@@ -4953,6 +4953,12 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
               <button class="btn btn-sm btn-warning text-dark fw-semibold" onclick="rearrangeCardNumbers()" title="Reset all card numbers from 0001 in order">
                   <i class="fas fa-sort-numeric-up me-1"></i> Rearrange Card Nos
               </button>
+              <button class="btn btn-sm btn-info text-white fw-semibold" onclick="openBulkCopySeasonModal()" title="Copy all farmer profiles from one Crop Year/Season to another, optionally replacing crops (e.g. Paddy → Black Gram)">
+                  <i class="fas fa-copy me-1"></i> Bulk Copy Season
+              </button>
+              <button class="btn btn-sm btn-danger fw-semibold" onclick="openBulkDeleteSeasonModal()" title="Permanently delete every farmer's crop entries for a selected Crop Year/Season">
+                  <i class="fas fa-trash-alt me-1"></i> Bulk Delete Season
+              </button>
               <button class="btn btn-sm fw-semibold" 
                   style="background:rgba(255,255,255,0.15); border:1.5px solid rgba(255,255,255,0.5); color:#fff; border-radius:8px;"
                   onmouseover="this.style.background='rgba(255,255,255,0.28)'"
@@ -4986,18 +4992,18 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
                       style="border-radius:0 8px 8px 0;border-left:none;font-size:0.82rem;">
               </div>
 
-              <!-- Year filter -->
+              <!-- Year filter (mandatory - must pick a year to see any profiles) -->
               <select id="fpAllProfilesYearFilter" class="form-select form-select-sm" onchange="filterAllFarmerProfiles()"
-                  style="width:130px;flex:0 0 130px;font-size:0.82rem;">
-                  <option value="">-- All Years --</option>
+                  style="width:150px;flex:0 0 150px;font-size:0.82rem;">
+                  <option value="" selected>-- Select Crop Year --</option>
                   <option value="2025-26">2025-26</option>
                   <option value="2026-27">2026-27</option>
                   <option value="2027-28">2027-28</option>
               </select>
 
-              <!-- Season filter -->
+              <!-- Season filter (optional - further narrows the selected year) -->
               <select id="fpAllProfilesSeasonFilter" class="form-select form-select-sm" onchange="filterAllFarmerProfiles()"
-                  style="width:130px;flex:0 0 130px;font-size:0.82rem;">
+                  style="width:150px;flex:0 0 150px;font-size:0.82rem;">
                   <option value="">-- All Seasons --</option>
                   <option value="Kharif">Kharif</option>
                   <option value="Rabi">Rabi</option>
@@ -5103,6 +5109,593 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
 
       </div>
   </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       BULK COPY SEASON/YEAR MODAL
+       Copies all matching farmer profile crop entries from one
+       Crop Year+Season to another, with optional per-crop
+       replacement (e.g. this season's Paddy → Black Gram).
+       ══════════════════════════════════════════════════════════ -->
+  <div class="modal fade" id="bulkCopySeasonModal" tabindex="-1" aria-labelledby="bulkCopySeasonModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content" style="border-radius:16px; overflow:hidden; border:none;">
+
+        <div class="modal-header" style="background:linear-gradient(135deg,#0d8abc,#0f6fa3); color:#fff;">
+          <h5 class="modal-title fw-bold" id="bulkCopySeasonModalLabel">
+            <i class="fas fa-copy me-2"></i>Bulk Copy Profiles — Season / Year
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="resetBulkCopySeasonModal()"></button>
+        </div>
+
+        <div class="modal-body" style="background:#f8fbff;">
+
+          <div class="alert alert-secondary py-2 small mb-3">
+            Copy all farmer profiles registered under one Crop Year &amp; Season into another
+            Crop Year/Season. Any crop can be replaced with a different crop during the copy
+            (e.g. this season's <strong>Paddy</strong> can become <strong>Black Gram</strong> in the
+            new season — every Paddy entry will be copied over as Black Gram).
+          </div>
+
+          <!-- Step 1: Source -->
+          <div class="p-3 mb-3 rounded border" style="background:#eef7ff;">
+            <div class="fw-bold text-primary mb-2"><span class="badge bg-primary me-1">1</span>Copy FROM (source)</div>
+            <div class="row g-2">
+              <div class="col-md-5">
+                <label class="form-label small fw-semibold mb-1">Crop Year</label>
+                <select id="bcsSourceYear" class="form-select form-select-sm">
+                  <option value="">-- Select Year --</option>
+                  <option value="2025-26">2025-26</option>
+                  <option value="2026-27">2026-27</option>
+                  <option value="2027-28">2027-28</option>
+                </select>
+              </div>
+              <div class="col-md-5">
+                <label class="form-label small fw-semibold mb-1">Season</label>
+                <select id="bcsSourceSeason" class="form-select form-select-sm">
+                  <option value="">-- Select Season --</option>
+                  <option value="Kharif">Kharif</option>
+                  <option value="Rabi">Rabi</option>
+                  <option value="Summer">Summer</option>
+                </select>
+              </div>
+              <div class="col-md-2 d-flex align-items-end">
+                <button type="button" class="btn btn-sm btn-primary w-100 fw-semibold" onclick="loadBulkCopySourceCrops()">
+                  <i class="fas fa-search me-1"></i>Load
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Crop mapping (populated after Load) -->
+          <div id="bcsCropMappingWrap" class="mb-3" style="display:none;">
+            <div class="fw-bold text-primary mb-2">
+              <span class="badge bg-primary me-1">2</span>Crops found in this Season
+              <span class="text-muted small fw-normal">— uncheck to skip a crop, or choose what it should become</span>
+            </div>
+            <div id="bcsCropMappingContainer" class="border rounded p-2" style="background:#fff; max-height:260px; overflow-y:auto;"></div>
+          </div>
+          <div id="bcsNoCropsMsg" class="alert alert-warning py-2 small mb-3" style="display:none;">
+            No crop entries found for the selected Crop Year / Season.
+          </div>
+
+          <!-- Step 3: Target -->
+          <div id="bcsTargetWrap" class="p-3 mb-3 rounded border" style="background:#eefbf1; display:none;">
+            <div class="fw-bold text-success mb-2"><span class="badge bg-success me-1">3</span>Copy TO (target)</div>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold mb-1">Crop Year</label>
+                <select id="bcsTargetYear" class="form-select form-select-sm">
+                  <option value="">-- Select Year --</option>
+                  <option value="2025-26">2025-26</option>
+                  <option value="2026-27">2026-27</option>
+                  <option value="2027-28">2027-28</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold mb-1">Season</label>
+                <select id="bcsTargetSeason" class="form-select form-select-sm">
+                  <option value="">-- Select Season --</option>
+                  <option value="Kharif">Kharif</option>
+                  <option value="Rabi">Rabi</option>
+                  <option value="Summer">Summer</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" id="bcsSkipDuplicates">
+              <label class="form-check-label small" for="bcsSkipDuplicates">
+                Skip a crop if it already exists in the target Year/Season, instead of updating it with the latest copied values (default: update, not skip)
+              </label>
+            </div>
+          </div>
+
+          <div id="bcsResultBox" class="alert alert-success py-2 small mb-0" style="display:none;"></div>
+
+        </div>
+
+        <div class="modal-footer" style="background:#f8fbff;">
+          <button type="button" class="btn btn-outline-secondary fw-semibold" data-bs-dismiss="modal" onclick="resetBulkCopySeasonModal()">Close</button>
+          <button type="button" class="btn btn-success fw-semibold" id="bcsExecuteBtn" onclick="executeBulkCopySeason()" disabled>
+            <i class="fas fa-copy me-1"></i>Copy Profiles
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       BULK DELETE SEASON/YEAR MODAL
+       ══════════════════════════════════════════════════════════ -->
+  <div class="modal fade" id="bulkDeleteSeasonModal" tabindex="-1" aria-labelledby="bulkDeleteSeasonModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content" style="border-radius:16px; overflow:hidden; border:none;">
+
+        <div class="modal-header" style="background:linear-gradient(135deg,#c0392b,#922b21); color:#fff;">
+          <h5 class="modal-title fw-bold" id="bulkDeleteSeasonModalLabel">
+            <i class="fas fa-trash-alt me-2"></i>Bulk Delete Profiles — Season / Year
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="resetBulkDeleteSeasonModal()"></button>
+        </div>
+
+        <div class="modal-body" style="background:#fff6f5;">
+
+          <div class="alert alert-danger py-2 small mb-3">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            This permanently deletes every farmer's crop entries for the Crop Year &amp; Season
+            you select below. Profiles that only had crops in this Season will disappear
+            from the list entirely. <strong>This cannot be undone.</strong>
+          </div>
+
+          <div class="p-3 mb-3 rounded border" style="background:#fff;">
+            <div class="fw-bold text-danger mb-2"><span class="badge bg-danger me-1">1</span>Select Crop Year &amp; Season to delete</div>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold mb-1">Crop Year</label>
+                <select id="bdsYear" class="form-select form-select-sm" onchange="bdsValidate()">
+                  <option value="">-- Select Year --</option>
+                  <option value="2025-26">2025-26</option>
+                  <option value="2026-27">2026-27</option>
+                  <option value="2027-28">2027-28</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold mb-1">Season</label>
+                <select id="bdsSeason" class="form-select form-select-sm" onchange="bdsValidate()">
+                  <option value="">-- Select Season --</option>
+                  <option value="Kharif">Kharif</option>
+                  <option value="Rabi">Rabi</option>
+                  <option value="Summer">Summer</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-3 mb-3 rounded border" style="background:#fff;">
+            <div class="fw-bold text-danger mb-2"><span class="badge bg-danger me-1">2</span>Reason for deletion</div>
+            <textarea id="bdsReason" class="form-control form-control-sm" rows="2"
+                placeholder="e.g. Duplicate season entered by mistake, wrong crop data copied, etc."
+                oninput="bdsValidate()"></textarea>
+          </div>
+
+          <div class="p-3 mb-3 rounded border" style="background:#fff;">
+            <div class="fw-bold text-danger mb-2"><span class="badge bg-danger me-1">3</span>Confirm</div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="bdsConfirmCheck" onchange="bdsValidate()">
+              <label class="form-check-label small fw-semibold" for="bdsConfirmCheck">
+                I understand this will permanently delete all crop entries for the selected Crop Year/Season and cannot be undone.
+              </label>
+            </div>
+          </div>
+
+          <div id="bdsResultBox" class="alert alert-success py-2 small mb-0" style="display:none;"></div>
+
+        </div>
+
+        <div class="modal-footer" style="background:#fff6f5;">
+          <button type="button" class="btn btn-outline-secondary fw-semibold" data-bs-dismiss="modal" onclick="resetBulkDeleteSeasonModal()">Cancel</button>
+          <button type="button" class="btn btn-danger fw-semibold" id="bdsExecuteBtn" onclick="confirmBulkDeleteSeason()" disabled>
+            <i class="fas fa-trash-alt me-1"></i>Delete
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ══════════════════════════════════════════════════════════
+  // BULK DELETE SEASON/YEAR — logic
+  // ══════════════════════════════════════════════════════════
+
+  function openBulkDeleteSeasonModal() {
+      resetBulkDeleteSeasonModal();
+      const modalEl = document.getElementById('bulkDeleteSeasonModal');
+      if (modalEl && window.bootstrap) {
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      }
+  }
+
+  function resetBulkDeleteSeasonModal() {
+      const yearEl   = document.getElementById('bdsYear');
+      const seasonEl = document.getElementById('bdsSeason');
+      const reasonEl = document.getElementById('bdsReason');
+      const checkEl  = document.getElementById('bdsConfirmCheck');
+      const resBox   = document.getElementById('bdsResultBox');
+      const execBtn  = document.getElementById('bdsExecuteBtn');
+      if (yearEl)   yearEl.value = '';
+      if (seasonEl) seasonEl.value = '';
+      if (reasonEl) reasonEl.value = '';
+      if (checkEl)  checkEl.checked = false;
+      if (resBox)   { resBox.style.display = 'none'; resBox.innerHTML = ''; }
+      if (execBtn)  execBtn.disabled = true;
+  }
+
+  // Enables the Delete button only once Year, Season, a non-empty Reason,
+  // and the confirmation checkbox are all set.
+  function bdsValidate() {
+      const year    = document.getElementById('bdsYear')?.value || '';
+      const season  = document.getElementById('bdsSeason')?.value || '';
+      const reason  = (document.getElementById('bdsReason')?.value || '').trim();
+      const checked = document.getElementById('bdsConfirmCheck')?.checked;
+      const execBtn = document.getElementById('bdsExecuteBtn');
+      if (execBtn) execBtn.disabled = !(year && season && reason && checked);
+  }
+
+  // Counts how many crop entries / profiles would be affected, for the
+  // re-confirmation prompt.
+  function bdsCountAffected(year, season) {
+      let entryCount = 0;
+      const affectedProfiles = new Set();
+      const fp = window.farmerProfiles || farmerProfiles || {};
+      Object.entries(fp).forEach(([aadhaar, profiles]) => {
+          (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
+              if (!p || !Array.isArray(p.crops)) return;
+              const matches = p.crops.filter(c => c && c.year === year && c.season === season);
+              if (matches.length) {
+                  entryCount += matches.length;
+                  affectedProfiles.add(aadhaar + '_' + p.khatha);
+              }
+          });
+      });
+      return { entryCount, profileCount: affectedProfiles.size };
+  }
+
+  // Step: show the re-confirmation popup (Cancel / Delete) before anything is removed.
+  function confirmBulkDeleteSeason() {
+      const year   = document.getElementById('bdsYear')?.value || '';
+      const season = document.getElementById('bdsSeason')?.value || '';
+      const reason = (document.getElementById('bdsReason')?.value || '').trim();
+      const checked = document.getElementById('bdsConfirmCheck')?.checked;
+      if (!year)    return alert('⚠️ Please select the Crop Year.');
+      if (!season)  return alert('⚠️ Please select the Season.');
+      if (!reason)  return alert('⚠️ Please type a reason for this deletion.');
+      if (!checked) return alert('⚠️ Please tick the confirmation checkbox.');
+
+      const { entryCount, profileCount } = bdsCountAffected(year, season);
+      if (!entryCount) {
+          const resBox = document.getElementById('bdsResultBox');
+          if (resBox) {
+              resBox.className = 'alert alert-warning py-2 small mb-0';
+              resBox.style.display = '';
+              resBox.innerHTML = `No crop entries found for ${escapeHtml(year)} · ${escapeHtml(season)}. Nothing to delete.`;
+          }
+          return;
+      }
+
+      const confirmMsg =
+          `Permanently delete ${entryCount} crop entr${entryCount === 1 ? 'y' : 'ies'} across ` +
+          `${profileCount} profile${profileCount === 1 ? '' : 's'} for ${year} · ${season}?\n\n` +
+          `Reason: ${reason}\n\n` +
+          `This cannot be undone. Click OK to Delete, or Cancel to go back.`;
+
+      if (!confirm(confirmMsg)) return; // Cancel -> stays on the Bulk Delete modal, nothing changed
+
+      executeBulkDeleteSeason(year, season, reason, entryCount, profileCount);
+  }
+
+  // Performs the actual deletion after the user has confirmed.
+  async function executeBulkDeleteSeason(year, season, reason, entryCount, profileCount) {
+      const execBtn = document.getElementById('bdsExecuteBtn');
+      if (execBtn) { execBtn.disabled = true; execBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...'; }
+
+      const fp = window.farmerProfiles || farmerProfiles || {};
+      Object.values(fp).forEach(profiles => {
+          (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
+              if (!p || !Array.isArray(p.crops)) return;
+              p.crops = p.crops.filter(c => !(c && c.year === year && c.season === season));
+          });
+      });
+
+      // Optional audit trail, if the app already keeps one — harmless no-op otherwise.
+      try {
+          if (typeof window.fpDeletionLog === 'undefined') window.fpDeletionLog = [];
+          window.fpDeletionLog.push({
+              year, season, reason, entryCount, profileCount,
+              deletedAt: new Date().toISOString(),
+              deletedBy: (typeof firebase !== 'undefined' && firebase.auth().currentUser) ? firebase.auth().currentUser.email : 'unknown'
+          });
+      } catch (e) { /* ignore */ }
+
+      if (typeof saveToCloud === 'function') { try { await saveToCloud(); } catch (e) { console.error(e); } }
+
+      const resBox = document.getElementById('bdsResultBox');
+      if (resBox) {
+          resBox.className = 'alert alert-success py-2 small mb-0';
+          resBox.style.display = '';
+          resBox.innerHTML = `✅ Deleted ${entryCount} crop entr${entryCount === 1 ? 'y' : 'ies'} across ${profileCount} profile${profileCount === 1 ? '' : 's'} for ${escapeHtml(year)} · ${escapeHtml(season)}.`;
+      }
+
+      if (execBtn) { execBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Delete'; }
+
+      // Refresh the underlying profiles list, then close this modal and go back to the page.
+      if (typeof updateFpStatPills === 'function') { try { updateFpStatPills(); } catch (e) {} }
+      if (typeof filterAllFarmerProfiles === 'function') { try { filterAllFarmerProfiles(); } catch (e) {} }
+
+      const modalEl = document.getElementById('bulkDeleteSeasonModal');
+      if (modalEl && window.bootstrap) {
+          setTimeout(() => {
+              bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+              resetBulkDeleteSeasonModal();
+          }, 900);
+      }
+  }
+  </script>
+
+  <script>
+  // ══════════════════════════════════════════════════════════
+  // BULK COPY SEASON/YEAR — logic
+  // ══════════════════════════════════════════════════════════
+
+  // Human-friendly display name for a crop key (e.g. "sweet_corn" -> "Sweet Corn")
+  function bcsCropDisplay(key) {
+      return String(key || '')
+          .split('_')
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+  }
+
+  function openBulkCopySeasonModal() {
+      resetBulkCopySeasonModal();
+      const modalEl = document.getElementById('bulkCopySeasonModal');
+      if (!modalEl) return;
+      document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+  }
+
+  function resetBulkCopySeasonModal() {
+      ['bcsSourceYear','bcsSourceSeason','bcsTargetYear','bcsTargetSeason'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+      });
+      const mapWrap = document.getElementById('bcsCropMappingWrap');
+      const mapBox  = document.getElementById('bcsCropMappingContainer');
+      const noMsg   = document.getElementById('bcsNoCropsMsg');
+      const tgtWrap = document.getElementById('bcsTargetWrap');
+      const resBox  = document.getElementById('bcsResultBox');
+      const execBtn = document.getElementById('bcsExecuteBtn');
+      if (mapWrap) mapWrap.style.display = 'none';
+      if (mapBox)  mapBox.innerHTML = '';
+      if (noMsg)   noMsg.style.display = 'none';
+      if (tgtWrap) tgtWrap.style.display = 'none';
+      if (resBox)  { resBox.style.display = 'none'; resBox.innerHTML = ''; }
+      if (execBtn) execBtn.disabled = true;
+      window._bcsLoadedYear = null;
+      window._bcsLoadedSeason = null;
+  }
+
+  // Scan farmerProfiles for every crop entry matching the chosen source
+  // Year+Season, group by crop key, and render a replace-mapping row per crop.
+  function loadBulkCopySourceCrops() {
+      const year   = document.getElementById('bcsSourceYear')?.value || '';
+      const season = document.getElementById('bcsSourceSeason')?.value || '';
+      const resBox  = document.getElementById('bcsResultBox');
+      if (resBox) { resBox.style.display = 'none'; resBox.innerHTML = ''; }
+
+      if (!year)   return alert('⚠️ Please select the source Crop Year.');
+      if (!season) return alert('⚠️ Please select the source Season.');
+
+      const cropStats = {}; // key -> { count, extent }
+      Object.values(window.farmerProfiles || farmerProfiles || {}).forEach(profiles => {
+          (Array.isArray(profiles) ? profiles : Object.values(profiles || {})).forEach(p => {
+              (p?.crops || []).forEach(c => {
+                  if (c && c.year === year && c.season === season && c.crop) {
+                      if (!cropStats[c.crop]) cropStats[c.crop] = { count: 0, extent: 0 };
+                      cropStats[c.crop].count  += 1;
+                      cropStats[c.crop].extent += Number(c.extent || 0);
+                  }
+              });
+          });
+      });
+
+      const cropKeys = Object.keys(cropStats);
+      const mapWrap = document.getElementById('bcsCropMappingWrap');
+      const mapBox  = document.getElementById('bcsCropMappingContainer');
+      const noMsg   = document.getElementById('bcsNoCropsMsg');
+      const tgtWrap = document.getElementById('bcsTargetWrap');
+      const execBtn = document.getElementById('bcsExecuteBtn');
+
+      if (!cropKeys.length) {
+          if (mapWrap) mapWrap.style.display = 'none';
+          if (tgtWrap) tgtWrap.style.display = 'none';
+          if (noMsg)   noMsg.style.display = '';
+          if (execBtn) execBtn.disabled = true;
+          return;
+      }
+
+      // Master crop list for the "Replace with" dropdown, alphabetically sorted by display name
+      const masterCropKeys = Object.keys(fertilizerDosage || {})
+          .slice()
+          .sort((a, b) => bcsCropDisplay(a).localeCompare(bcsCropDisplay(b)));
+
+      cropKeys.sort((a, b) => cropStats[b].count - cropStats[a].count);
+
+      if (mapBox) {
+          mapBox.innerHTML = cropKeys.map(key => {
+              const stat = cropStats[key];
+              const optionsHtml = masterCropKeys.map(mk =>
+                  `<option value="${mk}"${mk === key ? ' selected' : ''}>${mk === key ? '↳ Keep same — ' : ''}${bcsCropDisplay(mk)}</option>`
+              ).join('');
+              return `
+              <div class="d-flex align-items-center gap-2 py-2 border-bottom bcs-crop-row" data-crop="${key}">
+                  <div class="form-check flex-shrink-0">
+                      <input class="form-check-input bcs-include" type="checkbox" id="bcsInclude_${key}" checked>
+                  </div>
+                  <div style="min-width:170px;">
+                      <span class="badge bg-success">${bcsCropDisplay(key)}</span>
+                      <div class="text-muted" style="font-size:0.72rem;">${stat.count} entr${stat.count === 1 ? 'y' : 'ies'} · ${stat.extent.toFixed(2)} ac</div>
+                  </div>
+                  <div class="text-muted small flex-shrink-0"><i class="fas fa-arrow-right"></i></div>
+                  <div class="flex-grow-1">
+                      <select class="form-select form-select-sm bcs-replace">${optionsHtml}</select>
+                  </div>
+              </div>`;
+          }).join('');
+      }
+
+      if (mapWrap) mapWrap.style.display = '';
+      if (noMsg)   noMsg.style.display = 'none';
+      if (tgtWrap) tgtWrap.style.display = '';
+      if (execBtn) execBtn.disabled = false;
+
+      window._bcsLoadedYear   = year;
+      window._bcsLoadedSeason = season;
+  }
+
+  async function executeBulkCopySeason() {
+      const sourceYear   = window._bcsLoadedYear;
+      const sourceSeason = window._bcsLoadedSeason;
+      if (!sourceYear || !sourceSeason) return alert('⚠️ Please load source crops first (Step 1).');
+
+      const targetYear   = document.getElementById('bcsTargetYear')?.value || '';
+      const targetSeason = document.getElementById('bcsTargetSeason')?.value || '';
+      if (!targetYear)   return alert('⚠️ Please select the target Crop Year.');
+      if (!targetSeason) return alert('⚠️ Please select the target Season.');
+      if (targetYear === sourceYear && targetSeason === sourceSeason) {
+          return alert('⚠️ Target Year/Season must be different from the source.');
+      }
+
+      const skipDuplicates = document.getElementById('bcsSkipDuplicates')?.checked !== false;
+
+      // Build the crop replacement map from the on-screen rows: sourceCropKey -> destCropKey
+      // A crop with its checkbox unticked is entirely excluded from the copy.
+      const cropMap = {};
+      document.querySelectorAll('#bcsCropMappingContainer .bcs-crop-row').forEach(row => {
+          const key = row.getAttribute('data-crop');
+          const include = row.querySelector('.bcs-include')?.checked;
+          if (!include) return;
+          const dest = row.querySelector('.bcs-replace')?.value || key;
+          cropMap[key] = dest;
+      });
+
+      if (!Object.keys(cropMap).length) {
+          return alert('⚠️ Select at least one crop to copy (or untick fewer crops).');
+      }
+
+      const replacementsSummary = Object.entries(cropMap)
+          .filter(([from, to]) => from !== to)
+          .map(([from, to]) => `${bcsCropDisplay(from)} → ${bcsCropDisplay(to)}`);
+
+      const confirmMsg =
+          `Copy farmer profiles from ${sourceYear} · ${sourceSeason} to ${targetYear} · ${targetSeason}?\n\n` +
+          `Crops included: ${Object.keys(cropMap).map(bcsCropDisplay).join(', ')}\n` +
+          (replacementsSummary.length ? `Replacements: ${replacementsSummary.join(', ')}\n` : '') +
+          `\nThis cannot be undone automatically. Continue?`;
+      if (!confirm(confirmMsg)) return;
+
+      const execBtn = document.getElementById('bcsExecuteBtn');
+      if (execBtn) { execBtn.disabled = true; execBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Copying...'; }
+
+      let copiedCount  = 0;
+      let updatedCount = 0;
+      let removedStale = 0;
+      let skippedDup   = 0;
+      const affectedProfiles = new Set();
+
+      // Tag used to identify entries this exact copy operation (this source
+      // Year/Season → this target Year/Season) produced, so re-running it
+      // later can cleanly replace its own prior output even if the crop
+      // mapping changed (e.g. a source crop now maps to a different
+      // destination crop name) instead of leaving the old name behind
+      // alongside the newly renamed one.
+      const bcsSourceTag = `${sourceYear}·${sourceSeason}→${targetYear}·${targetSeason}`;
+
+      const fp = window.farmerProfiles || farmerProfiles || {};
+      Object.keys(fp).forEach(aadhaar => {
+          const profiles = Array.isArray(fp[aadhaar]) ? fp[aadhaar] : Object.values(fp[aadhaar] || {});
+          profiles.forEach(p => {
+              if (!p || !Array.isArray(p.crops)) return;
+
+              // Remove any target-season entries this SAME copy operation produced
+              // previously. Anything else in the target season (manually entered,
+              // or produced by a different source Year/Season) is left untouched.
+              const beforeLen = p.crops.length;
+              p.crops = p.crops.filter(ec =>
+                  !(ec.year === targetYear && ec.season === targetSeason && ec._bcsSource === bcsSourceTag)
+              );
+              removedStale += beforeLen - p.crops.length;
+
+              const newEntries = [];
+              p.crops.forEach(c => {
+                  if (!c || c.year !== sourceYear || c.season !== sourceSeason) return;
+                  if (!Object.prototype.hasOwnProperty.call(cropMap, c.crop)) return;
+
+                  const destCrop = cropMap[c.crop];
+                  // An entry for this crop may still exist in the target Year/Season
+                  // (manually entered, or copied in from a different source) —
+                  // update it in place rather than creating a second entry.
+                  const existing = p.crops.concat(newEntries).find(ec =>
+                      ec.year === targetYear && ec.season === targetSeason && ec.crop === destCrop
+                  );
+
+                  if (existing) {
+                      if (skipDuplicates) { skippedDup++; return; }
+                      existing.extent    = c.extent;
+                      existing.surveyNos = c.surveyNos;
+                      existing._bcsSource = bcsSourceTag;
+                      updatedCount++;
+                      affectedProfiles.add(aadhaar + '_' + p.khatha);
+                      return;
+                  }
+
+                  newEntries.push({
+                      crop: destCrop,
+                      extent: c.extent,
+                      year: targetYear,
+                      season: targetSeason,
+                      surveyNos: c.surveyNos,
+                      _bcsSource: bcsSourceTag
+                      // registrationId intentionally NOT carried over — new season gets a fresh registration
+                  });
+                  copiedCount++;
+                  affectedProfiles.add(aadhaar + '_' + p.khatha);
+              });
+              if (newEntries.length) p.crops = p.crops.concat(newEntries);
+          });
+      });
+
+      const resBox = document.getElementById('bcsResultBox');
+      if (copiedCount > 0 || updatedCount > 0 || removedStale > 0) {
+          if (typeof saveToCloud === 'function') { try { await saveToCloud(); } catch (e) { console.error(e); } }
+          if (typeof renderAllFarmerProfilesTable === 'function') { try { renderAllFarmerProfilesTable(); } catch (e) {} }
+      }
+
+      if (resBox) {
+          resBox.className = (copiedCount > 0 || updatedCount > 0) ? 'alert alert-success py-2 small mb-0' : 'alert alert-warning py-2 small mb-0';
+          resBox.style.display = '';
+          resBox.innerHTML =
+              `✅ Copied <strong>${copiedCount}</strong> new crop entr${copiedCount === 1 ? 'y' : 'ies'}` +
+              (updatedCount ? `, updated <strong>${updatedCount}</strong> existing entr${updatedCount === 1 ? 'y' : 'ies'}` : '') +
+              ` across <strong>${affectedProfiles.size}</strong> profile${affectedProfiles.size === 1 ? '' : 's'} ` +
+              `into ${targetYear} · ${targetSeason}.` +
+              (removedStale ? `<br>🔄 Replaced ${removedStale} entr${removedStale === 1 ? 'y' : 'ies'} left over from a previous run of this same copy (e.g. a since-changed crop mapping).` : '') +
+              (skippedDup ? `<br>⏭️ Skipped ${skippedDup} entr${skippedDup === 1 ? 'y' : 'ies'} that already existed in the target Season.` : '');
+      }
+
+      if (execBtn) { execBtn.disabled = false; execBtn.innerHTML = '<i class="fas fa-copy me-1"></i>Copy Profiles'; }
+  }
+  </script>
 
 </div> <!-- ✅ closes farmerProfileSection -->
 
@@ -7941,6 +8534,7 @@ function showModernPopup(title, message, type = "info") {
 
 function logoutUser() {
     detachCloudListener();
+    fpClearYearSeasonFilter();
     firebase.auth().signOut()
    .catch(e => {
 
@@ -15487,9 +16081,16 @@ let _fpAllKhathas = [];
  * Returns the total extent already allocated to OTHER farmers (different Aadhaar)
  * for a given khatha number, across all farmerProfiles.
  * Excludes the current farmer's own profile so editing doesn't double-count.
+ * Only counts crop entries for the Crop Year/Season currently selected in the
+ * form (Step 1) — a khatha's crops from a DIFFERENT season (e.g. copied via
+ * Bulk Copy Season, or simply registered earlier) don't consume the current
+ * season's balance, since the same land is legitimately cultivated season by
+ * season.
  */
 function getKhathaAllocatedExtentByOthers(khatha, currentAadhaar) {
     let allocated = 0;
+    const activeYear   = document.getElementById('fpCropYear')?.value   || '';
+    const activeSeason = document.getElementById('fpCropSeason')?.value || '';
 
     Object.entries(farmerProfiles || {}).forEach(([aadhaar, profiles]) => {
         if (String(aadhaar) === String(currentAadhaar)) return;
@@ -15497,7 +16098,11 @@ function getKhathaAllocatedExtentByOthers(khatha, currentAadhaar) {
         (profiles || []).forEach(profile => {
             if (String(profile.khatha) !== String(khatha)) return;
 
-            const cropExtent = (profile.crops || []).reduce(
+            const relevantCrops = (profile.crops || []).filter(crop =>
+                (!activeYear   || crop.year   === activeYear) &&
+                (!activeSeason || crop.season === activeSeason)
+            );
+            const cropExtent = relevantCrops.reduce(
                 (sum, crop) => sum + (parseFloat(crop.extent) || 0),
                 0
             );
@@ -15514,11 +16119,16 @@ function getKhathaAllocatedExtentByOthers(khatha, currentAadhaar) {
  * for a given SURVEY NUMBER within a khatha, across all saved farmerProfiles.
  * Excludes the current farmer's own profile (by Aadhaar) so editing an existing
  * profile doesn't count its own previously-saved allocation against itself.
+ * Only counts crops for the Crop Year/Season currently selected (Step 1) —
+ * a survey number cultivated in a different season doesn't block it being
+ * cultivated again in the current season.
  */
 function getSurveyAllocatedExtentByOthers(khatha, surveyNo, currentAadhaar) {
     let allocated = 0;
     const sv = String(surveyNo || '').trim();
     if (!sv) return 0;
+    const activeYear   = document.getElementById('fpCropYear')?.value   || '';
+    const activeSeason = document.getElementById('fpCropSeason')?.value || '';
 
     Object.entries(farmerProfiles || {}).forEach(([aadhaar, profiles]) => {
         if (String(aadhaar) === String(currentAadhaar)) return;
@@ -15527,6 +16137,8 @@ function getSurveyAllocatedExtentByOthers(khatha, surveyNo, currentAadhaar) {
             if (String(profile.khatha) !== String(khatha)) return;
 
             (profile.crops || []).forEach(crop => {
+                if (activeYear   && crop.year   !== activeYear)   return;
+                if (activeSeason && crop.season !== activeSeason) return;
                 const cropSurveys = String(crop.surveyNos || '')
                     .split(',')
                     .map(s => s.trim())
@@ -16595,7 +17207,15 @@ function showAllFarmerProfiles() {
     setFpCategoryFilter('all');   // resets pill highlights + calls filterAllFarmerProfiles
     updateFpStatPills();
     setFpProfilesViewMode('normal');
-    renderAllFarmerProfilesTable();
+    // Restore whatever Year/Season the user last had selected this session
+    // (persists across refresh, cleared on logout) instead of resetting to
+    // "-- Select Crop Year --" every time the panel is reopened.
+    const saved = fpRestoreYearSeasonFilter();
+    const yearEl   = document.getElementById('fpAllProfilesYearFilter');
+    const seasonEl = document.getElementById('fpAllProfilesSeasonFilter');
+    if (yearEl)   yearEl.value   = saved.year;
+    if (seasonEl) seasonEl.value = saved.season;
+    filterAllFarmerProfiles();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -16630,6 +17250,34 @@ function computePccAadhaarSet() {
     return pccSet;
 }
 
+// ── Picks which of a profile's crop entries should count toward the
+// "Extent (Ac)" figure shown for a row. A single profile's crops[] array can
+// hold entries from MULTIPLE Year·Seasons (e.g. after Bulk Copy Season, or
+// simply over time as new seasons are registered for the same Khatha). Since
+// the physical land extent doesn't change between seasons, summing every
+// season's crops together would double (or triple) count the same land.
+// - If a Year/Season filter is active, only crops matching that exact
+//   Year+Season are counted (so filtering by "Rabi" shows Rabi's extent only).
+// - With no filter, only the MOST RECENT Year·Season present is counted,
+//   so the headline figure reflects current cultivation, not history.
+const FP_SEASON_ORDER = { Kharif: 1, Rabi: 2, Summer: 3 };
+function fpActiveCropsForExtent(crops, yearFilter, seasonFilter) {
+    if (!Array.isArray(crops) || !crops.length) return [];
+    if (yearFilter || seasonFilter) {
+        return crops.filter(c => c && (!yearFilter || c.year === yearFilter) && (!seasonFilter || c.season === seasonFilter));
+    }
+    let best = null;
+    crops.forEach(c => {
+        if (!c || !c.year) return;
+        const rank = FP_SEASON_ORDER[c.season] || 0;
+        if (!best || c.year > best.year || (c.year === best.year && rank > best.rank)) {
+            best = { year: c.year, season: c.season, rank };
+        }
+    });
+    if (!best) return crops;
+    return crops.filter(c => c && c.year === best.year && c.season === best.season);
+}
+
 function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter = '', searchType = '') {
     if (!searchType) searchType = _fpGetSearchType ? _fpGetSearchType() : 'all';
     const tbody   = document.getElementById('fpAllProfilesTbody');
@@ -16639,6 +17287,15 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
     if (!farmerProfiles || !Object.keys(farmerProfiles).length) {
         tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted p-4">
             <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>No profiles registered yet.</td></tr>`;
+        if (countEl) countEl.textContent = '0 profiles';
+        return;
+    }
+
+    // Crop Year must be selected before any profiles are shown; Season is optional
+    // and further narrows the selected year.
+    if (!yearFilter) {
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted p-4">
+            <i class="fas fa-calendar-alt fa-2x mb-2 d-block opacity-50"></i>Select a Crop Year above to view farmer profiles.</td></tr>`;
         if (countEl) countEl.textContent = '0 profiles';
         return;
     }
@@ -16687,11 +17344,15 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
                         .some(v => (v || '').toLowerCase().includes(fLow));
                 }
             }
-            const matchSeason = !seasonFilter ||
-                (p.crops || []).some(c => c.season === seasonFilter);
-            const matchYear = !yearFilter ||
-                (p.crops || []).some(c => c.year === yearFilter);
-            return matchText && matchSeason && matchYear;
+            // Year and Season must both match the SAME crop entry (not just
+            // "has a Kharif entry somewhere" + "has a 2026-27 entry somewhere"
+            // from two different, unrelated seasons) so profiles only show up
+            // when they actually have crops registered for that Year·Season.
+            const matchYearSeason = (!yearFilter && !seasonFilter) ||
+                (p.crops || []).some(c =>
+                    (!yearFilter || c.year === yearFilter) &&
+                    (!seasonFilter || c.season === seasonFilter));
+            return matchText && matchYearSeason;
         });
     }
 
@@ -16734,14 +17395,19 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
     }
 
     tbody.innerHTML = allProfiles.map((p, idx) => {
-        const cropBadges = (p.crops || []).map(c =>
+        // Only show the season currently selected via the filter — or, with no
+        // filter, the most recent season on record — instead of every season
+        // this khatha has ever had crops in.
+        const activeCropsForRow = fpActiveCropsForExtent(p.crops, yearFilter, seasonFilter);
+
+        const cropBadges = activeCropsForRow.map(c =>
             `<span class="badge bg-success me-1 mb-1" style="font-size:0.74rem; display:inline-block">
                 ${escapeHtml(c.crop)} <small>${c.extent}ac</small>
             </span>`
         ).join('');
 
-        // Derive unique year·season combos from crops
-        const yearSeasonSet = new Set((p.crops || []).map(c => [c.year, c.season].filter(Boolean).join(' · ')));
+        // Year·Season combo(s) for the active crops only
+        const yearSeasonSet = new Set(activeCropsForRow.map(c => [c.year, c.season].filter(Boolean).join(' · ')));
         const yearSeasonBadges = Array.from(yearSeasonSet).map(ys =>
             `<span class="badge bg-primary me-1 mb-1" style="font-size:0.72rem">${escapeHtml(ys)}</span>`
         ).join('') || '<span class="text-muted small">—</span>';
@@ -16754,9 +17420,9 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
                 ? `<span class="badge bg-primary" style="font-size:0.7rem">Pattadhar</span>`
                 : `<span class="badge bg-secondary" style="font-size:0.7rem">Tenant</span>`;
 
-        // Collect unique survey numbers across all crops for this khatha entry
+        // Collect unique survey numbers for the active season's crops only
         const surveyNoSet = new Set();
-        (p.crops || []).forEach(c => {
+        activeCropsForRow.forEach(c => {
             if (c.surveyNos) {
                 String(c.surveyNos).split(',').forEach(s => {
                     const sv = s.trim();
@@ -16808,7 +17474,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
             <td style="min-width:100px">${surveyNoDisplay}</td>
             <td class="text-center fw-semibold" style="color:#27ae60;">${
                 (() => {
-                    const cropSum = (p.crops || []).reduce((s, c) => s + Number(c.extent || 0), 0);
+                    const cropSum = activeCropsForRow.reduce((s, c) => s + Number(c.extent || 0), 0);
                     return cropSum > 0 ? cropSum.toFixed(2) : (p.extent || '—');
                 })()
             }</td>
@@ -17047,9 +17713,39 @@ function filterAllFarmerProfiles() {
     const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
     const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
     const stype  = _fpGetSearchType();
+    // Remember the Year/Season choice for this browser session so it survives
+    // a page refresh. Cleared explicitly on logout (see logoutUser()).
+    fpSaveYearSeasonFilter(year, season);
     // Always refresh both tables so switching modes shows up-to-date data
     renderAllFarmerProfilesTable(search, season, year, stype);
     renderFpCardWiseTable(search, season, year, stype);
+}
+
+// ── Session-persisted Year/Season filter for the All Registered Profiles panel ──
+// Uses sessionStorage (not localStorage) so the choice survives a refresh
+// within the same browser session/tab, but does not linger indefinitely.
+// It is explicitly cleared on logout so the next login starts fresh.
+function fpSaveYearSeasonFilter(year, season) {
+    try {
+        sessionStorage.setItem('fpYearFilter', year || '');
+        sessionStorage.setItem('fpSeasonFilter', season || '');
+    } catch (e) { /* sessionStorage unavailable - ignore, filter just won't persist */ }
+}
+function fpRestoreYearSeasonFilter() {
+    try {
+        return {
+            year: sessionStorage.getItem('fpYearFilter') || '',
+            season: sessionStorage.getItem('fpSeasonFilter') || ''
+        };
+    } catch (e) {
+        return { year: '', season: '' };
+    }
+}
+function fpClearYearSeasonFilter() {
+    try {
+        sessionStorage.removeItem('fpYearFilter');
+        sessionStorage.removeItem('fpSeasonFilter');
+    } catch (e) { /* ignore */ }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -17146,11 +17842,11 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '', se
                         .some(v => (v || '').toLowerCase().includes(fLow));
                 }
             }
-            const matchSeason = !seasonFilter ||
-                (p.crops || []).some(c => c.season === seasonFilter);
-            const matchYear = !yearFilter ||
-                (p.crops || []).some(c => c.year === yearFilter);
-            return matchText && matchSeason && matchYear;
+            const matchYearSeason = (!yearFilter && !seasonFilter) ||
+                (p.crops || []).some(c =>
+                    (!yearFilter || c.year === yearFilter) &&
+                    (!seasonFilter || c.season === seasonFilter));
+            return matchText && matchYearSeason;
         });
     }
 
@@ -17168,11 +17864,15 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '', se
         const first = profs[0];
 
         // Khatha numbers with CULTIVATING extent (sum of crop extents per khatha, not khatha official extent)
+        // Scoped to the active Year·Season only (the filter if set, else each
+        // profile's most recent season) so selecting a Year/Season here shows
+        // that season's picture, not every season this card has ever had.
         const khathaParts = [];
         let totalExtent = 0;
         profs.forEach(p => {
+            const activeCrops = fpActiveCropsForExtent(p.crops, yearFilter, seasonFilter);
             // Sum crop extents for this profile (actual cultivating extent)
-            const cropExtForProfile = (p.crops || []).reduce((s, c) => s + Number(c.extent || 0), 0);
+            const cropExtForProfile = activeCrops.reduce((s, c) => s + Number(c.extent || 0), 0);
             // Fallback to p.extent only if no crops recorded (edge case)
             const cultivatingExt = cropExtForProfile > 0 ? cropExtForProfile : Number(p.extent || 0);
             totalExtent += cultivatingExt;
@@ -17180,10 +17880,10 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '', se
             khathaParts.push(`${kStr}(${cultivatingExt.toFixed(2)})`);
         });
 
-        // Crops cumulative (sum extent per crop name across all profiles)
+        // Crops cumulative (sum extent per crop name across all profiles) - active season only
         const cropMap = {};
         profs.forEach(p => {
-            (p.crops || []).forEach(c => {
+            fpActiveCropsForExtent(p.crops, yearFilter, seasonFilter).forEach(c => {
                 const cName = c.crop || '—';
                 cropMap[cName] = (cropMap[cName] || 0) + Number(c.extent || 0);
             });
@@ -17193,10 +17893,10 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '', se
             .map(([c, ext]) => cropEntries.length > 1 ? `${c}(${ext.toFixed(2)})` : `${c} (${ext.toFixed(2)})`)
             .join(', ') || '—';
 
-        // ── Bags Eligible: computed from Farmer Profile crops (dosage formula), for selected fertilizer ──
+        // ── Bags Eligible: computed from Farmer Profile crops (dosage formula), for selected fertilizer — active season only ──
         let bagsEligible = 0;
         profs.forEach(p => {
-            (p.crops || []).forEach(c => {
+            fpActiveCropsForExtent(p.crops, yearFilter, seasonFilter).forEach(c => {
                 const cropName  = (c.crop || '').toLowerCase().trim();
                 const rawExt    = Number(c.extent || p.extent || 0);
                 const cropExt   = rawExt;
@@ -17267,6 +17967,15 @@ function renderFpCardWiseTable(filter = '', seasonFilter = '', yearFilter = '', 
     const tbody = document.getElementById('fpCardWiseTbody');
     const countEl = document.getElementById('fpAllProfilesCount');
     if (!tbody) return;
+
+    // Crop Year must be selected before any cards are shown; Season is optional
+    // and further narrows the selected year.
+    if (!yearFilter) {
+        tbody.innerHTML = `<tr><td colspan="13" class="text-center text-muted p-4">
+            <i class="fas fa-calendar-alt fa-2x mb-2 d-block opacity-50"></i>Select a Crop Year above to view farmer cards.</td></tr>`;
+        if (countEl) countEl.textContent = '0 profiles';
+        return;
+    }
 
     let rows = buildFpCardWiseData(filter, seasonFilter, yearFilter, searchType);
 
@@ -17370,9 +18079,11 @@ function exportNormalProfilesView() {
         allProfiles = allProfiles.filter(p => {
             const matchText = !f || [p.farmerName, p.fatherName, p.aadhaar, p.mobile, p.khatha]
                 .some(v => (v || '').toLowerCase().includes(f));
-            const matchSeason = !season || (p.crops || []).some(c => c.season === season);
-            const matchYear   = !year   || (p.crops || []).some(c => c.year   === year);
-            return matchText && matchSeason && matchYear;
+            const matchYearSeason = (!year && !season) ||
+                (p.crops || []).some(c =>
+                    (!year || c.year === year) &&
+                    (!season || c.season === season));
+            return matchText && matchYearSeason;
         });
     }
 
@@ -17395,9 +18106,14 @@ function exportNormalProfilesView() {
     ];
 
     const dataRows = allProfiles.map((p, idx) => {
-        // Survey numbers - same logic as table
+        // Scope everything below to the active season only (matches the filter
+        // if one is set, otherwise the most recent Year·Season on record) —
+        // same logic as the on-screen table, so exports stay consistent with it.
+        const activeCropsForRow = fpActiveCropsForExtent(p.crops, year, season);
+
+        // Survey numbers - active season's crops only
         const surveyNoSet = new Set();
-        (p.crops || []).forEach(c => {
+        activeCropsForRow.forEach(c => {
             if (c.surveyNos) {
                 String(c.surveyNos).split(',').forEach(s => {
                     const sv = s.trim();
@@ -17407,16 +18123,16 @@ function exportNormalProfilesView() {
         });
         const surveyNos = Array.from(surveyNoSet).join(', ') || '—';
 
-        // Extent - same logic as table (sum crop extents, fallback to p.extent)
-        const cropSum = (p.crops || []).reduce((s, c) => s + Number(c.extent || 0), 0);
+        // Extent - sum crop extents for the active season only, fallback to p.extent
+        const cropSum = activeCropsForRow.reduce((s, c) => s + Number(c.extent || 0), 0);
         const extent  = cropSum > 0 ? cropSum.toFixed(2) : (p.extent || '—');
 
-        // Year·Season combos - same as table
-        const yearSeasonSet = new Set((p.crops || []).map(c => [c.year, c.season].filter(Boolean).join(' · ')));
+        // Year·Season combo(s) for the active crops only
+        const yearSeasonSet = new Set(activeCropsForRow.map(c => [c.year, c.season].filter(Boolean).join(' · ')));
         const yearSeason = Array.from(yearSeasonSet).join(', ') || '—';
 
-        // Crops list - same as table
-        const cropsStr = (p.crops || []).map(c => `${c.crop} ${c.extent}ac`).join(', ') || '—';
+        // Crops list - active season's crops only
+        const cropsStr = activeCropsForRow.map(c => `${c.crop} ${c.extent}ac`).join(', ') || '—';
 
         return [
             idx + 1,
@@ -27894,7 +28610,14 @@ async function loadPrintFarmerProfile() {
         { num: 3, label: _splitLabel(2), uColor: '#155724', dColor: '#0d4d73', badge: 'bg-warning text-dark' }
     ];
 
-    const scheduleRows = splitLabels.map((sp, si) => {
+    // Only print splits the farmer is actually eligible for (saves paper/printing cost).
+    // A split is considered eligible if it has a non-zero Urea or DAP allocation.
+    const eligibleSplitIndices = splitLabels
+        .map((sp, si) => si)
+        .filter(si => (splitTotals[si].u > 0 || splitTotals[si].d > 0));
+
+    const scheduleRows = eligibleSplitIndices.map((si) => {
+        const sp         = splitLabels[si];
         const eligU      = splitTotals[si].u;
         const eligD      = splitTotals[si].d;
         const availU     = availedS[si].u;
@@ -28343,27 +29066,36 @@ async function loadPrintFarmerProfile() {
           ${scheduleRows}
         </table>
         <div style="margin-top:0.35rem; font-size:0.65rem; color:#7f8c8d;">
-          Each split provides 2 rows for recording distribution entries. Retailer must sign after each dispensal.
+          Only splits the farmer is eligible for are shown above. Each split provides rows for recording distribution entries. Retailer must sign after each dispensal.
         </div>
       </div>
 
-      <div style="border-top:1.5px solid #e0e6ed; margin:0 1rem; padding:0.6rem 0 0.5rem;">
-        <div style="font-size:0.62rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.4rem;">Authorisation Signatures</div>
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:1rem;">
-          <div style="flex:1; text-align:center;">
-            <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
-            <div style="font-size:0.72rem; font-weight:700; color:#1b5e20;">🧑‍🌾 Farmer Signature</div>
-            <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(farmerName)}</div>
+      <div style="page-break-inside:avoid; break-inside:avoid; -webkit-column-break-inside:avoid;">
+        <div style="border-top:1.5px solid #e0e6ed; margin:0.6rem 1rem 0; padding:0.6rem 0.6rem 0.6rem; background:#fffbea; border:1px solid #f0d97a; border-radius:6px;">
+          <div style="font-size:0.68rem; line-height:1.5; color:#5c4a00; font-weight:600; text-align:justify;">
+            <span style="font-weight:800; color:#8a6d00;">✍️ రైతు ప్రకటన (Farmer Declaration):</span>
+            ఎరువుల పంపిణీ కార్డు లో నేను అందించిన సమాచారం అంతా వాస్తవమని, అందులో ఏవైనా తప్పుగా ఉన్నట్లు తేలితే చట్టపరమైన చర్యలకు బాధ్యుడనవుతానని, ఈ కార్డు ఎరువుల పంపిణీ కొరకు మాత్రమే చెల్లుతుంది అని, వేరే ఇతర ధృవీకరణకు, గుర్తింపుకు ఉపయోగించుకొను అని ధృవీకరిస్తున్నాను.
           </div>
-          <div style="flex:1; text-align:center;">
-            <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
-            <div style="font-size:0.72rem; font-weight:700; color:#1562ab;">📋 Village Agriculture Assistant</div>
-            <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(officerName)} &nbsp;|&nbsp; ${escapeHtml(villageName)}</div>
-          </div>
-          <div style="flex:1; text-align:center;">
-            <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
-            <div style="font-size:0.72rem; font-weight:700; color:#6a1a1a;">🏛️ Mandal Agriculture Officer</div>
-            <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(mandalName)} Mandal</div>
+        </div>
+
+        <div style="border-top:1.5px solid #e0e6ed; margin:0 1rem; padding:0.6rem 0 0.5rem;">
+          <div style="font-size:0.62rem; font-weight:700; color:#1862ab; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.4rem;">Authorisation Signatures</div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:1rem;">
+            <div style="flex:1; text-align:center;">
+              <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
+              <div style="font-size:0.72rem; font-weight:700; color:#1b5e20;">🧑‍🌾 Farmer Signature</div>
+              <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(farmerName)}</div>
+            </div>
+            <div style="flex:1; text-align:center;">
+              <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
+              <div style="font-size:0.72rem; font-weight:700; color:#1562ab;">📋 Village Agriculture Assistant</div>
+              <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(officerName)} &nbsp;|&nbsp; ${escapeHtml(villageName)}</div>
+            </div>
+            <div style="flex:1; text-align:center;">
+              <div style="height:40px; border-bottom:1.5px solid #333; margin:0 8px 4px;"></div>
+              <div style="font-size:0.72rem; font-weight:700; color:#6a1a1a;">🏛️ Mandal Agriculture Officer</div>
+              <div style="font-size:0.62rem; color:#7f8c8d; margin-top:1px;">${escapeHtml(mandalName)} Mandal</div>
+            </div>
           </div>
         </div>
       </div>
@@ -31640,64 +32372,16 @@ window._evalFertRestrictions = function(restrictions, extent, splitIndex, fertTy
 
 <footer style="
     background: linear-gradient(135deg, #0d1b2a 0%, #1a2f4a 100%);
-    color: #a0b4c8;
+    color: #c8d8e8;
     text-align: center;
-    padding: 1.4rem 1rem 1.1rem;
+    padding: 0.5rem 1rem;
     margin-top: 2.5rem;
     font-family: 'Poppins', sans-serif;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     letter-spacing: 0.2px;
     border-top: 3px solid #1862ab;
 ">
-    <div style="max-width: 900px; margin: 0 auto;">
-
-        <!-- Logo / Brand -->
-        <div style="margin-bottom: 0.55rem;">
-            <span style="font-size: 1.05rem; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">
-                🌾 e-Panta Agriculture Dashboard
-            </span>
-        </div>
-
-        <!-- Copyright line -->
-        <div style="margin-bottom: 0.4rem; color: #c8d8e8; font-weight: 500;">
-            &copy; <span id="cpYear"></span> <strong style="color:#ffffff;">Gugulothu Vamsi Nayak</strong>.
-            All rights reserved.
-        </div>
-
-        <!-- Registration notice -->
-        <div style="
-            display: inline-block;
-            background: rgba(24,98,171,0.18);
-            border: 1px solid rgba(24,98,171,0.45);
-            border-radius: 20px;
-            padding: 3px 14px;
-            margin-bottom: 0.55rem;
-            font-size: 0.72rem;
-            color: #90c4f9;
-            font-weight: 600;
-        ">
-            <i class="fas fa-shield-alt" style="margin-right:5px;"></i>
-            Copyright Registration Pending — Copyright Office, India
-        </div>
-
-        <!-- Legal lines -->
-        <div style="font-size: 0.7rem; color: #7a95ae; line-height: 1.7;">
-            This software, its design, source code, database structure, and all associated content are the exclusive<br>
-            intellectual property of <strong style="color:#a0b4c8;">Gugulothu Vamsi Nayak</strong>, protected under the
-            <strong style="color:#a0b4c8;">Copyright Act, 1957 (India)</strong>.<br>
-            Unauthorized reproduction, distribution, or modification is strictly prohibited.
-        </div>
-
-        <!-- Divider -->
-        <hr style="border-color: rgba(255,255,255,0.08); margin: 0.75rem auto; max-width: 400px;">
-
-        <!-- Bottom row -->
-        <div style="font-size: 0.68rem; color: #5a7a94;">
-            Developed &amp; Designed by <strong style="color:#90c4f9;">GUGULOTHU VAMSI NAYAK</strong>
-            &nbsp;|&nbsp; Vijayawada, Andhra Pradesh, India
-        </div>
-
-    </div>
+    &copy; <span id="cpYear"></span> <strong style="color:#ffffff;">Gugulothu Vamsi Nayak</strong>. All rights reserved.
 </footer>
 
 <script>
