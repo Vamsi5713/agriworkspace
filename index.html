@@ -1733,6 +1733,8 @@
                     <option value="All">All Fertilizers</option>
                     <option value="Urea">Urea</option>
                     <option value="DAP">DAP</option>
+                    <option value="SSP">SSP</option>
+                    <option value="TSP">TSP</option>
                     <option value="MOP">MOP</option>
                     <option value="NPK">NPK</option>
                     <option value="Other">Other</option>
@@ -1764,7 +1766,9 @@
      FERTILIZER RESTRICTION CONTROL CARD — VO ONLY
      Firebase path: voRestrictions/{voUid}/{safeVillage}/
        bagRule    → { active, tiers:[{from,to,bags}], updatedAt, updatedBy }
-       splitLocks → { s0:{locked,updatedAt,updatedBy}, s1:{...}, s2:{...} }
+       splitLocks → { s0:{locked,unlockAt,updatedAt,updatedBy}, s1:{...}, s2:{...} }
+                     (unlockAt = optional future timestamp; once passed, the split
+                      is treated as unlocked everywhere without a manual unlock)
      ══════════════════════════════════════════════════════════════ -->
 <div class="card p-0 mx-auto mt-4" id="fertRestrictionCard" style="max-width:900px;border-radius:16px;overflow:hidden;">
   <!-- top accent bar -->
@@ -1894,8 +1898,8 @@
       <div style="padding:1rem;background:#f4f9fd;">
         <div style="font-size:0.75rem;color:#7f8c8d;margin-bottom:0.9rem;">
           <i class="fas fa-info-circle me-1" style="color:#1862ab;"></i>
-          Enable <strong>Split 1</strong> so retailers can distribute it. Lock <strong>Split 2 &amp; Split 3</strong> to prevent distribution until you manually unlock each one.
-          <br>This is independent of the automatic 15-day timer — it is a manual VO override.
+          Enable <strong>Split 1</strong> so retailers can distribute it. Lock <strong>Split 2 &amp; Split 3</strong> to prevent distribution until unlocked.
+          <br>This is independent of the automatic 15-day timer — it is a manual VO override. Use <strong>Schedule Auto-Unlock</strong> on a card to lock it now and have it unlock itself at a future date/time, with no need to come back and unlock manually.
         </div>
         <div class="row g-3" id="splitLockRows">
           <!-- Three split toggles rendered by JS -->
@@ -3578,10 +3582,10 @@
 
     <!-- Tabs -->
     <div class="rt-tabs" id="retailerTabs">
-        <button class="rt-tab-btn active" onclick="showRetailerTab('rtStockTab')">
+        <button class="rt-tab-btn" onclick="showRetailerTab('rtStockTab')">
             <i class="fas fa-boxes me-1"></i> Stock Balance
         </button>
-        <button class="rt-tab-btn" onclick="showRetailerTab('rtDistributionsTab')">
+        <button class="rt-tab-btn active" onclick="showRetailerTab('rtDistributionsTab')">
             <i class="fas fa-truck me-1"></i> Pending
         </button>
         <button class="rt-tab-btn" onclick="showRetailerTab('rtHistoryTab')">
@@ -3593,7 +3597,7 @@
     </div>
 
     <!-- Stock Tab -->
-    <div id="rtStockTab">
+    <div id="rtStockTab" class="hidden">
         <div class="row g-4">
 
             <div class="col-md-6">
@@ -3602,14 +3606,38 @@
                     <p class="text-muted small mb-3">Enter fertilizer bags received at your outlet.</p>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Fertilizer Type *</label>
-                        <select id="rtStockFert" class="form-select">
+                        <select id="rtStockFert" class="form-select" onchange="toggleRtNpkTypeField()">
                             <option value="">-- Select --</option>
                             <option value="Urea">🟡 Urea</option>
                             <option value="DAP">🔵 DAP</option>
+                            <option value="SSP">🟤 SSP</option>
+                            <option value="TSP">🟣 TSP</option>
                             <option value="MOP">🟠 MOP</option>
                             <option value="NPK">🟢 NPK</option>
                             <option value="Other">⚪ Other</option>
                         </select>
+                    </div>
+                    <div class="mb-3 d-none" id="rtStockNpkTypeWrap">
+                        <label class="form-label fw-semibold">NPK Grade / Type *</label>
+                        <select id="rtStockNpkType" class="form-select" onchange="toggleRtNpkOtherInput()">
+                            <option value="">-- Select NPK Grade --</option>
+                            <option value="10:26:26">10:26:26</option>
+                            <option value="12:32:16">12:32:16</option>
+                            <option value="14:35:14">14:35:14</option>
+                            <option value="15:15:15">15:15:15</option>
+                            <option value="16:16:16">16:16:16</option>
+                            <option value="17:17:17">17:17:17</option>
+                            <option value="19:19:19">19:19:19</option>
+                            <option value="20:20:0:13">20:20:0:13</option>
+                            <option value="20:10:10">20:10:10</option>
+                            <option value="28:28:0">28:28:0</option>
+                            <option value="24:24:0">24:24:0</option>
+                            <option value="23:23:0">23:23:0</option>
+                            <option value="__other__">✏️ Other (type manually)</option>
+                        </select>
+                        <input type="text" id="rtStockNpkTypeOther" class="form-control mt-2 d-none"
+                               placeholder="Enter NPK grade, e.g. 13:33:0:6">
+                        <div class="form-text">There are many NPK grades — pick the one on the bag, or enter it manually.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Bags Received *</label>
@@ -3648,7 +3676,7 @@
     </div>
 
     <!-- Pending Distributions Tab -->
-    <div id="rtDistributionsTab" class="hidden">
+    <div id="rtDistributionsTab">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h5 class="fw-bold mb-0" style="font-size:1rem;"><i class="fas fa-truck me-2 text-warning"></i>Distributions for Your Outlet</h5>
             <button class="btn btn-warning btn-sm text-dark fw-semibold" onclick="loadRetailerDistributions()">
@@ -3660,7 +3688,7 @@
         <div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #f39c12 !important; border-radius:14px;">
             <div class="card-body p-3">
                 <h6 class="fw-bold text-warning mb-1"><i class="fas fa-shield-alt me-2"></i>Verify & Authorize Distribution</h6>
-                <p class="text-muted small mb-3">Scan farmer's QR code <strong>or</strong> search by Card Number + Aadhaar last 6 digits to find and authorize the distribution.</p>
+                <p class="text-muted small mb-3">Scan farmer's QR code <strong>or</strong> search by Card Number + Aadhaar last 4 digits to find and authorize the distribution.</p>
 
                 <div class="rt-tabs" id="authTabs" style="margin-bottom:12px;">
                     <button class="rt-tab-btn active" onclick="showAuthTab('qrTab')">
@@ -3698,7 +3726,7 @@
                 <div id="tokenTab" class="hidden">
                     <div class="alert alert-info py-2 small mb-3">
                         <i class="fas fa-info-circle me-2"></i>
-                        If the QR code isn't scanning, ask the farmer for the <strong>Card Number</strong> printed on their card, and their <strong>Aadhaar last 6 digits</strong>.
+                        If the QR code isn't scanning, ask the farmer for the <strong>Card Number</strong> printed on their card, and their <strong>Aadhaar last 4 digits</strong>.
                     </div>
                     <div class="row g-3 align-items-end">
                         <div class="col-12 col-md-5">
@@ -3716,14 +3744,14 @@
                         </div>
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold">
-                                Aadhaar Last 6 <span class="text-danger">*</span>
+                                Aadhaar Last 4 <span class="text-danger">*</span>
                             </label>
                             <input type="text" id="cardAadhaarInput" class="form-control"
-                                   placeholder="XXXXXX" maxlength="6"
+                                   placeholder="XXXX" maxlength="4"
                                    style="font-family:'Courier New',monospace; letter-spacing:3px; font-size:1.05rem; font-weight:700; text-align:center; padding:10px 8px;"
-                                   oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
+                                   oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
                                    onkeydown="if(event.key==='Enter') verifyByCard()">
-                            <div class="form-text text-center" style="font-size:0.72rem;">Last 6 digits of farmer's Aadhaar card</div>
+                            <div class="form-text text-center" style="font-size:0.72rem;">Last 4 digits of farmer's Aadhaar card</div>
                         </div>
                         <div class="col-12 col-md-3">
                             <button class="btn btn-warning w-100 fw-bold py-2 shadow-sm" onclick="verifyByCard()"
@@ -4930,6 +4958,47 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
   </div>
 </div>
 
+  <!-- Header stat chip styling for the All Registered Profiles panel -->
+  <style>
+    .fp-header-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        padding: 0.4em 0.85em;
+        border-radius: 999px;
+        line-height: 1.3;
+        white-space: nowrap;
+    }
+    .fp-header-chip i { font-size: 0.78rem; }
+    .fp-chip-live {
+        background: #ffffff;
+        color: #1862ab;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .fp-chip-overall {
+        background: linear-gradient(135deg, #f7b733, #e58e09);
+        color: #4a2c00;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .fp-chip-overall .fp-chip-label {
+        font-weight: 600;
+        opacity: 0.85;
+        margin-right: 1px;
+    }
+    .fp-chip-overall strong {
+        font-weight: 800;
+    }
+    .fp-chip-overall .fp-chip-sep {
+        opacity: 0.6;
+        margin: 0 1px;
+    }
+    @media (max-width: 576px) {
+        .fp-header-chip { font-size: 0.72rem; padding: 0.35em 0.65em; }
+    }
+  </style>
+
   <!-- All Profiles Panel (hidden by default, shown on button click) -->
   <div id="fpAllProfilesPanel" 
       style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:1055; overflow-y:auto; margin:0; border-radius:0; background:#fff;">
@@ -4943,7 +5012,6 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
               <span style="font-size:1.1rem; font-weight:700;">
                   <i class="fas fa-list me-2"></i>All Registered Profiles
               </span>
-              <span id="fpAllProfilesCount" class="badge bg-light text-primary" style="font-size:0.85rem; padding:0.35em 0.75em; border-radius:20px;">0 profiles</span>
           </div>
           <!-- Right: Action Buttons -->
           <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -4971,6 +5039,13 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
 
       <!-- Body -->
       <div class="p-3">
+
+          <!-- ── Crop Year · Season wise card count & extent breakdown ── -->
+          <div id="fpSeasonWiseStatsRow"
+              style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; padding:0.5rem 0.6rem;
+                     background:linear-gradient(135deg,#eef3fc,#e6f0fb); border:1px solid #cfe0f5; border-radius:10px;">
+              <span class="text-muted small">Loading season-wise stats…</span>
+          </div>
 
           <!-- ── Toolbar: Search + Filters + View Toggle (single row) ── -->
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
@@ -5001,10 +5076,10 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
                   <option value="2027-28">2027-28</option>
               </select>
 
-              <!-- Season filter (optional - further narrows the selected year) -->
+              <!-- Season filter (mandatory, same as Year - both required before profiles/counts show) -->
               <select id="fpAllProfilesSeasonFilter" class="form-select form-select-sm" onchange="filterAllFarmerProfiles()"
                   style="width:150px;flex:0 0 150px;font-size:0.82rem;">
-                  <option value="">-- All Seasons --</option>
+                  <option value="" selected>-- Select Season --</option>
                   <option value="Kharif">Kharif</option>
                   <option value="Rabi">Rabi</option>
                   <option value="Summer">Summer</option>
@@ -14055,11 +14130,48 @@ window.voLoadFertilizerHistory = function() {
     const finish = (history) => {
         let records = (Array.isArray(history) ? history : []).filter(r => r && r.status !== 'Cancelled' && r.status !== 'Deleted');
 
+        // ── Dynamically add NPK grade-specific options (e.g. "NPK 14:35:14") ──
+        // so a specific grade's distribution history can be selected on its own,
+        // while the plain "NPK" option still matches every grade.
+        const _absFertSel = document.getElementById('absFert');
+        if (_absFertSel) {
+            const npkGrades = new Set();
+            records.forEach(r => {
+                if (String(r.fertilizerType || r.fert || '').trim().toUpperCase() === 'NPK' && r.npkGrade) {
+                    npkGrades.add(String(r.npkGrade).trim());
+                }
+            });
+            _absFertSel.querySelectorAll('option[data-npk-grade="1"]').forEach(o => o.remove());
+            if (npkGrades.size) {
+                const npkOption = _absFertSel.querySelector('option[value="NPK"]');
+                const sortedGrades = [...npkGrades].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+                let _afterEl = npkOption;
+                sortedGrades.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = `NPK ${g}`;
+                    opt.textContent = `NPK ${g}`;
+                    opt.setAttribute('data-npk-grade', '1');
+                    if (_afterEl) { _afterEl.after(opt); _afterEl = opt; }
+                    else _absFertSel.appendChild(opt);
+                });
+                if (fert && fert !== 'All' && [...npkGrades].some(g => `NPK ${g}` === fert)) _absFertSel.value = fert;
+            }
+        }
+
         // ── Apply filters: Year & Season required, Fertilizer & Crop optional, Village if multi-VO ──
         records = records.filter(r => {
             if (String(r.year || '').trim() !== String(year).trim()) return false;
             if (String(r.season || '').trim() !== String(season).trim()) return false;
-            if (fert !== 'All' && String(r.fertilizerType || r.fert || 'Urea').trim() !== fert) return false;
+            if (fert !== 'All') {
+                const recFertType = String(r.fertilizerType || r.fert || 'Urea').trim();
+                const recGrade = r.npkGrade ? String(r.npkGrade).trim() : '';
+                const recLabel = recGrade ? `${recFertType} ${recGrade}` : recFertType;
+                if (fert.trim().toUpperCase() === 'NPK') {
+                    if (recFertType.toUpperCase() !== 'NPK') return false;
+                } else if (recLabel !== fert.trim()) {
+                    return false;
+                }
+            }
             if (crop !== 'All' && String(r.crop || r.crops || '').trim().toLowerCase() !== crop.trim().toLowerCase()) return false;
             if (absVillage && String(r.village || '').trim().toLowerCase() !== absVillage.toLowerCase()) return false;
             return true;
@@ -14148,7 +14260,7 @@ window.voLoadFertilizerHistory = function() {
                 <td class="small text-muted">${escapeHtml(r.khatha || r.khathaNo || '—')}</td>
                 <td class="small text-muted">${r.extent ? Number(r.extent).toFixed(2) : '—'}</td>
                 <td class="small">${allCrops}</td>
-                <td><span class="badge bg-warning text-dark">${escapeHtml(r.fertilizerType || 'Urea')}</span>${sourceTag}</td>
+                <td><span class="badge bg-warning text-dark">${escapeHtml(r.fertilizerType || 'Urea')}${r.npkGrade ? ' '+escapeHtml(r.npkGrade) : ''}</span>${sourceTag}</td>
                 <td class="${isRejected ? 'text-danger' : 'text-success fw-bold'}">${isRejected ? '—' : (r.bags || 0)}</td>
                 <td class="small text-muted">${escapeHtml(r.season || '—')}</td>
                 <td class="small text-muted">${escapeHtml(r.year || '—')}</td>
@@ -15016,6 +15128,34 @@ async function generateAutomaticCardNumber(aadhaar, village, year, season) {
             return recycledId;
         }
     } catch (e) { console.warn('Error reading recycled pool:', e); }
+
+    // 2b. Gap-fill: if a number in the middle of the sequence was never
+    // assigned (e.g. counter was bumped but the save was cancelled, or a
+    // card was cleared outside the normal delete/recycle flow), hand that
+    // missing number to the next farmer instead of always jumping past it
+    // to a brand-new number at the end of the sequence.
+    try {
+        const used = new Set();
+        if (window.farmerProfiles) {
+            Object.values(window.farmerProfiles).forEach(profiles => {
+                (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
+                    if (p && p.cardNumber && String(p.cardNumber).toUpperCase().startsWith(prefix.toUpperCase())) {
+                        const suffix = String(p.cardNumber).split('/')[2];
+                        const num = parseInt(suffix, 10);
+                        if (!isNaN(num)) used.add(num);
+                    }
+                });
+            });
+        }
+        if (used.size > 0) {
+            const maxUsed = Math.max(...used);
+            for (let n = 1; n <= maxUsed; n++) {
+                if (!used.has(n)) {
+                    return `${prefix}${String(n).padStart(4, '0')}`;
+                }
+            }
+        }
+    } catch (e) { console.warn('Gap-fill scan failed:', e); }
 
     // 3. Fallback: transaction to safely increment sequence numbers
     const counterKey = `registrationCounters/${key}`;
@@ -17196,6 +17336,90 @@ function getCropExtentFromProfile(aadhaar, khatha, crop) {
     return cropEntry ? Number(cropEntry.extent) : null;
 }
 
+// ── Crop Year · Season wise card count + extent breakdown ────────────────
+// Instead of one lumped "All-Time" total, this groups every registered card
+// by each (Crop Year, Season) it actually has a crop entry for, and reports
+// the card count + cumulative extent PER Year·Season. A card that has crop
+// entries in more than one Year·Season (e.g. Kharif + Rabi on the same
+// khatha, or after a Bulk Copy Season) is counted once in EACH Year·Season
+// it appears in — extent for that Year·Season only sums that season's own
+// crop entries, so land is never mixed across seasons.
+function computeSeasonWiseCardStats() {
+    const stats = {}; // key `${year}||${season}` -> { count, extent }
+    if (!farmerProfiles || !Object.keys(farmerProfiles).length) return stats;
+
+    let allProfiles = [];
+    Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
+        (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
+            const isSaved = p &&
+                p.savedAt &&
+                (p.farmerName || '').trim() &&
+                (p.khatha || '').trim() &&
+                Array.isArray(p.crops) && p.crops.length > 0;
+            if (isSaved) allProfiles.push({ ...p, aadhaar });
+        });
+    });
+
+    // Group into cards exactly the same way the Card-wise table does.
+    const groups = {};
+    allProfiles.forEach(p => {
+        const key = (p.cardNumber && String(p.cardNumber).trim()) || `AADHAAR_${p.aadhaar}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(p);
+    });
+
+    Object.values(groups).forEach(profs => {
+        // Collect this card's extent per Year·Season across all its profile
+        // rows (a card can have more than one khatha/profile row attached).
+        const perSeasonExtent = {};
+        profs.forEach(p => {
+            (p.crops || []).forEach(c => {
+                if (!c || !c.year || !c.season) return;
+                const key = c.year + '||' + c.season;
+                const extVal = parseFloat(c.extent);
+                perSeasonExtent[key] = (perSeasonExtent[key] || 0) + (isFinite(extVal) ? extVal : 0);
+            });
+        });
+        Object.entries(perSeasonExtent).forEach(([key, ext]) => {
+            if (!stats[key]) stats[key] = { count: 0, extent: 0 };
+            stats[key].count += 1;
+            stats[key].extent += ext;
+        });
+    });
+
+    return stats;
+}
+
+function renderFpSeasonWiseStatsRow(yearFilter = '', seasonFilter = '') {
+    const row = document.getElementById('fpSeasonWiseStatsRow');
+    if (!row) return;
+
+    // Nothing shows until BOTH Crop Year and Season are picked — matches the
+    // same rule already enforced for the table itself just below.
+    if (!yearFilter || !seasonFilter) {
+        row.innerHTML = '<span class="text-muted small"><i class="fas fa-calendar-alt me-1"></i>Select Crop Year and Season above to view card count &amp; extent.</span>';
+        return;
+    }
+
+    const stats = computeSeasonWiseCardStats();
+    const key = yearFilter + '||' + seasonFilter;
+    const { count, extent } = stats[key] || { count: 0, extent: 0 };
+    const safeExtent = isFinite(extent) ? extent : 0;
+
+    row.innerHTML = `<span class="fp-header-chip fp-chip-overall" style="font-size:0.78rem;"
+                title="${escapeHtml(yearFilter)} · ${escapeHtml(seasonFilter)} — cards with a crop entry this season">
+            <span class="fp-chip-label">${escapeHtml(yearFilter)} ${escapeHtml(seasonFilter)}:</span>
+            <strong>${count}</strong>&nbsp;cards
+            <span class="fp-chip-sep">·</span>
+            <strong>${safeExtent.toFixed(2)}</strong>&nbsp;Ac
+        </span>`;
+}
+
+// Kept as a thin alias so any existing call-sites keep working.
+function updateFpOverallStatsBadge(yearFilter = '', seasonFilter = '') {
+    renderFpSeasonWiseStatsRow(yearFilter, seasonFilter);
+}
+
 // ---- VIEW ALL PROFILES ----
 
 function showAllFarmerProfiles() {
@@ -17205,7 +17429,6 @@ function showAllFarmerProfiles() {
     document.body.style.overflow = 'hidden';
     fpCategoryFilter = 'all';
     setFpCategoryFilter('all');   // resets pill highlights + calls filterAllFarmerProfiles
-    updateFpStatPills();
     setFpProfilesViewMode('normal');
     // Restore whatever Year/Season the user last had selected this session
     // (persists across refresh, cleared on logout) instead of resetting to
@@ -17226,14 +17449,19 @@ function showAllFarmerProfiles() {
 // Each qualifying Aadhaar is counted exactly ONCE, no matter how many
 // khathas they own/cultivate.
 // ══════════════════════════════════════════════════════════
-function computePccAadhaarSet() {
+function computePccAadhaarSet(yearFilter = '', seasonFilter = '') {
     const pccSet = new Set();
     if (!farmerProfiles) return pccSet;
     Object.entries(farmerProfiles).forEach(([aadhaar, profiles]) => {
-        const profs = (Array.isArray(profiles) ? profiles : Object.values(profiles)).filter(p =>
+        let profs = (Array.isArray(profiles) ? profiles : Object.values(profiles)).filter(p =>
             p && p.savedAt && (p.farmerName || '').trim() && (p.khatha || '').trim() &&
             Array.isArray(p.crops) && p.crops.length > 0
         );
+        if (yearFilter || seasonFilter) {
+            profs = profs.filter(p => p.crops.some(c =>
+                c && (!yearFilter || c.year === yearFilter) && (!seasonFilter || c.season === seasonFilter)
+            ));
+        }
         const ownerKhathas  = new Set(profs.filter(p => p.farmerType === 'owner').map(p => String(p.khatha)));
         const tenantKhathas = new Set(profs.filter(p => p.farmerType !== 'owner').map(p => String(p.khatha)));
         if (!ownerKhathas.size || !tenantKhathas.size) return;
@@ -17281,22 +17509,23 @@ function fpActiveCropsForExtent(crops, yearFilter, seasonFilter) {
 function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter = '', searchType = '') {
     if (!searchType) searchType = _fpGetSearchType ? _fpGetSearchType() : 'all';
     const tbody   = document.getElementById('fpAllProfilesTbody');
-    const countEl = document.getElementById('fpAllProfilesCount');
+    const countEl = document.getElementById('fpAllProfilesCountText');
     if (!tbody) return;
 
     if (!farmerProfiles || !Object.keys(farmerProfiles).length) {
         tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted p-4">
             <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>No profiles registered yet.</td></tr>`;
         if (countEl) countEl.textContent = '0 profiles';
+        updateFpOverallStatsBadge(yearFilter, seasonFilter);
         return;
     }
 
-    // Crop Year must be selected before any profiles are shown; Season is optional
-    // and further narrows the selected year.
-    if (!yearFilter) {
+    // Both Crop Year AND Season must be selected before any profiles/counts show.
+    if (!yearFilter || !seasonFilter) {
         tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted p-4">
-            <i class="fas fa-calendar-alt fa-2x mb-2 d-block opacity-50"></i>Select a Crop Year above to view farmer profiles.</td></tr>`;
+            <i class="fas fa-calendar-alt fa-2x mb-2 d-block opacity-50"></i>Select both Crop Year <strong>and</strong> Season above to view farmer profiles.</td></tr>`;
         if (countEl) countEl.textContent = '0 profiles';
+        updateFpOverallStatsBadge(yearFilter, seasonFilter);
         return;
     }
 
@@ -17358,7 +17587,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
 
     // Pattadhar-cum-Cultivator: one Aadhaar with an owner entry on one khatha
     // AND a tenant entry on a DIFFERENT khatha (cumulative, 1 per Aadhaar)
-    const _pccSet = computePccAadhaarSet();
+    const _pccSet = computePccAadhaarSet(yearFilter, seasonFilter);
 
     // ── Category filter (owner / tenant / owner-cum-tenant) ──
     if (fpCategoryFilter && fpCategoryFilter !== 'all') {
@@ -17388,6 +17617,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
     }
 
     if (countEl) countEl.textContent = `${allProfiles.length} profile${allProfiles.length !== 1 ? 's' : ''}`;
+    updateFpOverallStatsBadge(yearFilter, seasonFilter);
 
     if (!allProfiles.length) {
         tbody.innerHTML = `<tr><td colspan="14" class="text-center text-muted p-3">No matching profiles found.</td></tr>`;
@@ -17643,14 +17873,29 @@ function setFpCategoryFilter(cat) {
     filterAllFarmerProfiles();
 }
 
-function updateFpStatPills() {
-    if (!farmerProfiles) return;
+function updateFpStatPills(yearFilter = '', seasonFilter = '') {
+    const setCount = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    // Require BOTH Crop Year and Season before showing any counts — matches
+    // the table itself only appearing once both are picked.
+    if (!farmerProfiles || !yearFilter || !seasonFilter) {
+        setCount('fpCountAll', 0);
+        setCount('fpCountOwner', 0);
+        setCount('fpCountTenant', 0);
+        setCount('fpCountOwnerTenant', 0);
+        return;
+    }
+
     let total = 0, owners = 0, tenants = 0;
 
     Object.values(farmerProfiles).forEach(profiles => {
         (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
             const isSaved = p && p.savedAt && (p.farmerName||'').trim() && (p.khatha||'').trim() && Array.isArray(p.crops) && p.crops.length > 0;
             if (!isSaved) return;
+            // Only count this profile if it has a crop entry matching the
+            // exact selected Year + Season (same rule the table uses).
+            const matchesYearSeason = p.crops.some(c => c && c.year === yearFilter && c.season === seasonFilter);
+            if (!matchesYearSeason) return;
             total++;
             if (p.farmerType === 'owner') owners++;
             else tenants++;
@@ -17661,9 +17906,8 @@ function updateFpStatPills() {
     // here if they have an 'owner' entry on one khatha AND a 'tenant' entry on a
     // DIFFERENT khatha. Cumulative — counted once per Aadhaar even if they
     // cultivate/own multiple khathas.
-    const ownerTenants = computePccAadhaarSet().size;
+    const ownerTenants = computePccAadhaarSet(yearFilter, seasonFilter).size;
 
-    const setCount = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     setCount('fpCountAll', total);
     setCount('fpCountOwner', owners);
     setCount('fpCountTenant', tenants);
@@ -17719,6 +17963,7 @@ function filterAllFarmerProfiles() {
     // Always refresh both tables so switching modes shows up-to-date data
     renderAllFarmerProfilesTable(search, season, year, stype);
     renderFpCardWiseTable(search, season, year, stype);
+    updateFpStatPills(year, season);
 }
 
 // ── Session-persisted Year/Season filter for the All Registered Profiles panel ──
@@ -17965,15 +18210,15 @@ function sortFpCardWise(key) {
 function renderFpCardWiseTable(filter = '', seasonFilter = '', yearFilter = '', searchType = '') {
     if (!searchType) searchType = _fpGetSearchType ? _fpGetSearchType() : 'all';
     const tbody = document.getElementById('fpCardWiseTbody');
-    const countEl = document.getElementById('fpAllProfilesCount');
+    const countEl = document.getElementById('fpAllProfilesCountText');
     if (!tbody) return;
 
-    // Crop Year must be selected before any cards are shown; Season is optional
-    // and further narrows the selected year.
-    if (!yearFilter) {
+    // Both Crop Year AND Season must be selected before any cards/counts show.
+    if (!yearFilter || !seasonFilter) {
         tbody.innerHTML = `<tr><td colspan="13" class="text-center text-muted p-4">
-            <i class="fas fa-calendar-alt fa-2x mb-2 d-block opacity-50"></i>Select a Crop Year above to view farmer cards.</td></tr>`;
+            <i class="fas fa-calendar-alt fa-2x mb-2 d-block opacity-50"></i>Select both Crop Year <strong>and</strong> Season above to view farmer cards.</td></tr>`;
         if (countEl) countEl.textContent = '0 profiles';
+        updateFpOverallStatsBadge(yearFilter, seasonFilter);
         return;
     }
 
@@ -17990,6 +18235,7 @@ function renderFpCardWiseTable(filter = '', seasonFilter = '', yearFilter = '', 
     if (!rows.length) {
         tbody.innerHTML = `<tr><td colspan="13" class="text-center text-muted p-3">No matching profiles found.</td></tr>`;
         if (countEl) countEl.textContent = '0 profiles';
+        updateFpOverallStatsBadge(yearFilter, seasonFilter);
         return;
     }
 
@@ -18015,6 +18261,7 @@ function renderFpCardWiseTable(filter = '', seasonFilter = '', yearFilter = '', 
     fpCardWiseData = rows;
 
     if (countEl) countEl.textContent = `${rows.length} card${rows.length !== 1 ? 's' : ''}`;
+    updateFpOverallStatsBadge(yearFilter, seasonFilter);
 
     tbody.innerHTML = rows.map(r => `
         <tr>
@@ -20561,6 +20808,16 @@ function showRetailerTab(tabId) {
     }
 }
 
+// NPK comes in many grades (10:26:26, 19:19:19, etc.) and retailer stock is
+// tracked per-grade under stock/NPK/{gradeKey}. Firebase keys can't contain
+// '.', '#', '$', '[', ']' — sanitize any free-typed grade before using it as
+// a path segment. Colons are valid Firebase key characters, so normal preset
+// grades (e.g. "20:20:0:13") pass through unchanged.
+function _npkGradeKey(grade) {
+    const g = String(grade || '').trim();
+    return (g.replace(/[.#$\[\]]/g, '_')) || 'unspecified';
+}
+
 function getRetailerInfo() {
     const user = firebase.auth().currentUser;
     const p = currentUserProfile || {};
@@ -20590,11 +20847,23 @@ function loadRetailerStock() {
         if (!Object.keys(stock).length) {
             container.innerHTML = '<div class="text-center text-muted py-3"><i class="fas fa-box-open fa-2x mb-2 opacity-50"></i><p>No stock recorded yet.</p></div>';
         } else {
-            container.innerHTML = '<div class="row g-3">' + Object.entries(stock).map(([fert, bags]) => `
+            // Flatten NPK into one tile per grade (legacy plain-number NPK stock,
+            // recorded before grade-wise tracking existed, shows as "Unspecified Grade").
+            const tiles = [];
+            Object.entries(stock).forEach(([fert, val]) => {
+                if (fert === 'NPK' && val && typeof val === 'object') {
+                    Object.entries(val).forEach(([grade, bags]) => {
+                        tiles.push({ fert: 'NPK', label: `NPK ${grade}`, bags: Number(bags) || 0 });
+                    });
+                } else {
+                    tiles.push({ fert, label: fert, bags: Number(val) || 0 });
+                }
+            });
+            container.innerHTML = '<div class="row g-3">' + tiles.map(({ fert, label, bags }) => `
                 <div class="col-6">
                     <div class="p-3 rounded text-center" style="background:${fert==='Urea'?'#fff8e1':fert==='DAP'?'#e3f2fd':'#f3e5f5'}; border:1px solid ${fert==='Urea'?'#ffc107':fert==='DAP'?'#0dcaf0':'#ab47bc'};">
                         <div style="font-size:1.8rem;font-weight:700;color:${fert==='Urea'?'#f57c00':fert==='DAP'?'#0277bd':'#7b1fa2'};">${bags}</div>
-                        <div class="fw-semibold small">${fert} Bags</div>
+                        <div class="fw-semibold small">${escapeHtml(label)} Bags</div>
                         <div class="text-muted" style="font-size:0.7rem;">Available</div>
                     </div>
                 </div>`).join('') + '</div>';
@@ -20614,12 +20883,46 @@ function loadRetailerStock() {
             <thead class="table-secondary"><tr><th>#</th><th>Date</th><th>Fertilizer</th><th>Bags Received</th><th>Notes</th></tr></thead>
             <tbody>${items.slice().reverse().map((r,i)=>`<tr>
                 <td>${i+1}</td><td>${escapeHtml(r.date||'')}</td>
-                <td><span class="badge bg-secondary">${escapeHtml(r.fert||'')}</span></td>
+                <td><span class="badge bg-secondary">${escapeHtml(r.fert||'')}${r.npkGrade ? ' '+escapeHtml(r.npkGrade) : ''}</span></td>
                 <td class="fw-bold text-success">+${r.bags}</td>
                 <td class="text-muted small">${escapeHtml(r.notes||'—')}</td>
             </tr>`).join('')}
             </tbody></table></div>`;
     });
+}
+
+// Shows/hides the NPK Grade dropdown depending on whether "NPK" is the
+// selected Fertilizer Type — NPK covers many different grades (10:26:26,
+// 19:19:19, etc.), so the retailer needs to say which one was received.
+function toggleRtNpkTypeField() {
+    const fert = document.getElementById('rtStockFert')?.value;
+    const wrap = document.getElementById('rtStockNpkTypeWrap');
+    if (!wrap) return;
+    if (fert === 'NPK') {
+        wrap.classList.remove('d-none');
+    } else {
+        wrap.classList.add('d-none');
+        // Reset so a stray NPK grade never gets attached to a non-NPK entry
+        const sel = document.getElementById('rtStockNpkType');
+        const otherInput = document.getElementById('rtStockNpkTypeOther');
+        if (sel) sel.value = '';
+        if (otherInput) { otherInput.value = ''; otherInput.classList.add('d-none'); }
+    }
+}
+
+// Reveals the free-text box when "Other (type manually)" is chosen in the
+// NPK Grade dropdown, so grades not in the preset list can still be logged.
+function toggleRtNpkOtherInput() {
+    const sel = document.getElementById('rtStockNpkType')?.value;
+    const otherInput = document.getElementById('rtStockNpkTypeOther');
+    if (!otherInput) return;
+    if (sel === '__other__') {
+        otherInput.classList.remove('d-none');
+        otherInput.focus();
+    } else {
+        otherInput.classList.add('d-none');
+        otherInput.value = '';
+    }
 }
 
 function addRetailerStock() {
@@ -20632,24 +20935,45 @@ function addRetailerStock() {
     const status = document.getElementById('rtStockStatus');
 
     if (!fert) { status.innerHTML = '<div class="alert alert-warning">Select fertilizer type.</div>'; return; }
+
+    // NPK has many different grades (10:26:26, 19:19:19, etc.) — require the
+    // retailer to specify exactly which one was received.
+    let npkGrade = '';
+    if (fert === 'NPK') {
+        const npkSel = document.getElementById('rtStockNpkType')?.value || '';
+        npkGrade = npkSel === '__other__'
+            ? (document.getElementById('rtStockNpkTypeOther')?.value || '').trim()
+            : npkSel;
+        if (!npkGrade) { status.innerHTML = '<div class="alert alert-warning">Select or enter the NPK grade/type (e.g. 10:26:26).</div>'; return; }
+    }
+
     if (bags <= 0) { status.innerHTML = '<div class="alert alert-warning">Enter valid bag count.</div>'; return; }
 
-    const balPath  = outletId ? `mandals/${mandalKey}/retailers/${outletId}/stock/${fert}` : `users/${uid}/retailerStock/balance/${fert}`;
+    const balPath  = (fert === 'NPK')
+        ? (outletId ? `mandals/${mandalKey}/retailers/${outletId}/stock/NPK/${_npkGradeKey(npkGrade)}` : `users/${uid}/retailerStock/balance/NPK/${_npkGradeKey(npkGrade)}`)
+        : (outletId ? `mandals/${mandalKey}/retailers/${outletId}/stock/${fert}` : `users/${uid}/retailerStock/balance/${fert}`);
     const histPath = outletId ? `mandals/${mandalKey}/retailers/${outletId}/stockHistory` : `users/${uid}/retailerStock/history`;
 
     status.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Saving...</div>';
+
+    const histEntry = { fert, bags, date, notes, addedAt: new Date().toISOString() };
+    if (npkGrade) histEntry.npkGrade = npkGrade;
 
     database.ref(balPath).once('value').then(snap => {
         const current = Number(snap.val())||0;
         const newBal  = current + bags;
         return Promise.all([
             database.ref(balPath).set(newBal),
-            database.ref(histPath).push({ fert, bags, date, notes, addedAt: new Date().toISOString() })
+            database.ref(histPath).push(histEntry)
         ]);
     }).then(() => {
-        status.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Added ${bags} bags of ${fert}. Stock updated.</div>`;
+        status.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Added ${bags} bags of ${fert}${npkGrade ? ' ('+escapeHtml(npkGrade)+')' : ''}. Stock updated.</div>`;
         document.getElementById('rtStockBags').value = '';
         document.getElementById('rtStockNotes').value = '';
+        const npkSelEl = document.getElementById('rtStockNpkType');
+        const npkOtherEl = document.getElementById('rtStockNpkTypeOther');
+        if (npkSelEl) npkSelEl.value = '';
+        if (npkOtherEl) { npkOtherEl.value = ''; npkOtherEl.classList.add('d-none'); }
         loadRetailerStock();
     }).catch(e => {
         status.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`;
@@ -20712,7 +21036,7 @@ function loadRetailerStockHistory() {
             return `<tr>
                 <td class="text-muted" style="font-size:0.78rem;">${i + 1}</td>
                 <td>${escapeHtml(r.date || '—')}</td>
-                <td><span class="badge" style="background:${bg};color:#333;border:1px solid ${bc};font-weight:600;">${escapeHtml(r.fert || '—')}</span></td>
+                <td><span class="badge" style="background:${bg};color:#333;border:1px solid ${bc};font-weight:600;">${escapeHtml(r.fert || '—')}</span>${r.npkGrade ? `<div class="text-muted" style="font-size:0.68rem;margin-top:2px;">${escapeHtml(r.npkGrade)}</div>` : ''}</td>
                 <td class="fw-bold text-success">+${r.bags}</td>
                 <td class="text-muted small">${escapeHtml(r.notes || '—')}</td>
                 <td style="white-space:nowrap;">
@@ -20795,7 +21119,7 @@ function openRtEditStockRequest(key) {
     if (!rec) return alert('Record not found. Please refresh.');
 
     const newBags = prompt(
-        `✏️ Edit Stock Entry\n\nFertilizer: ${rec.fert}\nDate: ${rec.date}\nCurrent bags: ${rec.bags}\n\nEnter new bag count:`,
+        `✏️ Edit Stock Entry\n\nFertilizer: ${rec.fert}${rec.npkGrade ? ' ('+rec.npkGrade+')' : ''}\nDate: ${rec.date}\nCurrent bags: ${rec.bags}\n\nEnter new bag count:`,
         rec.bags
     );
     if (newBags === null || newBags.trim() === '') return;
@@ -20805,7 +21129,7 @@ function openRtEditStockRequest(key) {
 
     const newNotes = prompt('Notes (optional — leave blank to keep current):', rec.notes || '') ?? rec.notes;
 
-    if (!confirm(`📋 Confirm Edit Request\n\nFertilizer: ${rec.fert}\nDate: ${rec.date}\nOld bags: ${rec.bags} → New bags: ${parsed}\n\nThis will be sent to Mandal Officer for approval. Continue?`)) return;
+    if (!confirm(`📋 Confirm Edit Request\n\nFertilizer: ${rec.fert}${rec.npkGrade ? ' ('+rec.npkGrade+')' : ''}\nDate: ${rec.date}\nOld bags: ${rec.bags} → New bags: ${parsed}\n\nThis will be sent to Mandal Officer for approval. Continue?`)) return;
 
     submitRtStockRequest('EDIT', key, rec.fert, parsed, rec.date, newNotes || rec.notes || '')
         .then(() => {
@@ -20819,7 +21143,7 @@ function openRtDeleteStockRequest(key) {
     const rec = window._rtStockHistoryItems[key];
     if (!rec) return alert('Record not found. Please refresh.');
 
-    if (!confirm(`🗑️ Request Deletion\n\nFertilizer: ${rec.fert}\nDate: ${rec.date}\nBags: ${rec.bags}\nNotes: ${rec.notes || '—'}\n\nThis will be sent to Mandal Officer for approval. Continue?`)) return;
+    if (!confirm(`🗑️ Request Deletion\n\nFertilizer: ${rec.fert}${rec.npkGrade ? ' ('+rec.npkGrade+')' : ''}\nDate: ${rec.date}\nBags: ${rec.bags}\nNotes: ${rec.notes || '—'}\n\nThis will be sent to Mandal Officer for approval. Continue?`)) return;
 
     submitRtStockRequest('DELETE', key, rec.fert, rec.bags, rec.date, rec.notes || '')
         .then(() => {
@@ -21820,6 +22144,28 @@ async function rtDiagnoseHistory() {
     </div>`;
 }
 
+// ── Grade-aware fertilizer key/label helper ──────────────────────────────
+// For NPK, distributions are grade-specific (e.g. "NPK 14:35:14"). This
+// builds a consistent display label and a lowercase filter key that
+// includes the grade when present, so history tables/filters can show and
+// select an exact NPK grade, while still supporting a bare "NPK" filter
+// that matches all grades.
+function rtFertLabel(r) {
+    const base = (r && (r.fertilizerType || r.fert) || 'Urea').trim();
+    const grade = (r && r.npkGrade) ? String(r.npkGrade).trim() : '';
+    return grade ? `${base} ${grade}` : base;
+}
+function rtFertKey(r) {
+    return rtFertLabel(r).toLowerCase();
+}
+function rtFertKeyMatches(recordKey, filterVal) {
+    if (!filterVal) return true;
+    if (recordKey === filterVal) return true;
+    // Bare "npk" filter matches every NPK grade
+    if (filterVal === 'npk' && recordKey.indexOf('npk') === 0) return true;
+    return false;
+}
+
 function loadRetailerHistory() {
     const { uid, outletId } = getRetailerInfo();
     const container = document.getElementById('rtHistoryContainer');
@@ -21939,14 +22285,30 @@ function loadRetailerHistory() {
         }
 
         // ── Populate fertilizer type filter dropdown ──
-        const fertSet = new Set();
-        records.forEach(r => fertSet.add((r.fertilizerType || 'Urea').trim()));
+        // Always show the full master list of fertilizer types (Urea, DAP, SSP,
+        // TSP, MOP, NPK, Other) so retailers can filter by any type — not just
+        // ones that already have a distribution on record. For NPK, also add a
+        // separate option per grade actually distributed (e.g. "NPK 14:35:14")
+        // so a specific grade's history can be shown on its own, while the
+        // plain "NPK" option still matches every grade.
+        const _masterFertTypes = ['Urea', 'DAP', 'SSP', 'TSP', 'MOP', 'NPK', 'Other'];
+        const fertLabelSet = new Set(_masterFertTypes);
+        records.forEach(r => fertLabelSet.add(rtFertLabel(r)));
         const fertSel = document.getElementById('rtFertFilterSelect');
         if (fertSel) {
             const prevFertVal = fertSel.value;
+            const _sortedFerts = [...fertLabelSet].sort((a, b) => {
+                const baseA = a.split(' ')[0], baseB = b.split(' ')[0];
+                const ia = _masterFertTypes.indexOf(baseA), ib = _masterFertTypes.indexOf(baseB);
+                if (baseA === baseB) return a.localeCompare(b, undefined, { numeric: true });
+                if (ia === -1 && ib === -1) return a.localeCompare(b);
+                if (ia === -1) return 1;
+                if (ib === -1) return -1;
+                return ia - ib;
+            });
             fertSel.innerHTML = '<option value="">— All Fertilizers —</option>'
-                + [...fertSet].sort().map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
-            if (prevFertVal && [...fertSet].includes(prevFertVal)) fertSel.value = prevFertVal;
+                + _sortedFerts.map(f => `<option value="${escapeHtml(f.toLowerCase())}">${escapeHtml(f)}</option>`).join('');
+            if (prevFertVal && _sortedFerts.some(f => f.toLowerCase() === prevFertVal)) fertSel.value = prevFertVal;
         }
         const missingBadge = document.getElementById('rtVillageMissingBadge');
         const missingCountEl = document.getElementById('rtMissingVillageCount');
@@ -22004,7 +22366,7 @@ function loadRetailerHistory() {
                         <i class="fas fa-map-marker-alt me-1"></i>Set Village
                     </button>`;
 
-            return `<tr class="${isRejected ? 'table-danger bg-opacity-25' : ''}" data-village="${escapeHtml(villageVal).toLowerCase()}" data-fert="${escapeHtml((r.fertilizerType||'Urea').trim().toLowerCase())}">
+            return `<tr class="${isRejected ? 'table-danger bg-opacity-25' : ''}" data-village="${escapeHtml(villageVal).toLowerCase()}" data-fert="${escapeHtml(rtFertKey(r))}">
                 <td class="text-muted">${i+1}</td>
                 <td>${statusBadge}</td>
                 <td class="small">${escapeHtml(r.date||'')}</td>
@@ -22015,7 +22377,7 @@ function loadRetailerHistory() {
                 <td class="small text-muted">${escapeHtml(r.khatha||r.khathaNo||'—')}</td>
                 <td class="small text-muted">${r.extent ? Number(r.extent).toFixed(2) : '—'}</td>
                 <td class="small">${allCrops}</td>
-                <td><span class="badge bg-warning text-dark">${escapeHtml(r.fertilizerType||'Urea')}</span>${sourceTag}</td>
+                <td><span class="badge bg-warning text-dark">${escapeHtml(rtFertLabel(r))}</span>${sourceTag}</td>
                 <td class="${isRejected?'text-danger':'text-success fw-bold'}">${isRejected?'—':(r.bags||0)}</td>
                 <td class="small text-muted">${escapeHtml(r.season||'—')}</td>
                 <td class="small text-muted">${escapeHtml(r.year||'—')}</td>
@@ -22035,7 +22397,7 @@ function loadRetailerHistory() {
             villageStats[v].distributions++;
             villageStats[v].farmers.add((r.aadhaar || r.farmerName || '').trim());
             villageStats[v].bags += Number(r.bags) || 0;
-            const fert = r.fertilizerType || 'Urea';
+            const fert = rtFertLabel(r);
             villageStats[v].fertilizers[fert] = (villageStats[v].fertilizers[fert] || 0) + (Number(r.bags) || 0);
         });
         const totalDistBags   = records.filter(r => r.status !== 'Rejected').reduce((s, r) => s + (Number(r.bags)||0), 0);
@@ -23164,15 +23526,29 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
 
     const fcKey = a + '_' + (year || '').replace(/[^a-zA-Z0-9]/g,'') + '_' + (season || '');
     const voUidClean = String(voUid || '').trim();
-    
+
+    // Retailer's own outlet stock — used to show "in stock" counts beside each
+    // fertilizer option so the retailer knows what they can actually hand out.
+    const { outletId: _rtOutletId, mandalKey: _rtMandalKey, uid: _rtUid } = getRetailerInfo();
+    const _rtStockPath = _rtOutletId
+        ? `mandals/${_rtMandalKey}/retailers/${_rtOutletId}/stock`
+        : `users/${_rtUid}/retailerStock/balance`;
+
     // We'll fetch voRestrictions after we know the village from fc.village (loaded in snap).
     // For now include a placeholder so we can fetch it inside the then() block.
     Promise.all([
         database.ref('fertilizerCards/' + fcKey).once('value'),
         database.ref('ureaHistory').orderByChild('aadhaar').equalTo(a).once('value'),
         voUidClean ? database.ref('users/' + voUidClean + '/ureaHistory').once('value') : Promise.resolve(null),
-        database.ref('fertilizerDistributions').orderByChild('aadhaar').equalTo(a).once('value')
-    ]).then(async ([snap, histSnap, voHistSnap, fdSnap]) => {
+        database.ref('fertilizerDistributions').orderByChild('aadhaar').equalTo(a).once('value'),
+        database.ref(_rtStockPath).once('value')
+    ]).then(async ([snap, histSnap, voHistSnap, fdSnap, stockSnap]) => {
+        // ── Retailer's outlet stock snapshot ──
+        // Shape: { Urea: 12, DAP: 5, SSP: 3, TSP: 0, MOP: 8, NPK: { "20:20:0:13": 15, "10:26:26": 4 } }
+        // (NPK may also still be a plain number for stock added before grade-wise tracking existed.)
+        const _rtStock = stockSnap.val() || {};
+        window._fcStockCache = window._fcStockCache || {};
+        window._fcStockCache[fcKey] = _rtStock;
         // ── Build already-issued map from fertilizerDistributions ──
         const fdIssuedRecords = [];
         if (fdSnap && fdSnap.exists()) {
@@ -23385,8 +23761,8 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         // ── Village Split Lock Summary Banner ──
         let _villageSplitLockBanner = '';
         const _vsl = _voRestrictions.splitLocks || {};
-        const _lockedSplitNums = [0,1,2].filter(si => _vsl['s'+si] && _vsl['s'+si].locked === true);
-        const _openSplitNums   = [0,1,2].filter(si => !(_vsl['s'+si] && _vsl['s'+si].locked === true));
+        const _lockedSplitNums = [0,1,2].filter(si => _isSplitLockActive(_vsl['s'+si]));
+        const _openSplitNums   = [0,1,2].filter(si => !_isSplitLockActive(_vsl['s'+si]));
         if (_lockedSplitNums.length > 0 || Object.keys(_vsl).length > 0) {
             _villageSplitLockBanner = `
             <div style="background:linear-gradient(135deg,#eaf4fb,#d6eaf8);border:1.5px solid #1862ab;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:0.75rem;">
@@ -23536,6 +23912,28 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             if (!((_eU === 0 || _rU === 0) && (_eD === 0 || _rD === 0))) { _activeSplitIdx = si; break; }
         }
 
+        // Is a given fertilizer/split combo currently unlocked and ready to distribute?
+        // (mirrors the sequential / 15-day / VO-split-lock / bag-cap checks used further
+        // below when building the actual bag-entry inputs — used here only to decide
+        // which split card to surface for the unified fertilizer dropdown.)
+        function _isFertReadyForSplit(fert, si, elig, availed, remaining) {
+            if (elig === 0 || remaining === 0) return false;
+            const eligArr = fert === 'Urea' ? uElig : dElig;
+            for (let prev = 0; prev < si; prev++) {
+                if ((eligArr[prev] || 0) > 0 && _availed(fert, prev) === 0) return false;
+            }
+            if (si > 0) {
+                const lockInfo = _splitLockStatus(fert, si - 1);
+                if (lockInfo && lockInfo.locked) return false;
+            }
+            const reval = typeof _evalFertRestrictions === 'function'
+                ? _evalFertRestrictions(_voRestrictions, fc.extent || fc.totalExtent || 0, si, fert)
+                : { bagCap: null, splitLocked: false };
+            if (reval.splitLocked) return false;
+            if (reval.bagCap !== null && availed >= reval.bagCap) return false;
+            return true;
+        }
+
         for (let si = 0; si < 3; si++) {
             const eU = uElig[si], eD = dElig[si];
             if (eU === 0 && eD === 0) continue;
@@ -23548,6 +23946,8 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             const doneU = eU > 0 && remU === 0;
             const doneD = eD > 0 && remD === 0;
             const allDone = (eU === 0 || doneU) && (eD === 0 || doneD);
+            const readyU = _isFertReadyForSplit('Urea', si, eU, avU, remU);
+            const readyD = _isFertReadyForSplit('DAP', si, eD, avD, remD);
 
             // Collapse logic:
             //  - Active split (first incomplete) → expanded
@@ -23570,7 +23970,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                     : 'linear-gradient(135deg,' + splitBadges[si] + ',' + splitBadges[si] + 'cc)';
 
             splitRowsHtml += `
-            <div data-split-card data-elig-urea="${eU}" data-elig-dap="${eD}" style="border:2px solid ${allDone?'#66bb6a':isFuture?'#b0bec5':'#e0e6ed'}; border-radius:12px; margin-bottom:10px; overflow:hidden;">
+            <div data-split-card data-elig-urea="${eU}" data-elig-dap="${eD}" data-rem-urea="${remU}" data-rem-dap="${remD}" data-ready-urea="${readyU?1:0}" data-ready-dap="${readyD?1:0}" style="border:2px solid ${allDone?'#66bb6a':isFuture?'#b0bec5':'#e0e6ed'}; border-radius:12px; margin-bottom:10px; overflow:hidden;">
               <!-- Split header — click to toggle collapse -->
               <div onclick="(function(){var b=document.getElementById('${_collapseId}');var ch=document.getElementById('${_collapseId}_ch');if(!b)return;var hidden=b.style.display==='none';b.style.display=hidden?'':'none';if(ch)ch.textContent=hidden?'▲ Hide':'▼ View';})()" style="background:${_headerBg}; color:#fff; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;">
                 <span style="font-weight:800; font-size:0.88rem;">🌿 ${splitNames[si]}</span>
@@ -23911,46 +24311,56 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         })() : '';
 
         // ── Compact already-issued chips (instead of a big table) ──
-        let _issuedChips = '';
-        if (fdRecs.length > 0) {
-            _issuedChips = fdRecs.map(r => {
-                const fert2 = r.fertilizerType || r.fert || 'Urea';
-                const bg = fert2==='DAP'?'#e3f2fd':'#fff8e1';
-                const col = fert2==='DAP'?'#01579b':'#a04000';
-                const border = fert2==='DAP'?'#90caf9':'#ffe082';
-                const splitLabel = r.splitName || `S${(r.splitIndex!==undefined?Number(r.splitIndex):0)+1}`;
-                const date = r.verifiedAt||r.distributedAt||r.date||'';
-                const dStr = date ? new Date(date).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : '—';
-                const ONE_HOUR_MS = 60*60*1000;
-                const actionMs = date ? new Date(date).getTime() : 0;
-                const canDel = actionMs>0 && (Date.now()-actionMs)<=ONE_HOUR_MS;
-                const delBtn = canDel
-                    ? `<button onclick="(async()=>{await deleteDistribution('${r._tokenKey}');window._fcQrIssuedRecords=(window._fcQrIssuedRecords||[]).filter(x=>x._tokenKey!=='${r._tokenKey}');loadRetailerHistory();const resEl=document.getElementById('qrScanResult');if(resEl&&resEl.dataset.lastQr){const p=resEl.dataset.lastQr.split('|');if(p[0]==='FC'&&p[1]&&p[2]&&p[3]&&p[4])processFarmerCardQr(p[1],p[2],p[3],p[4],resEl);}})()"
+        // Split-tracked types (Urea/DAP) vs simple-issue types (SSP/TSP/MOP/NPK)
+        const _otherFertTypes = ['SSP','TSP','MOP','NPK'];
+        const fdRecsUD    = fdRecs.filter(r => !_otherFertTypes.includes(r.fertilizerType || r.fert || 'Urea'));
+        const fdRecsOther = fdRecs.filter(r =>  _otherFertTypes.includes(r.fertilizerType || r.fert));
+
+        function _buildIssuedChip(r) {
+            const fert2 = (r.fertilizerType || r.fert || 'Urea') + (r.npkGrade ? ` ${r.npkGrade}` : '');
+            const bg = fert2==='DAP'?'#e3f2fd':(fert2==='Urea'?'#fff8e1':'#f1f0f5');
+            const col = fert2==='DAP'?'#01579b':(fert2==='Urea'?'#a04000':'#4a2f7a');
+            const border = fert2==='DAP'?'#90caf9':(fert2==='Urea'?'#ffe082':'#c9bce8');
+            const splitLabel = r.splitName || `S${(r.splitIndex!==undefined?Number(r.splitIndex):0)+1}`;
+            const date = r.verifiedAt||r.distributedAt||r.date||'';
+            const dStr = date ? new Date(date).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : '—';
+            const ONE_HOUR_MS = 60*60*1000;
+            const actionMs = date ? new Date(date).getTime() : 0;
+            const canDel = actionMs>0 && (Date.now()-actionMs)<=ONE_HOUR_MS;
+            const delBtn = canDel
+                ? `<button onclick="(async()=>{await deleteDistribution('${r._tokenKey}');window._fcQrIssuedRecords=(window._fcQrIssuedRecords||[]).filter(x=>x._tokenKey!=='${r._tokenKey}');loadRetailerHistory();const resEl=document.getElementById('qrScanResult');if(resEl&&resEl.dataset.lastQr){const p=resEl.dataset.lastQr.split('|');if(p[0]==='FC'&&p[1]&&p[2]&&p[3]&&p[4])processFarmerCardQr(p[1],p[2],p[3],p[4],resEl);}})()"
                        style="border:none;background:none;color:#c0392b;font-size:0.72rem;cursor:pointer;padding:0 2px;" title="Delete (within 1 hr)"><i class="fas fa-trash-alt"></i></button>`
-                    : '';
-                return `<div style="display:inline-flex;align-items:center;gap:5px;background:${bg};border:1.5px solid ${border};border-radius:8px;padding:4px 9px;font-size:0.74rem;font-weight:700;color:${col};margin:2px;">
-                    <span>${escapeHtml(fert2)}</span><span style="font-weight:400;color:#555;">${escapeHtml(splitLabel)} · ${Number(r.bags||0)} bag${Number(r.bags||0)!==1?'s':''} · ${dStr}</span>${delBtn}
-                </div>`;
-            }).join('');
+                : '';
+            return `<div style="display:inline-flex;align-items:center;gap:5px;background:${bg};border:1.5px solid ${border};border-radius:8px;padding:4px 9px;font-size:0.74rem;font-weight:700;color:${col};margin:2px;">
+                <span>${escapeHtml(fert2)}</span><span style="font-weight:400;color:#555;">${escapeHtml(splitLabel)} · ${Number(r.bags||0)} bag${Number(r.bags||0)!==1?'s':''} · ${dStr}</span>${delBtn}
+            </div>`;
         }
 
-        // ── Build STEP 2 fertilizer tab buttons (instead of dropdown) ──
+        let _issuedChips = fdRecsUD.length > 0 ? fdRecsUD.map(_buildIssuedChip).join('') : '';
+        let _otherIssuedChips = fdRecsOther.length > 0 ? fdRecsOther.map(_buildIssuedChip).join('') : '';
+
+        // ── Build STEP 2 unified fertilizer dropdown (Urea/DAP/SSP/TSP/MOP/NPK all in one place) ──
         const _hasUrea = uElig.some(v=>v>0);
         const _hasDAP  = dElig.some(v=>v>0);
-        const _fertTabsHtml = `
-        <div style="display:flex;gap:8px;margin-bottom:12px;">
-            ${_hasUrea ? `<button id="fcTabUrea_${fcKey}" onclick="onFcFertTabClick('${escapeHtml(fcKey)}','Urea')"
-                style="flex:1;padding:10px 0;border-radius:10px;border:2px solid #f39c12;background:#fff8e1;color:#a04000;font-weight:800;font-size:0.9rem;cursor:pointer;transition:all .2s;"
-                class="fc-fert-tab">
-                🌿 Urea${totalRemU===0?' ✅':''}
-            </button>` : ''}
-            ${_hasDAP ? `<button id="fcTabDAP_${fcKey}" onclick="onFcFertTabClick('${escapeHtml(fcKey)}','DAP')"
-                style="flex:1;padding:10px 0;border-radius:10px;border:2px solid #90caf9;background:#e3f2fd;color:#01579b;font-weight:800;font-size:0.9rem;cursor:pointer;transition:all .2s;"
-                class="fc-fert-tab">
-                🌱 DAP${totalRemD===0?' ✅':''}
-            </button>` : ''}
+        const _stockUrea = Number(_rtStock.Urea) || 0;
+        const _stockDAP  = Number(_rtStock.DAP)  || 0;
+        const _fertOptions = [];
+        if (_hasUrea) _fertOptions.push({ value: 'Urea', label: `🌿 Urea${totalRemU===0?' — ✅ Done':''} — ${_stockUrea>0?`📦 ${_stockUrea} in stock`:'⚠️ Out of stock'}` });
+        if (_hasDAP)  _fertOptions.push({ value: 'DAP',  label: `🌱 DAP${totalRemD===0?' — ✅ Done':''} — ${_stockDAP>0?`📦 ${_stockDAP} in stock`:'⚠️ Out of stock'}` });
+        _fertOptions.push({ value: 'SSP', label: '🟤 SSP' });
+        _fertOptions.push({ value: 'TSP', label: '🟣 TSP' });
+        _fertOptions.push({ value: 'MOP', label: '🟠 MOP' });
+        _fertOptions.push({ value: 'NPK', label: '🟢 NPK' });
+        _fertOptions.push({ value: 'Other', label: '⚪ Other' });
+        const _mainFertSelectHtml = `
+        <div style="margin-bottom:14px;">
+          <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:5px;"><i class="fas fa-flask me-1"></i>Choose Fertilizer</label>
+          <select id="fcMainFertSelect_${fcKey}" onchange="onFcMainFertChange('${escapeHtml(fcKey)}')" class="form-select fw-bold"
+            style="border:2px solid #1862ab;border-radius:10px;padding:10px 12px;font-size:0.95rem;color:#1862ab;">
+            ${_fertOptions.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+          </select>
         </div>
-        <select id="fcFertSelect_${fcKey}" onchange="onFcFertSelectChange('${escapeHtml(fcKey)}')" style="display:none;">
+        <select id="fcFertSelect_${fcKey}" style="display:none;">
             <option value="Urea">Urea</option>
             <option value="DAP">DAP</option>
         </select>`;
@@ -23959,10 +24369,12 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         <div style="border-radius:18px;overflow:hidden;box-shadow:0 4px 24px rgba(24,98,171,0.13);margin-top:0.5rem;border:none;">
 
           <!-- ── STEP 1 : Farmer Identity Card ── -->
-          <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%);color:#fff;padding:14px 16px 12px;">
+          <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%);color:#fff;padding:14px 16px 12px;position:relative;">
+            <button onclick="closeFarmerCardResult()" title="Close — clear scanned details"
+              style="position:absolute;top:8px;right:10px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(255,255,255,0.22);color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
             <div style="display:flex;align-items:center;gap:10px;">
               <div style="width:44px;height:44px;background:rgba(255,255,255,0.18);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">👨‍🌾</div>
-              <div style="flex:1;min-width:0;">
+              <div style="flex:1;min-width:0;padding-right:28px;">
                 <div style="font-weight:800;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(fc.farmerName||fc.farmer_name||'—')}</div>
                 <div style="font-size:0.75rem;opacity:0.85;margin-top:1px;">${escapeHtml(fc.fatherName||fc.father_name||fc.husbandName||'—')} &nbsp;·&nbsp; ••••${escapeHtml(a.slice(-4))}</div>
                 <div style="font-size:0.72rem;opacity:0.75;margin-top:1px;">📍 ${escapeHtml(fc.village||'—')} &nbsp;·&nbsp; ${escapeHtml(year)} ${escapeHtml(season)}</div>
@@ -23991,89 +24403,224 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             <div style="display:flex;flex-wrap:wrap;gap:4px;">${_issuedChips}</div>
           </div>` : ''}
 
-          <!-- ── STEP 2 : Distribution Entry ── -->
+          <!-- ── STEP 2 : Distribution Entry (single unified fertilizer picker) ── -->
           <div style="padding:14px 14px 16px;background:#fff;">
 
-            ${totalRemU === 0 && totalRemD === 0
-              ? `<div style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:2px solid #66bb6a;border-radius:12px;padding:16px;text-align:center;">
-                   <div style="font-size:1.8rem;margin-bottom:4px;">✅</div>
-                   <div style="font-weight:800;font-size:1rem;color:#2e7d32;">All Bags Distributed!</div>
-                   <div style="font-size:0.78rem;color:#388e3c;margin-top:4px;">This farmer has received all eligible fertilizer for this season.</div>
-                 </div>`
-              : `
             <!-- Step label -->
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
               <div style="width:26px;height:26px;background:#1862ab;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;flex-shrink:0;">2</div>
               <div style="font-weight:700;font-size:0.9rem;color:#1862ab;">Select Fertilizer &amp; Enter Bags</div>
             </div>
 
-            <!-- Fertilizer tab toggle -->
-            ${_fertTabsHtml}
+            <!-- Unified fertilizer dropdown: Urea / DAP / SSP / TSP / MOP / NPK -->
+            ${_mainFertSelectHtml}
 
-            <!-- Split rows (filtered by tab) -->
-            <div id="fcSplitRows_${fcKey}">
-              ${splitRowsHtml}
+            <!-- ── Urea / DAP panel: shows active split, eligible, availed & remaining bags ── -->
+            <div id="fcSplitPanel_${fcKey}">
+              <div id="fcSplitRows_${fcKey}">
+                ${splitRowsHtml}
+              </div>
+              <div id="fcAllDoneNote_${fcKey}" class="d-none" style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:2px solid #66bb6a;border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:1.8rem;margin-bottom:4px;">✅</div>
+                <div style="font-weight:800;font-size:1rem;color:#2e7d32;">All Bags Distributed!</div>
+                <div style="font-size:0.78rem;color:#388e3c;margin-top:4px;">This farmer has received all eligible bags of this fertilizer for this season.</div>
+              </div>
+
+              <div id="fcDistError_${fcKey}" class="d-none" style="background:#fdecea;border:1.5px solid #e57373;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#c62828;font-weight:600;margin-top:8px;"></div>
+
+              <!-- Confirm button -->
+              <button id="fcConfirmBtn_${fcKey}" onclick="askConfirmFarmerCardDistribution('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}',[${uElig}],[${dElig}])"
+                style="width:100%;margin-top:14px;background:linear-gradient(135deg,#27ae60,#1a7a44);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(39,174,96,0.3);letter-spacing:0.3px;">
+                <i class="fas fa-check-circle me-2"></i>Issue Bags to Farmer
+              </button>
             </div>
 
-            <div id="fcDistError_${fcKey}" class="d-none" style="background:#fdecea;border:1.5px solid #e57373;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#c62828;font-weight:600;margin-top:8px;"></div>
+            <!-- ── SSP / TSP / MOP / NPK panel: direct issue based on farmer's requirement, no eligibility/split tracking ── -->
+            <div id="fcOtherFertPanel_${fcKey}" class="d-none">
+              <p style="font-size:0.74rem;color:#777;margin:0 0 10px 0;">Recorded directly from your stock — no eligibility limit applies to this fertilizer.</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <div id="fcOtherNpkGradeWrap_${fcKey}" class="d-none" style="flex:1 1 160px;min-width:140px;">
+                  <label style="font-size:0.72rem;font-weight:700;color:#555;display:block;margin-bottom:3px;">NPK Grade</label>
+                  <select id="fcOtherNpkGrade_${fcKey}" class="form-select form-select-sm" onchange="onFcOtherFertChange('${escapeHtml(fcKey)}', true)"></select>
+                </div>
+                <div style="flex:1 1 140px;min-width:120px;">
+                  <label style="font-size:0.72rem;font-weight:700;color:#555;display:block;margin-bottom:3px;">Bags</label>
+                  <input type="number" id="fcOtherBags_${fcKey}" class="form-control form-control-sm" min="1" placeholder="e.g. 2">
+                </div>
+              </div>
+              <div id="fcOtherStockNote_${fcKey}" style="font-size:0.74rem;color:#555;margin-top:6px;"></div>
+              <div id="fcOtherErr_${fcKey}" class="d-none" style="background:#fdecea;border:1.5px solid #e57373;border-radius:8px;padding:7px 11px;font-size:0.78rem;color:#c62828;font-weight:600;margin-top:8px;"></div>
+              <!-- Confirm button — same size/style/wording as the Urea/DAP button for consistency -->
+              <button onclick="submitOtherFertilizerDistribution('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}')"
+                style="width:100%;margin-top:14px;background:linear-gradient(135deg,#27ae60,#1a7a44);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(39,174,96,0.3);letter-spacing:0.3px;">
+                <i class="fas fa-check-circle me-2"></i>Issue Bags to Farmer
+              </button>
+            </div>
+            </div>
 
-            <!-- Confirm button -->
-            <button onclick="askConfirmFarmerCardDistribution('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}',[${uElig}],[${dElig}])"
-              style="width:100%;margin-top:14px;background:linear-gradient(135deg,#27ae60,#1a7a44);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(39,174,96,0.3);letter-spacing:0.3px;">
-              <i class="fas fa-check-circle me-2"></i>Give Bags to Farmer
-            </button>`
-            }
+            <!-- Hidden select — keeps existing onFcOtherFertChange/submitOtherFertilizerDistribution logic working unchanged -->
+            <select id="fcOtherFert_${fcKey}" style="display:none;">
+              <option value="SSP">SSP</option>
+              <option value="TSP">TSP</option>
+              <option value="MOP">MOP</option>
+              <option value="NPK">NPK</option>
+            </select>
+
+            <div id="fcOtherIssuedChips_${fcKey}" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">
+              ${_otherIssuedChips}
+            </div>
           </div>
         </div>`;
         
         // Apply initial fertilizer filter — auto-select the first fert that still has remaining bags
         setTimeout(() => {
-            const _initFert = (totalRemU > 0) ? 'Urea' : (totalRemD > 0 ? 'DAP' : 'Urea');
-            const sel = document.getElementById('fcFertSelect_' + fcKey);
-            if (sel) sel.value = _initFert;
-            onFcFertSelectChange(fcKey);
+            const _initFert = (totalRemU > 0) ? 'Urea' : (totalRemD > 0 ? 'DAP' : (_hasUrea ? 'Urea' : (_hasDAP ? 'DAP' : 'SSP')));
+            const mainSel = document.getElementById('fcMainFertSelect_' + fcKey);
+            if (mainSel) mainSel.value = _initFert;
+            onFcMainFertChange(fcKey);
         }, 0);
     }).catch(err => {
         resultEl.innerHTML = _rtAuthErr('Database error: ' + escapeHtml(err.message));
     });
 }
 
-// Show/hide split rows based on selected fertilizer (Urea/DAP)
+// "Close" — clear the scanned farmer card / QR result so the retailer can scan the next farmer
+function closeFarmerCardResult() {
+    const resultEl = document.getElementById('qrScanResult');
+    if (!resultEl) return;
+    resultEl.innerHTML = '';
+    delete resultEl.dataset.lastQr;
+    delete resultEl.dataset.fcCrop;
+    window._fcPendingDistribution = null;
+    window._fcCardHtmlBackup = null;
+}
+
+// Show/hide split rows based on selected fertilizer (Urea/DAP).
+// Rules:
+//  1. A split that's been fully availed for this fertilizer is auto-hidden.
+//  2. Among the remaining (not-yet-fully-availed) splits, if one is ready for
+//     distribution (unlocked), show only that one.
+//  3. If none of the remaining splits are ready (all locked), show all of
+//     them so the retailer can see why (sequential/15-day/VO-lock reasons).
 function onFcFertSelectChange(fcKey) {
     const sel = document.getElementById('fcFertSelect_' + fcKey);
     const fert = sel ? sel.value : 'Urea';
     const wrap = document.getElementById('fcSplitRows_' + fcKey);
-    if (!wrap) return;
+    if (!wrap) return false;
     wrap.querySelectorAll('[data-fert-block]').forEach(el => {
         el.style.display = (el.getAttribute('data-fert-block') === fert) ? '' : 'none';
     });
-    // Hide entire split card if the selected fertilizer has no eligibility in this split
-    wrap.querySelectorAll('[data-split-card]').forEach(card => {
-        const elig = Number(card.getAttribute(fert === 'Urea' ? 'data-elig-urea' : 'data-elig-dap')) || 0;
-        card.style.display = elig > 0 ? '' : 'none';
+
+    const eligAttr  = fert === 'Urea' ? 'data-elig-urea'  : 'data-elig-dap';
+    const remAttr   = fert === 'Urea' ? 'data-rem-urea'   : 'data-rem-dap';
+    const readyAttr = fert === 'Urea' ? 'data-ready-urea' : 'data-ready-dap';
+
+    const cards = Array.from(wrap.querySelectorAll('[data-split-card]'));
+    const pending = cards.filter(c =>
+        (Number(c.getAttribute(eligAttr)) || 0) > 0 &&
+        (Number(c.getAttribute(remAttr)) || 0) > 0
+    );
+    const readyCard = pending.find(c => c.getAttribute(readyAttr) === '1') || null;
+
+    let anyVisible = false;
+    cards.forEach(card => {
+        const elig = Number(card.getAttribute(eligAttr)) || 0;
+        const rem  = Number(card.getAttribute(remAttr)) || 0;
+        let visible;
+        if (elig === 0 || rem === 0) {
+            // No eligibility for this fert, or fully availed already — auto-hide
+            visible = false;
+        } else if (readyCard) {
+            // Show only the split that's actually ready for distribution
+            visible = (card === readyCard);
+        } else {
+            // Nothing is ready yet — show all pending splits with their lock reasons
+            visible = true;
+        }
+        card.style.display = visible ? '' : 'none';
+        if (visible) anyVisible = true;
     });
-    // Sync tab button styles
-    const tabU = document.getElementById('fcTabUrea_' + fcKey);
-    const tabD = document.getElementById('fcTabDAP_' + fcKey);
-    if (tabU) {
-        tabU.style.background  = fert === 'Urea' ? '#f39c12' : '#fff8e1';
-        tabU.style.color       = fert === 'Urea' ? '#fff'    : '#a04000';
-        tabU.style.borderColor = '#f39c12';
-        tabU.style.transform   = fert === 'Urea' ? 'scale(1.03)' : 'scale(1)';
-    }
-    if (tabD) {
-        tabD.style.background  = fert === 'DAP' ? '#0277bd' : '#e3f2fd';
-        tabD.style.color       = fert === 'DAP' ? '#fff'    : '#01579b';
-        tabD.style.borderColor = '#90caf9';
-        tabD.style.transform   = fert === 'DAP' ? 'scale(1.03)' : 'scale(1)';
+    return anyVisible;
+}
+
+// Single unified dropdown handler: Urea / DAP show the eligible-availed-remaining
+// split view; SSP / TSP / MOP / NPK show a direct quick-issue panel instead.
+function onFcMainFertChange(fcKey) {
+    const mainSel = document.getElementById('fcMainFertSelect_' + fcKey);
+    const fert = mainSel ? mainSel.value : 'Urea';
+    const isSplitFert = (fert === 'Urea' || fert === 'DAP');
+
+    const splitPanel = document.getElementById('fcSplitPanel_' + fcKey);
+    const otherPanel = document.getElementById('fcOtherFertPanel_' + fcKey);
+    if (splitPanel) splitPanel.classList.toggle('d-none', !isSplitFert);
+    if (otherPanel) otherPanel.classList.toggle('d-none', isSplitFert);
+
+    if (isSplitFert) {
+        // Keep the legacy hidden select in sync so askConfirmFarmerCardDistribution
+        // and other existing Urea/DAP logic keep working unchanged.
+        const hiddenSel = document.getElementById('fcFertSelect_' + fcKey);
+        if (hiddenSel) hiddenSel.value = fert;
+        const anyRemaining = onFcFertSelectChange(fcKey);
+
+        const rowsWrap   = document.getElementById('fcSplitRows_' + fcKey);
+        const doneNote   = document.getElementById('fcAllDoneNote_' + fcKey);
+        const confirmBtn = document.getElementById('fcConfirmBtn_' + fcKey);
+        if (rowsWrap)   rowsWrap.classList.toggle('d-none', !anyRemaining);
+        if (doneNote)   doneNote.classList.toggle('d-none', anyRemaining);
+        if (confirmBtn) confirmBtn.classList.toggle('d-none', !anyRemaining);
+    } else {
+        // Keep the legacy hidden select in sync so onFcOtherFertChange /
+        // submitOtherFertilizerDistribution keep working unchanged.
+        const hiddenOtherSel = document.getElementById('fcOtherFert_' + fcKey);
+        if (hiddenOtherSel) hiddenOtherSel.value = fert;
+        onFcOtherFertChange(fcKey);
     }
 }
 
-// Tab click: set hidden select value then trigger change
-function onFcFertTabClick(fcKey, fert) {
-    const sel = document.getElementById('fcFertSelect_' + fcKey);
-    if (sel) { sel.value = fert; }
-    onFcFertSelectChange(fcKey);
+// ── Other Fertilizer panel (SSP/TSP/MOP/NPK simple issue) ──
+// Shows the retailer's actual in-stock count next to the picker. NPK is a
+// special case: it comes in many grades, so instead of one lump number we
+// show a second dropdown listing exactly the grades this retailer has
+// received stock for (with each grade's own bag count), same as the
+// "20:20:0:13" style entries used when receiving stock.
+function onFcOtherFertChange(fcKey) {
+    const fertSel  = document.getElementById('fcOtherFert_' + fcKey);
+    const gradeWrap = document.getElementById('fcOtherNpkGradeWrap_' + fcKey);
+    const gradeSel  = document.getElementById('fcOtherNpkGrade_' + fcKey);
+    const noteEl    = document.getElementById('fcOtherStockNote_' + fcKey);
+    const bagsEl    = document.getElementById('fcOtherBags_' + fcKey);
+    if (!fertSel || !noteEl) return;
+    const fert  = fertSel.value;
+    const stock = (window._fcStockCache && window._fcStockCache[fcKey]) || {};
+
+    if (fert === 'NPK') {
+        gradeWrap?.classList.remove('d-none');
+        const npkStock = stock.NPK;
+        const grades = (npkStock && typeof npkStock === 'object')
+            ? Object.entries(npkStock).filter(([, bags]) => Number(bags) > 0)
+            : (typeof npkStock === 'number' && npkStock > 0 ? [['Unspecified grade', npkStock]] : []);
+
+        if (gradeSel) {
+            const prevVal = gradeSel.value;
+            gradeSel.innerHTML = grades.length
+                ? grades.map(([grade, bags]) => `<option value="${escapeHtml(grade)}">${escapeHtml(grade)} — 📦 ${bags} in stock</option>`).join('')
+                : `<option value="">No NPK stock available</option>`;
+            if (grades.some(([g]) => g === prevVal)) gradeSel.value = prevVal;
+        }
+        const selectedGrade = gradeSel ? gradeSel.value : '';
+        const selectedGradeStock = grades.find(([g]) => g === selectedGrade);
+        noteEl.innerHTML = grades.length
+            ? `📦 <strong>${selectedGradeStock ? selectedGradeStock[1] : (grades[0]?.[1] || 0)}</strong> bag(s) of NPK ${escapeHtml(selectedGrade || grades[0]?.[0] || '')} in stock.`
+            : `⚠️ No NPK stock recorded yet — add stock in the Stock tab first.`;
+        if (bagsEl) bagsEl.max = selectedGradeStock ? selectedGradeStock[1] : (grades[0]?.[1] || 0);
+    } else {
+        gradeWrap?.classList.add('d-none');
+        const bags = Number(stock[fert]) || 0;
+        noteEl.innerHTML = bags > 0
+            ? `📦 <strong>${bags}</strong> bag(s) of ${escapeHtml(fert)} in stock.`
+            : `⚠️ No ${escapeHtml(fert)} stock recorded yet — add stock in the Stock tab first.`;
+        if (bagsEl) bagsEl.max = bags;
+    }
 }
 
 // Step 1: show a reconfirmation prompt before actually distributing
@@ -24188,7 +24735,7 @@ function askConfirmFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr
           </button>
           <button onclick="confirmFarmerCardDistribution()"
             style="flex:2;padding:13px 0;border-radius:12px;border:none;background:linear-gradient(135deg,#27ae60,#1a7a44);color:#fff;font-weight:800;font-size:0.95rem;cursor:pointer;box-shadow:0 4px 14px rgba(39,174,96,0.3);">
-            <i class="fas fa-check-circle me-1"></i>Yes, Give Bags ✓
+            <i class="fas fa-check-circle me-1"></i>Yes, Issue Bags ✓
           </button>
         </div>
       </div>
@@ -24201,7 +24748,7 @@ function cancelFarmerCardDistribution() {
     if (resultEl && window._fcCardHtmlBackup) {
         resultEl.innerHTML = window._fcCardHtmlBackup;
         const pending = window._fcPendingDistribution;
-        if (pending) setTimeout(() => onFcFertSelectChange(pending.fcKey), 0);
+        if (pending) setTimeout(() => onFcMainFertChange(pending.fcKey), 0);
     }
     window._fcPendingDistribution = null;
     window._fcCardHtmlBackup = null;
@@ -24777,22 +25324,196 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
 }
 
 // ============================================================
+//  RETAILER: SIMPLE ISSUE — SSP / TSP / MOP / NPK
+//  Unlike Urea/DAP, these fertilizer types have no split/eligibility
+//  tracking on the farmer's card. The retailer simply records bags
+//  issued to the farmer via the same QR-scanned Farmer Card screen;
+//  the entry is deducted from the retailer's own stock and logged to
+//  ureaHistory / fertilizerDistributions / VO history exactly like a
+//  normal distribution, just without any eligibility cap.
+// ============================================================
+function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
+    const a = String(aadhaar || '').replace(/\s/g, '');
+    const resultEl = document.getElementById('qrScanResult');
+    const errEl    = document.getElementById('fcOtherErr_' + fcKey);
+    const fertSel  = document.getElementById('fcOtherFert_' + fcKey);
+    const gradeSel = document.getElementById('fcOtherNpkGrade_' + fcKey);
+    const bagsEl   = document.getElementById('fcOtherBags_' + fcKey);
+    const fert     = fertSel ? fertSel.value : '';
+    const npkGrade = (fert === 'NPK') ? (gradeSel ? gradeSel.value : '') : '';
+    const bags     = parseInt(bagsEl?.value || '0') || 0;
+
+    if (errEl) errEl.classList.add('d-none');
+    if (!fert) {
+        if (errEl) { errEl.textContent = 'Please select a fertilizer type.'; errEl.classList.remove('d-none'); }
+        return;
+    }
+    if (fert === 'NPK' && !npkGrade) {
+        if (errEl) { errEl.textContent = 'Please select an NPK grade — add stock for a grade first if none are listed.'; errEl.classList.remove('d-none'); }
+        return;
+    }
+    if (bags < 1) {
+        if (errEl) { errEl.textContent = 'Please enter at least 1 bag.'; errEl.classList.remove('d-none'); }
+        return;
+    }
+
+    const { outletId, outletName, mandalKey } = getRetailerInfo();
+    const retailerUid = firebase.auth().currentUser?.uid || '';
+    const now = Date.now();
+    const nowISO = new Date(now).toISOString();
+    const todayStr = new Date(now).toISOString().slice(0, 10);
+    const issueBtn = errEl?.parentElement?.querySelector('button[onclick^="submitOtherFertilizerDistribution"]');
+    const fertLabel = fert === 'NPK' ? `NPK ${npkGrade}` : fert;
+
+    database.ref('fertilizerCards/' + fcKey).once('value').then(async cardSnap => {
+        const cardData = cardSnap.val() || {};
+        const voUidForHist = cardData.voUid || '';
+        const farmerName   = cardData.farmerName || '';
+        const fatherName   = cardData.fatherName || '';
+        const village      = cardData.village    || '';
+        const mandal       = cardData.mandal     || '';
+        const mobile       = cardData.mobile     || '';
+        const cropForHist  = cardData.crops || cardData.crop || '';
+        const cardNumber   = cardData.cardNumber  || '';
+        const khatha       = cardData.khatha      || '';
+        const extent       = cardData.extent      || '';
+        const serialNo     = cardData.serialNo    || '';
+
+        // ── Retailer stock check — NPK is deducted from its specific grade bucket ──
+        // (falls back to the flat NPK number if this retailer's stock was recorded
+        // before grade-wise tracking existed)
+        const npkBasePath = outletId
+            ? `mandals/${mandalKey}/retailers/${outletId}/stock/NPK`
+            : `users/${retailerUid}/retailerStock/balance/NPK`;
+        const otherBalPath = outletId
+            ? `mandals/${mandalKey}/retailers/${outletId}/stock/${fert}`
+            : `users/${retailerUid}/retailerStock/balance/${fert}`;
+
+        let balPath, stock;
+        if (fert === 'NPK') {
+            const npkBaseSnap = await database.ref(npkBasePath).once('value');
+            const npkBaseVal = npkBaseSnap.val();
+            if (npkBaseVal !== null && typeof npkBaseVal !== 'object') {
+                // Legacy flat-number NPK stock — deduct directly, no grade nesting
+                balPath = npkBasePath;
+                stock = Number(npkBaseVal) || 0;
+            } else {
+                balPath = `${npkBasePath}/${_npkGradeKey(npkGrade)}`;
+                stock = Number((npkBaseVal || {})[_npkGradeKey(npkGrade)]) || 0;
+            }
+        } else {
+            balPath = otherBalPath;
+            const stockSnap = await database.ref(balPath).once('value');
+            stock = Number(stockSnap.val()) || 0;
+        }
+        if (stock < bags) {
+            if (errEl) {
+                errEl.textContent = `Insufficient stock — available: ${stock} ${fertLabel} bag(s), needed: ${bags}. Add stock first.`;
+                errEl.classList.remove('d-none');
+            }
+            return;
+        }
+
+        const ops = [];
+        ops.push(database.ref(balPath).set(stock - bags));
+
+        const recKey = database.ref('ureaHistory').push().key;
+        const rec = {
+            aadhaar: a, farmerName, fatherName, mobile, cardNumber, khatha, extent,
+            crop: cropForHist, serialNo, year, season,
+            fertilizerType: fert, fert,
+            splitIndex: 0, splitName: 'Direct Issue',
+            bags, date: todayStr, status: 'Distributed',
+            retailerVerified: true, retailerDistributedViaFarmerCard: true,
+            noEligibilityTracking: true,
+            outletId: outletId || '', outletName: outletName || '', retailerUid,
+            distributedAt: now, verifiedAt: nowISO, distributedVia: 'farmerCardQR-simpleIssue',
+            fcKey, village, mandal, voUid: voUidForHist
+        };
+        if (fert === 'NPK') rec.npkGrade = npkGrade;
+        ops.push(database.ref('ureaHistory/' + recKey).set(rec));
+        ops.push(database.ref('fertilizerDistributions/' + recKey).set({
+            ...rec, tokenKey: recKey, farmerCardKey: fcKey, voUid: voUidForHist,
+            distributedByRetailer: true, distributedVia: 'farmerCardQR-simpleIssue',
+            crop: cropForHist, createdAt: nowISO,
+            status: 'Distributed', retailerVerified: true
+        }));
+
+        if (voUidForHist) {
+            const voHistKey = database.ref('users/' + voUidForHist + '/ureaHistory').push().key;
+            if (voHistKey) {
+                ops.push(database.ref('users/' + voUidForHist + '/ureaHistory/' + voHistKey).set({
+                    ...rec, farmerCardKey: fcKey, distributedByRetailer: true,
+                    retailerOutletName: outletName || '', retailerDistributedDate: todayStr,
+                    crop: cropForHist, crops: cropForHist, cardNumber, khatha, extent, serialNo
+                }));
+            }
+            const actionKey = database.ref('distributionUpdates/' + voUidForHist).push().key;
+            if (actionKey) ops.push(database.ref(`distributionUpdates/${voUidForHist}/${actionKey}`).set({
+                type: 'distribute', voUid: voUidForHist, histIdx: -1, aadhaar: a,
+                farmerName, fatherName, mobile, cardNumber, khatha, extent, serialNo,
+                date: todayStr, bags, fertilizerType: fert,
+                ...(fert === 'NPK' ? { npkGrade } : {}),
+                crop: cropForHist, crops: cropForHist,
+                season, year, splitIndex: 0, splitName: 'Direct Issue', retailerUid,
+                outletId: outletId || '', outletName: outletName || '', verifiedAt: nowISO,
+                status: 'Distributed', token: '', distributedVia: 'farmerCardQR-simpleIssue',
+                village, mandal
+            }));
+        }
+
+        if (issueBtn) issueBtn.disabled = true;
+        try {
+            await Promise.all(ops);
+            if (bagsEl) bagsEl.value = '';
+            const chipsWrap = document.getElementById('fcOtherIssuedChips_' + fcKey);
+            if (chipsWrap) {
+                const chip = document.createElement('div');
+                chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#f1f0f5;border:1.5px solid #c9bce8;border-radius:8px;padding:4px 9px;font-size:0.74rem;font-weight:700;color:#4a2f7a;margin:2px;';
+                chip.innerHTML = `<span>${escapeHtml(fertLabel)}</span><span style="font-weight:400;color:#555;">${bags} bag${bags!==1?'s':''} · just now</span>`;
+                chipsWrap.appendChild(chip);
+            }
+            if (window._fcQrIssuedRecords) window._fcQrIssuedRecords.push({ ...rec, _tokenKey: recKey });
+            // Keep the cached stock snapshot in sync so the note/dropdown update
+            // instantly without a re-fetch, in case the retailer issues again.
+            if (window._fcStockCache && window._fcStockCache[fcKey]) {
+                const cache = window._fcStockCache[fcKey];
+                if (fert === 'NPK') {
+                    if (cache.NPK && typeof cache.NPK === 'object') cache.NPK[npkGrade] = stock - bags;
+                } else {
+                    cache[fert] = stock - bags;
+                }
+            }
+            onFcOtherFertChange(fcKey);
+            if (typeof loadRetailerHistory === 'function') loadRetailerHistory();
+            if (typeof loadRetailerStock === 'function') loadRetailerStock();
+        } catch (err) {
+            if (errEl) { errEl.textContent = 'Save failed: ' + err.message; errEl.classList.remove('d-none'); }
+        } finally {
+            if (issueBtn) issueBtn.disabled = false;
+        }
+    }).catch(err => {
+        if (errEl) { errEl.textContent = 'Database error: ' + err.message; errEl.classList.remove('d-none'); }
+    });
+}
+
+// ============================================================
 //  RETAILER: CARD NUMBER SEARCH (fallback when QR isn't scanning)
 //  Looks up /fertilizerCards by Card Number, confirms identity
-//  with Aadhaar last 6, then opens the SAME Farmer Card view
+//  with Aadhaar last 4, then opens the SAME Farmer Card view
 //  that scanning the Farmer Card QR would show.
 // ============================================================
 function verifyByCard() {
     const cardNumber   = (document.getElementById('cardNumberInput')?.value || '').trim().toUpperCase();
-    const aadhaarLast6 = (document.getElementById('cardAadhaarInput')?.value || '').trim();
+    const aadhaarLast4 = (document.getElementById('cardAadhaarInput')?.value || '').trim();
     const resultEl = document.getElementById('tokenVerifyResult');
 
     if (!cardNumber) {
         resultEl.innerHTML = '<div class="alert alert-warning py-2 d-flex gap-2"><i class="fas fa-exclamation-triangle flex-shrink-0 mt-1"></i><div>Please enter the Card Number printed on the farmer\'s card.</div></div>';
         return;
     }
-    if (aadhaarLast6.length !== 6) {
-        resultEl.innerHTML = '<div class="alert alert-warning py-2">Aadhaar last 6 digits must be exactly 6 numbers.</div>';
+    if (aadhaarLast4.length !== 4) {
+        resultEl.innerHTML = '<div class="alert alert-warning py-2">Aadhaar last 4 digits must be exactly 4 numbers.</div>';
         return;
     }
 
@@ -24800,11 +25521,11 @@ function verifyByCard() {
         <i class="fas fa-spinner fa-spin flex-shrink-0"></i>
         <span>Searching card <strong>${escapeHtml(cardNumber)}</strong>…</span>
     </div>`;
-    processCardAuthorization(cardNumber, aadhaarLast6, resultEl);
+    processCardAuthorization(cardNumber, aadhaarLast4, resultEl);
 }
 
-// ── Look up a farmer's card by Card Number, confirm identity with Aadhaar last 6, then open it ──
-function processCardAuthorization(cardNumber, aadhaarLast6, resultEl) {
+// ── Look up a farmer's card by Card Number, confirm identity with Aadhaar last 4, then open it ──
+function processCardAuthorization(cardNumber, aadhaarLast4, resultEl) {
     database.ref('fertilizerCards').orderByChild('cardNumber').equalTo(cardNumber).once('value').then(snap => {
         if (!snap.exists()) {
             resultEl.innerHTML = _rtAuthErr(
@@ -24816,18 +25537,18 @@ function processCardAuthorization(cardNumber, aadhaarLast6, resultEl) {
             return;
         }
 
-        // A card number can have more than one year/season snapshot — match on Aadhaar last 6
+        // A card number can have more than one year/season snapshot — match on Aadhaar last 4
         let matched = null;
         snap.forEach(child => {
             const v = child.val();
             if (!v) return;
-            const last6 = String(v.aadhaar || '').replace(/\D/g, '').slice(-6);
-            if (last6 === aadhaarLast6) matched = v;
+            const last4 = String(v.aadhaar || '').replace(/\D/g, '').slice(-4);
+            if (last4 === aadhaarLast4) matched = v;
         });
 
         if (!matched) {
             resultEl.innerHTML = _rtAuthErr(
-                'Aadhaar last 6 digits do <strong>not match</strong> this card.',
+                'Aadhaar last 4 digits do <strong>not match</strong> this card.',
                 ['Please re-check the Aadhaar card with the farmer', 'Make sure the card number was entered correctly too']
             );
             return;
@@ -31644,7 +32365,7 @@ function applyRetailerHistoryFilters() {
         else if (villageFilterVal === '__missing__') villageMatch = !rowVillage;
         else villageMatch = rowVillage === villageFilterVal;
 
-        const fertMatch = (fertFilterVal === '') || (rowFert === fertFilterVal);
+        const fertMatch = rtFertKeyMatches(rowFert, fertFilterVal);
 
         const show = villageMatch && fertMatch;
         row.style.display = show ? '' : 'none';
@@ -31672,7 +32393,7 @@ function applyRetailerHistoryFilters() {
         filteredRecords = filteredRecords.filter(r => (r.village||'').trim().toLowerCase() === villageFilterVal);
     }
     if (fertFilterVal !== '') {
-        filteredRecords = filteredRecords.filter(r => (r.fertilizerType||'Urea').trim().toLowerCase() === fertFilterVal);
+        filteredRecords = filteredRecords.filter(r => rtFertKeyMatches(rtFertKey(r), fertFilterVal));
     }
 
     const kpiDist    = document.getElementById('kpiDistCount');
@@ -32140,11 +32861,49 @@ function _collectTierRows() {
     }));
 }
 
-window.toggleBagRule = function() {
-    // Just a visual cue — actual save happens on saveBagRule
-    const active = (document.getElementById('bagRuleToggle') || {}).checked;
-    const badge  = document.getElementById('bagRuleActiveBadge');
+// Flipping this switch instantly enables/disables the bag limit rule
+// in-place — tiers are kept exactly as-is, so the VO never has to delete
+// them just to lift the restriction, and never forgets to click "Save Bag
+// Rule" afterwards for the on/off state to actually take effect.
+window.toggleBagRule = async function() {
+    const toggleEl = document.getElementById('bagRuleToggle');
+    const active   = toggleEl ? toggleEl.checked : false;
+    const badge    = document.getElementById('bagRuleActiveBadge');
     if (badge) badge.style.display = active ? '' : 'none';
+
+    const base = _rctBase();
+    const stEl = document.getElementById('bagRuleSaveStatus');
+    if (!base) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger">Select a village first — the toggle will apply once you Save.</span>';
+        return;
+    }
+    const tiers = _collectTierRows();
+    if (active && tiers.length === 0) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Add at least one tier before enabling the rule.</span>';
+        if (toggleEl) toggleEl.checked = false;
+        if (badge) badge.style.display = 'none';
+        return;
+    }
+    const fertType = _getSelectedBagFert();
+    const user = firebase.auth().currentUser;
+    if (stEl) stEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+    try {
+        await base.child('bagRule').set({
+            active,
+            fertType,
+            tiers,          // unchanged — toggling never touches the tier rows
+            updatedAt:    Date.now(),
+            updatedBy:    user ? user.uid : '',
+            updatedEmail: user ? (user.email||'') : ''
+        });
+        if (badge) badge.textContent = active ? `🔒 ACTIVE — ${fertType}` : '🔒 ACTIVE';
+        const fertLabel = fertType === 'Both' ? 'Urea & DAP' : fertType;
+        if (stEl) stEl.innerHTML = `<span style="color:#27ae60;"><i class="fas fa-check-circle me-1"></i>${active ? `🔒 <strong>Limit turned ON for ${fertLabel}</strong> — retailer will see capped bags.` : '🔓 <strong>Limit turned OFF</strong> — retailer sees full eligible bags. Tiers are kept, ready to re-enable anytime.'}</span>`;
+    } catch(e) {
+        if (stEl) stEl.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Save failed: ${escapeHtml(e.message)}</span>`;
+        if (toggleEl) toggleEl.checked = !active; // revert UI on failure
+        if (badge) badge.style.display = !active ? '' : 'none';
+    }
 };
 
 window.onBagFertChange = function() {
@@ -32226,9 +32985,15 @@ function _renderSplitLocks(sl) {
     container.innerHTML = '';
 
     [0, 1, 2].forEach(si => {
-        const key    = 's' + si;
-        const locked = sl[key] ? sl[key].locked === true : (si !== 0); // default: Split 1 open, 2&3 locked
-        const updAt  = sl[key] && sl[key].updatedAt ? new Date(sl[key].updatedAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        const key       = 's' + si;
+        const entry     = sl[key] || null;
+        const rawLocked = entry ? entry.locked === true : (si !== 0); // default: Split 1 open, 2&3 locked
+        const unlockAt  = entry && entry.unlockAt ? Number(entry.unlockAt) : null;
+        const scheduledPassed = rawLocked && unlockAt && Date.now() >= unlockAt;
+        const locked    = scheduledPassed ? false : rawLocked; // auto-unlock once schedule elapses
+        const updAt     = entry && entry.updatedAt ? new Date(entry.updatedAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        const unlockAtStr = unlockAt ? new Date(unlockAt).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+
         container.insertAdjacentHTML('beforeend', `
         <div class="col-md-4">
           <div style="border:2px solid ${locked ? '#e74c3c' : colors[si]};border-radius:12px;overflow:hidden;transition:border-color 0.3s;" id="splitLockCard_${si}">
@@ -32238,7 +33003,7 @@ function _renderSplitLocks(sl) {
                 <span style="font-weight:800;font-size:0.78rem;color:${locked ? '#c0392b' : colors[si]};">${labels[si]}</span>
               </div>
               <span style="font-size:0.65rem;font-weight:700;background:${locked ? '#e74c3c' : '#27ae60'};color:#fff;border-radius:12px;padding:1px 8px;" id="splitLockBadge_${si}">
-                ${locked ? '🔒 LOCKED' : '🔓 OPEN'}
+                ${locked ? '🔒 LOCKED' : (scheduledPassed ? '🔓 AUTO-UNLOCKED' : '🔓 OPEN')}
               </span>
             </div>
             <div style="padding:0.7rem 0.9rem;background:#fff;">
@@ -32247,8 +33012,9 @@ function _renderSplitLocks(sl) {
                   ? `Retailer <strong style="color:#e74c3c;">CANNOT</strong> distribute bags for this split.`
                   : `Retailer <strong style="color:#27ae60;">CAN</strong> distribute bags for this split.`}
                 <br><span style="font-size:0.67rem;">Last updated: ${updAt}</span>
+                ${unlockAt ? `<br><span style="font-size:0.67rem;color:${scheduledPassed ? '#27ae60' : '#1862ab'};"><i class="fas fa-clock me-1"></i>${scheduledPassed ? 'Auto-unlocked at' : 'Scheduled auto-unlock:'} <strong>${escapeHtml(unlockAtStr)}</strong></span>` : ''}
               </div>
-              <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+              <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.55rem;">
                 <button onclick="setSplitLock(${si}, false)"
                   style="flex:1;padding:0.3rem 0.5rem;font-size:0.72rem;font-weight:700;background:${!locked ? '#27ae60' : '#e0e0e0'};color:${!locked ? '#fff' : '#555'};border:none;border-radius:7px;cursor:pointer;transition:all 0.2s;"
                   id="splitUnlockBtn_${si}">
@@ -32260,11 +33026,43 @@ function _renderSplitLocks(sl) {
                   <i class="fas fa-lock me-1"></i>Lock
                 </button>
               </div>
+              <div style="border-top:1px dashed #dfe6ec;padding-top:0.5rem;">
+                <div style="font-size:0.68rem;font-weight:700;color:#1862ab;margin-bottom:4px;">
+                  <i class="fas fa-stopwatch me-1"></i>Schedule Auto-Unlock
+                </div>
+                <div style="display:flex;gap:0.35rem;flex-wrap:wrap;">
+                  <input type="datetime-local" id="splitUnlockAt_${si}"
+                    style="flex:1 1 150px;min-width:150px;padding:3px 6px;font-size:0.72rem;border:1px solid #ccd0d6;border-radius:6px;">
+                  <button onclick="setSplitLockSchedule(${si})"
+                    style="padding:0.3rem 0.6rem;font-size:0.7rem;font-weight:700;background:#1862ab;color:#fff;border:none;border-radius:6px;cursor:pointer;"
+                    title="Lock this split now and auto-unlock it at the chosen date/time — no manual unlock needed">
+                    <i class="fas fa-calendar-check me-1"></i>Set
+                  </button>
+                  ${unlockAt ? `<button onclick="cancelSplitLockSchedule(${si})"
+                    style="padding:0.3rem 0.6rem;font-size:0.7rem;font-weight:700;background:#fff;color:#e74c3c;border:1px solid #e74c3c;border-radius:6px;cursor:pointer;"
+                    title="Remove the scheduled auto-unlock (lock state stays as-is)">
+                    <i class="fas fa-times me-1"></i>Clear
+                  </button>` : ''}
+                </div>
+              </div>
             </div>
           </div>
         </div>`);
     });
 }
+
+// A split-lock entry is `{ locked, unlockAt, updatedAt, ... }`. If a VO has
+// scheduled an auto-unlock (unlockAt) and that moment has passed, the split
+// is treated as unlocked everywhere — the VO never has to come back and
+// unlock it by hand.
+function _isSplitLockActive(sl) {
+    if (!sl || sl.locked !== true) return false;
+    if (sl.unlockAt && Date.now() >= Number(sl.unlockAt)) return false;
+    return true;
+}
+// Exposed globally — the Farmer Card QR scan code (in a different <script>
+// block, outside this IIFE) also calls this to check split locks.
+window._isSplitLockActive = _isSplitLockActive;
 
 window.setSplitLock = async function(si, locked) {
     const base = _rctBase();
@@ -32281,6 +33079,7 @@ window.setSplitLock = async function(si, locked) {
     try {
         await base.child('splitLocks/s' + si).set({
             locked,
+            unlockAt:     null, // manual lock/unlock clears any pending schedule
             updatedAt:    Date.now(),
             updatedBy:    user ? user.uid : '',
             updatedEmail: user ? (user.email||'') : ''
@@ -32289,6 +33088,81 @@ window.setSplitLock = async function(si, locked) {
         const snap = await base.child('splitLocks').once('value');
         _renderSplitLocks(snap.val() || {});
         if (stEl) stEl.innerHTML = `<span style="color:${locked ? '#e74c3c' : '#27ae60'};"><i class="fas fa-${locked ? 'lock' : 'unlock'} me-1"></i><strong>${labels[si]} ${action}ED</strong> successfully!</span>`;
+    } catch(e) {
+        if (stEl) stEl.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Save failed: ${escapeHtml(e.message)}</span>`;
+    }
+};
+
+// Locks the split (if not already) and stores a future timestamp at which it
+// should automatically be treated as unlocked — no manual unlock required.
+window.setSplitLockSchedule = async function(si) {
+    const base = _rctBase();
+    const stEl = document.getElementById('splitLockSaveStatus');
+    if (!base) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger">Select a village first.</span>';
+        return;
+    }
+    const input = document.getElementById('splitUnlockAt_' + si);
+    const val = input ? input.value : '';
+    if (!val) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Pick a date &amp; time first.</span>';
+        return;
+    }
+    const unlockAt = new Date(val).getTime();
+    if (!unlockAt || isNaN(unlockAt)) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger">Invalid date/time.</span>';
+        return;
+    }
+    if (unlockAt <= Date.now()) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Pick a future date &amp; time.</span>';
+        return;
+    }
+    const labels = ['Split 1', 'Split 2', 'Split 3'];
+    const unlockAtStr = new Date(unlockAt).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    if (!confirm(`LOCK ${labels[si]} now and automatically UNLOCK it at ${unlockAtStr}?\n\nNo manual unlock will be needed after that time.\n\nContinue?`)) return;
+    const user = firebase.auth().currentUser;
+    if (stEl) stEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+    try {
+        await base.child('splitLocks/s' + si).set({
+            locked: true,
+            unlockAt,
+            updatedAt:    Date.now(),
+            updatedBy:    user ? user.uid : '',
+            updatedEmail: user ? (user.email||'') : ''
+        });
+        const snap = await base.child('splitLocks').once('value');
+        _renderSplitLocks(snap.val() || {});
+        if (stEl) stEl.innerHTML = `<span style="color:#1862ab;"><i class="fas fa-stopwatch me-1"></i><strong>${labels[si]}</strong> locked — will auto-unlock at <strong>${escapeHtml(unlockAtStr)}</strong>, no manual action needed.</span>`;
+    } catch(e) {
+        if (stEl) stEl.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Save failed: ${escapeHtml(e.message)}</span>`;
+    }
+};
+
+// Removes a pending scheduled auto-unlock, leaving the current locked/unlocked
+// state untouched (the VO reverts to unlocking manually for this split).
+window.cancelSplitLockSchedule = async function(si) {
+    const base = _rctBase();
+    const stEl = document.getElementById('splitLockSaveStatus');
+    if (!base) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger">Select a village first.</span>';
+        return;
+    }
+    if (!confirm('Remove the scheduled auto-unlock for this split? Its current lock state stays as-is and you\'ll need to unlock it manually later.')) return;
+    const user = firebase.auth().currentUser;
+    if (stEl) stEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+    try {
+        const curSnap = await base.child('splitLocks/s' + si).once('value');
+        const cur = curSnap.val() || {};
+        await base.child('splitLocks/s' + si).set({
+            locked:       cur.locked === true,
+            unlockAt:     null,
+            updatedAt:    Date.now(),
+            updatedBy:    user ? user.uid : '',
+            updatedEmail: user ? (user.email||'') : ''
+        });
+        const snap = await base.child('splitLocks').once('value');
+        _renderSplitLocks(snap.val() || {});
+        if (stEl) stEl.innerHTML = '<span style="color:#27ae60;"><i class="fas fa-check-circle me-1"></i>Scheduled auto-unlock cleared.</span>';
     } catch(e) {
         if (stEl) stEl.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Save failed: ${escapeHtml(e.message)}</span>`;
     }
@@ -32321,11 +33195,9 @@ window._evalFertRestrictions = function(restrictions, extent, splitIndex, fertTy
     const result = { bagCap: null, splitLocked: false };
     if (!restrictions) return result;
 
-    // ── Split lock ──
+    // ── Split lock (honours a scheduled auto-unlock, if one was set) ──
     const sl = (restrictions.splitLocks || {})['s' + splitIndex];
-    if (sl && sl.locked === true) {
-        result.splitLocked = true;
-    }
+    result.splitLocked = _isSplitLockActive(sl);
 
     // ── Bag rule ──
     const br = restrictions.bagRule;
