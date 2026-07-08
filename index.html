@@ -1780,12 +1780,17 @@
       <span style="background:linear-gradient(135deg,#e74c3c,#c0392b);width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         <i class="fas fa-lock text-white" style="font-size:0.9rem;"></i>
       </span>
-      <div>
+      <div class="flex-grow-1">
         <div style="font-size:0.84rem;font-weight:800;color:#c0392b;text-transform:uppercase;letter-spacing:0.8px;">Fertilizer Distribution Restrictions</div>
         <div style="font-size:0.72rem;color:#7f8c8d;">Bag limits by extent &amp; split-wise locks — affects all farmers in the selected village</div>
       </div>
+      <button type="button" id="fertRestrictionToggleBtn" onclick="toggleCardCollapse('fertRestrictionBody','fertRestrictionToggleBtn')"
+              style="flex-shrink:0;padding:0.35rem 0.8rem;font-size:0.76rem;font-weight:700;background:#fff;color:#c0392b;border:1.5px solid #e74c3c;border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:5px;">
+        <i class="fas fa-chevron-up"></i><span>Hide</span>
+      </button>
     </div>
 
+    <div id="fertRestrictionBody">
     <!-- Village selector for restriction -->
     <div class="row g-2 mb-3">
       <div class="col-md-6">
@@ -1801,13 +1806,7 @@
           <i class="fas fa-info-circle me-1"></i>Select a village to view or edit restrictions.
         </div>
       </div>
-
-      <!-- Firebase rules reminder -->
-      <div style="background:#eaf4fb;border:1px solid #a9cce3;border-radius:8px;padding:0.55rem 0.85rem;margin-bottom:1rem;font-size:0.72rem;color:#1a5276;">
-        <i class="fas fa-database me-1" style="color:#1862ab;"></i>
-        <strong>Firebase Rules required:</strong> Add <code style="background:#d6eaf8;border-radius:4px;padding:1px 5px;">"voRestrictions": { "$voUid": { ".read":"auth != null", ".write":"auth != null && auth.uid == $voUid" } }</code> to your Realtime Database rules.
-      </div>
-    </div>
+    </div><!-- /row g-2 mb-3 (village selector) -->
 
     <!-- ─────────────────────────────────────────
          SECTION A: BAG LIMIT BY EXTENT (ACREAGE)
@@ -1907,11 +1906,123 @@
         <div id="splitLockSaveStatus" style="margin-top:0.6rem;font-size:0.76rem;"></div>
       </div>
     </div>
+    </div><!-- /fertRestrictionBody -->
 
   </div>
 </div><!-- /fertRestrictionCard -->
 
+<!-- ══════════════════════════════════════════════════════════════
+     BOOSTER DOSE (CALAMITY RELIEF) CONTROL CARD — VO ONLY
+     Firebase path: voBoosterDose/{voUid}/{safeVillage}/{year}_{season}
+       → { enabled, ureaBagsPerAcre, extraFertilizers:[{name,bagsPerAcre}],
+           updatedAt, updatedBy }
+     ══════════════════════════════════════════════════════════════ -->
+<div class="card p-0 mx-auto mt-4" id="boosterDoseCard" style="max-width:900px;border-radius:16px;overflow:hidden;">
+  <!-- top accent bar -->
+  <div style="height:5px;background:linear-gradient(90deg,#c0392b 0%,#e74c3c 50%,#f39c12 100%);"></div>
+  <div style="padding:1.4rem 1.6rem;">
+
+    <!-- Card header -->
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span style="background:linear-gradient(135deg,#c0392b,#8e2418);width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="fas fa-truck-medical text-white" style="font-size:0.9rem;"></i>
+      </span>
+      <div class="flex-grow-1">
+        <div style="font-size:0.84rem;font-weight:800;color:#c0392b;text-transform:uppercase;letter-spacing:0.8px;">Booster Dose — Calamity Relief</div>
+        <div style="font-size:0.72rem;color:#7f8c8d;">Extra one-time fertilizer allotment for farmers affected by calamities (flood/drought/pest attack etc.)</div>
+      </div>
+      <button type="button" id="boosterDoseToggleBtn" onclick="toggleCardCollapse('boosterDoseBody','boosterDoseToggleBtn')"
+              style="flex-shrink:0;padding:0.35rem 0.8rem;font-size:0.76rem;font-weight:700;background:#fff;color:#c0392b;border:1.5px solid #e74c3c;border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:5px;">
+        <i class="fas fa-chevron-up"></i><span>Hide</span>
+      </button>
+    </div>
+
+    <div id="boosterDoseBody">
+    <div class="alert alert-info py-2 mb-3" style="font-size:0.78rem;border-radius:10px;">
+      <i class="fas fa-info-circle me-1"></i>
+      When enabled, every farmer in the selected Village + Crop Year + Season gets an
+      <strong>extra allotment</strong> equal to <strong>their extent (acres) × bags/acre you set below</strong>.
+      This is tracked completely separately and shown to the retailer as <strong>"Booster Dose Urea"</strong>
+      (or the fertilizer name you add) — it never adds to or reduces the farmer's regular seasonal eligibility.
+    </div>
+
+    <!-- Village + Year + Season selector -->
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label class="form-label fw-semibold mb-1" style="font-size:0.82rem;color:#1862ab;">
+          <i class="fas fa-map-marker-alt me-1"></i>Village
+        </label>
+        <select id="bdVillage" class="form-select form-select-sm" onchange="loadBoosterDoseConfig()">
+          <option value="">-- Select Village --</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold mb-1" style="font-size:0.82rem;color:#1862ab;">Crop Year</label>
+        <select id="bdYear" class="form-select form-select-sm" onchange="loadBoosterDoseConfig()">
+          <option value="">-- Select Year --</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold mb-1" style="font-size:0.82rem;color:#1862ab;">Season</label>
+        <select id="bdSeason" class="form-select form-select-sm" onchange="loadBoosterDoseConfig()">
+          <option value="">-- Select Season --</option>
+          <option value="Kharif">Kharif</option>
+          <option value="Rabi">Rabi</option>
+          <option value="Summer">Summer</option>
+        </select>
+      </div>
+      <div class="col-12">
+        <div id="bdStatus" style="font-size:0.78rem;color:#7f8c8d;">
+          <i class="fas fa-info-circle me-1"></i>Select Village, Crop Year &amp; Season to view or configure Booster Dose.
+        </div>
+      </div>
+    </div>
+
+    <!-- Enable / Disable + rates panel -->
+    <div style="border:1.5px solid #f5b7b1;border-radius:12px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#fdedec,#fadbd8);padding:0.7rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <i class="fas fa-triangle-exclamation" style="color:#c0392b;"></i>
+          <span style="font-weight:800;font-size:0.83rem;color:#922b21;">Booster Dose Settings</span>
+          <span id="bdActiveBadge" style="display:none;font-size:0.65rem;background:#c0392b;color:#fff;border-radius:20px;padding:1px 8px;font-weight:700;">🚨 ENABLED</span>
+        </div>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" id="bdEnableToggle" onchange="onBdEnableToggle()" style="width:2.4em;height:1.3em;cursor:pointer;">
+          <label class="form-check-label fw-bold" for="bdEnableToggle" style="font-size:0.78rem;color:#922b21;cursor:pointer;">Enable Booster Dose</label>
+        </div>
+      </div>
+
+      <div style="padding:1rem;background:#fffaf9;">
+        <!-- Urea row (always present) -->
+        <div style="display:flex;align-items:center;gap:0.7rem;flex-wrap:wrap;background:#fff3e0;border:1.5px solid #f0b27a;border-radius:10px;padding:0.6rem 0.9rem;margin-bottom:0.7rem;">
+          <span style="font-weight:700;font-size:0.82rem;color:#a04000;min-width:110px;">🌿 Urea</span>
+          <label style="font-size:0.76rem;color:#7d4e00;">Bags / Acre</label>
+          <input type="number" id="bdUreaBagsPerAcre" step="0.05" min="0" value="0.50"
+                 style="width:100px;padding:4px 8px;border:1px solid #f0b27a;border-radius:6px;font-size:0.82rem;font-weight:700;text-align:center;">
+          <span style="font-size:0.72rem;color:#997a00;">e.g. 0.50 bag/acre → 0.77 ac farmer gets 0.39 bag (rounded to 2 decimals)</span>
+        </div>
+
+        <!-- Extra fertilizer rows -->
+        <div id="bdExtraFertRows"></div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <button onclick="addBdExtraFertRow()" style="padding:0.35rem 0.9rem;font-size:0.78rem;font-weight:700;border:1.5px dashed #c0392b;background:#fff;color:#c0392b;border-radius:8px;cursor:pointer;">
+            <i class="fas fa-plus me-1"></i>Add Another Fertilizer
+          </button>
+          <button onclick="saveBoosterDoseConfig()" style="padding:0.35rem 1rem;font-size:0.78rem;font-weight:700;background:linear-gradient(135deg,#c0392b,#8e2418);color:#fff;border:none;border-radius:8px;cursor:pointer;">
+            <i class="fas fa-save me-1"></i>Save Booster Dose
+          </button>
+        </div>
+        <div id="bdSaveStatus" style="margin-top:0.5rem;font-size:0.76rem;"></div>
+      </div>
+    </div>
+    </div><!-- /boosterDoseBody -->
+
+  </div>
+</div><!-- /boosterDoseCard -->
+
 </div><!-- /ureaSection -->
+
 
 
       <!-- Crop Damage Record Section -->
@@ -5422,7 +5533,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
   function bdsCountAffected(year, season) {
       let entryCount = 0;
       const affectedProfiles = new Set();
-      const fp = window.farmerProfiles || farmerProfiles || {};
+      const fp = farmerProfiles || {};
       Object.entries(fp).forEach(([aadhaar, profiles]) => {
           (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
               if (!p || !Array.isArray(p.crops)) return;
@@ -5474,7 +5585,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
       const execBtn = document.getElementById('bdsExecuteBtn');
       if (execBtn) { execBtn.disabled = true; execBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...'; }
 
-      const fp = window.farmerProfiles || farmerProfiles || {};
+      const fp = farmerProfiles || {};
       Object.values(fp).forEach(profiles => {
           (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
               if (!p || !Array.isArray(p.crops)) return;
@@ -5572,7 +5683,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
       if (!season) return alert('⚠️ Please select the source Season.');
 
       const cropStats = {}; // key -> { count, extent }
-      Object.values(window.farmerProfiles || farmerProfiles || {}).forEach(profiles => {
+      Object.values(farmerProfiles || {}).forEach(profiles => {
           (Array.isArray(profiles) ? profiles : Object.values(profiles || {})).forEach(p => {
               (p?.crops || []).forEach(c => {
                   if (c && c.year === year && c.season === season && c.crop) {
@@ -5696,7 +5807,7 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
       // alongside the newly renamed one.
       const bcsSourceTag = `${sourceYear}·${sourceSeason}→${targetYear}·${targetSeason}`;
 
-      const fp = window.farmerProfiles || farmerProfiles || {};
+      const fp = farmerProfiles || {};
       Object.keys(fp).forEach(aadhaar => {
           const profiles = Array.isArray(fp[aadhaar]) ? fp[aadhaar] : Object.values(fp[aadhaar] || {});
           profiles.forEach(p => {
@@ -6268,7 +6379,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 //    Counter is incremented only inside saveFarmerProfile() at actual save time.
                 const cardField = document.getElementById('fpCardNumber');
                 if (cardField) {
-                    const existingCard = await getExistingCardNumber(cleanVal);
+                    const existingCard = await getExistingCardNumber(cleanVal, selectedYear, selectedSeason, userVillage);
                     cardField.value = existingCard || '';
                     cardField.placeholder = existingCard ? existingCard : 'Auto-assigned on Save';
                 }
@@ -6285,15 +6396,63 @@ document.addEventListener("DOMContentLoaded", function() {
                         if (currentTypedVal.length === 11 && typeof cascadeMultiProfileUpdates === "function") {
                             const finalCardField = document.getElementById('fpCardNumber');
                             const cardNoValue = finalCardField ? finalCardField.value : '';
-                            await cascadeMultiProfileUpdates(cleanVal, cardNoValue, currentTypedVal);
+                            await cascadeMultiProfileUpdates(cleanVal, cardNoValue, currentTypedVal, selectedYear, selectedSeason);
                         }
                     };
 
                     if (apfrResult && apfrResult !== 'NA' && typeof cascadeMultiProfileUpdates === "function") {
                         const finalCardField = document.getElementById('fpCardNumber');
                         const cardNoValue = finalCardField ? finalCardField.value : '';
-                        await cascadeMultiProfileUpdates(cleanVal, cardNoValue, apfrResult);
+                        await cascadeMultiProfileUpdates(cleanVal, cardNoValue, apfrResult, selectedYear, selectedSeason);
                     }
+                }
+
+                // 3. Auto-populate Name / Father / Mobile from any previously seen
+                //    data for this Aadhaar, purely as a convenience — a person's
+                //    identity doesn't change by season, so any past record is fine
+                //    here. Fields stay fully editable; the officer can change them
+                //    if the auto-filled value is wrong. This never touches Khatha —
+                //    that stays behind the explicit Search button, which is the
+                //    only place allowed to verify real 1B ownership and auto-select
+                //    a Khatha for an Owner.
+                const nameField   = document.getElementById('fpName');
+                const fatherField = document.getElementById('fpFather');
+                const mobileField = document.getElementById('fpMobile');
+                if (nameField && fatherField && !nameField.value && !fatherField.value) {
+                    let matchName = '', matchFather = '', matchMobile = '';
+
+                    // Source A: previously saved farmerProfiles for this Aadhaar (any season)
+                    if (farmerProfiles && farmerProfiles[cleanVal]?.length) {
+                        const p = farmerProfiles[cleanVal][0];
+                        matchName   = p.farmerName || '';
+                        matchFather = p.fatherName || '';
+                        matchMobile = p.mobile || '';
+                    }
+
+                    // Source B: uploaded 1B data — owner identity, or any listed farmer row
+                    if (!matchName && ureaData) {
+                        outerLoop:
+                        for (const fertData of Object.values(ureaData)) {
+                            for (const kData of Object.values(fertData || {})) {
+                                if (kData.aadhaarNo && cleanAadhaar(kData.aadhaarNo) === cleanVal) {
+                                    matchName   = kData.farmerName || '';
+                                    matchFather = kData.fatherName || '';
+                                    break outerLoop;
+                                }
+                                const f = toArray(kData.farmers).find(x => cleanAadhaar(x["Aadhaar"]) === cleanVal);
+                                if (f) {
+                                    matchName   = f["Farmer Name"] || '';
+                                    matchFather = f["Father Name"] || '';
+                                    matchMobile = matchMobile || f["Mobile"] || '';
+                                    break outerLoop;
+                                }
+                            }
+                        }
+                    }
+
+                    if (matchName)   nameField.value   = matchName;
+                    if (matchFather) fatherField.value = matchFather;
+                    if (matchMobile && mobileField && !mobileField.value) mobileField.value = matchMobile;
                 }
             }
         });
@@ -6410,12 +6569,12 @@ window.cardPrintLog = window.cardPrintLog || [];
  * or selecting an already existing farmer profile.
  */
 function editFarmerProfile(profileId) {
-    if (!window.farmerProfiles) return;
+    if (!farmerProfiles) return;
     
     let targetProfile = null;
     
-    for (let key in window.farmerProfiles) {
-        let pGroup = window.farmerProfiles[key];
+    for (let key in farmerProfiles) {
+        let pGroup = farmerProfiles[key];
         if (Array.isArray(pGroup)) {
             let found = pGroup.find(p => p && (p.id === profileId || p.khatha === profileId || p.khatha == profileId));
             if (found) { targetProfile = found; break; }
@@ -6451,7 +6610,7 @@ function editFarmerProfile(profileId) {
             // Counter increments only in saveFarmerProfile().
             const cardField = document.getElementById('fpCardNumber');
             if (cardField) {
-                const existingCard = await getExistingCardNumber(currentAadhaar);
+                const existingCard = await getExistingCardNumber(currentAadhaar, currentYear, currentSeason, userVillage);
                 cardField.value = existingCard || '';
                 cardField.placeholder = existingCard ? existingCard : 'Auto-assigned on Save';
             }
@@ -7502,38 +7661,46 @@ async function rearrangeCardNumbers() {
     const user = firebase.auth().currentUser;
     if (!user) return alert('Please log in first.');
 
-    // Get village/year/season from first profile for prefix
-    let vCode = 'VIL', sCode = '2026K';
+    // ── Card numbers are scoped PER Year+Season, so rearranging MUST be
+    //    scoped the same way. Use whatever Year/Season the admin currently
+    //    has selected in the "All Profiles" filter — do NOT guess from the
+    //    first profile found, and do NOT touch other seasons' entries. ──
+    const filterYear   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
+    const filterSeason = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
+    if (!filterYear || !filterSeason) {
+        return alert('⚠️ Please select a Crop Year and Season above (in the filters) before rearranging card numbers.\n\nCard numbers are scoped per season, so only one season\'s cards are rearranged at a time.');
+    }
+
+    let vCode = 'VIL';
     try {
         const profileSnap = await database.ref(`users/${user.uid}/profile`).once('value');
         const userVillage = profileSnap.val()?.village || 'Village';
         vCode = (typeof getVillageCode === 'function') ? getVillageCode(userVillage) : userVillage.slice(0,3).toUpperCase();
     } catch(e) {}
-    // Detect year/season from profiles
-    const allProfs = Object.values(farmerProfiles).flat();
-    if (allProfs.length) {
-        const firstCrop = allProfs[0]?.crops?.[0];
-        if (firstCrop) {
-            sCode = (typeof getSeasonCode === 'function')
-                ? getSeasonCode(firstCrop.year || '2026-27', firstCrop.season || 'Kharif')
-                : '2026K';
-        }
-    }
+    const sCode = (typeof getSeasonCode === 'function') ? getSeasonCode(filterYear, filterSeason) : `${filterYear.split('-')[0]}?`;
+
+    const matchesScope = (p) => {
+        const pYear   = p.year   || (p.crops && p.crops[0] && p.crops[0].year)   || '';
+        const pSeason = p.season || (p.crops && p.crops[0] && p.crops[0].season) || '';
+        return String(pYear) === String(filterYear) && String(pSeason) === String(filterSeason);
+    };
 
     const confirmed = confirm(
-        `🔢 REARRANGE CARD NUMBERS\n\n` +
-        `This will reassign card numbers from ${vCode}/${sCode}/0001 in order.\n\n` +
-        `• One card number per Aadhaar (all profiles for same Aadhaar share one card)\n` +
+        `🔢 REARRANGE CARD NUMBERS — ${filterYear} · ${filterSeason}\n\n` +
+        `This will reassign card numbers from ${vCode}/${sCode}/0001 in order,\n` +
+        `for THIS season only. Other seasons' card numbers are left untouched.\n\n` +
+        `• One card number per Aadhaar within this season (shared across that farmer's khathas in this season)\n` +
         `• Sorted by registration date (oldest first)\n` +
-        `• This updates all profiles and resets the Firebase counter\n\n` +
+        `• This updates matching profiles and resets this season's Firebase counter\n\n` +
         `Are you sure?`
     );
     if (!confirmed) return;
 
-    // Build unique-aadhaar list sorted by earliest savedAt
+    // Build unique-aadhaar list (scoped to this Year+Season only), sorted by earliest savedAt
     const aadhaarList = Object.entries(farmerProfiles)
         .map(([aadhaar, profiles]) => {
-            const profs = Array.isArray(profiles) ? profiles : Object.values(profiles);
+            const profs = (Array.isArray(profiles) ? profiles : Object.values(profiles)).filter(p => p && matchesScope(p));
+            if (!profs.length) return null;
             const earliest = profs.reduce((min, p) => {
                 const t = p.savedAt ? new Date(p.savedAt).getTime() : Infinity;
                 return t < min ? t : min;
@@ -7541,16 +7708,21 @@ async function rearrangeCardNumbers() {
             const name = profs[0]?.farmerName || '';
             return { aadhaar, earliest, name };
         })
+        .filter(Boolean)
         .sort((a, b) => {
             if (a.earliest !== b.earliest) return a.earliest - b.earliest;
             return a.name.localeCompare(b.name);
         });
 
+    if (!aadhaarList.length) {
+        return alert(`No farmer profiles found for ${filterYear} · ${filterSeason}.`);
+    }
+
     const prefix = `${vCode}/${sCode}/`;
     const updates = {};
     let seq = 1;
 
-    aadhaarList.forEach(({ aadhaar, name }) => {
+    aadhaarList.forEach(({ aadhaar }) => {
         const newCard = `${prefix}${String(seq).padStart(4, '0')}`;
         seq++;
 
@@ -7559,23 +7731,25 @@ async function rearrangeCardNumbers() {
             : Object.values(farmerProfiles[aadhaar]);
 
         profs.forEach((p, idx) => {
-            p.cardNumber = newCard;
-            updates[`users/${user.uid}/farmerProfiles/${aadhaar}/${idx}/cardNumber`] = newCard;
+            // Only touch this Aadhaar's entries that belong to THIS Year+Season —
+            // entries from other seasons keep their own existing card number.
+            if (p && matchesScope(p)) {
+                p.cardNumber = newCard;
+                updates[`users/${user.uid}/farmerProfiles/${aadhaar}/${idx}/cardNumber`] = newCard;
+            }
         });
     });
 
-    // Reset the Firebase counter to the new highest value
+    // Reset only THIS season's Firebase counter to the new highest value
     const counterKey = `registrationCounters/${vCode}_${sCode}`;
     updates[counterKey] = seq - 1;
 
     try {
         await database.ref().update(updates);
-        showModernPopup('Done', `✅ Card numbers rearranged from ${prefix}0001 to ${prefix}${String(seq-1).padStart(4,'0')}.`, 'success');
+        showModernPopup('Done', `✅ Card numbers rearranged from ${prefix}0001 to ${prefix}${String(seq-1).padStart(4,'0')} for ${filterYear} · ${filterSeason}.`, 'success');
         if (typeof renderFpCardWiseTable === 'function') {
             const search = document.getElementById('fpAllProfilesSearch')?.value || '';
-            const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
-            const year   = document.getElementById('fpAllProfilesYearFilter')?.value || '';
-            renderFpCardWiseTable(search, season, year);
+            renderFpCardWiseTable(search, filterSeason, filterYear);
         }
         if (typeof filterAllFarmerProfiles === 'function') filterAllFarmerProfiles();
     } catch(e) {
@@ -11414,6 +11588,27 @@ function getRemainingBagsForKhathaByFert(k, fertType, eligible, season, year) {
     return Math.max(0, Number(eligible || 0) - already);
 }
 
+// ── BOOSTER DOSE (Calamity Relief) accounting ──────────────────────────
+// Booster Dose bags use their own distinct fertilizerType string, e.g.
+// "Booster Dose Urea" — so they are NEVER counted together with the
+// regular seasonal "Urea" eligibility/availed totals used elsewhere in
+// this file (those all match on an EXACT fertilizerType string). This
+// helper just sums whatever has already been issued under that distinct
+// booster fertilizerType for a given farmer + year + season.
+function getTotalBoosterBagsTaken(aadhaar, boosterFertName, year, season) {
+    const a = String(aadhaar || '').replace(/\s/g, '');
+    return ureaHistory
+        .filter(h =>
+            String(h.aadhaar || '').replace(/\s/g, '') === a &&
+            String(h.fertilizerType || h.fert || '').trim() === String(boosterFertName).trim() &&
+            String(h.season || '').trim() === String(season || '').trim() &&
+            String(h.year   || '').trim() === String(year   || '').trim() &&
+            h.status !== 'Rejected' && h.status !== 'Cancelled'
+        )
+        .reduce((sum, h) => sum + Number(h.bags || 0), 0);
+}
+
+
 function getCurrentKhatha() {
     const hidden = document.getElementById('ureaKhathaHidden');
     if (hidden && hidden.value) return hidden.value.split(',')[0].trim();
@@ -13837,8 +14032,8 @@ window.renderHistoryRows = function(rec) {
     
     return rec.map((r, index) => {
         const _rAad = String(r.aadhaar || '').replace(/\s/g, '');
-        if (_rAad.length === 12 && window.farmerProfiles && window.farmerProfiles[_rAad] && window.farmerProfiles[_rAad].length) {
-            const _fp = window.farmerProfiles[_rAad];
+        if (_rAad.length === 12 && farmerProfiles && farmerProfiles[_rAad] && farmerProfiles[_rAad].length) {
+            const _fp = farmerProfiles[_rAad];
             const _fp0 = _fp[0] || {};
             if (!r.fatherName) r = { ...r, fatherName: _fp0.fatherName || '' };
             if (!r.mobile)     r = { ...r, mobile:     _fp0.mobile     || '' };
@@ -14576,7 +14771,7 @@ window.populateAbstractCropDropdown = function() {
             if (c) crops.add(c);
         });
     }
-    Object.values(window.farmerProfiles || {}).forEach(profiles => {
+    Object.values(farmerProfiles || {}).forEach(profiles => {
         (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
             (p.crops || []).forEach(c => {
                 const cn = String(c.crop || '').trim();
@@ -14911,7 +15106,7 @@ window.exportUreaData = function() {
     
     history.forEach((r, index) => {
         const _xAad = String(r.aadhaar || '').replace(/\s/g, '');
-        const _xFp = (window.farmerProfiles && _xAad && window.farmerProfiles[_xAad]) ? window.farmerProfiles[_xAad] : [];
+        const _xFp = (farmerProfiles && _xAad && farmerProfiles[_xAad]) ? farmerProfiles[_xAad] : [];
         const _xFp0 = _xFp[0] || {};
         const _xCropNames = [];
         _xFp.forEach(p => (p.crops || []).forEach(c => {
@@ -15034,7 +15229,7 @@ function getSeasonCode(year, season) {
  * from the local in-memory cache, or null if none has been saved yet.
  * NEVER increments the Firebase counter — safe to call from UI event handlers.
  */
-async function getExistingCardNumber(aadhaar) {
+async function getExistingCardNumber(aadhaar, year, season, village) {
     const cleanA = cleanAadhaar(aadhaar);
     if (!cleanA || cleanA.length !== 12) return null;
 
@@ -15045,12 +15240,31 @@ async function getExistingCardNumber(aadhaar) {
     // assigned and overwrites the old one.
     const NEW_FORMAT_RE = /^[A-Z]{3}\/\d{4}[A-Z]\/\d{4}$/;
 
+    // ── Scope reuse to the CURRENT village + crop year + season ──
+    // A card number is only "existing" for THIS registration if it belongs
+    // to the same Year/Season series (e.g. KLV/2027K/xxxx). A card from a
+    // different year or season (e.g. KLV/2026K/0273) must NOT be reused —
+    // otherwise a farmer registering for a brand-new season would wrongly
+    // inherit an old card number instead of getting a fresh 0001 in the
+    // new series.
+    let prefix = null;
+    if (year && season) {
+        const vCode = getVillageCode(village || window.currentUserProfile?.village || localStorage.getItem('user_village') || 'Unknown');
+        const sCode = getSeasonCode(year, season);
+        prefix = `${vCode}/${sCode}/`; // e.g. "KLV/2027K/"
+    }
+    const matchesScope = (cardNo) => {
+        if (!cardNo || !NEW_FORMAT_RE.test(String(cardNo).toUpperCase())) return false;
+        if (!prefix) return true; // no year/season given — fall back to old (unscoped) behavior
+        return String(cardNo).toUpperCase().startsWith(prefix.toUpperCase());
+    };
+
     // 1. Check local in-memory profiles first (fastest)
-    if (window.farmerProfiles) {
-        const profilesList = Array.isArray(window.farmerProfiles)
-            ? window.farmerProfiles
-            : Object.values(window.farmerProfiles).flat();
-        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && p.cardNumber && NEW_FORMAT_RE.test(String(p.cardNumber).toUpperCase()));
+    if (farmerProfiles) {
+        const profilesList = Array.isArray(farmerProfiles)
+            ? farmerProfiles
+            : Object.values(farmerProfiles).flat();
+        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && matchesScope(p.cardNumber));
         if (existing?.cardNumber) return existing.cardNumber;
     }
 
@@ -15063,14 +15277,14 @@ async function getExistingCardNumber(aadhaar) {
                 let found = null;
                 snap.forEach(child => {
                     const p = child.val();
-                    if (p && p.cardNumber && !found && NEW_FORMAT_RE.test(String(p.cardNumber).toUpperCase())) found = p.cardNumber;
+                    if (p && !found && matchesScope(p.cardNumber)) found = p.cardNumber;
                 });
                 if (found) return found;
             }
         }
     } catch (e) { /* silent — fall through to null */ }
 
-    return null; // No existing (valid-format) card — one will be assigned at save time
+    return null; // No existing (valid-format, same year/season) card — one will be assigned at save time
 }
 
 /**
@@ -15083,14 +15297,26 @@ async function generateAutomaticCardNumber(aadhaar, village, year, season) {
     const cleanA = cleanAadhaar(aadhaar);
     if (!cleanA || cleanA.length !== 12) return null;
 
-    // 1. Check if this identifier already has an assigned card number (new format) across any profile
+    const vCode = getVillageCode(village);
+    const sCode = getSeasonCode(year, season); // e.g. "2026K"
+    const key   = `${vCode}_${sCode}`;
+    const prefix = `${vCode}/${sCode}/`; // e.g. "KLV/2026K/"
+
+    // 1. Check if this identifier already has an assigned card number
+    //    (new format) IN THIS SAME YEAR+SEASON series. A card number from a
+    //    different year/season (e.g. reusing KLV/2026K/0273 while registering
+    //    for 2027-28 Kharif) must NEVER be reused — each new Year/Season
+    //    combination starts its own series at 0001.
     const NEW_FORMAT_RE = /^[A-Z]{3}\/\d{4}[A-Z]\/\d{4}$/;
-    if (window.farmerProfiles) {
+    const matchesScope = (cardNo) => cardNo && NEW_FORMAT_RE.test(String(cardNo).toUpperCase())
+        && String(cardNo).toUpperCase().startsWith(prefix.toUpperCase());
+
+    if (farmerProfiles) {
         // farmerProfiles is a dict of aadhaar -> [profile, profile, ...], so we must .flat() the values
-        const profilesList = Array.isArray(window.farmerProfiles)
-            ? window.farmerProfiles
-            : Object.values(window.farmerProfiles).flat();
-        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && p.cardNumber && NEW_FORMAT_RE.test(String(p.cardNumber).toUpperCase()));
+        const profilesList = Array.isArray(farmerProfiles)
+            ? farmerProfiles
+            : Object.values(farmerProfiles).flat();
+        const existing = profilesList.find(p => p && cleanAadhaar(p.aadhaar) === cleanA && matchesScope(p.cardNumber));
         if (existing?.cardNumber) return existing.cardNumber;
     }
 
@@ -15103,17 +15329,12 @@ async function generateAutomaticCardNumber(aadhaar, village, year, season) {
                 let found = null;
                 snap.forEach(child => {
                     const p = child.val();
-                    if (p && p.cardNumber && !found && NEW_FORMAT_RE.test(String(p.cardNumber).toUpperCase())) found = p.cardNumber;
+                    if (!found && matchesScope(p.cardNumber)) found = p.cardNumber;
                 });
                 if (found) return found;
             }
         }
     } catch (e) { /* silent */ }
-
-    const vCode = getVillageCode(village);
-    const sCode = getSeasonCode(year, season); // e.g. "2026K"
-    const key   = `${vCode}_${sCode}`;
-    const prefix = `${vCode}/${sCode}/`; // e.g. "KLV/2026K/"
 
     // 2. Try to get a recycled ID from Firebase first
     try {
@@ -15136,8 +15357,8 @@ async function generateAutomaticCardNumber(aadhaar, village, year, season) {
     // to a brand-new number at the end of the sequence.
     try {
         const used = new Set();
-        if (window.farmerProfiles) {
-            Object.values(window.farmerProfiles).forEach(profiles => {
+        if (farmerProfiles) {
+            Object.values(farmerProfiles).forEach(profiles => {
                 (Array.isArray(profiles) ? profiles : Object.values(profiles)).forEach(p => {
                     if (p && p.cardNumber && String(p.cardNumber).toUpperCase().startsWith(prefix.toUpperCase())) {
                         const suffix = String(p.cardNumber).split('/')[2];
@@ -15203,8 +15424,8 @@ async function checkAPFRStatus(aadhaar) {
     setStatus('<i class="fas fa-spinner fa-spin me-1"></i>Searching records...');
 
     // ── 1. In-memory farmerProfiles (current VAA, instant) ──
-    if (window.farmerProfiles) {
-        const profilesList = Object.values(window.farmerProfiles).flat();
+    if (farmerProfiles) {
+        const profilesList = Object.values(farmerProfiles).flat();
         const hit = profilesList.find(p =>
             p && cleanAadhaar(p.aadhaar) === cleanA &&
             p.apfrNumber && p.apfrNumber !== 'NA' &&
@@ -15328,7 +15549,7 @@ function manualCheckApfr() {
  * Sweeps all profiles and automatically cascades uniform card data 
  * when edits or structural variations are executed.
  */
-async function cascadeMultiProfileUpdates(aadhaar, newCardNumber, newApfrNumber) {
+async function cascadeMultiProfileUpdates(aadhaar, newCardNumber, newApfrNumber, year, season) {
     const cleanA = cleanAadhaar(aadhaar);
     // Allow APFR-only updates even when newCardNumber is empty
     if (!cleanA || (!newCardNumber && !newApfrNumber) || !firebase.auth().currentUser) return;
@@ -15341,10 +15562,22 @@ async function cascadeMultiProfileUpdates(aadhaar, newCardNumber, newApfrNumber)
             let updatePayload = {};
             
             Object.keys(profiles).forEach(key => {
-                if (profiles[key] && cleanAadhaar(profiles[key].aadhaar) === cleanA) {
-                    if (newCardNumber) {
-                        updatePayload[`${key}/cardNumber`] = newCardNumber;
+                const p = profiles[key];
+                if (p && cleanAadhaar(p.aadhaar) === cleanA) {
+                    // Card Number is scoped PER Year+Season. Only cascade it to
+                    // this Aadhaar's OTHER khatha entries in the SAME season —
+                    // never overwrite a different season's own card number.
+                    // If year/season isn't supplied, skip the card cascade
+                    // entirely rather than risk touching the wrong season.
+                    if (newCardNumber && year && season) {
+                        const pYear   = p.year   || (p.crops && p.crops[0] && p.crops[0].year)   || '';
+                        const pSeason = p.season || (p.crops && p.crops[0] && p.crops[0].season) || '';
+                        if (String(pYear) === String(year) && String(pSeason) === String(season)) {
+                            updatePayload[`${key}/cardNumber`] = newCardNumber;
+                        }
                     }
+                    // APFR (Farmer ID) is Aadhaar-level and applies across every
+                    // season/khatha, so it still cascades to all entries.
                     if (newApfrNumber && newApfrNumber !== 'NA') {
                         updatePayload[`${key}/apfrNumber`] = newApfrNumber;
                     }
@@ -15395,21 +15628,107 @@ function getFarmerProfiles(aadhaar) {
  * Called when Year or Season dropdowns change.
  * Auto-generates card number if Aadhaar is already entered and both year+season are selected.
  */
+// Fills Farmer Name / Father Name / Mobile from the same 1B / saved-profile
+// sources used by searchFpByAadhaar(), but silently (no alerts, no Khatha or
+// Farmer-Type side effects) and WITHOUT overwriting anything the officer has
+// already typed. Used when Aadhaar was entered first and Year/Season is
+// picked (or changed) afterwards, so the officer doesn't have to click
+// Search again just to get these three fields populated.
+function autoFillFpBasicDetailsIfEmpty() {
+    const a    = cleanAadhaar(document.getElementById('fpAadhaar')?.value || '');
+    const type = document.getElementById('fpFarmerType')?.value;
+    if (a.length !== 12 || !type || type === '-- Select Type --') return;
+
+    const nameEl   = document.getElementById('fpName');
+    const fatherEl = document.getElementById('fpFather');
+    const mobileEl = document.getElementById('fpMobile');
+    if (!nameEl || !fatherEl || !mobileEl) return;
+
+    // If all three already have values, nothing to do here — avoid clobbering
+    // manual edits or a value already filled by an explicit Search.
+    if (nameEl.value.trim() && fatherEl.value.trim() && mobileEl.value.trim()) return;
+
+    let found = false;
+
+    if (type === 'owner') {
+        for (const fertData of Object.values(ureaData || {})) {
+            for (const kData of Object.values(fertData)) {
+                const primaryAadhaar = cleanAadhaar(
+                    kData.aadhaarNo || (kData.farmers && kData.farmers[0] && kData.farmers[0]["Aadhaar"]) || ''
+                );
+                if (primaryAadhaar && primaryAadhaar === a) {
+                    const primaryName   = kData.farmerName || (kData.farmers && kData.farmers[0] && kData.farmers[0]["Farmer Name"]) || '';
+                    const primaryFather = kData.fatherName || (kData.farmers && kData.farmers[0] && kData.farmers[0]["Father Name"]) || '';
+                    const primaryMobile = (kData.farmers && kData.farmers[0] && kData.farmers[0]["Mobile"]) || '';
+                    // Prefer an already-saved (officer-corrected) name over the
+                    // raw 1B value, same as searchFpByAadhaar.
+                    const savedProfile = (farmerProfiles[a] && farmerProfiles[a][0]) || null;
+                    if (!nameEl.value.trim())   nameEl.value   = savedProfile?.farmerName || primaryName;
+                    if (!fatherEl.value.trim()) fatherEl.value = savedProfile?.fatherName || primaryFather;
+                    if (!mobileEl.value.trim()) mobileEl.value = savedProfile?.mobile || primaryMobile || '';
+                    found = true;
+                    break;
+                }
+            }
+            if (found) break;
+        }
+    } else {
+        if (farmerProfiles[a]?.length > 0) {
+            const existing = farmerProfiles[a][0];
+            if (!nameEl.value.trim())   nameEl.value   = existing.farmerName || '';
+            if (!fatherEl.value.trim()) fatherEl.value = existing.fatherName || '';
+            if (!mobileEl.value.trim()) mobileEl.value = existing.mobile || '';
+            found = true;
+        }
+        if (!found) {
+            for (const fertData of Object.values(ureaData || {})) {
+                for (const kData of Object.values(fertData)) {
+                    const f = toArray(kData.farmers).find(x => cleanAadhaar(x["Aadhaar"]) === a);
+                    if (f) {
+                        if (!nameEl.value.trim())   nameEl.value   = f["Farmer Name"] || '';
+                        if (!fatherEl.value.trim()) fatherEl.value = f["Father Name"]  || '';
+                        if (!mobileEl.value.trim()) mobileEl.value = f["Mobile"] || '';
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+    }
+}
+
 function onFpYearSeasonChange() {
     const a      = cleanAadhaar(document.getElementById('fpAadhaar')?.value || '');
     const year   = document.getElementById('fpCropYear')?.value  || '';
     const season = document.getElementById('fpCropSeason')?.value || '';
+    const village = document.getElementById('fpVillageSelect')?.value
+        || window.currentUserProfile?.village || localStorage.getItem('user_village') || 'Unknown';
     const fpCardNumEl = document.getElementById('fpCardNumber');
+
+    // Auto-fill Name / Father Name / Mobile too if Aadhaar was already typed
+    // before Year & Season was picked/changed — no need to click Search again.
+    autoFillFpBasicDetailsIfEmpty();
+
     if (!fpCardNumEl) return;
     if (a.length === 12 && year && season) {
-        // Only show already-allocated card numbers — never burn a counter slot here.
-        // The actual counter increment happens only in saveFarmerProfile().
-        getExistingCardNumber(a).then(existingCard => {
+        // Clear any previously-shown card number immediately so a stale
+        // number from another Year/Season doesn't linger on screen while
+        // the (scoped) lookup below is in flight.
+        fpCardNumEl.value = '';
+        fpCardNumEl.placeholder = 'Checking…';
+        // Only show already-allocated card numbers for THIS year+season —
+        // never burn a counter slot here. The actual counter increment
+        // happens only in saveFarmerProfile().
+        getExistingCardNumber(a, year, season, village).then(existingCard => {
             if (fpCardNumEl) {
                 fpCardNumEl.value = existingCard || '';
                 fpCardNumEl.placeholder = existingCard ? existingCard : 'Auto-assigned on Save';
             }
         });
+    } else if (fpCardNumEl) {
+        fpCardNumEl.value = '';
+        fpCardNumEl.placeholder = 'Will generate when Year & Season selected';
     }
 }
 
@@ -15523,7 +15842,18 @@ async function saveFarmerProfile() {
 
     if (!farmerProfiles[a]) farmerProfiles[a] = [];
 
-    const existingIdx = farmerProfiles[a].findIndex(p => String(p.khatha) === String(k));
+    // ── Match an existing entry ONLY within the SAME Crop Year + Season ──
+    // Matching by khatha alone would let a new season's save (e.g. Rabi)
+    // overwrite and destroy a previous season's entry (e.g. Kharif) for the
+    // same khatha, wiping out its khatha/crop details and card number.
+    // Every Year+Season combination must get its own independent entry
+    // (and therefore its own fresh card number series).
+    const existingIdx = farmerProfiles[a].findIndex(p => {
+        if (String(p.khatha) !== String(k)) return false;
+        const pYear   = p.year   || (p.crops && p.crops[0] && p.crops[0].year)   || '';
+        const pSeason = p.season || (p.crops && p.crops[0] && p.crops[0].season) || '';
+        return String(pYear) === String(selectedYear) && String(pSeason) === String(selectedSeason);
+    });
 
     // ── Preserve existing Registration IDs (if any) on matching crop entries ──
     if (existingIdx !== -1) {
@@ -15558,13 +15888,25 @@ async function saveFarmerProfile() {
         apfrNumber: apfrNumber,
         ownerName: savedOwnerName,
         village: userVillage,                      // ── Village of the VO who created this entry ──
+        year: selectedYear,                         // ── Top-level Year/Season for reliable season-scoped matching ──
+        season: selectedSeason,
         savedAt: new Date().toISOString()
     };
 
-    // ── Local Sync Card Number & APFR to ALL profiles for this unique identifier ──
+    // ── Local Sync Card Number & APFR to profiles for this unique identifier ──
+    // Card Number is scoped PER SEASON (one card per Aadhaar within a given
+    // Year+Season, shared across that farmer's khathas in that season only).
+    // It must NEVER be pushed onto a different season's entries, or that
+    // season's own card number gets silently overwritten/lost.
+    // APFR (Farmer ID) is Aadhaar-level and genuinely applies across every
+    // season/khatha, so it still syncs to all entries.
     (farmerProfiles[a] || []).forEach(p => {
         if (p) {
-            p.cardNumber = finalCardNumber;
+            const pYear   = p.year   || (p.crops && p.crops[0] && p.crops[0].year)   || '';
+            const pSeason = p.season || (p.crops && p.crops[0] && p.crops[0].season) || '';
+            if (String(pYear) === String(selectedYear) && String(pSeason) === String(selectedSeason)) {
+                p.cardNumber = finalCardNumber;
+            }
             p.apfrNumber = apfrNumber;
         }
     });
@@ -15581,7 +15923,7 @@ async function saveFarmerProfile() {
 
     // ── Cloud Database Update Cascading across records ──
     if (typeof cascadeMultiProfileUpdates === "function") {
-        await cascadeMultiProfileUpdates(a, finalCardNumber, apfrNumber);
+        await cascadeMultiProfileUpdates(a, finalCardNumber, apfrNumber, selectedYear, selectedSeason);
     }
 
     saveToCloud();
@@ -16482,21 +16824,42 @@ function populateFpKhathaDropdown() {
         for (const k of Object.keys(fertData)) allKhathas.add(String(k));
     }
 
-    // Source 2: existing farmerProfiles for this Aadhaar
+    // Source 2: existing farmerProfiles for this Aadhaar — ONLY within the
+    // CURRENTLY selected Crop Year + Season. A khatha this Aadhaar was
+    // registered under in a different/past season is not relevant here —
+    // including it risked auto-selecting a stale, wrong-season (and
+    // possibly non-owned) khatha when it happened to be the only match.
     if (aadhaar.length === 12 && farmerProfiles[aadhaar]) {
+        const curYear   = document.getElementById('fpCropYear')?.value   || '';
+        const curSeason = document.getElementById('fpCropSeason')?.value || '';
         farmerProfiles[aadhaar].forEach(p => {
-            if (p.khatha) allKhathas.add(String(p.khatha));
+            if (!p || !p.khatha) return;
+            const pYear   = p.year   || (p.crops && p.crops[0] && p.crops[0].year)   || '';
+            const pSeason = p.season || (p.crops && p.crops[0] && p.crops[0].season) || '';
+            if (curYear && curSeason && (String(pYear) !== String(curYear) || String(pSeason) !== String(curSeason))) return;
+            allKhathas.add(String(p.khatha));
         });
     }
 
-    // Source 3: allReportsCache (e-Panta data)
-    for (const reportKey of Object.keys(allReportsCache || {})) {
-        const report = allReportsCache[reportKey];
-        if (!report?.farmerDetails) continue;
-        for (const farmerKey of Object.keys(report.farmerDetails)) {
-            const bookings = report.farmerDetails[farmerKey];
-            if (!Array.isArray(bookings)) continue;
-            bookings.forEach(b => { if (b.khathaNo) allKhathas.add(String(b.khathaNo)); });
+    // Source 3: allReportsCache (e-Panta data) — ONLY reports matching the
+    // CURRENTLY selected Crop Year + Season. Report keys are built as
+    // "{village}__{year}_{season}" (or "{year}_{season}"), so a Kharif
+    // report's khathas must never leak into a Rabi registration's list.
+    {
+        const curYear   = document.getElementById('fpCropYear')?.value   || '';
+        const curSeason = document.getElementById('fpCropSeason')?.value || '';
+        for (const reportKey of Object.keys(allReportsCache || {})) {
+            if (curYear && curSeason && typeof parseReportKey === 'function') {
+                const { year: rYear, season: rSeason } = parseReportKey(reportKey);
+                if (String(rYear) !== String(curYear) || String(rSeason) !== String(curSeason)) continue;
+            }
+            const report = allReportsCache[reportKey];
+            if (!report?.farmerDetails) continue;
+            for (const farmerKey of Object.keys(report.farmerDetails)) {
+                const bookings = report.farmerDetails[farmerKey];
+                if (!Array.isArray(bookings)) continue;
+                bookings.forEach(b => { if (b.khathaNo) allKhathas.add(String(b.khathaNo)); });
+            }
         }
     }
 
@@ -16829,7 +17192,19 @@ function onFpKhathaChange() {
 
     const a = cleanAadhaar(document.getElementById('fpAadhaar')?.value);
     if (a.length === 12 && farmerProfiles[a]) {
-        const existing = farmerProfiles[a].find(p => String(p.khatha) === String(k));
+        // ── Only auto-load a PREVIOUS entry for this khatha if it belongs to
+        //    the SAME Crop Year + Season currently selected. Otherwise a new
+        //    season's registration (e.g. Rabi) would wrongly get pre-filled
+        //    with the previous season's (e.g. Kharif) khatha/crop details. ──
+        const curYear   = document.getElementById('fpCropYear')?.value   || '';
+        const curSeason = document.getElementById('fpCropSeason')?.value || '';
+        const existing = farmerProfiles[a].find(p => {
+            if (String(p.khatha) !== String(k)) return false;
+            const pYear   = p.year   || (p.crops && p.crops[0] && p.crops[0].year)   || '';
+            const pSeason = p.season || (p.crops && p.crops[0] && p.crops[0].season) || '';
+            if (!curYear || !curSeason) return false; // no season selected yet — don't guess
+            return String(pYear) === String(curYear) && String(pSeason) === String(curSeason);
+        });
         if (existing) loadProfileIntoForm(existing, false);
     }
     
@@ -16919,65 +17294,116 @@ async function searchFpByAadhaar() {
     let autoFilled  = false;
     let foundKhatha = null;
 
-    // STEP 0: Existing farmerProfiles
-    if (!autoFilled && farmerProfiles[a]?.length > 0) {
-        const existing = farmerProfiles[a][0];
-        if (nameEl)   nameEl.value   = existing.farmerName || '';
-        if (fatherEl) fatherEl.value = existing.fatherName || '';
-        document.getElementById('fpMobile').value = existing.mobile || '';
-        if (type === 'owner' && existing.khatha) foundKhatha = String(existing.khatha);
-        autoFilled = true;
-    }
-
-    // STEP 1: ureaData (1B)
-    if (!autoFilled) {
+    if (type === 'owner') {
+        // ══════════════════════════════════════════════════════════════
+        // OWNER: the ONLY acceptable proof of ownership is the uploaded
+        // 1B land-record data — specifically the khatha's own registered
+        // pattadhar Aadhaar. We deliberately do NOT trust:
+        //   • a farmer's own past farmerProfiles entry (that's just a
+        //     previous REGISTRATION, e.g. as a tenant on someone else's
+        //     khatha in an earlier season — not proof of ownership), or
+        //   • any row in a khatha's flat farmers[] list (that list can
+        //     include tenants/cultivators, not just the actual owner).
+        // If the Aadhaar doesn't match a khatha's registered owner in 1B,
+        // this person is NOT treated as an owner of any khatha here —
+        // they must register as a Tenant instead.
+        // ══════════════════════════════════════════════════════════════
         for (const fertData of Object.values(ureaData)) {
             for (const [khatha, kData] of Object.entries(fertData)) {
-                const f = toArray(kData.farmers).find(x => cleanAadhaar(x["Aadhaar"]) === a);
-                if (f) {
-                    if (nameEl)   nameEl.value   = f["Farmer Name"] || '';
-                    if (fatherEl) fatherEl.value = f["Father Name"]  || '';
-                    document.getElementById('fpMobile').value = f["Mobile"] || '';
-                    if (type === 'owner') foundKhatha = String(khatha);
-                    autoFilled = true;
+                // Real AP 1B format stores the pattadhar identity directly
+                // on the khatha record (aadhaarNo/farmerName/fatherName).
+                // Flat/simple format has no such top-level field, so fall
+                // back to the FIRST listed farmer row for that khatha —
+                // by construction that's the primary/owner row, not any
+                // arbitrary cultivator further down the list.
+                const primaryAadhaar = cleanAadhaar(
+                    kData.aadhaarNo || (kData.farmers && kData.farmers[0] && kData.farmers[0]["Aadhaar"]) || ''
+                );
+                if (primaryAadhaar && primaryAadhaar === a) {
+                    const primaryName   = kData.farmerName || (kData.farmers && kData.farmers[0] && kData.farmers[0]["Farmer Name"]) || '';
+                    const primaryFather = kData.fatherName || (kData.farmers && kData.farmers[0] && kData.farmers[0]["Father Name"]) || '';
+                    const primaryMobile = (kData.farmers && kData.farmers[0] && kData.farmers[0]["Mobile"]) || '';
+                    // Prefer the name/father/mobile the officer already saved
+                    // for this Aadhaar in an earlier profile (often corrected
+                    // to English from the 1B data's Telugu script) over the
+                    // raw 1B value. Khatha/ownership itself still comes ONLY
+                    // from the 1B match above — this only affects display of
+                    // the name fields, not who is treated as the owner.
+                    const savedProfile   = (farmerProfiles[a] && farmerProfiles[a][0]) || null;
+                    const displayName    = savedProfile?.farmerName || primaryName;
+                    const displayFather  = savedProfile?.fatherName || primaryFather;
+                    const displayMobile  = savedProfile?.mobile     || primaryMobile;
+                    if (nameEl)   nameEl.value   = displayName;
+                    if (fatherEl) fatherEl.value = displayFather;
+                    if (displayMobile) document.getElementById('fpMobile').value = displayMobile;
+                    foundKhatha = String(khatha);
+                    autoFilled  = true;
                     break;
                 }
             }
             if (autoFilled) break;
         }
-    }
 
-    // STEP 2: allReportsCache fallback for owners
-    if (!autoFilled && type === 'owner') {
-        for (const reportKey of Object.keys(allReportsCache || {})) {
-            const report = allReportsCache[reportKey];
-            if (!report?.uniqueFarmers) continue;
-            const farmer = report.uniqueFarmers.find(f => cleanAadhaar(f.aadhaarNumber) === a);
-            if (farmer) {
-                if (nameEl)   nameEl.value   = farmer.farmerName || '';
-                if (fatherEl) fatherEl.value = farmer.fatherName || '';
-                if (farmer.mobileNumber && farmer.mobileNumber !== '-')
-                    document.getElementById('fpMobile').value = farmer.mobileNumber;
-                autoFilled = true;
-                break;
+        if (!autoFilled) {
+            alert(
+                '⚠️ This Aadhaar is not registered as the Owner (Pattadhar) of any Khatha in the uploaded 1B data.\n\n' +
+                'Switching to Tenant — please re-enter details or search again as Tenant.'
+            );
+            const ftSel = document.getElementById('fpFarmerType');
+            if (ftSel) {
+                ftSel.value = 'tenant';
+                if (typeof onFpFarmerTypeChange === 'function') onFpFarmerTypeChange();
+                // Preserve the Aadhaar the user already typed so they don't have to retype it
+                const aadhaarEl = document.getElementById('fpAadhaar');
+                if (aadhaarEl) aadhaarEl.value = a;
+            }
+            return;
+        }
+    } else {
+        // ══════════════════════════════════════════════════════════════
+        // TENANT: no ownership claim is being made, so these sources are
+        // fine purely as autofill convenience for name/father/mobile.
+        // The Khatha itself is always a manual pick for a Tenant.
+        // ══════════════════════════════════════════════════════════════
+
+        // STEP 0: Existing farmerProfiles (name/father/mobile convenience only)
+        if (!autoFilled && farmerProfiles[a]?.length > 0) {
+            const existing = farmerProfiles[a][0];
+            if (nameEl)   nameEl.value   = existing.farmerName || '';
+            if (fatherEl) fatherEl.value = existing.fatherName || '';
+            document.getElementById('fpMobile').value = existing.mobile || '';
+            autoFilled = true;
+        }
+
+        // STEP 1: ureaData (1B) — any listed farmer/cultivator row
+        if (!autoFilled) {
+            for (const fertData of Object.values(ureaData)) {
+                for (const kData of Object.values(fertData)) {
+                    const f = toArray(kData.farmers).find(x => cleanAadhaar(x["Aadhaar"]) === a);
+                    if (f) {
+                        if (nameEl)   nameEl.value   = f["Farmer Name"] || '';
+                        if (fatherEl) fatherEl.value = f["Father Name"]  || '';
+                        document.getElementById('fpMobile').value = f["Mobile"] || '';
+                        autoFilled = true;
+                        break;
+                    }
+                }
+                if (autoFilled) break;
             }
         }
     }
 
     // STEP 3: Not found
     if (!autoFilled) {
-        if (type === 'owner') {
-            alert('⚠️ Owner not found in 1B or e-Panta data.\n\nPlease upload 1B data first, or switch to Tenant for manual entry.');
-        } else {
-            alert('⚠️ Farmer not found in 1B uploaded data.\n\nYou can still fill the details manually.');
-        }
+        alert('⚠️ Farmer not found in 1B uploaded data.\n\nYou can still fill the details manually.');
         if (nameEl)   { nameEl.value = '';   nameEl.readOnly = false; nameEl.placeholder = 'Full Name'; }
         if (fatherEl) { fatherEl.value = ''; fatherEl.readOnly = false; fatherEl.placeholder = 'Father Name'; }
         if (khathaEl) khathaEl.disabled = false;
         return;
     }
 
-    // STEP 4: Lock fields
+    // STEP 4: Owner's Khatha is locked to their known Khatha (auto-selected
+    // below in Step 5); Tenant's Khatha stays a manual choice.
     const khathaSearchInp = document.getElementById('fpKhathaSearchInput');
     if (type === 'owner') {
         if (nameEl)   { nameEl.readOnly   = false; nameEl.classList.add('border-warning'); }
@@ -16993,7 +17419,14 @@ async function searchFpByAadhaar() {
         if (extentEl) extentEl.readOnly   = false;
     }
 
-    // STEP 5: Populate Khatha + auto-select for owners
+    // STEP 5: Populate Khatha + auto-select for owners.
+    // NOTE: onFpKhathaChange() → loadProfileIntoForm(existing, false) can
+    // silently load an OLDER profile's own crop data onto the form, but that
+    // function is now hardened to never overwrite Crop Year/Season (or a
+    // mismatched Card Number) during this kind of silent auto-refresh — only
+    // an explicit Edit/Copy action is allowed to do that. So it's safe to
+    // auto-select the Khatha here without risking the season the officer
+    // already picked in Step 1.
     populateFpKhathaDropdown();
 
     if (type === 'owner' && foundKhatha) {
@@ -17018,37 +17451,53 @@ async function searchFpByAadhaar() {
     const fpCardNumEl = document.getElementById('fpCardNumber');
     const profiles    = farmerProfiles[a];
     const firstCrop   = (profiles && profiles[0]?.crops && profiles[0].crops[0]);
-    // First check if this aadhaar already has a card number saved
-    const existingCard = (profiles || []).reduce((found, p) => found || p.cardNumber || '', '');
-    if (existingCard && fpCardNumEl) {
-        fpCardNumEl.value = existingCard;
-    } else {
-        // Try to derive year/season from form or existing profile
-        const year   = firstCrop?.year   || document.getElementById('fpCropYear')?.value  || '';
-        const season = firstCrop?.season || document.getElementById('fpCropSeason')?.value || '';
-        if (year && season) {
-            // Read-only check only — counter increments only at save time
-            getExistingCardNumber(a).then(id => {
-                if (fpCardNumEl) {
-                    fpCardNumEl.value = id || '';
-                    fpCardNumEl.placeholder = id ? id : 'Auto-assigned on Save';
-                }
-            });
-        } else if (fpCardNumEl) {
-            fpCardNumEl.placeholder = 'Will generate when Year & Season selected';
-        }
+    // Prefer the currently-selected Year & Season on the form (this is what
+    // the farmer is registering for right now); only fall back to a saved
+    // profile's crop year/season if the form doesn't have one yet.
+    const year   = document.getElementById('fpCropYear')?.value   || firstCrop?.year   || '';
+    const season = document.getElementById('fpCropSeason')?.value || firstCrop?.season || '';
+    const _fpVillageForCard = document.getElementById('fpVillageSelect')?.value
+        || window.currentUserProfile?.village || localStorage.getItem('user_village') || 'Unknown';
+    if (year && season) {
+        // Only reuse a card number if it belongs to THIS SAME year+season
+        // series — never inherit a card from a different season.
+        getExistingCardNumber(a, year, season, _fpVillageForCard).then(id => {
+            if (fpCardNumEl) {
+                fpCardNumEl.value = id || '';
+                fpCardNumEl.placeholder = id ? id : 'Auto-assigned on Save';
+            }
+        });
+    } else if (fpCardNumEl) {
+        fpCardNumEl.value = '';
+        fpCardNumEl.placeholder = 'Will generate when Year & Season selected';
     }
 
     // STEP 7: Status message
-    const profileInfo = profiles?.length
-        ? `ℹ️ ${profiles.length} existing khatha profile(s) found. Select a Khatha to edit or add new.
-           <ul class="mb-0 mt-1">${profiles.map(p => {
-               const ownerLabel = p.farmerName || getKhathaOwnerName(p.khatha) || '';
+    // Only show profiles that belong to the CURRENTLY selected Crop Year &
+    // Season — a khatha profile registered in a different season is not
+    // "existing" for this registration and must not be listed here (it was
+    // confusing officers into thinking those old cards were still active).
+    const _fpFormYear   = document.getElementById('fpCropYear')?.value   || '';
+    const _fpFormSeason = document.getElementById('fpCropSeason')?.value || '';
+    const currentSeasonProfiles = (profiles || []).filter(p => {
+        const pFirstCrop = p.crops && p.crops[0];
+        if (!_fpFormYear || !_fpFormSeason) return true; // no season selected yet — can't filter, show all
+        return pFirstCrop && pFirstCrop.year === _fpFormYear && pFirstCrop.season === _fpFormSeason;
+    });
+    const profileInfo = currentSeasonProfiles.length
+        ? `ℹ️ ${currentSeasonProfiles.length} existing khatha profile(s) found for ${_fpFormSeason} ${_fpFormYear}. Select a Khatha to edit or add new.
+           <ul class="mb-0 mt-1">${currentSeasonProfiles.map(p => {
+               // Always prefer the actual registered Khatha (pattadar/land) owner
+               // name over the profile's farmerName — the profile may belong to
+               // a tenant cultivating someone else's khatha, and the list here
+               // should reflect who officially owns that khatha, not who is
+               // farming it.
+               const ownerLabel = getKhathaOwnerName(p.khatha) || p.farmerName || '';
                return `<li><strong>Khatha ${p.khatha}</strong>${ownerLabel ? ` — ${ownerLabel}` : ''} — ${(p.crops || []).map(c =>
                    `${c.crop} (${c.extent}ac)`
                ).join(', ')}${p.cardNumber ? ` <span class="badge bg-primary ms-1" style="font-size:0.7rem;">🪪 ${p.cardNumber}</span>` : ''}</li>`;
            }).join('')}</ul>`
-        : 'No existing profile — fill crops and save.';
+        : 'No existing profile for this Year & Season — fill crops and save.';
 
     if (statusEl) {
         if (type === 'owner') {
@@ -17079,8 +17528,11 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
 
     const nameEl = document.getElementById('fpName');
     const fatherEl = document.getElementById('fpFather');
-    if (nameEl) { nameEl.value = profile.farmerName || ''; nameEl.readOnly = profile.farmerType === 'owner'; }
-    if (fatherEl) { fatherEl.value = profile.fatherName || ''; fatherEl.readOnly = profile.farmerType === 'owner'; }
+    // Always editable — auto-filling a previous value should never prevent
+    // the officer from correcting it if it's wrong (e.g. spelling, or the
+    // 1B record itself being outdated).
+    if (nameEl) { nameEl.value = profile.farmerName || ''; nameEl.readOnly = false; }
+    if (fatherEl) { fatherEl.value = profile.fatherName || ''; fatherEl.readOnly = false; }
 
     document.getElementById('fpMobile').value = profile.mobile || '';
     document.getElementById('fpKhatha').value = profile.khatha || '';
@@ -17090,22 +17542,36 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
     const a = cleanAadhaar(profile.aadhaar || document.getElementById('fpAadhaar')?.value);
 
     if (fpCardNumEl) {
-        const cardNum = profile.cardNumber ||
-            (farmerProfiles[a] || []).reduce((found, p) => found || p.cardNumber || '', '') || '';
+        const formYear   = document.getElementById('fpCropYear')?.value || '';
+        const formSeason = document.getElementById('fpCropSeason')?.value || '';
+        const village = document.getElementById('fpVillageSelect')?.value
+            || window.currentUserProfile?.village || localStorage.getItem('user_village') || 'Unknown';
+
+        // profile.cardNumber is only trustworthy here if:
+        //  (a) this is an explicit Edit/Copy load (fillAadhaar=true) — the form's
+        //      Year/Season is being updated to match this exact record anyway, or
+        //  (b) this profile's own crop year/season already matches what's
+        //      currently selected on the form (silent refresh, same season).
+        // Otherwise (silent refresh matched an OLDER season's profile via
+        // Khatha) we must not show that season's card number here.
+        const profileFirstCrop = profile.crops && profile.crops[0];
+        const profileMatchesFormSeason = !formYear || !formSeason
+            || (profileFirstCrop?.year === formYear && profileFirstCrop?.season === formSeason);
+        const cardNum = (fillAadhaar || profileMatchesFormSeason) ? (profile.cardNumber || '') : '';
         fpCardNumEl.value = cardNum;
 
         if (!cardNum && a.length === 12) {
-            const firstCrop = (profile.crops && profile.crops[0]) ||
-                              (farmerProfiles[a] && farmerProfiles[a][0]?.crops && farmerProfiles[a][0].crops[0]);
-            const year = firstCrop?.year || document.getElementById('fpCropYear')?.value;
-            const season = firstCrop?.season || document.getElementById('fpCropSeason')?.value;
+            const year   = formYear   || profileFirstCrop?.year   || '';
+            const season = formSeason || profileFirstCrop?.season || '';
             if (year && season) {
-                getExistingCardNumber(a).then(id => {
+                getExistingCardNumber(a, year, season, village).then(id => {
                     if (fpCardNumEl) {
                         fpCardNumEl.value = id || '';
                         fpCardNumEl.placeholder = id ? id : 'Auto-assigned on Save';
                     }
                 });
+            } else {
+                fpCardNumEl.placeholder = 'Will generate when Year & Season selected';
             }
         }
     }
@@ -17310,8 +17776,15 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
         const firstCrop = crops[0];
         const yearSel = document.getElementById('fpCropYear');
         const seasonSel = document.getElementById('fpCropSeason');
-        if (yearSel && firstCrop.year) yearSel.value = firstCrop.year;
-        if (seasonSel && firstCrop.season) seasonSel.value = firstCrop.season;
+        // Only an explicit Edit/Copy action (fillAadhaar=true) is allowed to
+        // switch Year/Season to match the loaded profile's own crop data.
+        // A silent auto-refresh (fillAadhaar=false, e.g. triggered by manually
+        // picking a Khatha that has an older profile) must never override the
+        // Year/Season the officer already selected in Step 1.
+        if (fillAadhaar) {
+            if (yearSel && firstCrop.year) yearSel.value = firstCrop.year;
+            if (seasonSel && firstCrop.season) seasonSel.value = firstCrop.season;
+        }
     } else {
         addFpCropRow();
     }
@@ -17721,7 +18194,7 @@ function renderAllFarmerProfilesTable(filter = '', seasonFilter = '', yearFilter
                         🔄 Copy
                     </button>
                     <button class="btn btn-sm btn-outline-danger"
-                        onclick='deleteFarmerProfile("${p.aadhaar}", "${p.khatha}")'>
+                        onclick='deleteFarmerProfile("${p.aadhaar}", "${p.khatha}", "${escapeHtml(String(p.year || (p.crops && p.crops[0] && p.crops[0].year) || ""))}", "${escapeHtml(String(p.season || (p.crops && p.crops[0] && p.crops[0].season) || ""))}")'>
                         🗑️
                     </button>
                 </div>
@@ -17776,6 +18249,10 @@ function copyProfileToNewSeason(profile) {
 
     const copiedProfile = {
         ...profile,
+        // A copy targets a brand-new Year/Season series, so it must get its
+        // own fresh Card Number (starting at 0001 for that series) rather
+        // than inheriting the source profile's card number.
+        cardNumber: '',
         crops: (profile.crops || []).map(c => ({
             crop:   c.crop,
             extent: c.extent,
@@ -17801,11 +18278,23 @@ function copyProfileToNewSeason(profile) {
     alert(`✅ Profile copied for ${targetSeason} ${targetYear}.\n\nUpdate crop/extent if needed and click Save Profile.`);
 }
 
-function deleteFarmerProfile(aadhaar, khatha) {
+function deleteFarmerProfile(aadhaar, khatha, rowYear, rowSeason) {
     const a = cleanAadhaar(aadhaar);
     if (!farmerProfiles[a]) return alert('Profile not found.');
 
-    const profile = farmerProfiles[a].find(p => String(p.khatha) === String(khatha));
+    // ── Match ONLY the entry for this specific Year+Season, when known.
+    //    Matching by khatha alone would delete EVERY season's entry sharing
+    //    that khatha (e.g. deleting a Rabi row would also wipe the Kharif
+    //    row for the same khatha/aadhaar). ──
+    const matchesRow = (p) => {
+        if (String(p.khatha) !== String(khatha)) return false;
+        if (!rowYear || !rowSeason) return true; // no scope passed — fall back to old behavior
+        const pYear   = p.year   || (p.crops && p.crops[0] && p.crops[0].year)   || '';
+        const pSeason = p.season || (p.crops && p.crops[0] && p.crops[0].season) || '';
+        return String(pYear) === String(rowYear) && String(pSeason) === String(rowSeason);
+    };
+
+    const profile = farmerProfiles[a].find(matchesRow);
     if (!profile) return alert('Profile not found.');
 
     const cropList = (profile.crops || [])
@@ -17813,18 +18302,18 @@ function deleteFarmerProfile(aadhaar, khatha) {
         .join('\n');
 
     const confirmed = confirm(
-        `⚠️ Delete profile for:\n\nFarmer : ${profile.farmerName}\nKhatha : ${khatha}\nCrops  :\n${cropList}\n\nThis cannot be undone. Confirm?`
+        `⚠️ Delete profile for:\n\nFarmer : ${profile.farmerName}\nKhatha : ${khatha}\nSeason : ${profile.season || profile.crops?.[0]?.season || ''} ${profile.year || profile.crops?.[0]?.year || ''}\nCrops  :\n${cropList}\n\nThis cannot be undone. Confirm?`
     );
     if (!confirmed) return;
 
     const cardNumberToRecycle = profile.cardNumber;
     
     // Fallbacks to determine the targeted operational timeline
-    const year   = (profile.crops && profile.crops[0]?.year)   || document.getElementById('fpCropYear')?.value || '';
-    const season = (profile.crops && profile.crops[0]?.season) || document.getElementById('fpCropSeason')?.value || '';
+    const year   = rowYear   || (profile.crops && profile.crops[0]?.year)   || document.getElementById('fpCropYear')?.value || '';
+    const season = rowSeason || (profile.crops && profile.crops[0]?.season) || document.getElementById('fpCropSeason')?.value || '';
 
-    // Remove this specific Khatha profile row from the local array
-    farmerProfiles[a] = farmerProfiles[a].filter(p => String(p.khatha) !== String(khatha));
+    // Remove ONLY this specific Khatha+Year+Season profile row from the local array
+    farmerProfiles[a] = farmerProfiles[a].filter(p => !matchesRow(p));
 
     // If no more profiles remain for this unique identifier, clear the key entirely
     if (farmerProfiles[a].length === 0) {
@@ -23638,6 +24127,38 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             } catch(_e) { _voRestrictions = {}; }
         }
 
+        // ── Fetch Booster Dose (calamity relief) config for this village+year+season ──
+        // If the VO has enabled it, the farmer gets an EXTRA, separately-tracked
+        // allotment (extent × bags/acre) on top of the regular seasonal eligibility.
+        let _boosterConfig = null;
+        if (_voUidForRestrict && _villageForRestrict) {
+            try {
+                _boosterConfig = (await window._fetchBoosterDoseConfig(_voUidForRestrict, _villageForRestrict, year, season)) || null;
+            } catch(_e) { _boosterConfig = null; }
+        }
+        const _fcExtentForBooster = parseFloat(fc.extent || fc.totalExtent || 0) || 0;
+        // List of { fert: 'Booster Dose Urea', baseFert: 'Urea', bagsPerAcre, eligible, issued, remaining }
+        window._fcBoosterOptions = window._fcBoosterOptions || {};
+        window._fcBoosterOptions[fcKey] = [];
+        if (_boosterConfig && _boosterConfig.enabled) {
+            const _boosterList = [
+                { baseFert: 'Urea', bagsPerAcre: Number(_boosterConfig.ureaBagsPerAcre || 0) },
+                ...(Array.isArray(_boosterConfig.extraFertilizers) ? _boosterConfig.extraFertilizers : [])
+                    .filter(f => f && f.name && Number(f.bagsPerAcre) > 0)
+                    .map(f => ({ baseFert: f.name, bagsPerAcre: Number(f.bagsPerAcre) || 0 }))
+            ].filter(f => f.bagsPerAcre > 0);
+
+            window._fcBoosterOptions[fcKey] = _boosterList.map(f => {
+                const boosterFertName = 'Booster Dose ' + f.baseFert;
+                const eligible = Math.round(_fcExtentForBooster * f.bagsPerAcre * 100) / 100;
+                const issued = (typeof getTotalBoosterBagsTaken === 'function')
+                    ? getTotalBoosterBagsTaken(a, boosterFertName, year, season)
+                    : 0;
+                const remaining = Math.max(0, eligible - issued);
+                return { fert: boosterFertName, baseFert: f.baseFert, bagsPerAcre: f.bagsPerAcre, eligible, issued, remaining };
+            });
+        }
+
 
         // Crop-aware split label helper for retailer view
         const _rtCrop = (fc.crops || fc.crop || '').split(',')[0].trim().toLowerCase().replace(/\s+/g,'_');
@@ -24352,6 +24873,16 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         _fertOptions.push({ value: 'MOP', label: '🟠 MOP' });
         _fertOptions.push({ value: 'NPK', label: '🟢 NPK' });
         _fertOptions.push({ value: 'Other', label: '⚪ Other' });
+        // ── Booster Dose (Calamity Relief) options — only shown when the VO
+        // has enabled Booster Dose for this village + year + season. Kept
+        // completely separate from the regular Urea/DAP eligibility above.
+        const _boosterOpts = (window._fcBoosterOptions && window._fcBoosterOptions[fcKey]) || [];
+        _boosterOpts.forEach(b => {
+            _fertOptions.push({
+                value: b.fert,
+                label: `🚨 ${b.fert}${b.remaining === 0 ? ' — ✅ Done' : ` — ${b.remaining} bag${b.remaining !== 1 ? 's' : ''} left`}`
+            });
+        });
         const _mainFertSelectHtml = `
         <div style="margin-bottom:14px;">
           <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:5px;"><i class="fas fa-flask me-1"></i>Choose Fertilizer</label>
@@ -24437,7 +24968,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
 
             <!-- ── SSP / TSP / MOP / NPK panel: direct issue based on farmer's requirement, no eligibility/split tracking ── -->
             <div id="fcOtherFertPanel_${fcKey}" class="d-none">
-              <p style="font-size:0.74rem;color:#777;margin:0 0 10px 0;">Recorded directly from your stock — no eligibility limit applies to this fertilizer.</p>
+              <p id="fcOtherIntro_${fcKey}" style="font-size:0.74rem;color:#777;margin:0 0 10px 0;">Recorded directly from your stock — no eligibility limit applies to this fertilizer.</p>
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <div id="fcOtherNpkGradeWrap_${fcKey}" class="d-none" style="flex:1 1 160px;min-width:140px;">
                   <label style="font-size:0.72rem;font-weight:700;color:#555;display:block;margin-bottom:3px;">NPK Grade</label>
@@ -24464,6 +24995,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
               <option value="TSP">TSP</option>
               <option value="MOP">MOP</option>
               <option value="NPK">NPK</option>
+              ${((window._fcBoosterOptions && window._fcBoosterOptions[fcKey]) || []).map(b => `<option value="${escapeHtml(b.fert)}">${escapeHtml(b.fert)}</option>`).join('')}
             </select>
 
             <div id="fcOtherIssuedChips_${fcKey}" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">
@@ -24589,9 +25121,27 @@ function onFcOtherFertChange(fcKey) {
     const gradeSel  = document.getElementById('fcOtherNpkGrade_' + fcKey);
     const noteEl    = document.getElementById('fcOtherStockNote_' + fcKey);
     const bagsEl    = document.getElementById('fcOtherBags_' + fcKey);
+    const introEl   = document.getElementById('fcOtherIntro_' + fcKey);
     if (!fertSel || !noteEl) return;
     const fert  = fertSel.value;
     const stock = (window._fcStockCache && window._fcStockCache[fcKey]) || {};
+
+    // ── Booster Dose (Calamity Relief): eligibility-capped, unlike the other
+    // simple-issue fertilizers here — the retailer can issue at most the
+    // extent × bags/acre allotment the VO configured, minus whatever this
+    // farmer has already received under this exact booster fertilizer type.
+    const _boosterMatch = (window._fcBoosterOptions && window._fcBoosterOptions[fcKey] || []).find(b => b.fert === fert);
+    if (_boosterMatch) {
+        gradeWrap?.classList.add('d-none');
+        if (introEl) introEl.innerHTML = `🚨 <strong>Calamity Booster Dose</strong> — a special extra allotment on top of the regular seasonal eligibility, based on the extent × bags/acre rate set by your Village Officer. This does NOT add to or replace the regular ${escapeHtml(_boosterMatch.baseFert)} quota.`;
+        const stockBags = Number(stock[_boosterMatch.baseFert]) || 0;
+        const cap = Math.min(_boosterMatch.remaining, stockBags);
+        noteEl.innerHTML = `🎯 Booster eligible: <strong>${_boosterMatch.eligible}</strong> · already issued: <strong>${_boosterMatch.issued}</strong> · remaining: <strong>${_boosterMatch.remaining}</strong> bag(s)`
+            + (stockBags < _boosterMatch.remaining ? ` &nbsp;|&nbsp; ⚠️ Only <strong>${stockBags}</strong> ${escapeHtml(_boosterMatch.baseFert)} bag(s) in stock.` : '');
+        if (bagsEl) bagsEl.max = Math.max(0, cap);
+        return;
+    }
+    if (introEl) introEl.innerHTML = 'Recorded directly from your stock — no eligibility limit applies to this fertilizer.';
 
     if (fert === 'NPK') {
         gradeWrap?.classList.remove('d-none');
@@ -25365,6 +25915,29 @@ function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
     const issueBtn = errEl?.parentElement?.querySelector('button[onclick^="submitOtherFertilizerDistribution"]');
     const fertLabel = fert === 'NPK' ? `NPK ${npkGrade}` : fert;
 
+    // ── Booster Dose (Calamity Relief): this is a distinct, eligibility-capped
+    // fertilizerType (e.g. "Booster Dose Urea") — separate from the regular
+    // seasonal Urea/DAP quota. Its physical stock still comes from the
+    // retailer's normal stock of the underlying fertilizer (baseFert).
+    const isBoosterDose = fert.indexOf('Booster Dose ') === 0;
+    const _boosterMatchForSubmit = isBoosterDose
+        ? ((window._fcBoosterOptions && window._fcBoosterOptions[fcKey]) || []).find(b => b.fert === fert)
+        : null;
+    if (isBoosterDose) {
+        if (!_boosterMatchForSubmit) {
+            if (errEl) { errEl.textContent = 'Booster Dose is no longer available for this farmer — please rescan the card.'; errEl.classList.remove('d-none'); }
+            return;
+        }
+        // Re-check remaining live (in case another distribution happened since scan)
+        const liveIssued = getTotalBoosterBagsTaken(a, fert, year, season);
+        const liveRemaining = Math.max(0, _boosterMatchForSubmit.eligible - liveIssued);
+        if (bags > liveRemaining) {
+            if (errEl) { errEl.textContent = `Only ${liveRemaining} ${fert} bag(s) remaining for this farmer (eligible: ${_boosterMatchForSubmit.eligible}, already issued: ${liveIssued}).`; errEl.classList.remove('d-none'); }
+            return;
+        }
+    }
+    const stockFertKey = isBoosterDose ? _boosterMatchForSubmit.baseFert : fert;
+
     database.ref('fertilizerCards/' + fcKey).once('value').then(async cardSnap => {
         const cardData = cardSnap.val() || {};
         const voUidForHist = cardData.voUid || '';
@@ -25381,16 +25954,17 @@ function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
 
         // ── Retailer stock check — NPK is deducted from its specific grade bucket ──
         // (falls back to the flat NPK number if this retailer's stock was recorded
-        // before grade-wise tracking existed)
+        // before grade-wise tracking existed). Booster Dose draws from the
+        // underlying fertilizer's stock (stockFertKey), same pool as normal issues.
         const npkBasePath = outletId
             ? `mandals/${mandalKey}/retailers/${outletId}/stock/NPK`
             : `users/${retailerUid}/retailerStock/balance/NPK`;
         const otherBalPath = outletId
-            ? `mandals/${mandalKey}/retailers/${outletId}/stock/${fert}`
-            : `users/${retailerUid}/retailerStock/balance/${fert}`;
+            ? `mandals/${mandalKey}/retailers/${outletId}/stock/${stockFertKey}`
+            : `users/${retailerUid}/retailerStock/balance/${stockFertKey}`;
 
         let balPath, stock;
-        if (fert === 'NPK') {
+        if (stockFertKey === 'NPK') {
             const npkBaseSnap = await database.ref(npkBasePath).once('value');
             const npkBaseVal = npkBaseSnap.val();
             if (npkBaseVal !== null && typeof npkBaseVal !== 'object') {
@@ -25408,7 +25982,7 @@ function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
         }
         if (stock < bags) {
             if (errEl) {
-                errEl.textContent = `Insufficient stock — available: ${stock} ${fertLabel} bag(s), needed: ${bags}. Add stock first.`;
+                errEl.textContent = `Insufficient stock — available: ${stock} ${isBoosterDose ? stockFertKey : fertLabel} bag(s), needed: ${bags}. Add stock first.`;
                 errEl.classList.remove('d-none');
             }
             return;
@@ -25422,10 +25996,11 @@ function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
             aadhaar: a, farmerName, fatherName, mobile, cardNumber, khatha, extent,
             crop: cropForHist, serialNo, year, season,
             fertilizerType: fert, fert,
-            splitIndex: 0, splitName: 'Direct Issue',
+            splitIndex: 0, splitName: isBoosterDose ? 'Booster Dose' : 'Direct Issue',
             bags, date: todayStr, status: 'Distributed',
             retailerVerified: true, retailerDistributedViaFarmerCard: true,
-            noEligibilityTracking: true,
+            noEligibilityTracking: !isBoosterDose,
+            ...(isBoosterDose ? { boosterDose: true, boosterBaseFert: stockFertKey, eligibleBags: _boosterMatchForSubmit.eligible } : {}),
             outletId: outletId || '', outletName: outletName || '', retailerUid,
             distributedAt: now, verifiedAt: nowISO, distributedVia: 'farmerCardQR-simpleIssue',
             fcKey, village, mandal, voUid: voUidForHist
@@ -32746,6 +33321,31 @@ if (_origShowSection) {
 }
 
 /* ═══════════════════════════════════════════════════════
+   GENERIC CARD COLLAPSE / EXPAND (Hide-Show) TOGGLE
+   Used by: Fertilizer Distribution Restrictions card,
+            Booster Dose — Calamity Relief card
+   ═══════════════════════════════════════════════════════ */
+window.toggleCardCollapse = function(bodyId, btnId) {
+    const body = document.getElementById(bodyId);
+    const btn  = document.getElementById(btnId);
+    if (!body || !btn) return;
+    const icon  = btn.querySelector('i');
+    const label = btn.querySelector('span');
+    const isHidden = body.style.display === 'none';
+    if (isHidden) {
+        // Currently collapsed → expand it
+        body.style.display = '';
+        if (icon)  icon.className = 'fas fa-chevron-up';
+        if (label) label.textContent = 'Hide';
+    } else {
+        // Currently expanded → collapse it
+        body.style.display = 'none';
+        if (icon)  icon.className = 'fas fa-chevron-down';
+        if (label) label.textContent = 'Show';
+    }
+};
+
+/* ═══════════════════════════════════════════════════════
    LOAD — read both bagRule + splitLocks from Firebase
    ═══════════════════════════════════════════════════════ */
 window.loadFertRestrictions = async function() {
@@ -33242,7 +33842,209 @@ window._evalFertRestrictions = function(restrictions, extent, splitIndex, fertTy
 })(); // end IIFE
 </script>
 
-<footer style="
+<!-- ══════════════════════════════════════════════════════════
+     BOOSTER DOSE (CALAMITY RELIEF) — JS
+     Firebase schema:
+       voBoosterDose/{voUid}/{safeVillage}/{year}_{season}
+         → { enabled:bool, ureaBagsPerAcre:number,
+             extraFertilizers:[{name,bagsPerAcre}],
+             updatedAt, updatedBy, updatedEmail }
+     ══════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+'use strict';
+
+function _bdSafeVillage(v) {
+    return (v || '').trim().replace(/[.#$\[\]/]/g, '_');
+}
+function _bdKey(year, season) {
+    return String(year || '').trim() + '_' + String(season || '').trim();
+}
+function _bdBase() {
+    const u = firebase.auth().currentUser;
+    if (!u) return null;
+    const v = (document.getElementById('bdVillage') || {}).value || '';
+    const y = (document.getElementById('bdYear')    || {}).value || '';
+    const s = (document.getElementById('bdSeason')  || {}).value || '';
+    if (!v || !y || !s) return null;
+    return database.ref('voBoosterDose/' + u.uid + '/' + _bdSafeVillage(v) + '/' + _bdKey(y, s));
+}
+
+/* ── Populate Village / Year selects on ureaSection open (mirrors absVillage/absYear) ── */
+function _populateBdSelectors() {
+    const villSel = document.getElementById('bdVillage');
+    const villSrc = document.getElementById('absVillage');
+    if (villSel) {
+        const opts = villSrc ? Array.from(villSrc.options) : [];
+        villSel.innerHTML = '<option value="">-- Select Village --</option>';
+        opts.forEach(o => {
+            if (!o.value) return;
+            const opt = document.createElement('option');
+            opt.value = o.value; opt.textContent = o.textContent;
+            villSel.appendChild(opt);
+        });
+        const voProfile = window._currentVoProfile || window.currentUserProfile || {};
+        const villages  = voProfile.villages || (voProfile.village ? [voProfile.village] : []);
+        if (villages.length === 1 && villSel.options.length === 2) villSel.value = villages[0];
+    }
+    const yearSel = document.getElementById('bdYear');
+    const yearSrc = document.getElementById('absYear');
+    if (yearSel) {
+        const opts = yearSrc ? Array.from(yearSrc.options) : [];
+        yearSel.innerHTML = '<option value="">-- Select Year --</option>';
+        opts.forEach(o => {
+            if (!o.value) return;
+            const opt = document.createElement('option');
+            opt.value = o.value; opt.textContent = o.textContent;
+            yearSel.appendChild(opt);
+        });
+    }
+}
+
+const _origShowSectionBd = window.showSection;
+if (_origShowSectionBd) {
+    window.showSection = function(id) {
+        _origShowSectionBd.apply(this, arguments);
+        if (id === 'ureaSection') setTimeout(_populateBdSelectors, 400);
+    };
+}
+
+/* ═══════════════════════════════════════════════════
+   Extra fertilizer rows (beyond Urea)
+   ═══════════════════════════════════════════════════ */
+function _renderBdExtraFertRows(rows) {
+    const wrap = document.getElementById('bdExtraFertRows');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    (rows || []).forEach((r, i) => {
+        wrap.insertAdjacentHTML('beforeend', `
+        <div id="bdExtraRow_${i}" style="display:flex;align-items:center;gap:0.7rem;flex-wrap:wrap;background:#fdf2f0;border:1.5px solid #f1c3bb;border-radius:10px;padding:0.6rem 0.9rem;margin-bottom:0.7rem;">
+          <input type="text" id="bdExtraName_${i}" placeholder="Fertilizer name (e.g. DAP, MOP)" value="${escapeHtml(r.name || '')}"
+                 style="flex:1 1 160px;min-width:140px;padding:4px 8px;border:1px solid #f1c3bb;border-radius:6px;font-size:0.82rem;font-weight:700;">
+          <label style="font-size:0.76rem;color:#7d4e00;">Bags / Acre</label>
+          <input type="number" id="bdExtraRate_${i}" step="0.05" min="0" value="${r.bagsPerAcre != null ? r.bagsPerAcre : ''}"
+                 style="width:100px;padding:4px 8px;border:1px solid #f1c3bb;border-radius:6px;font-size:0.82rem;font-weight:700;text-align:center;">
+          <button onclick="removeBdExtraFertRow(${i})" style="background:#e74c3c;color:#fff;border:none;border-radius:6px;padding:3px 9px;font-size:0.74rem;cursor:pointer;" title="Remove">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>`);
+    });
+}
+
+function _collectBdExtraFertRows() {
+    const wrap = document.getElementById('bdExtraFertRows');
+    if (!wrap) return [];
+    return Array.from(wrap.querySelectorAll('[id^="bdExtraRow_"]')).map((row, i) => ({
+        name:        (document.getElementById('bdExtraName_' + i)?.value || '').trim(),
+        bagsPerAcre: parseFloat(document.getElementById('bdExtraRate_' + i)?.value || 0) || 0
+    })).filter(r => r.name);
+}
+
+window.addBdExtraFertRow = function() {
+    const rows = _collectBdExtraFertRows();
+    rows.push({ name: '', bagsPerAcre: 0 });
+    _renderBdExtraFertRows(rows);
+};
+window.removeBdExtraFertRow = function(idx) {
+    const rows = _collectBdExtraFertRows();
+    rows.splice(idx, 1);
+    _renderBdExtraFertRows(rows);
+};
+
+/* ═══════════════════════════════════════════════════
+   LOAD
+   ═══════════════════════════════════════════════════ */
+window.loadBoosterDoseConfig = async function() {
+    const statusEl = document.getElementById('bdStatus');
+    const base = _bdBase();
+    if (!base) {
+        if (statusEl) statusEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Select Village, Crop Year &amp; Season first.</span>';
+        return;
+    }
+    if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Loading…';
+    try {
+        const snap = await base.once('value');
+        const data = snap.val() || {};
+        const toggle = document.getElementById('bdEnableToggle');
+        const badge  = document.getElementById('bdActiveBadge');
+        if (toggle) toggle.checked = data.enabled === true;
+        if (badge)  badge.style.display = data.enabled ? '' : 'none';
+        const ureaEl = document.getElementById('bdUreaBagsPerAcre');
+        if (ureaEl) ureaEl.value = (data.ureaBagsPerAcre != null) ? data.ureaBagsPerAcre : 0.50;
+        _renderBdExtraFertRows(Array.isArray(data.extraFertilizers) ? data.extraFertilizers : []);
+        if (statusEl) statusEl.innerHTML = '<span style="color:#27ae60;"><i class="fas fa-check-circle me-1"></i>Loaded Booster Dose settings.</span>';
+    } catch(e) {
+        if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Error: ${escapeHtml(e.message)}</span>`;
+    }
+};
+
+/* Toggle switch — visual feedback only; actual enabled state is committed on Save,
+   same UX pattern as the Bag Rule toggle above (needs at least a Urea rate first). */
+window.onBdEnableToggle = function() {
+    const toggle = document.getElementById('bdEnableToggle');
+    const badge  = document.getElementById('bdActiveBadge');
+    const active = toggle ? toggle.checked : false;
+    if (badge) badge.style.display = active ? '' : 'none';
+    const stEl = document.getElementById('bdSaveStatus');
+    if (stEl) stEl.innerHTML = active
+        ? '<span style="color:#c0392b;"><i class="fas fa-info-circle me-1"></i>Click <strong>Save Booster Dose</strong> below to activate it for farmers.</span>'
+        : '<span style="color:#7f8c8d;"><i class="fas fa-info-circle me-1"></i>Click <strong>Save Booster Dose</strong> below to switch it off for farmers.</span>';
+};
+
+/* ═══════════════════════════════════════════════════
+   SAVE
+   ═══════════════════════════════════════════════════ */
+window.saveBoosterDoseConfig = async function() {
+    const stEl = document.getElementById('bdSaveStatus');
+    const base = _bdBase();
+    if (!base) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger">Select Village, Crop Year &amp; Season first.</span>';
+        return;
+    }
+    const enabled = document.getElementById('bdEnableToggle')?.checked === true;
+    const ureaBagsPerAcre = parseFloat(document.getElementById('bdUreaBagsPerAcre')?.value || 0) || 0;
+    const extraFertilizers = _collectBdExtraFertRows();
+
+    if (enabled && ureaBagsPerAcre <= 0 && extraFertilizers.every(f => f.bagsPerAcre <= 0)) {
+        if (stEl) stEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Set a bags/acre rate greater than 0 for at least one fertilizer before enabling.</span>';
+        return;
+    }
+
+    const user = firebase.auth().currentUser;
+    if (stEl) stEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+    try {
+        await base.set({
+            enabled,
+            ureaBagsPerAcre,
+            extraFertilizers,
+            updatedAt:    Date.now(),
+            updatedBy:    user ? user.uid : '',
+            updatedEmail: user ? (user.email || '') : ''
+        });
+        const badge = document.getElementById('bdActiveBadge');
+        if (badge) badge.style.display = enabled ? '' : 'none';
+        if (stEl) stEl.innerHTML = `<span style="color:#27ae60;"><i class="fas fa-check-circle me-1"></i>Booster Dose ${enabled ? 'ENABLED' : 'saved (disabled)'} for this Village/Year/Season. Retailers will see it the next time they scan a farmer's card.</span>`;
+    } catch(e) {
+        if (stEl) stEl.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Save failed: ${escapeHtml(e.message)}</span>`;
+    }
+};
+
+/* ═══════════════════════════════════════════════════
+   RETAILER-SIDE FETCH — called during QR scan
+   Returns { enabled, ureaBagsPerAcre, extraFertilizers } or null
+   ═══════════════════════════════════════════════════ */
+window._fetchBoosterDoseConfig = async function(voUid, villageName, year, season) {
+    try {
+        const snap = await database.ref(
+            'voBoosterDose/' + voUid + '/' + _bdSafeVillage(villageName) + '/' + _bdKey(year, season)
+        ).once('value');
+        return snap.val() || null;
+    } catch(e) { return null; }
+};
+
+})(); // end IIFE
+</script>
+
     background: linear-gradient(135deg, #0d1b2a 0%, #1a2f4a 100%);
     color: #c8d8e8;
     text-align: center;
