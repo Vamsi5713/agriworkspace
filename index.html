@@ -1786,11 +1786,11 @@
       </div>
       <button type="button" id="fertRestrictionToggleBtn" onclick="toggleCardCollapse('fertRestrictionBody','fertRestrictionToggleBtn')"
               style="flex-shrink:0;padding:0.35rem 0.8rem;font-size:0.76rem;font-weight:700;background:#fff;color:#c0392b;border:1.5px solid #e74c3c;border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:5px;">
-        <i class="fas fa-chevron-up"></i><span>Hide</span>
+        <i class="fas fa-chevron-down"></i><span>Show</span>
       </button>
     </div>
 
-    <div id="fertRestrictionBody">
+    <div id="fertRestrictionBody" style="display:none;">
     <!-- Village selector for restriction -->
     <div class="row g-2 mb-3">
       <div class="col-md-6">
@@ -1933,11 +1933,11 @@
       </div>
       <button type="button" id="boosterDoseToggleBtn" onclick="toggleCardCollapse('boosterDoseBody','boosterDoseToggleBtn')"
               style="flex-shrink:0;padding:0.35rem 0.8rem;font-size:0.76rem;font-weight:700;background:#fff;color:#c0392b;border:1.5px solid #e74c3c;border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:5px;">
-        <i class="fas fa-chevron-up"></i><span>Hide</span>
+        <i class="fas fa-chevron-down"></i><span>Show</span>
       </button>
     </div>
 
-    <div id="boosterDoseBody">
+    <div id="boosterDoseBody" style="display:none;">
     <div class="alert alert-info py-2 mb-3" style="font-size:0.78rem;border-radius:10px;">
       <i class="fas fa-info-circle me-1"></i>
       When enabled, every farmer in the selected Village + Crop Year + Season gets an
@@ -2320,6 +2320,18 @@
       <label class="form-label fw-semibold">Select Pest / Disease</label>
       <select id="pestName" class="form-select">
         <option value="">-- Select --</option>
+      </select>
+    </div>
+
+    <!-- Crop Age / Growth Stage dropdown (conditional — only for Pest/Disease) -->
+    <div id="cropAgeSection" class="mb-3 d-none">
+      <label class="form-label fw-semibold">Crop Age / Growth Stage <span class="text-muted fw-normal">(optional — highlights the best-fit controls)</span></label>
+      <select id="cropAgeStage" class="form-select">
+        <option value="">-- Not Sure / Show All Stages --</option>
+        <option value="nursery">🌱 Nursery / Seedling Stage (0–15 days)</option>
+        <option value="vegetative">🌿 Vegetative / Early Growth (15–45 days)</option>
+        <option value="flowering">🌸 Flowering / Reproductive Stage (45–75 days)</option>
+        <option value="maturity">🌾 Maturity / Fruiting-Harvest Stage (75+ days)</option>
       </select>
     </div>
 
@@ -10986,6 +10998,159 @@ const chemicalRecommendations = {
   }
 };
 
+// ============================================================
+//  CROP RECOMMENDATION CARD — TRADE NAMES, STAGE & MULTI-CONTROL DATA
+//  Lets a farmer see Chemical (with market trade/brand names),
+//  Biological, Manual/Cultural, and Natural controls — filtered by
+//  crop age / growth stage.
+// ============================================================
+
+// ── Active-ingredient → common Indian market trade/brand names ────────────────
+// (Trade names/companies can vary by region & change over time — farmers should
+//  always confirm the exact pack/label with their local dealer before buying.)
+const tradeNameMap = {
+  'chlorantraniliprole':        ['Coragen (FMC)', 'Ferterra (FMC)'],
+  'cartap hydrochloride':       ['Caldan (Tata Rallis)', 'Sunpat'],
+  'flubendiamide':              ['Fame (Bayer)', 'Belt'],
+  'spinetoram':                 ['Delegate (Corteva)', 'Exalt'],
+  'spinosad':                   ['Tracer (Corteva)', 'Success'],
+  'pymetrozine':                ['Chess (Syngenta)'],
+  'dinotefuran':                ['Osheen (Bayer)', 'Token (PI Industries)'],
+  'carbofuran':                 ['Furadan (FMC)', 'Diafuran'],
+  'phorate':                    ['Thimet (Cheminova/UPL)'],
+  'quinalphos':                 ['Ekalux (Syngenta)'],
+  'profenofos':                 ['Curacron (Syngenta)'],
+  'emamectin benzoate':         ['Proclaim (Syngenta)', 'Missile (PI Industries)'],
+  'imidacloprid':                ['Confidor (Bayer)', 'Tatamida (Tata Rallis)'],
+  'dimethoate':                 ['Rogor (UPL)', 'Tafgor (UPL)'],
+  'chlorpyrifos':               ['Dursban (Corteva)', 'Classic (UPL)'],
+  'cypermethrin':                ['Ustaad (UPL)', 'Cyperkill'],
+  'indoxacarb':                  ['Avaunt (Corteva)'],
+  'diafenthiuron':               ['Polo (Syngenta)'],
+  'afidopyropen':                ['Versys (BASF)'],
+  'flonicamid':                  ['Ulala (UPL)'],
+  'fipronil':                    ['Regent (Bayer)', 'Roxfin'],
+  'propargite':                  ['Omite (UPL)'],
+  'hexythiazox':                 ['Maiden (Sumitomo)'],
+  'malathion':                   ['Malathion 50 EC (multiple brands)'],
+  'lambda-cyhalothrin':          ['Karate (Syngenta)'],
+  'thiamethoxam':                ['Actara (Syngenta)'],
+  'neem oil':                    ['Achook', 'Nimbecidine (T. Stanes)'],
+  'paecilomyces lilacinus':      ['PL Bioagent (bio-nematicide, various brands)'],
+  'tricyclazole':                ['Beam (Corteva)'],
+  'isoprothiolane':              ['Fuji-One (PI Industries)'],
+  'streptocycline':              ['Streptocycline / Plantomycin'],
+  'copper oxychloride':          ['Blitox (Rallis)', 'Fytolan'],
+  'hexaconazole':                ['Contaf (Rallis)', 'Sitara (Dhanuka)'],
+  'propiconazole':               ['Tilt (Syngenta)'],
+  'mancozeb':                    ['Indofil M-45', 'Dithane M-45 (Corteva)'],
+  'trifloxystrobin':             ['Nativo (Bayer)'],
+  'chlorothalonil':              ['Kavach (Syngenta)'],
+  'carbendazim':                 ['Bavistin (BASF)', 'Derosal (Bayer)'],
+  'metalaxyl':                   ['Ridomil Gold (Syngenta)'],
+  'cymoxanil':                   ['Curzate M8 (Corteva)', 'Sectin (Bayer)'],
+  'thiram':                      ['Thiride (Bayer)'],
+  'thiophanate methyl':          ['Roko (Rallis)'],
+  'iprodione':                   ['Rovral (Bayer)'],
+  'wettable sulphur':            ['Sulfex (Rallis)', 'Cosavet'],
+  'tebuconazole':                ['Folicur (Bayer)']
+};
+
+// Find the best matching trade-name entry for a chemical recommendation string
+function _lookupTradeNames(str) {
+    const s = str.toLowerCase();
+    const keys = Object.keys(tradeNameMap).sort((a, b) => b.length - a.length);
+    for (const k of keys) {
+        if (s.indexOf(k) !== -1) return tradeNameMap[k];
+    }
+    return null;
+}
+
+// Rough crop-stage applicability inferred from the formulation type.
+// (Actual timing always depends on when the pest/disease is actually observed —
+//  this is only a general guide.)
+function _inferStages(str) {
+    const s = str.toLowerCase();
+    if (s.indexOf('seed treatment') !== -1) return ['nursery'];
+    if (/\b\d*\.?\d*\s*g\b/.test(s) && (s.indexOf('kg/acre') !== -1 || s.indexOf('g/palm') !== -1 || s.indexOf('drench') !== -1 || s.indexOf('soil') !== -1))
+        return ['nursery', 'vegetative'];
+    if (s.indexOf('flowering') !== -1 || s.indexOf('pre-harvest') !== -1) return ['flowering', 'maturity'];
+    return ['vegetative', 'flowering'];
+}
+
+const stageLabels = {
+    nursery:    'Nursery / Seedling',
+    vegetative: 'Vegetative',
+    flowering:  'Flowering',
+    maturity:   'Maturity / Harvest'
+};
+
+// ── Pest category detector (keyword based) ─────────────────────────────────
+function categorizePestKey(key) {
+    if (key === 'shoot_fly') return 'borer';
+    if (/borer/.test(key)) return 'borer';
+    if (/aphid|whitefly|jassid|thrip|mealy|hopper|psylla|scale/.test(key)) return 'sucking';
+    if (/looper|armyworm|caterpillar|moth/.test(key)) return 'defoliator';
+    if (/grub|termite|cutworm|root/.test(key)) return 'soil';
+    if (/weevil|beetle/.test(key)) return 'beetle_weevil';
+    if (/fly/.test(key)) return 'fruitfly';
+    if (/mite/.test(key)) return 'mite';
+    return 'general_pest';
+}
+
+// ── Disease category detector (keyword based) ──────────────────────────────
+function categorizeDiseaseKey(key) {
+    if (/wilt|rot/.test(key)) return 'wilt';
+    if (/mosaic|virus/.test(key)) return 'viral';
+    if (/bacterial|canker|gummosis/.test(key)) return 'bacterial';
+    if (/blight|spot|mildew|rust|smut|anthracnose|blast|scurf|scab/.test(key)) return 'foliar_fungal';
+    return 'general_disease';
+}
+
+// ── Biological controls (generic IPM practices, by category) ───────────────
+const bioControlPest = {
+    borer:        ['Release Trichogramma chilonis egg parasitoid @ 1–2 lakh/acre weekly from egg-laying stage', 'Spray NPV (Nucleopolyhedrovirus) @ 250 LE/acre in the evening against larvae', 'For paddy stem borer specifically, Trichogramma japonicum also works well'],
+    sucking:      ['Release Chrysoperla carnea (green lacewing) @ 4,000–6,000/acre', 'Spray Verticillium lecanii or Beauveria bassiana bio-pesticide @ 5 g/L', 'Conserve natural predators (ladybird beetles, spiders) by avoiding broad-spectrum sprays'],
+    defoliator:   ['Spray Bacillus thuringiensis (Bt) @ 1 kg/acre in the evening', 'Spray a suitable NPV against the target caterpillar', 'Release Trichogramma spp. for egg parasitism'],
+    soil:         ['Apply Metarhizium anisopliae bio-fungus @ 2.5 kg/acre mixed with FYM', 'Apply entomopathogenic nematodes (Steinernema/Heterorhabditis) to moist soil', 'Apply Beauveria bassiana around the root zone'],
+    beetle_weevil:['Apply Metarhizium anisopliae @ 2.5 kg/acre at the base of the plant/palm', 'Use aggregation-pheromone traps where available'],
+    fruitfly:     ['Install methyl eugenol traps @ 4–6/acre', 'Use protein-bait spray traps to attract and kill adult flies'],
+    mite:         ['Release predatory mites (Phytoseiulus persimilis / Neoseiulus spp.)'],
+    general_pest: ['Spray a neem-based (Azadirachtin) bio-pesticide as a preventive cover spray', 'Conserve natural enemies by avoiding unnecessary chemical sprays']
+};
+
+const bioControlDisease = {
+    wilt:            ['Soil application of Trichoderma viride/harzianum @ 2.5 kg/acre mixed with FYM before sowing', 'Seed/sett treatment with Trichoderma viride @ 4 g/kg seed', 'Drench root zone with Pseudomonas fluorescens @ 2.5 kg/acre'],
+    foliar_fungal:   ['Foliar spray of Pseudomonas fluorescens @ 5 g/L', 'Foliar spray of a Bacillus subtilis-based bio-fungicide'],
+    bacterial:       ['Spray Pseudomonas fluorescens @ 5 g/L as a preventive measure', 'Use bio-formulated antagonists where available at your local Krishi seva kendra'],
+    viral:           ['Control the insect vector (whitefly/aphid) biologically with Verticillium lecanii spray', 'Rogue and destroy virus-infected plants promptly to reduce spread'],
+    general_disease: ['Enrich soil with Trichoderma-fortified FYM/compost before planting', 'Seed treatment with Pseudomonas fluorescens or Trichoderma viride']
+};
+
+// ── Manual / Cultural controls ──────────────────────────────────────────────
+const manualControlPest = {
+    borer:        ['Collect and destroy egg masses and dead-hearts/white-ears by hand', 'Install light traps to monitor and mass-trap adult moths', 'Clip and destroy affected shoot tips'],
+    sucking:      ['Install yellow/blue sticky traps @ 8–10/acre for monitoring & mass trapping', 'Remove and destroy weed hosts around field bunds', 'Avoid excess nitrogen — it favours sucking-pest build-up'],
+    defoliator:   ['Hand-pick and destroy egg masses and early-instar larval clusters', 'Install pheromone traps @ 5/acre for monitoring adult moths'],
+    soil:         ['Deep summer ploughing to expose grubs/pupae to sun & predators', 'Apply only well-decomposed FYM (avoid fresh/undecomposed manure)', 'Brief flood irrigation where feasible to control soil-borne stages'],
+    beetle_weevil:['Collect and destroy adult beetles/weevils by hand at dusk', 'Remove and destroy damaged/infested plant parts'],
+    fruitfly:     ['Collect and destroy fallen/infested fruits daily (field sanitation)', 'Bag developing fruits with paper/polythene covers'],
+    mite:         ['Remove and destroy heavily infested leaves', 'Avoid moisture stress, which favours mite build-up'],
+    general_pest: ['Regular field monitoring/scouting to catch infestation early', 'Remove and destroy crop residue and volunteer plants after harvest']
+};
+
+const manualControlDisease = {
+    wilt:            ['Follow 2–3 year crop rotation with a non-host crop', 'Uproot and destroy wilted plants immediately', 'Ensure good field drainage — avoid waterlogging'],
+    foliar_fungal:   ['Maintain proper plant spacing for good air circulation', 'Remove and destroy infected leaves/debris', 'Avoid overhead irrigation late in the day'],
+    bacterial:       ['Use disease-free / certified seed material', 'Avoid working in the field when foliage is wet', 'Practice field sanitation — remove infected plant debris'],
+    viral:           ['Use virus-free / certified planting material', 'Rogue out infected plants as soon as symptoms appear', 'Control the insect vector to reduce spread'],
+    general_disease: ['Grow locally recommended resistant/tolerant varieties where available', 'Practice balanced fertilization — avoid excess nitrogen', 'Ensure proper field drainage and sanitation']
+};
+
+// ── Natural / Botanical home remedies ───────────────────────────────────────
+const naturalControlPest = ['Spray Neem Seed Kernel Extract (NSKE) 5% (50 g neem seed powder/litre)', 'Spray Neem oil 3–5 ml/L with a mild soap/detergent as a sticker', 'Garlic–chilli–soap extract spray as a repellent', 'Panchagavya or Dashaparni Ashtam spray as a general botanical deterrent'];
+const naturalControlDisease = ['Spray cow-urine / buttermilk-based solution (helps suppress mild viral symptoms)', 'Apply neem cake @ 200 kg/acre to soil before planting', 'Turmeric or garlic extract spray as a mild natural fungicide/bactericide', 'Enrich soil with well-decomposed FYM/compost to build natural disease suppression'];
+
 // ─── Helper: convert display name → underscore key ───────────────────────────
 function toKey(name) {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -11010,13 +11175,16 @@ function populateCrops() {
 
 // ─── Show/hide pest-disease dropdown ─────────────────────────────────────────
 function togglePestDisease() {
-    const t   = document.getElementById('recType').value;
-    const sec = document.getElementById('pestSection');
+    const t       = document.getElementById('recType').value;
+    const sec     = document.getElementById('pestSection');
+    const ageSec  = document.getElementById('cropAgeSection');
     if (t === 'pest' || t === 'disease') {
         sec.classList.remove('d-none');
+        if (ageSec) ageSec.classList.remove('d-none');
         populatePestDiseaseOptions(t);
     } else {
         sec.classList.add('d-none');
+        if (ageSec) ageSec.classList.add('d-none');
         clearPestDisease();
     }
     hideRecommendation();
@@ -11056,9 +11224,96 @@ document.getElementById('cropName').addEventListener('change', () => {
 function clearPestDisease() {
     document.getElementById('pestName').innerHTML = '<option value="">-- Select --</option>';
     document.getElementById('pestSection').classList.add('d-none');
+    const ageSel = document.getElementById('cropAgeStage');
+    if (ageSel) ageSel.value = '';
+    const ageSec = document.getElementById('cropAgeSection');
+    if (ageSec) ageSec.classList.add('d-none');
 }
 function hideRecommendation()    { document.getElementById('recommendationBox').style.display = 'none'; }
 function hideFertilizerSchedule(){ document.getElementById('fertilizerScheduleSection').style.display = 'none'; }
+
+// ─── Close button — dismiss the recommendation result entirely ──────────────
+function closeRecommendationBox() {
+    hideRecommendation();
+    hideFertilizerSchedule();
+    _recTranslated = false;
+    _recOriginalHtml = null;
+}
+
+// ─── Telugu translation of the recommendation result ────────────────────────
+let _recTranslated   = false;
+let _recOriginalHtml = null;
+
+async function translateRecommendationBox(btn) {
+    const box = document.getElementById('recommendationBox');
+    const sch = document.getElementById('fertilizerScheduleSection');
+    if (!box || box.style.display === 'none') return;
+
+    // ── Toggle back to English ──
+    if (_recTranslated) {
+        if (_recOriginalHtml) {
+            box.innerHTML = _recOriginalHtml.box;
+            if (sch) sch.innerHTML = _recOriginalHtml.sch;
+        }
+        _recTranslated = false;
+        if (btn) btn.innerHTML = '<i class="fas fa-language"></i> తెలుగు';
+        return;
+    }
+
+    // ── Translate to Telugu ──
+    _recOriginalHtml = { box: box.innerHTML, sch: sch ? sch.innerHTML : '' };
+    const origBtnHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Translating…'; }
+    try {
+        await translateElementText(box, 'te');
+        if (sch && sch.style.display !== 'none') await translateElementText(sch, 'te');
+        _recTranslated = true;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-language"></i> English'; }
+    } catch (e) {
+        box.innerHTML = _recOriginalHtml.box;
+        if (sch) sch.innerHTML = _recOriginalHtml.sch;
+        if (btn) { btn.disabled = false; btn.innerHTML = origBtnHtml || '<i class="fas fa-language"></i> తెలుగు'; }
+        showValidationMsg('⚠️ Telugu translation failed. Please check your internet connection and try again.');
+    }
+}
+
+// Walks all visible text nodes under `root` and translates each one via
+// Google's public translate endpoint, replacing the text in place so the
+// layout, icons, badges and accordions are all preserved untouched.
+async function translateElementText(root, targetLang) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+            const p = node.parentElement;
+            if (p && (p.tagName === 'SCRIPT' || p.tagName === 'STYLE')) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    if (!nodes.length) return;
+
+    const CONCURRENCY = 6;
+    for (let i = 0; i < nodes.length; i += CONCURRENCY) {
+        const batch = nodes.slice(i, i + CONCURRENCY);
+        await Promise.all(batch.map(async (node) => {
+            const original = node.nodeValue;
+            try {
+                const translated = await googleTranslateText(original, targetLang);
+                if (translated) node.nodeValue = translated;
+            } catch (e) { /* leave original text if a single segment fails */ }
+        }));
+    }
+}
+
+async function googleTranslateText(text, targetLang) {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Translate request failed');
+    const data = await res.json();
+    return (data && data[0]) ? data[0].map(seg => seg[0]).join('') : text;
+}
 
 function showValidationMsg(msg) {
     const el = document.getElementById('recValidationMsg');
@@ -11118,6 +11373,8 @@ function getRecommendation() {
     box.style.display = 'block';
     hideFertilizerSchedule();
     document.getElementById('recValidationMsg').classList.add('d-none');
+    _recTranslated   = false;
+    _recOriginalHtml = null;
 
     const displayName = cName.charAt(0).toUpperCase() + cName.slice(1);
     const acresLabel  = acres !== 1 ? ` &nbsp;|&nbsp; <span class="badge bg-secondary">${acres} acres</span>` : '';
@@ -11175,9 +11432,17 @@ function getRecommendation() {
               <span class="badge bg-info text-dark">Fertilizer</span>
               ${acresLabel}
             </div>
-            <button class="btn btn-sm btn-outline-secondary" onclick="window.print()" title="Print">
-              <i class="fas fa-print"></i>
-            </button>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-primary" onclick="translateRecommendationBox(this)" title="Translate to Telugu">
+                <i class="fas fa-language"></i> తెలుగు
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="window.print()" title="Print">
+                <i class="fas fa-print"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="closeRecommendationBox()" title="Close">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
           </div>
           <div class="card-body">
             <p class="fw-bold mb-3 small text-muted text-uppercase">NPK DOSAGE (kg/acre)</p>
@@ -11206,14 +11471,49 @@ function getRecommendation() {
         const headerClass = rType === 'pest' ? 'bg-warning bg-opacity-10' : 'bg-danger bg-opacity-10';
         const borderClass = rType === 'pest' ? 'border-warning' : 'border-danger';
 
+        const ageVal   = document.getElementById('cropAgeStage') ? document.getElementById('cropAgeStage').value : '';
+        const ageLabel = ageVal ? stageLabels[ageVal] : '';
+
+        // ── Chemical control (with market trade names + inferred stage) ──────
         const chemicalsHtml = (!rec || !rec.length)
             ? `<div class="alert alert-secondary mb-0">Data not available for this selection.</div>`
-            : rec.map((chem, i) => `
-              <div class="d-flex align-items-start gap-2 mb-2 p-2 rounded"
-                   style="background:var(--bs-light,#f8f9fa);border-left:3px solid ${rType==='pest'?'#ffc107':'#dc3545'}">
+            : rec.map((chem, i) => {
+                const trades  = _lookupTradeNames(chem);
+                const stages  = _inferStages(chem);
+                const matches = !ageVal || stages.indexOf(ageVal) !== -1;
+                const tradeHtml = trades
+                    ? `<div class="small mt-1"><i class="fas fa-tag text-muted me-1"></i><strong>Market Trade Name(s):</strong> ${trades.join(', ')}</div>`
+                    : '';
+                return `
+              <div class="d-flex align-items-start gap-2 mb-2 p-2 rounded" style="background:var(--bs-light,#f8f9fa);border-left:3px solid ${rType==='pest'?'#ffc107':'#dc3545'};${ageVal && !matches ? 'opacity:0.6;' : ''}">
                 <span class="badge ${badgeClass} mt-1">${i + 1}</span>
-                <span>${chem}</span>
+                <div class="flex-grow-1">
+                  <span>${chem}</span>
+                  ${tradeHtml}
+                  <div class="small mt-1">
+                    <span class="badge ${matches && ageVal ? 'bg-success' : 'bg-light text-dark border'}">
+                      ${matches && ageVal ? '✓ Suits ' : ''}${stages.map(s => stageLabels[s]).join(' / ')}
+                    </span>
+                  </div>
+                </div>
+              </div>`;
+            }).join('');
+
+        // ── Biological / Manual / Natural controls (category-based) ──────────
+        const category   = rType === 'pest' ? categorizePestKey(pName) : categorizeDiseaseKey(pName);
+        const bioList     = rType === 'pest' ? (bioControlPest[category]    || bioControlPest.general_pest)       : (bioControlDisease[category]    || bioControlDisease.general_disease);
+        const manualList  = rType === 'pest' ? (manualControlPest[category] || manualControlPest.general_pest)    : (manualControlDisease[category] || manualControlDisease.general_disease);
+        const naturalList = rType === 'pest' ? naturalControlPest : naturalControlDisease;
+
+        const listToHtml = (list, colorClass) => list.map((item, i) => `
+              <div class="d-flex align-items-start gap-2 mb-2 p-2 rounded" style="background:var(--bs-light,#f8f9fa);border-left:3px solid ${colorClass}">
+                <span class="badge bg-secondary mt-1">${i + 1}</span>
+                <span>${item}</span>
               </div>`).join('');
+
+        const ageNote = ageVal
+            ? `<div class="alert alert-info py-2 mb-3 small"><i class="fas fa-calendar-check me-1"></i>Showing controls for <strong>${ageLabel}</strong> stage — chemical options with a ✓ are the best fit; others are still valid at different stages.</div>`
+            : '';
 
         box.innerHTML = `
         <div class="card ${borderClass} border-opacity-50 shadow-sm">
@@ -11223,18 +11523,70 @@ function getRecommendation() {
               <span class="badge bg-primary me-2">${szn}</span>
               <span class="badge ${badgeClass}">${icon} ${pestDisplayName}</span>
             </div>
-            <button class="btn btn-sm btn-outline-secondary" onclick="window.print()" title="Print">
-              <i class="fas fa-print"></i>
-            </button>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-primary" onclick="translateRecommendationBox(this)" title="Translate to Telugu">
+                <i class="fas fa-language"></i> తెలుగు
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="window.print()" title="Print">
+                <i class="fas fa-print"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="closeRecommendationBox()" title="Close">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
           </div>
           <div class="card-body">
-            <p class="fw-bold mb-3 small text-muted text-uppercase">
-              Recommended ${rType === 'pest' ? 'Pesticides' : 'Fungicides / Treatments'}
-            </p>
-            ${chemicalsHtml}
+            ${ageNote}
+            <div class="accordion" id="ctrlAccordion_${pName}">
+
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accChem_${pName}">
+                    🧪&nbsp;<strong>Chemical Control</strong>&nbsp;<span class="text-muted small ms-2">(with market trade names)</span>
+                  </button>
+                </h2>
+                <div id="accChem_${pName}" class="accordion-collapse collapse show" data-bs-parent="#ctrlAccordion_${pName}">
+                  <div class="accordion-body">${chemicalsHtml}</div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accBio_${pName}">
+                    🐞&nbsp;<strong>Biological Control</strong>
+                  </button>
+                </h2>
+                <div id="accBio_${pName}" class="accordion-collapse collapse" data-bs-parent="#ctrlAccordion_${pName}">
+                  <div class="accordion-body">${listToHtml(bioList, '#20c997')}</div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accManual_${pName}">
+                    ✋&nbsp;<strong>Manual / Cultural Control</strong>
+                  </button>
+                </h2>
+                <div id="accManual_${pName}" class="accordion-collapse collapse" data-bs-parent="#ctrlAccordion_${pName}">
+                  <div class="accordion-body">${listToHtml(manualList, '#6c757d')}</div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accNatural_${pName}">
+                    🌿&nbsp;<strong>Natural / Botanical Control</strong>
+                  </button>
+                </h2>
+                <div id="accNatural_${pName}" class="accordion-collapse collapse" data-bs-parent="#ctrlAccordion_${pName}">
+                  <div class="accordion-body">${listToHtml(naturalList, '#0dcaf0')}</div>
+                </div>
+              </div>
+
+            </div>
             <div class="alert alert-light border mt-3 mb-0 small">
               <i class="fas fa-exclamation-triangle text-warning me-1"></i>
-              <strong>Note:</strong> Always follow label directions. Use protective equipment during application. Observe pre-harvest intervals.
+              <strong>Note:</strong> Always follow label directions for chemical products. Use protective equipment during application and observe pre-harvest intervals. Trade names can vary by region/dealer — confirm the exact pack with your local agri-input shop before purchase.
             </div>
           </div>
         </div>`;
@@ -18627,8 +18979,11 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '', se
             .map(([c, ext]) => cropEntries.length > 1 ? `${c}(${ext.toFixed(2)})` : `${c} (${ext.toFixed(2)})`)
             .join(', ') || '—';
 
-        // ── Bags Eligible: computed from Farmer Profile crops (dosage formula), for selected fertilizer — active season only ──
-        let bagsEligible = 0;
+        // ── Bags Eligible: computed from Farmer Profile crops (dosage formula) ──
+        // Computed for BOTH Urea and DAP simultaneously (needed for card-wise export),
+        // while `bagsEligible` (selected-fertilizer only) is kept for the on-screen table.
+        let ureaBagsEligible = 0;
+        let dapBagsEligible  = 0;
         profs.forEach(p => {
             fpActiveCropsForExtent(p.crops, yearFilter, seasonFilter).forEach(c => {
                 const cropName  = (c.crop || '').toLowerCase().trim();
@@ -18638,29 +18993,36 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '', se
                 const dosage    = fertilizerDosage[cropName];
                 if (!dosage) return;
                 const seasonDose = dosage.seasons?.[season] || dosage.seasons?.['Kharif'] || { N: 0, P: 0 };
-                if (selectedFert === 'Urea') {
-                    const nKgTotal = (seasonDose.N || 0) * cropExt;
-                    bagsEligible  += getUreaBagsFromN(nKgTotal);
-                } else if (selectedFert === 'DAP') {
-                    const pKgTotal = (seasonDose.P || 0) * cropExt;
-                    bagsEligible  += getDapBagsFromP(pKgTotal, cropName, cropExt);
-                }
+                const nKgTotal = (seasonDose.N || 0) * cropExt;
+                ureaBagsEligible += getUreaBagsFromN(nKgTotal);
+                const pKgTotal = (seasonDose.P || 0) * cropExt;
+                dapBagsEligible  += getDapBagsFromP(pKgTotal, cropName, cropExt);
             });
         });
+        const bagsEligible = selectedFert === 'Urea' ? ureaBagsEligible : dapBagsEligible;
 
         // ── Bags Availed: from Fertilizer Distribution records (ureaHistory), matched by Aadhaar + fertilizer type ──
-        let bagsAvailed = 0;
+        // Computed for BOTH Urea and DAP simultaneously (needed for card-wise export),
+        // while `bagsAvailed` (selected-fertilizer only) is kept for the on-screen table.
+        let ureaBagsAvailed = 0;
+        let dapBagsAvailed  = 0;
         if (typeof ureaHistory !== 'undefined' && Array.isArray(ureaHistory)) {
             const aClean = String(first.aadhaar || '').replace(/\D/g, '');
-            bagsAvailed = ureaHistory
-                .filter(h =>
-                    String(h.aadhaar || '').replace(/\D/g, '') === aClean &&
-                    String(h.fertilizerType || h.fert || 'Urea').trim() === selectedFert &&
-                    h.status !== 'Rejected' && h.status !== 'Cancelled'
-                )
+            const matching = ureaHistory.filter(h =>
+                String(h.aadhaar || '').replace(/\D/g, '') === aClean &&
+                h.status !== 'Rejected' && h.status !== 'Cancelled'
+            );
+            ureaBagsAvailed = matching
+                .filter(h => String(h.fertilizerType || h.fert || 'Urea').trim() === 'Urea')
+                .reduce((sum, h) => sum + Number(h.bags || 0), 0);
+            dapBagsAvailed = matching
+                .filter(h => String(h.fertilizerType || h.fert || 'Urea').trim() === 'DAP')
                 .reduce((sum, h) => sum + Number(h.bags || 0), 0);
         }
+        const bagsAvailed = selectedFert === 'Urea' ? ureaBagsAvailed : dapBagsAvailed;
 
+        const ureaBagsAvailable = Math.max(0, ureaBagsEligible - ureaBagsAvailed);
+        const dapBagsAvailable  = Math.max(0, dapBagsEligible - dapBagsAvailed);
         const bagsAvailable = Math.max(0, bagsEligible - bagsAvailed);
 
         return {
@@ -18676,7 +19038,13 @@ function buildFpCardWiseData(filter = '', seasonFilter = '', yearFilter = '', se
             cropsText: cropsText,
             bagsEligible: bagsEligible,
             bagsAvailed: bagsAvailed,
-            bagsAvailable: bagsAvailable
+            bagsAvailable: bagsAvailable,
+            ureaBagsEligible: ureaBagsEligible,
+            ureaBagsAvailed: ureaBagsAvailed,
+            ureaBagsAvailable: ureaBagsAvailable,
+            dapBagsEligible: dapBagsEligible,
+            dapBagsAvailed: dapBagsAvailed,
+            dapBagsAvailable: dapBagsAvailable
         };
     });
 
@@ -19233,7 +19601,11 @@ function exportAllFarmerProfiles() {
 
 // ── Smart Export: routes to card-wise or khatha-wise based on current view mode ──
 function exportFpSmartExcel() {
-    if (window.fpProfilesViewMode === 'card') {
+    // NOTE: fpProfilesViewMode is declared with `let`, so it is never attached to
+    // `window` — checking `window.fpProfilesViewMode` here always read `undefined`
+    // and silently fell through to the normal/khatha-wise export. Read the
+    // module-scoped variable directly so Card-wise view actually exports card-wise.
+    if (fpProfilesViewMode === 'card') {
         exportCardWiseExcel();
     } else {
         exportAllFarmerProfiles();
@@ -19241,9 +19613,11 @@ function exportFpSmartExcel() {
 }
 
 // ── Card-wise Excel Export ──
-// One row per Farmer Card. Columns: Card No, Farmer Name, Father Name, Aadhaar, APFR,
-// Mobile, Village, Khatha(s), Total Extent, Crops, Urea Eligible/Availed/Available,
-// DAP Eligible/Availed/Available, Urea Splits ×3, DAP Splits ×3.
+// One row per Farmer Card. Columns: S.No, Card Number, Farmer Name, Father Name,
+// Aadhar Number, APFR ID, Mobile Number, Khatha Number(s), Extent, Crops,
+// Urea Bags Eligible, Urea Bags Availed, Urea Available,
+// DAP Bags Eligible, DAP Bags Availed, DAP Available.
+// Both Urea and DAP columns are always included, regardless of the on-screen fertilizer dropdown.
 function exportCardWiseExcel() {
     if (!farmerProfiles || !Object.keys(farmerProfiles).length)
         return alert('No profiles to export.');
@@ -19266,9 +19640,8 @@ function exportCardWiseExcel() {
 
     if (!rows.length) return alert('No data to export for current filter.');
 
-    // ── Fertilizer label for column headers (matches what's shown in table headers) ──
-    const selectedFert = document.getElementById('fpCardWiseFertSelect')?.value || 'Urea';
-
+    // ── Card-wise export always shows BOTH Urea and DAP columns together,
+    //    regardless of which fertilizer is currently selected on screen. ──
     const headers = [
         'S.No',
         'Card Number',
@@ -19280,9 +19653,12 @@ function exportCardWiseExcel() {
         'Khatha Number(s)',
         'Extent',
         'Crops',
-        `${selectedFert} Bags Eligible`,
-        `${selectedFert} Bags Availed`,
-        `${selectedFert} Available Bags`
+        'Urea Bags Eligible',
+        'Urea Bags Availed',
+        'Urea Available',
+        'DAP Bags Eligible',
+        'DAP Bags Availed',
+        'DAP Available'
     ];
 
     const dataRows = rows.map(r => [
@@ -19296,9 +19672,12 @@ function exportCardWiseExcel() {
         r.khathaNumbers,          // exact same value shown in the table column
         r.totalExtent.toFixed(2),
         r.cropsText,
-        r.bagsEligible,           // pre-computed by buildFpCardWiseData — same as table
-        r.bagsAvailed,
-        r.bagsAvailable
+        r.ureaBagsEligible,       // pre-computed by buildFpCardWiseData — Urea, independent of on-screen dropdown
+        r.ureaBagsAvailed,
+        r.ureaBagsAvailable,
+        r.dapBagsEligible,        // pre-computed by buildFpCardWiseData — DAP, independent of on-screen dropdown
+        r.dapBagsAvailed,
+        r.dapBagsAvailable
     ]);
 
     const wb = XLSX.utils.book_new();
@@ -19327,9 +19706,12 @@ function exportCardWiseExcel() {
         { wch: 22 }, // Khatha Number(s)
         { wch: 10 }, // Extent
         { wch: 28 }, // Crops
-        { wch: 20 }, // Bags Eligible
-        { wch: 20 }, // Bags Availed
-        { wch: 20 }  // Available Bags
+        { wch: 16 }, // Urea Bags Eligible
+        { wch: 16 }, // Urea Bags Availed
+        { wch: 14 }, // Urea Available
+        { wch: 16 }, // DAP Bags Eligible
+        { wch: 16 }, // DAP Bags Availed
+        { wch: 14 }  // DAP Available
     ];
 
     const season = document.getElementById('fpAllProfilesSeasonFilter')?.value || '';
