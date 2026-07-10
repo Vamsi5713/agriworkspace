@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>e-Panta Agriculture Dashboard</title>
+    <title>Agri Work Space</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -1779,95 +1779,20 @@
     </div><!-- /card -->
 
 <!-- ══════════════════════════════════════════════════════════════
-     CROP FERTILIZER (NPK) RECOMMENDATIONS CARD — VO EDITABLE
-     Lives inside the Fertilizer Distribution History area.
-     Firebase path: cropNPKOverrides/{cropKey}
-       → { seasons:{Kharif:{N,P,K}, Rabi:{...}, Summer:{...}},
-           Ca, Mg, S, splits, updatedAt, updatedBy }
-     Overrides are merged into the live `fertilizerDosage` object in
-     memory, which is the single source of truth read by the
-     Fertilizer Distribution Card, Crop Recommendation Card and the
-     Village Profile NPK table — so any VO edit here is reflected
-     everywhere automatically, in real time, for all users.
-     Collapsed (hidden) by default — VO expands it on demand.
+     CROP FERTILIZER (NPK) RECOMMENDATIONS — MOVED TO ADMIN LOGIN
+     This used to be VO-editable here, but a per-VO edit affected NPK
+     values (and therefore fertilizer eligibility) for every village
+     and every VO across the system. To prevent one VO's change from
+     silently impacting everyone else's Fertilizer Distribution Card,
+     Crop Recommendation Card and Village Profile, editing has been
+     centralized under Admin login → Admin Panel → "Crop NPK Settings"
+     tab. VOs only see the read-only note below.
      ══════════════════════════════════════════════════════════════ -->
-<div class="card p-0 mx-auto mt-4" id="cropNpkCard" style="max-width:900px;border-radius:16px;overflow:hidden;">
-  <!-- top accent bar -->
-  <div style="height:5px;background:linear-gradient(90deg,#16a085 0%,#27ae60 50%,#2ecc71 100%);"></div>
-  <div style="padding:1.4rem 1.6rem;">
-
-    <!-- Card header -->
-    <div class="d-flex align-items-center gap-2 mb-3">
-      <span style="background:linear-gradient(135deg,#27ae60,#16a085);width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <i class="fas fa-seedling text-white" style="font-size:0.9rem;"></i>
-      </span>
-      <div class="flex-grow-1">
-        <div style="font-size:0.84rem;font-weight:800;color:#1e8449;text-transform:uppercase;letter-spacing:0.8px;">Crop Fertilizer (NPK) Recommendations</div>
-        <div style="font-size:0.72rem;color:#7f8c8d;">Edit the N/P/K dosage for any crop &amp; season — updates the Fertilizer Distribution Card, Crop Recommendation Card &amp; Village Profile everywhere automatically.</div>
-      </div>
-      <button type="button" id="cropNpkToggleBtn" onclick="toggleCropNpkCard()"
-              style="flex-shrink:0;padding:0.35rem 0.8rem;font-size:0.76rem;font-weight:700;background:#fff;color:#1e8449;border:1.5px solid #27ae60;border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:5px;">
-        <i class="fas fa-chevron-down"></i><span>Show</span>
-      </button>
-    </div>
-
-    <div id="cropNpkBody" style="display:none;">
-      <div class="alert alert-success py-2 mb-3" style="font-size:0.78rem;border-radius:10px;">
-        <i class="fas fa-info-circle me-1"></i>
-        These NPK values (kg/acre) are used to calculate every farmer's fertilizer eligibility.
-        Changing a value here and clicking <strong>Save</strong> updates it <strong>instantly for everyone</strong> —
-        the Fertilizer Distribution Card, the Crop Recommendation Card and the Village Profile NPK table all read
-        from this same data, so no separate update is needed anywhere else.
-      </div>
-
-      <!-- Filter row -->
-      <div class="row g-2 mb-2">
-        <div class="col-md-7">
-          <label class="form-label fw-semibold mb-1" style="font-size:0.8rem;color:#1e8449;">
-            <i class="fas fa-search me-1"></i>Search Crop
-          </label>
-          <input type="text" id="cropNpkSearch" class="form-control form-control-sm" placeholder="Type a crop name to filter…" oninput="renderCropNpkAdminTable()">
-        </div>
-        <div class="col-md-5">
-          <label class="form-label fw-semibold mb-1" style="font-size:0.8rem;color:#1e8449;">
-            <i class="fas fa-calendar-alt me-1"></i>Season (for N / P / K columns)
-          </label>
-          <select id="cropNpkSeason" class="form-select form-select-sm" onchange="renderCropNpkAdminTable()">
-            <option value="Kharif">Kharif</option>
-            <option value="Rabi">Rabi</option>
-            <option value="Summer">Summer</option>
-          </select>
-        </div>
-      </div>
-      <div style="font-size:0.72rem;color:#7f8c8d;margin-bottom:0.6rem;">
-        <i class="fas fa-info-circle me-1"></i>Ca, Mg, S and the split-application note are shared across all seasons for a crop.
-      </div>
-
-      <div style="max-height:480px;overflow:auto;border:1.5px solid #d4efdf;border-radius:10px;">
-        <table class="table table-sm mb-0" style="font-size:0.78rem;">
-          <thead style="position:sticky;top:0;background:#eafaf1;z-index:1;">
-            <tr style="color:#1e8449;font-weight:700;">
-              <th style="padding:8px;min-width:130px;">Crop</th>
-              <th style="padding:8px;width:78px;">N (kg/ac)</th>
-              <th style="padding:8px;width:78px;">P (kg/ac)</th>
-              <th style="padding:8px;width:78px;">K (kg/ac)</th>
-              <th style="padding:8px;width:65px;">Ca</th>
-              <th style="padding:8px;width:65px;">Mg</th>
-              <th style="padding:8px;width:65px;">S</th>
-              <th style="padding:8px;min-width:180px;">Split / Application Notes</th>
-              <th style="padding:8px;min-width:130px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="cropNpkAdminBody">
-            <!-- rows injected by JS -->
-          </tbody>
-        </table>
-      </div>
-      <div id="cropNpkStatus" style="margin-top:0.6rem;font-size:0.76rem;"></div>
-    </div><!-- /cropNpkBody -->
-
-  </div>
-</div><!-- /cropNpkCard -->
+<div class="alert alert-secondary mx-auto mt-4" style="max-width:900px;border-radius:14px;font-size:0.82rem;">
+  <i class="fas fa-lock me-1"></i>
+  <strong>Crop Fertilizer (NPK) Recommendations</strong> (N/P/K dosage per crop &amp; season) are now managed centrally by the
+  <strong>Admin</strong> to keep values consistent across all villages. Contact your Admin if a crop's NPK values need updating.
+</div>
 
 <!-- ══════════════════════════════════════════════════════════════
      FERTILIZER RESTRICTION CONTROL CARD — VO ONLY
@@ -2764,6 +2689,11 @@
                     <span id="adminResetBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.65rem; display:none;">0</span>
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showAdminTab('adminCropNpkTab');renderCropNpkAdminTable();return false;">
+                    <i class="fas fa-seedling me-1"></i> Crop NPK Settings
+                </a>
+            </li>
         </ul>
 
         <!-- Create Users Tab -->
@@ -3182,6 +3112,99 @@
                 </div>
             </div>
         </div><!-- closes adminResetTab -->
+
+        <!-- ══════════════════════════════════════════════════════════════
+             CROP FERTILIZER (NPK) RECOMMENDATIONS — ADMIN TAB
+             Moved here from VO login: a VO edit here used to change NPK
+             values (and therefore fertilizer eligibility) for every
+             village and every VO across the whole system. Centralizing
+             this under Admin prevents one VO's change from silently
+             affecting everyone else.
+             Firebase path: cropNPKOverrides/{cropKey}
+               → { seasons:{Kharif:{N,P,K}, Rabi:{...}, Summer:{...}},
+                   Ca, Mg, S, splits, updatedAt, updatedBy }
+             Overrides are merged into the live `fertilizerDosage` object
+             in memory, which is the single source of truth read by the
+             Fertilizer Distribution Card, Crop Recommendation Card and
+             the Village Profile NPK table — so any Admin edit here is
+             reflected everywhere automatically, in real time, for all
+             users (VOs, retailers, DOs, MOs).
+             ══════════════════════════════════════════════════════════════ -->
+        <div id="adminCropNpkTab" class="hidden">
+          <div class="card border-0 shadow-sm p-0 mx-auto" style="max-width:1100px;border-radius:16px;overflow:hidden;">
+            <!-- top accent bar -->
+            <div style="height:5px;background:linear-gradient(90deg,#16a085 0%,#27ae60 50%,#2ecc71 100%);"></div>
+            <div style="padding:1.4rem 1.6rem;">
+
+              <!-- Card header -->
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <span style="background:linear-gradient(135deg,#27ae60,#16a085);width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i class="fas fa-seedling text-white" style="font-size:0.9rem;"></i>
+                </span>
+                <div class="flex-grow-1">
+                  <div style="font-size:0.84rem;font-weight:800;color:#1e8449;text-transform:uppercase;letter-spacing:0.8px;">Crop Fertilizer (NPK) Recommendations</div>
+                  <div style="font-size:0.72rem;color:#7f8c8d;">Edit the N/P/K dosage for any crop &amp; season — updates the Fertilizer Distribution Card, Crop Recommendation Card &amp; Village Profile everywhere automatically, for every VO and village.</div>
+                </div>
+              </div>
+
+              <div class="alert alert-success py-2 mb-3" style="font-size:0.78rem;border-radius:10px;">
+                <i class="fas fa-info-circle me-1"></i>
+                These NPK values (kg/acre) are used to calculate every farmer's fertilizer eligibility, system-wide.
+                Changing a value here and clicking <strong>Save</strong> updates it <strong>instantly for everyone</strong> —
+                the Fertilizer Distribution Card, the Crop Recommendation Card and the Village Profile NPK table all read
+                from this same data, so no separate update is needed anywhere else.
+                <strong>Only Admin can make this change</strong> — Village Officers see a read-only note in their Fertilizer
+                Distribution section instead.
+              </div>
+
+              <!-- Filter row -->
+              <div class="row g-2 mb-2">
+                <div class="col-md-7">
+                  <label class="form-label fw-semibold mb-1" style="font-size:0.8rem;color:#1e8449;">
+                    <i class="fas fa-search me-1"></i>Search Crop
+                  </label>
+                  <input type="text" id="cropNpkSearch" class="form-control form-control-sm" placeholder="Type a crop name to filter…" oninput="renderCropNpkAdminTable()">
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label fw-semibold mb-1" style="font-size:0.8rem;color:#1e8449;">
+                    <i class="fas fa-calendar-alt me-1"></i>Season (for N / P / K columns)
+                  </label>
+                  <select id="cropNpkSeason" class="form-select form-select-sm" onchange="renderCropNpkAdminTable()">
+                    <option value="Kharif">Kharif</option>
+                    <option value="Rabi">Rabi</option>
+                    <option value="Summer">Summer</option>
+                  </select>
+                </div>
+              </div>
+              <div style="font-size:0.72rem;color:#7f8c8d;margin-bottom:0.6rem;">
+                <i class="fas fa-info-circle me-1"></i>Ca, Mg, S and the split-application note are shared across all seasons for a crop.
+              </div>
+
+              <div style="max-height:480px;overflow:auto;border:1.5px solid #d4efdf;border-radius:10px;">
+                <table class="table table-sm mb-0" style="font-size:0.78rem;">
+                  <thead style="position:sticky;top:0;background:#eafaf1;z-index:1;">
+                    <tr style="color:#1e8449;font-weight:700;">
+                      <th style="padding:8px;min-width:130px;">Crop</th>
+                      <th style="padding:8px;width:78px;">N (kg/ac)</th>
+                      <th style="padding:8px;width:78px;">P (kg/ac)</th>
+                      <th style="padding:8px;width:78px;">K (kg/ac)</th>
+                      <th style="padding:8px;width:65px;">Ca</th>
+                      <th style="padding:8px;width:65px;">Mg</th>
+                      <th style="padding:8px;width:65px;">S</th>
+                      <th style="padding:8px;min-width:180px;">Split / Application Notes</th>
+                      <th style="padding:8px;min-width:130px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cropNpkAdminBody">
+                    <!-- rows injected by JS -->
+                  </tbody>
+                </table>
+              </div>
+              <div id="cropNpkStatus" style="margin-top:0.6rem;font-size:0.76rem;"></div>
+
+            </div>
+          </div>
+        </div><!-- closes adminCropNpkTab -->
 
     </div>
 </div>
@@ -6387,7 +6410,17 @@ function showMsg(t,type){document.getElementById('msgBox').innerHTML='<div class
         </div>
     </div>
 
-</div>
+</div><!-- /modal-body -->
+    </div><!-- /modal-content -->
+  </div><!-- /modal-dialog -->
+</div><!-- /manualWorkflowModal — ✅ FIX: these 3 closing tags were missing, which
+     caused every element defined after this modal in the page (editUserModal,
+     deleteUserModal, cloudStorageModal, editEligibleBagsModal, editAvailedBagsModal,
+     voActiveVillageOverlay, etc.) to be silently nested INSIDE this hidden modal.
+     Since a display:none ancestor hides all descendants regardless of their own
+     .show state, opening any of those other modals/overlays showed only their
+     dark backdrop (added directly to <body> by Bootstrap) with the dialog itself
+     invisible — exactly the "screen becomes unclickable" bug. -->
 
 <script>
 // ============================================================
@@ -24055,7 +24088,7 @@ document.addEventListener('DOMContentLoaded', function() {
 //  ADMIN TAB SWITCHING
 // ============================================================
 function showAdminTab(tabId) {
-    ['adminCreateUsersTab', 'adminPendingApprovalsTab', 'adminManageUsersTab', 'adminDataTab', 'adminResetTab'].forEach(id => {
+    ['adminCreateUsersTab', 'adminPendingApprovalsTab', 'adminManageUsersTab', 'adminDataTab', 'adminResetTab', 'adminCropNpkTab'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('hidden', id !== tabId);
     });
@@ -25392,21 +25425,40 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         let _otherIssuedChips = fdRecsOther.length > 0 ? fdRecsOther.map(_buildIssuedChip).join('') : '';
 
         // ── Build STEP 2 unified fertilizer dropdown (Urea/DAP/SSP/TSP/MOP/NPK all in one place) ──
+        // Only fertilizer types with actual stock at THIS outlet are listed —
+        // e.g. an outlet holding only Urea will show only Urea here.
         const _hasUrea = uElig.some(v=>v>0);
         const _hasDAP  = dElig.some(v=>v>0);
         const _stockUrea = Number(_rtStock.Urea) || 0;
         const _stockDAP  = Number(_rtStock.DAP)  || 0;
+        const _stockSSP   = Number(_rtStock.SSP)   || 0;
+        const _stockTSP   = Number(_rtStock.TSP)   || 0;
+        const _stockMOP   = Number(_rtStock.MOP)   || 0;
+        const _stockOther = Number(_rtStock.Other) || 0;
+        // NPK stock is grade-wise: { "10:26:26": 4, "19:19:19": 15, ... }
+        // (older entries may still be a plain number). Show EACH grade as
+        // its own selectable option — e.g. "NPK 20:20:0:13" and
+        // "NPK 15:15:15" listed separately — so the retailer picks the
+        // exact grade to issue right from the main dropdown.
+        const _npkStockRaw = _rtStock.NPK;
+        const _npkGradeStocks = (_npkStockRaw && typeof _npkStockRaw === 'object')
+            ? Object.entries(_npkStockRaw).filter(([, bags]) => Number(bags) > 0)
+            : (typeof _npkStockRaw === 'number' && _npkStockRaw > 0 ? [['Unspecified grade', _npkStockRaw]] : []);
+
         const _fertOptions = [];
-        if (_hasUrea) _fertOptions.push({ value: 'Urea', label: `🌿 Urea${totalRemU===0?' — ✅ Done':''} — ${_stockUrea>0?`📦 ${_stockUrea} in stock`:'⚠️ Out of stock'}` });
-        if (_hasDAP)  _fertOptions.push({ value: 'DAP',  label: `🌱 DAP${totalRemD===0?' — ✅ Done':''} — ${_stockDAP>0?`📦 ${_stockDAP} in stock`:'⚠️ Out of stock'}` });
-        _fertOptions.push({ value: 'SSP', label: '🟤 SSP' });
-        _fertOptions.push({ value: 'TSP', label: '🟣 TSP' });
-        _fertOptions.push({ value: 'MOP', label: '🟠 MOP' });
-        _fertOptions.push({ value: 'NPK', label: '🟢 NPK' });
-        _fertOptions.push({ value: 'Other', label: '⚪ Other' });
-        // ── Booster Dose (Calamity Relief) options — only shown when the VO
+        if (_hasUrea && _stockUrea > 0) _fertOptions.push({ value: 'Urea', label: `🌿 Urea${totalRemU===0?' — ✅ Done':''} — 📦 ${_stockUrea} in stock` });
+        if (_hasDAP  && _stockDAP  > 0) _fertOptions.push({ value: 'DAP',  label: `🌱 DAP${totalRemD===0?' — ✅ Done':''} — 📦 ${_stockDAP} in stock` });
+        if (_stockSSP   > 0) _fertOptions.push({ value: 'SSP',   label: `🟤 SSP — 📦 ${_stockSSP} in stock` });
+        if (_stockTSP   > 0) _fertOptions.push({ value: 'TSP',   label: `🟣 TSP — 📦 ${_stockTSP} in stock` });
+        if (_stockMOP   > 0) _fertOptions.push({ value: 'MOP',   label: `🟠 MOP — 📦 ${_stockMOP} in stock` });
+        _npkGradeStocks.forEach(([grade, bags]) => {
+            _fertOptions.push({ value: `NPK|${grade}`, label: `🟢 NPK ${grade} — 📦 ${bags} in stock` });
+        });
+        if (_stockOther > 0) _fertOptions.push({ value: 'Other', label: `⚪ Other — 📦 ${_stockOther} in stock` });
+        // Booster Dose (Calamity Relief) options — only shown when the VO
         // has enabled Booster Dose for this village + year + season. Kept
-        // completely separate from the regular Urea/DAP eligibility above.
+        // completely separate from the regular Urea/DAP eligibility above,
+        // and NOT gated by outlet stock (it's a separate allotment pool).
         const _boosterOpts = (window._fcBoosterOptions && window._fcBoosterOptions[fcKey]) || [];
         _boosterOpts.forEach(b => {
             _fertOptions.push({
@@ -25414,13 +25466,23 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 label: `🚨 ${b.fert}${b.remaining === 0 ? ' — ✅ Done' : ` — ${b.remaining} bag${b.remaining !== 1 ? 's' : ''} left`}`
             });
         });
-        const _mainFertSelectHtml = `
+        const _mainFertSelectHtml = _fertOptions.length ? `
         <div style="margin-bottom:14px;">
           <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:5px;"><i class="fas fa-flask me-1"></i>Choose Fertilizer</label>
           <select id="fcMainFertSelect_${fcKey}" onchange="onFcMainFertChange('${escapeHtml(fcKey)}')" class="form-select fw-bold"
             style="border:2px solid #1862ab;border-radius:10px;padding:10px 12px;font-size:0.95rem;color:#1862ab;">
             ${_fertOptions.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
           </select>
+        </div>
+        <select id="fcFertSelect_${fcKey}" style="display:none;">
+            <option value="Urea">Urea</option>
+            <option value="DAP">DAP</option>
+        </select>` : `
+        <div style="margin-bottom:14px;">
+          <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:5px;"><i class="fas fa-flask me-1"></i>Choose Fertilizer</label>
+          <div class="alert alert-warning py-2 mb-0" style="font-size:0.82rem;border-radius:10px;">
+            <i class="fas fa-triangle-exclamation me-1"></i>No fertilizer in stock at your outlet right now. Add stock to begin distributing.
+          </div>
         </div>
         <select id="fcFertSelect_${fcKey}" style="display:none;">
             <option value="Urea">Urea</option>
@@ -25514,11 +25576,19 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <div id="fcOtherNpkGradeWrap_${fcKey}" class="d-none" style="flex:1 1 160px;min-width:140px;">
                   <label style="font-size:0.72rem;font-weight:700;color:#555;display:block;margin-bottom:3px;">NPK Grade</label>
-                  <select id="fcOtherNpkGrade_${fcKey}" class="form-select form-select-sm" onchange="onFcOtherFertChange('${escapeHtml(fcKey)}', true)"></select>
+                  <select id="fcOtherNpkGrade_${fcKey}" class="form-select form-select-sm" onchange="onFcOtherFertChange('${escapeHtml(fcKey)}')"></select>
                 </div>
                 <div style="flex:1 1 140px;min-width:120px;">
                   <label style="font-size:0.72rem;font-weight:700;color:#555;display:block;margin-bottom:3px;">Bags</label>
-                  <input type="number" id="fcOtherBags_${fcKey}" class="form-control form-control-sm" min="1" placeholder="e.g. 2">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <button type="button" onclick="fcAdjustOtherBags('${escapeHtml(fcKey)}',-1)"
+                      style="width:36px;height:36px;border-radius:50%;border:2px solid #1862ab;background:#fff;font-size:1.1rem;font-weight:700;color:#1862ab;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">−</button>
+                    <input type="number" id="fcOtherBags_${fcKey}" min="0" value="0"
+                      oninput="fcClampOtherBags('${escapeHtml(fcKey)}')" onchange="fcClampOtherBags('${escapeHtml(fcKey)}')" onblur="fcClampOtherBags('${escapeHtml(fcKey)}')"
+                      style="width:64px;height:36px;border:2px solid #1862ab;border-radius:8px;font-size:1.05rem;font-weight:800;text-align:center;color:#1862ab;background:#fff;">
+                    <button type="button" onclick="fcAdjustOtherBags('${escapeHtml(fcKey)}',1)"
+                      style="width:36px;height:36px;border-radius:50%;border:2px solid #1862ab;background:#fff;font-size:1.1rem;font-weight:700;color:#1862ab;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
+                  </div>
                 </div>
               </div>
               <div id="fcOtherStockNote_${fcKey}" style="font-size:0.74rem;color:#555;margin-top:6px;"></div>
@@ -25528,7 +25598,11 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                 style="width:100%;margin-top:14px;background:linear-gradient(135deg,#1862ab,#124d86);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(24,98,171,0.3);letter-spacing:0.3px;">
                 <i class="fas fa-cart-plus me-2"></i>Add to Cart
               </button>
-            </div>
+
+              <!-- Already-issued chips for SSP/TSP/MOP/NPK this season — kept INSIDE this panel (previously sat outside it because of an extra stray closing tag, which made it stay visible even when Urea/DAP was selected) -->
+              <div id="fcOtherIssuedChips_${fcKey}" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">
+                ${_otherIssuedChips}
+              </div>
             </div>
 
             <!-- Hidden select — keeps existing onFcOtherFertChange/submitOtherFertilizerDistribution logic working unchanged -->
@@ -25539,10 +25613,6 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
               <option value="NPK">NPK</option>
               ${((window._fcBoosterOptions && window._fcBoosterOptions[fcKey]) || []).map(b => `<option value="${escapeHtml(b.fert)}">${escapeHtml(b.fert)}</option>`).join('')}
             </select>
-
-            <div id="fcOtherIssuedChips_${fcKey}" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">
-              ${_otherIssuedChips}
-            </div>
           </div>
         </div>`;
         
@@ -25629,7 +25699,12 @@ function onFcFertSelectChange(fcKey) {
 // split view; SSP / TSP / MOP / NPK show a direct quick-issue panel instead.
 function onFcMainFertChange(fcKey) {
     const mainSel = document.getElementById('fcMainFertSelect_' + fcKey);
-    const fert = mainSel ? mainSel.value : 'Urea';
+    const rawVal = mainSel ? mainSel.value : 'Urea';
+    // NPK options are encoded as "NPK|<grade>" (e.g. "NPK|20:20:0:13") so
+    // each grade in stock can be listed and picked separately.
+    const isNpkGrade = rawVal.indexOf('NPK|') === 0;
+    const fert = isNpkGrade ? 'NPK' : rawVal;
+    const presetNpkGrade = isNpkGrade ? rawVal.slice(4) : '';
     const isSplitFert = (fert === 'Urea' || fert === 'DAP');
 
     const splitPanel = document.getElementById('fcSplitPanel_' + fcKey);
@@ -25655,17 +25730,40 @@ function onFcMainFertChange(fcKey) {
         // submitOtherFertilizerDistribution keep working unchanged.
         const hiddenOtherSel = document.getElementById('fcOtherFert_' + fcKey);
         if (hiddenOtherSel) hiddenOtherSel.value = fert;
-        onFcOtherFertChange(fcKey);
+        onFcOtherFertChange(fcKey, presetNpkGrade);
     }
 }
 
 // ── Other Fertilizer panel (SSP/TSP/MOP/NPK simple issue) ──
-// Shows the retailer's actual in-stock count next to the picker. NPK is a
-// special case: it comes in many grades, so instead of one lump number we
-// show a second dropdown listing exactly the grades this retailer has
-// received stock for (with each grade's own bag count), same as the
-// "20:20:0:13" style entries used when receiving stock.
-function onFcOtherFertChange(fcKey) {
+// Shows the retailer's actual in-stock count next to the picker. NPK
+// grades are now listed directly in the main "Choose Fertilizer" dropdown
+// (e.g. "NPK 20:20:0:13", "NPK 15:15:15"), so `presetGrade` normally
+// arrives already set — the secondary grade dropdown below is then just a
+// hidden fallback that keeps the exact chosen grade in sync for the
+// cart/save logic, without asking the retailer to pick it twice.
+// +/- stepper helpers for the SSP/TSP/MOP/NPK/Other "Bags" input — mirrors
+// the Urea/DAP stepper UI/behavior so all fertilizer bag pickers feel the same.
+function fcClampOtherBags(fcKey) {
+    const el = document.getElementById('fcOtherBags_' + fcKey);
+    if (!el) return;
+    const maxAttr = el.getAttribute('max');
+    const max = (maxAttr !== null && maxAttr !== '') ? (parseInt(maxAttr) || 0) : Infinity;
+    let v = parseInt(el.value) || 0;
+    v = Math.max(0, Math.min(v, max));
+    el.value = v;
+}
+function fcAdjustOtherBags(fcKey, delta) {
+    const el = document.getElementById('fcOtherBags_' + fcKey);
+    if (!el) return;
+    const maxAttr = el.getAttribute('max');
+    const max = (maxAttr !== null && maxAttr !== '') ? (parseInt(maxAttr) || 0) : Infinity;
+    let v = (parseInt(el.value) || 0) + delta;
+    v = Math.max(0, Math.min(v, max));
+    el.value = v;
+    el.dispatchEvent(new Event('change'));
+}
+
+function onFcOtherFertChange(fcKey, presetGrade) {
     const fertSel  = document.getElementById('fcOtherFert_' + fcKey);
     const gradeWrap = document.getElementById('fcOtherNpkGradeWrap_' + fcKey);
     const gradeSel  = document.getElementById('fcOtherNpkGrade_' + fcKey);
@@ -25694,19 +25792,26 @@ function onFcOtherFertChange(fcKey) {
     if (introEl) introEl.innerHTML = 'Recorded directly from your stock — no eligibility limit applies to this fertilizer.';
 
     if (fert === 'NPK') {
-        gradeWrap?.classList.remove('d-none');
         const npkStock = stock.NPK;
         const grades = (npkStock && typeof npkStock === 'object')
             ? Object.entries(npkStock).filter(([, bags]) => Number(bags) > 0)
             : (typeof npkStock === 'number' && npkStock > 0 ? [['Unspecified grade', npkStock]] : []);
 
         if (gradeSel) {
-            const prevVal = gradeSel.value;
+            const prevVal = presetGrade || gradeSel.value;
             gradeSel.innerHTML = grades.length
                 ? grades.map(([grade, bags]) => `<option value="${escapeHtml(grade)}">${escapeHtml(grade)} — 📦 ${bags} in stock</option>`).join('')
                 : `<option value="">No NPK stock available</option>`;
             if (grades.some(([g]) => g === prevVal)) gradeSel.value = prevVal;
         }
+        // If the exact grade was already picked from the main "Choose
+        // Fertilizer" dropdown (e.g. "NPK 20:20:0:13"), there's no need to
+        // ask again — keep the grade select in the DOM (with the right
+        // value, for the cart/save logic) but hide it visually. Only show
+        // it when NPK was reached without a grade already chosen.
+        if (presetGrade) gradeWrap?.classList.add('d-none');
+        else gradeWrap?.classList.remove('d-none');
+
         const selectedGrade = gradeSel ? gradeSel.value : '';
         const selectedGradeStock = grades.find(([g]) => g === selectedGrade);
         noteEl.innerHTML = grades.length
@@ -26863,7 +26968,7 @@ window.addOtherToCart = function(aadhaar, year, season, fcKey) {
 
     const fertLabel = fert === 'NPK' ? `NPK ${npkGrade}` : fert;
     _fcAddCartItem(fcKey, { kind: 'other', fert, npkGrade, bags, label: `🟢 <strong>${escapeHtml(fertLabel)}</strong>` });
-    if (bagsEl) bagsEl.value = '';
+    if (bagsEl) bagsEl.value = 0;
 };
 
 // "Issue All Bags to Farmer" — processes every item in the cart. Other
@@ -29459,7 +29564,7 @@ function pollVoDeleteApprovals() {
         <div class="mb-3" id="editUserVillageRow">
           <label class="form-label fw-semibold">
             Villages Handled
-            <span class="badge bg-primary ms-1" style="font-size:0.62rem;" id="editVillageMultiBadge" style="display:none;">Multi-village</span>
+            <span class="badge bg-primary ms-1" id="editVillageMultiBadge" style="font-size:0.62rem;display:none;">Multi-village</span>
           </label>
           <input type="text" id="editUserVillage" class="form-control" placeholder="e.g. Rampur, Kesavpur (comma-separated for multiple)">
           <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Separate multiple villages with commas.</small>
@@ -34219,8 +34324,9 @@ window.toggleCardCollapse = function(bodyId, btnId) {
    reflected everywhere instantly, for every user, with no separate
    update needed on those other cards.
 
-   The panel itself is collapsed (hidden) by default; the table is
-   only rendered the first time the VO expands it (lazy render).
+   Now lives under Admin login → Admin Panel → "Crop NPK Settings"
+   tab; the table is rendered when that tab is opened (see the tab's
+   onclick, which calls renderCropNpkAdminTable() directly).
    ═══════════════════════════════════════════════════════ */
 let _cropNpkRendered = false;
 
@@ -34250,17 +34356,6 @@ window.applyCropNPKOverrides = function(overrides) {
     });
 };
 
-// Toggle the card open/closed; lazily render the (large) table the
-// first time it is expanded so it never slows down page load.
-window.toggleCropNpkCard = function() {
-    toggleCardCollapse('cropNpkBody', 'cropNpkToggleBtn');
-    const body = document.getElementById('cropNpkBody');
-    if (body && body.style.display !== 'none' && !_cropNpkRendered) {
-        renderCropNpkAdminTable();
-        _cropNpkRendered = true;
-    }
-};
-
 function _cropNpkDisplayName(key) {
     return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -34270,6 +34365,7 @@ function _cropNpkDisplayName(key) {
 window.renderCropNpkAdminTable = function() {
     const tbody = document.getElementById('cropNpkAdminBody');
     if (!tbody) return;
+    _cropNpkRendered = true;
     const season = (document.getElementById('cropNpkSeason') || {}).value || 'Kharif';
     const q = ((document.getElementById('cropNpkSearch') || {}).value || '').toLowerCase().trim();
 
@@ -34320,7 +34416,7 @@ window.saveCropNpkRow = async function(cropKey) {
         seasons: { [season]: { N, P, K } },
         Ca, Mg, S, splits,
         updatedAt: new Date().toISOString(),
-        updatedBy: (typeof currentUser !== 'undefined' && currentUser && (currentUser.email || currentUser.uid)) || 'VO'
+        updatedBy: (typeof currentUser !== 'undefined' && currentUser && (currentUser.email || currentUser.uid)) || 'Admin'
     };
 
     try {
@@ -35078,6 +35174,7 @@ window._fetchBoosterDoseConfig = async function(voUid, villageName, year, season
 })(); // end IIFE
 </script>
 
+<footer style="
     background: linear-gradient(135deg, #0d1b2a 0%, #1a2f4a 100%);
     color: #c8d8e8;
     text-align: center;
