@@ -255,6 +255,14 @@
          *         ".read": "auth != null",
          *         ".write": "auth != null && auth.uid == $voUid"
          *       }
+         *     },
+         *     "cropNPKOverrides": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null",
+         *       "$cropKey": {
+         *         ".read": "auth != null",
+         *         ".write": "auth != null"
+         *       }
          *     }
          *   }
          * }
@@ -295,6 +303,13 @@
          *    final approval/rejection state separately from pendingUsers.
          *  — fertilizerDistributions uses .indexOn for outletId, status &
          *    aadhaar to avoid slow query warnings in Firebase console.
+         *  — cropNPKOverrides: global (not per-VO) node. Any VO can update a
+         *    crop's N/P/K/Ca/Mg/S dosage or split-notes from the "Crop
+         *    Fertilizer (NPK) Recommendations" panel on the Fertilizer
+         *    Distribution History card. Values here override the hardcoded
+         *    fertilizerDosage[...] defaults in-memory for ALL users in
+         *    real time, which in turn drives the Fertilizer Distribution
+         *    Card, Crop Recommendation Card and Village Profile NPK table.
          * ════════════════════════════════════════════════════════════════
          */
 
@@ -1271,8 +1286,8 @@
             <div class="card-icon card-icon-warning" style="width:40px;height:40px;border-radius:12px;"><i class="fas fa-seedling fa-lg"></i></div>
             <span class="card-badge" style="font-size:0.65rem;">Fertilizer</span>
           </div>
-          <h5 style="font-size:0.92rem;margin-bottom:0.25rem;">Fertilizer Distribution History</h5>
-          <p style="font-size:0.78rem;">View Urea / DAP / MOP / NPK distribution history per village.</p>
+          <h5 style="font-size:0.92rem;margin-bottom:0.25rem;">Fertilizer Distribution Section</h5>
+          <p style="font-size:0.78rem;">View distribution history, NPK values, splits &amp; booster dose per village.</p>
           <div class="card-meta" style="padding-top:0.5rem;">
             <span style="font-size:0.72rem;">Operations</span>
             <span class="card-action" style="font-size:0.72rem;">Open <i class="fas fa-arrow-right"></i></span>
@@ -1683,7 +1698,8 @@
                 <i class="fas fa-history text-white" style="font-size:0.85rem;"></i>
             </span>
             <div>
-                <div style="font-size:0.82rem;font-weight:800;color:#1862ab;text-transform:uppercase;letter-spacing:0.8px;font-family:'Poppins',sans-serif;">Fertilizer Distribution History</div>
+                <div style="font-size:0.82rem;font-weight:800;color:#1862ab;text-transform:uppercase;letter-spacing:0.8px;font-family:'Poppins',sans-serif;">Fertilizer Distribution Section</div>
+                <div style="font-size:0.7rem;font-weight:600;color:#7f8c8d;letter-spacing:0.3px;margin-top:1px;">Manage Fertilizer Distribution History &bull; NPK Values &bull; Splits &bull; Booster Dose</div>
             </div>
         </div>
 
@@ -1761,6 +1777,97 @@
             </div>
         </div>
     </div><!-- /card -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     CROP FERTILIZER (NPK) RECOMMENDATIONS CARD — VO EDITABLE
+     Lives inside the Fertilizer Distribution History area.
+     Firebase path: cropNPKOverrides/{cropKey}
+       → { seasons:{Kharif:{N,P,K}, Rabi:{...}, Summer:{...}},
+           Ca, Mg, S, splits, updatedAt, updatedBy }
+     Overrides are merged into the live `fertilizerDosage` object in
+     memory, which is the single source of truth read by the
+     Fertilizer Distribution Card, Crop Recommendation Card and the
+     Village Profile NPK table — so any VO edit here is reflected
+     everywhere automatically, in real time, for all users.
+     Collapsed (hidden) by default — VO expands it on demand.
+     ══════════════════════════════════════════════════════════════ -->
+<div class="card p-0 mx-auto mt-4" id="cropNpkCard" style="max-width:900px;border-radius:16px;overflow:hidden;">
+  <!-- top accent bar -->
+  <div style="height:5px;background:linear-gradient(90deg,#16a085 0%,#27ae60 50%,#2ecc71 100%);"></div>
+  <div style="padding:1.4rem 1.6rem;">
+
+    <!-- Card header -->
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span style="background:linear-gradient(135deg,#27ae60,#16a085);width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="fas fa-seedling text-white" style="font-size:0.9rem;"></i>
+      </span>
+      <div class="flex-grow-1">
+        <div style="font-size:0.84rem;font-weight:800;color:#1e8449;text-transform:uppercase;letter-spacing:0.8px;">Crop Fertilizer (NPK) Recommendations</div>
+        <div style="font-size:0.72rem;color:#7f8c8d;">Edit the N/P/K dosage for any crop &amp; season — updates the Fertilizer Distribution Card, Crop Recommendation Card &amp; Village Profile everywhere automatically.</div>
+      </div>
+      <button type="button" id="cropNpkToggleBtn" onclick="toggleCropNpkCard()"
+              style="flex-shrink:0;padding:0.35rem 0.8rem;font-size:0.76rem;font-weight:700;background:#fff;color:#1e8449;border:1.5px solid #27ae60;border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:5px;">
+        <i class="fas fa-chevron-down"></i><span>Show</span>
+      </button>
+    </div>
+
+    <div id="cropNpkBody" style="display:none;">
+      <div class="alert alert-success py-2 mb-3" style="font-size:0.78rem;border-radius:10px;">
+        <i class="fas fa-info-circle me-1"></i>
+        These NPK values (kg/acre) are used to calculate every farmer's fertilizer eligibility.
+        Changing a value here and clicking <strong>Save</strong> updates it <strong>instantly for everyone</strong> —
+        the Fertilizer Distribution Card, the Crop Recommendation Card and the Village Profile NPK table all read
+        from this same data, so no separate update is needed anywhere else.
+      </div>
+
+      <!-- Filter row -->
+      <div class="row g-2 mb-2">
+        <div class="col-md-7">
+          <label class="form-label fw-semibold mb-1" style="font-size:0.8rem;color:#1e8449;">
+            <i class="fas fa-search me-1"></i>Search Crop
+          </label>
+          <input type="text" id="cropNpkSearch" class="form-control form-control-sm" placeholder="Type a crop name to filter…" oninput="renderCropNpkAdminTable()">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label fw-semibold mb-1" style="font-size:0.8rem;color:#1e8449;">
+            <i class="fas fa-calendar-alt me-1"></i>Season (for N / P / K columns)
+          </label>
+          <select id="cropNpkSeason" class="form-select form-select-sm" onchange="renderCropNpkAdminTable()">
+            <option value="Kharif">Kharif</option>
+            <option value="Rabi">Rabi</option>
+            <option value="Summer">Summer</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:0.72rem;color:#7f8c8d;margin-bottom:0.6rem;">
+        <i class="fas fa-info-circle me-1"></i>Ca, Mg, S and the split-application note are shared across all seasons for a crop.
+      </div>
+
+      <div style="max-height:480px;overflow:auto;border:1.5px solid #d4efdf;border-radius:10px;">
+        <table class="table table-sm mb-0" style="font-size:0.78rem;">
+          <thead style="position:sticky;top:0;background:#eafaf1;z-index:1;">
+            <tr style="color:#1e8449;font-weight:700;">
+              <th style="padding:8px;min-width:130px;">Crop</th>
+              <th style="padding:8px;width:78px;">N (kg/ac)</th>
+              <th style="padding:8px;width:78px;">P (kg/ac)</th>
+              <th style="padding:8px;width:78px;">K (kg/ac)</th>
+              <th style="padding:8px;width:65px;">Ca</th>
+              <th style="padding:8px;width:65px;">Mg</th>
+              <th style="padding:8px;width:65px;">S</th>
+              <th style="padding:8px;min-width:180px;">Split / Application Notes</th>
+              <th style="padding:8px;min-width:130px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="cropNpkAdminBody">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+      </div>
+      <div id="cropNpkStatus" style="margin-top:0.6rem;font-size:0.76rem;"></div>
+    </div><!-- /cropNpkBody -->
+
+  </div>
+</div><!-- /cropNpkCard -->
 
 <!-- ══════════════════════════════════════════════════════════════
      FERTILIZER RESTRICTION CONTROL CARD — VO ONLY
@@ -10727,6 +10834,14 @@ const fertilizerDosage = {
   crossandra: { seasons: { Kharif:{N:40.5,P:24.3,K:24.3}, Rabi:{N:40.5,P:24.3,K:24.3}, Summer:{N:40.5,P:24.3,K:24.3} }, Ca:8, Mg:6, S:12, splits:'Apply basal dose and split top dressings.' },
   gladiolus: { seasons: { Kharif:{N:60.7,P:40.5,K:60.7}, Rabi:{N:60.7,P:40.5,K:60.7}, Summer:{N:60.7,P:40.5,K:60.7} }, Ca:8, Mg:6, S:12, splits:'Apply basal dose and split N top dressings during vegetative stage.' }
 };
+
+// ============================================================
+//  fertilizerDosageDefaults — frozen snapshot of the built-in
+//  NPK values, captured BEFORE any VO edits are applied. Used by
+//  the "Reset to Default" action in the Crop NPK admin panel.
+//  ⚠️  Never mutate this object.
+// ============================================================
+const fertilizerDosageDefaults = JSON.parse(JSON.stringify(fertilizerDosage));
 
 // ============================================================
 //  cropNPKRecommendations — PROXY to fertilizerDosage
@@ -23352,6 +23467,9 @@ function loadRetailerHistory() {
                     <i class="fas fa-calendar-day text-primary"></i>
                     <span style="font-size:0.73rem;font-weight:700;color:#495057;text-transform:uppercase;letter-spacing:0.5px;">Day-wise Distribution</span>
                     <input type="date" id="rtDayDistDate" class="form-control form-control-sm" style="width:155px;" value="${rtTodayStr}" max="${rtTodayStr}" onchange="updateRtDayDistribution()">
+                    <select id="rtDayDistFertFilter" class="form-select form-select-sm" style="width:175px;" onchange="updateRtDayDistribution()" title="Filter list by fertilizer / NPK grade">
+                        <option value="All">All Fertilizers</option>
+                    </select>
                 </div>
                 <div class="text-center" style="cursor:pointer;" onclick="toggleRtDayDistFarmerList()" title="Click to view farmer list for this date">
                     <div style="font-size:1.5rem;font-weight:800;color:#1862ab;line-height:1;" id="rtDayDistCount">${rtTodayDistCount}</div>
@@ -23444,6 +23562,9 @@ function loadRetailerHistory() {
             </thead>
             <tbody>${rows}</tbody>
         </table></div>`;
+
+        populateRtDayDistFertFilter();
+        updateRtDayDistribution();
     }).catch(e => {
         console.error('loadRetailerHistory error:', e);
         container.innerHTML = `<div class="alert alert-danger">
@@ -23469,6 +23590,38 @@ function rtGetRecordDateStr(r) {
     return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
 }
 
+// ── Retailer: populate the Day-wise Distribution fertilizer/grade filter ──
+// "NPK" covers many grades (10:26:26, 19:19:19, etc.) — list each grade
+// actually distributed as its own option (e.g. "NPK 10:26:26") alongside
+// the plain fertilizer types, so the retailer can pull a grade-wise list.
+window.populateRtDayDistFertFilter = function() {
+    const sel = document.getElementById('rtDayDistFertFilter');
+    if (!sel) return;
+    const prevValue = sel.value || 'All';
+    const records = window._rtHistoryRecords || [];
+
+    const baseTypes = new Set();
+    const npkGrades = new Set();
+    records.forEach(r => {
+        if (r.status === 'Rejected') return;
+        const type = String(r.fertilizerType || 'Urea').trim();
+        baseTypes.add(type);
+        if (type.toUpperCase() === 'NPK' && r.npkGrade) npkGrades.add(String(r.npkGrade).trim());
+    });
+
+    let html = '<option value="All">All Fertilizers</option>';
+    [...baseTypes].sort().forEach(t => { html += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`; });
+    if (npkGrades.size) {
+        html += '<option disabled>──── NPK Grades ────</option>';
+        [...npkGrades].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).forEach(g => {
+            html += `<option value="NPK ${escapeHtml(g)}">NPK ${escapeHtml(g)}</option>`;
+        });
+    }
+    sel.innerHTML = html;
+    // Restore previous selection if it still exists among the new options
+    if ([...sel.options].some(o => o.value === prevValue)) sel.value = prevValue;
+};
+
 // ── Retailer: recompute Day-wise Distribution count for the date picked in the Abstract Report ──
 window.updateRtDayDistribution = function() {
     const dateInput = document.getElementById('rtDayDistDate');
@@ -23477,8 +23630,11 @@ window.updateRtDayDistribution = function() {
     if (!dateInput || !countEl) return;
 
     const selectedDate = dateInput.value;
+    const fertFilter = (document.getElementById('rtDayDistFertFilter') || {}).value || 'All';
     const records = window._rtHistoryRecords || [];
-    const dayRecords = records.filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === selectedDate);
+    const dayRecords = records
+        .filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === selectedDate)
+        .filter(r => rtRecordMatchesFertFilter(r, fertFilter));
     const count = dayRecords.length;
     const bags = dayRecords.reduce((s, r) => s + (Number(r.bags) || 0), 0);
 
@@ -23492,40 +23648,58 @@ window.updateRtDayDistribution = function() {
         bagsEl.style.color = '#e67e22';
     }
 
-    // Keep the farmer list in sync with the newly selected date if it's currently open
+    // Keep the farmer list in sync with the newly selected date/filter if it's currently open
     const listWrap = document.getElementById('rtDayDistFarmerListWrap');
     if (listWrap && listWrap.style.display !== 'none') {
         renderRtDayDistFarmerList(selectedDate);
     }
 };
 
+// ── Matches a record against the Day-wise fertilizer/grade filter value ──
+// "All" matches everything. A bare type (e.g. "NPK") matches every grade of
+// that type. "NPK 10:26:26" matches only that exact grade.
+function rtRecordMatchesFertFilter(r, filterValue) {
+    if (!filterValue || filterValue === 'All') return true;
+    const type = String(r.fertilizerType || 'Urea').trim();
+    const grade = r.npkGrade ? String(r.npkGrade).trim() : '';
+    const label = grade ? `${type} ${grade}` : type;
+    if (filterValue === label) return true;
+    if (filterValue.toUpperCase() === type.toUpperCase() && !filterValue.includes(' ')) return true;
+    return false;
+}
+
 // ── Retailer: build the farmer list table for the selected day ──
 function renderRtDayDistFarmerList(selectedDate) {
     const tbody = document.getElementById('rtDayDistFarmerTbody');
     if (!tbody) return;
 
+    const fertFilter = (document.getElementById('rtDayDistFertFilter') || {}).value || 'All';
     const records = window._rtHistoryRecords || [];
     const dayRecords = records
         .filter(r => r.status !== 'Rejected' && rtGetRecordDateStr(r) === selectedDate)
+        .filter(r => rtRecordMatchesFertFilter(r, fertFilter))
         .sort((a, b) => {
             const toMs = v => { if (!v) return 0; const n = Number(v); if (!isNaN(n)) return n; return new Date(v).getTime() || 0; };
             return toMs(b.verifiedAt || b.distributedAt || b.createdAt) - toMs(a.verifiedAt || a.distributedAt || a.createdAt);
         });
 
     if (!dayRecords.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">No distributions found for this date.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">No distributions found for this date${fertFilter !== 'All' ? ' / grade' : ''}.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = dayRecords.map((r, i) => {
         const actionDate = r.verifiedAt || r.distributedAt || r.createdAt;
         const timeStr = actionDate ? new Date(actionDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
+        const fertType = escapeHtml(r.fertilizerType || 'Urea');
+        const gradeStr = (String(r.fertilizerType || '').trim().toUpperCase() === 'NPK' && r.npkGrade)
+            ? `<div style="font-size:0.65rem;font-weight:600;color:#7d4e00;margin-top:1px;">${escapeHtml(r.npkGrade)}</div>` : '';
         return `<tr style="font-size:0.8rem;">
             <td class="text-muted">${i + 1}</td>
             <td class="fw-semibold">${escapeHtml(r.farmerName || '—')}</td>
             <td>${escapeHtml((r.village || '').trim() || '—')}</td>
             <td style="font-family:monospace;">${escapeHtml(r.mobile || '—')}</td>
-            <td><span class="badge bg-warning text-dark">${escapeHtml(r.fertilizerType || 'Urea')}</span></td>
+            <td><span class="badge bg-warning text-dark">${fertType}</span>${gradeStr}</td>
             <td class="text-center fw-bold text-success">${r.bags || 0}</td>
             <td class="text-muted">${timeStr}</td>
         </tr>`;
@@ -24630,36 +24804,11 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         const splitBadges = ['#1862ab','#27ae60','#f39c12'];
         let splitRowsHtml = '';
 
-        // ── Village Bag Rule Banner (shown once, above splits) ──
-        let _villageBagRuleBanner = '';
-        const _vbr = _voRestrictions.bagRule;
-        if (_vbr && _vbr.active === true && Array.isArray(_vbr.tiers) && _vbr.tiers.length > 0) {
-            const _farmerExtent2 = parseFloat(fc.extent || fc.totalExtent || 0) || 0;
-            const _ruleFert  = _vbr.fertType || 'Both';
-            const _fertLabel = _ruleFert === 'Both' ? 'Urea & DAP' : _ruleFert + ' only';
-            const _fertColor = _ruleFert === 'DAP' ? '#0277bd' : _ruleFert === 'Urea' ? '#f39c12' : '#e67e22';
-            // Use _evalFertRestrictions for consistent tier matching (gap fallback + fertType filter)
-            const _reprFert  = _ruleFert === 'Urea' ? 'Urea' : 'DAP';
-            const _bannerEval = (typeof _evalFertRestrictions === 'function')
-                ? _evalFertRestrictions(_voRestrictions, _farmerExtent2, 0, _reprFert)
-                : { bagCap: null };
-            // Only show banner if the rule actually applies to this fertilizer
-            if (_bannerEval.bagCap !== null) {
-                const _capBags = _bannerEval.bagCap;
-            _villageBagRuleBanner = `
-            <div style="background:linear-gradient(135deg,#fef5e7,#fdebd0);border:2px solid ${_fertColor};border-radius:10px;padding:10px 14px;margin-bottom:10px;">
-                <div style="font-weight:800;font-size:0.82rem;color:#a04000;margin-bottom:4px;">
-                    <i class="fas fa-boxes-stacked me-1"></i>📦 Stock Restriction Active — Village: ${escapeHtml(fc.village||'—')}
-                </div>
-                <div style="font-size:0.75rem;color:#7d4e00;line-height:1.7;">
-                    Farmer Extent: <strong>${_farmerExtent2.toFixed(2)} acres</strong> &nbsp;|&nbsp;
-                    Applies To: <strong style="color:${_fertColor};">${_fertLabel}</strong> &nbsp;|&nbsp;
-                    Allowed Bags: <strong style="color:${_capBags===0?'#e74c3c':_fertColor};">${_capBags} bag${_capBags!==1?'s':''}</strong>
-                    <br><span style="font-size:0.7rem;"><i class="fas fa-info-circle me-1"></i>Due to low stock, the Village Officer has limited <strong>${_fertLabel}</strong> bags per extent. Contact VO when stock is replenished.</span>
-                </div>
-            </div>`;
-            }
-        }
+        // ── Village Bag Rule (cap) is now surfaced only inside the Step 2
+        //    split panel for the matching fertilizer — see _buildBagCapBanner
+        //    below — rather than as a universal banner shown for every
+        //    fertilizer, since it's only relevant once that fertilizer is
+        //    actually selected.
 
         // ── Village Split Lock Summary Banner ──
         let _villageSplitLockBanner = '';
@@ -25011,13 +25160,13 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                                 <div style="font-weight:800;color:#c0392b;margin-bottom:3px;"><i class="fas fa-check-circle me-1"></i>⛔ Already Availed Restricted Quantity — ${fertLabel}</div>
                                 <div style="color:#922b21;line-height:1.6;">
                                     Extent: <strong>${farmerExtent.toFixed(2)} acres</strong> — Restricted to: <strong>${cap} bag${cap!==1?'s':''}</strong> — Already availed: <strong>${availed} bag${availed!==1?'s':''}</strong>.<br>
-                                    <span style="font-size:0.7rem;"><i class="fas fa-info-circle me-1"></i>Farmer has received the full restricted quantity. No more ${fertLabel} bags can be issued until VO lifts the restriction.</span>
+                                    <span style="font-size:0.7rem;"><i class="fas fa-info-circle me-1"></i>Due to low stock, the Village Officer has limited ${fertLabel} bags per extent in ${escapeHtml(fc.village||'this village')}. No more ${fertLabel} bags can be issued until VO lifts the restriction.</span>
                                 </div>
                             </div>`;
                         return `
                             <div style="background:#e8f4fd;border:1.5px solid ${fertColor};border-radius:8px;padding:7px 10px;margin-bottom:6px;font-size:0.75rem;">
                                 <i class="fas fa-info-circle me-1" style="color:${fertColor};"></i>
-                                <strong>Stock Limit (${fertLabel}):</strong> ${farmerExtent.toFixed(2)} acres → max <strong>${cap} bag${cap!==1?'s':''}</strong> allowed
+                                <strong>Stock Limit (${fertLabel}):</strong> due to low stock in ${escapeHtml(fc.village||'this village')}, ${farmerExtent.toFixed(2)} acres → max <strong>${cap} bag${cap!==1?'s':''}</strong> allowed
                                 ${availed > 0 ? `&nbsp;·&nbsp; Availed: <strong>${availed}</strong> &nbsp;·&nbsp; Remaining under limit: <strong style="color:${capRem===0?'#c0392b':fertColor};">${capRem}</strong>` : ''}.
                             </div>`;
                     }
@@ -25304,16 +25453,24 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
           </div>
 
           <!-- ── Warnings / Restrictions (collapsible) ── -->
-          ${(_villageBagRuleBanner || _villageSplitLockBanner || availedOverrideDisplay) ? `
+          ${(_villageSplitLockBanner || availedOverrideDisplay) ? `
           <div style="background:#fffbef;border-bottom:1px solid #ffe082;padding:10px 14px;">
-            ${_villageBagRuleBanner}${_villageSplitLockBanner}${availedOverrideDisplay}
+            ${_villageSplitLockBanner}${availedOverrideDisplay}
           </div>` : ''}
 
-          <!-- ── Already issued (compact chips) ── -->
+          <!-- ── Already issued (compact chips) — collapsed by default; ── -->
           ${_issuedChips ? `
-          <div style="background:#f8f9fa;border-bottom:1px solid #e9ecef;padding:9px 14px;">
-            <div style="font-size:0.72rem;font-weight:700;color:#555;margin-bottom:5px;"><i class="fas fa-history me-1 text-warning"></i>Already Distributed This Season</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">${_issuedChips}</div>
+          <div style="background:#f8f9fa;border-bottom:1px solid #e9ecef;">
+            <div onclick="toggleFcHistoryPanel('${fcKey}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:9px 14px;">
+              <div style="font-size:0.72rem;font-weight:700;color:#555;">
+                <i class="fas fa-history me-1 text-warning"></i>Already Distributed This Season
+                <span style="font-weight:400;color:#888;">(${fdRecsUD.length} entr${fdRecsUD.length !== 1 ? 'ies' : 'y'})</span>
+              </div>
+              <i id="fcHistoryChevron_${fcKey}" class="fas fa-chevron-down" style="color:#888;font-size:0.72rem;transition:transform .2s;"></i>
+            </div>
+            <div id="fcHistoryPanel_${fcKey}" class="d-none" style="padding:0 14px 10px;">
+              <div style="display:flex;flex-wrap:wrap;gap:4px;">${_issuedChips}</div>
+            </div>
           </div>` : ''}
 
           <!-- ── STEP 2 : Distribution Entry (single unified fertilizer picker) ── -->
@@ -25328,6 +25485,9 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             <!-- Unified fertilizer dropdown: Urea / DAP / SSP / TSP / MOP / NPK -->
             ${_mainFertSelectHtml}
 
+            <!-- ── Multi-fertilizer Cart — add Urea, DAP, NPK, etc. here, then issue all at once ── -->
+            <div id="fcCartWrap_${fcKey}"></div>
+
             <!-- ── Urea / DAP panel: shows active split, eligible, availed & remaining bags ── -->
             <div id="fcSplitPanel_${fcKey}">
               <div id="fcSplitRows_${fcKey}">
@@ -25341,10 +25501,10 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
 
               <div id="fcDistError_${fcKey}" class="d-none" style="background:#fdecea;border:1.5px solid #e57373;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#c62828;font-weight:600;margin-top:8px;"></div>
 
-              <!-- Confirm button -->
-              <button id="fcConfirmBtn_${fcKey}" onclick="askConfirmFarmerCardDistribution('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}',[${uElig}],[${dElig}])"
-                style="width:100%;margin-top:14px;background:linear-gradient(135deg,#27ae60,#1a7a44);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(39,174,96,0.3);letter-spacing:0.3px;">
-                <i class="fas fa-check-circle me-2"></i>Issue Bags to Farmer
+              <!-- Add to Cart button — queues this fertilizer's bags; nothing is issued yet -->
+              <button id="fcConfirmBtn_${fcKey}" onclick="addMainToCart('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}',[${uElig}],[${dElig}])"
+                style="width:100%;margin-top:14px;background:linear-gradient(135deg,#1862ab,#124d86);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(24,98,171,0.3);letter-spacing:0.3px;">
+                <i class="fas fa-cart-plus me-2"></i>Add to Cart
               </button>
             </div>
 
@@ -25363,10 +25523,10 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
               </div>
               <div id="fcOtherStockNote_${fcKey}" style="font-size:0.74rem;color:#555;margin-top:6px;"></div>
               <div id="fcOtherErr_${fcKey}" class="d-none" style="background:#fdecea;border:1.5px solid #e57373;border-radius:8px;padding:7px 11px;font-size:0.78rem;color:#c62828;font-weight:600;margin-top:8px;"></div>
-              <!-- Confirm button — same size/style/wording as the Urea/DAP button for consistency -->
-              <button onclick="submitOtherFertilizerDistribution('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}')"
-                style="width:100%;margin-top:14px;background:linear-gradient(135deg,#27ae60,#1a7a44);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(39,174,96,0.3);letter-spacing:0.3px;">
-                <i class="fas fa-check-circle me-2"></i>Issue Bags to Farmer
+              <!-- Add to Cart button — same size/style/wording as the Urea/DAP button for consistency -->
+              <button onclick="addOtherToCart('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}')"
+                style="width:100%;margin-top:14px;background:linear-gradient(135deg,#1862ab,#124d86);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(24,98,171,0.3);letter-spacing:0.3px;">
+                <i class="fas fa-cart-plus me-2"></i>Add to Cart
               </button>
             </div>
             </div>
@@ -25386,12 +25546,20 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
           </div>
         </div>`;
         
+        // Cache eligibility arrays so the cart's "Issue All" step can re-invoke
+        // submitFarmerCardDistribution later without needing them passed around.
+        window._fcLastUElig = window._fcLastUElig || {};
+        window._fcLastDElig = window._fcLastDElig || {};
+        window._fcLastUElig[fcKey] = uElig;
+        window._fcLastDElig[fcKey] = dElig;
+
         // Apply initial fertilizer filter — auto-select the first fert that still has remaining bags
         setTimeout(() => {
             const _initFert = (totalRemU > 0) ? 'Urea' : (totalRemD > 0 ? 'DAP' : (_hasUrea ? 'Urea' : (_hasDAP ? 'DAP' : 'SSP')));
             const mainSel = document.getElementById('fcMainFertSelect_' + fcKey);
             if (mainSel) mainSel.value = _initFert;
             onFcMainFertChange(fcKey);
+            renderFcCartPanel(fcKey);
         }, 0);
     }).catch(err => {
         resultEl.innerHTML = _rtAuthErr('Database error: ' + escapeHtml(err.message));
@@ -25696,7 +25864,7 @@ function confirmFarmerCardDistribution() {
     submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dEligArr, entries);
 }
 
-function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dEligArr, precomputedEntries) {
+function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dEligArr, precomputedEntries, extraIssuedForReceipt) {
     const a = String(aadhaar || '').replace(/\s/g, '');
     const resultEl = document.getElementById('qrScanResult');
     const errEl    = document.getElementById('fcDistError_' + fcKey);
@@ -26223,7 +26391,9 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         const splitSummary = entries.map(e => {
             const sName = getSplitName(_rtCrop || cropForHist || '', e.splitIdx, true);
             return `<strong>${e.fert}</strong>: ${e.bags} bag${e.bags>1?'s':''} <span class="text-muted">(${sName})</span>`;
-        }).join('<br>');
+        }).concat(
+            (extraIssuedForReceipt || []).map(o => `<strong>${escapeHtml(o.label)}</strong>: ${o.bags} bag${o.bags>1?'s':''}`)
+        ).join('<br>');
 
         if (resultEl) resultEl.innerHTML = `
         <div class="alert alert-success" style="border-radius:14px; border-left:4px solid #27ae60;">
@@ -26264,37 +26434,22 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
 //  ureaHistory / fertilizerDistributions / VO history exactly like a
 //  normal distribution, just without any eligibility cap.
 // ============================================================
-function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
+// ── Core save logic for a single SSP/TSP/MOP/NPK/Booster-Dose item ──
+// Takes explicit params (no DOM reads) so it can be called either by the
+// single-item button below (which reads the DOM first) or, sequentially,
+// by the multi-fertilizer cart's "Issue All" flow. Returns a plain result
+// object instead of touching the UI, so callers decide how to display it.
+async function _fcSaveSingleOtherFert(aadhaar, year, season, fcKey, fert, npkGrade, bags) {
     const a = String(aadhaar || '').replace(/\s/g, '');
-    const resultEl = document.getElementById('qrScanResult');
-    const errEl    = document.getElementById('fcOtherErr_' + fcKey);
-    const fertSel  = document.getElementById('fcOtherFert_' + fcKey);
-    const gradeSel = document.getElementById('fcOtherNpkGrade_' + fcKey);
-    const bagsEl   = document.getElementById('fcOtherBags_' + fcKey);
-    const fert     = fertSel ? fertSel.value : '';
-    const npkGrade = (fert === 'NPK') ? (gradeSel ? gradeSel.value : '') : '';
-    const bags     = parseInt(bagsEl?.value || '0') || 0;
-
-    if (errEl) errEl.classList.add('d-none');
-    if (!fert) {
-        if (errEl) { errEl.textContent = 'Please select a fertilizer type.'; errEl.classList.remove('d-none'); }
-        return;
-    }
-    if (fert === 'NPK' && !npkGrade) {
-        if (errEl) { errEl.textContent = 'Please select an NPK grade — add stock for a grade first if none are listed.'; errEl.classList.remove('d-none'); }
-        return;
-    }
-    if (bags < 1) {
-        if (errEl) { errEl.textContent = 'Please enter at least 1 bag.'; errEl.classList.remove('d-none'); }
-        return;
-    }
+    if (!fert) return { success: false, error: 'Please select a fertilizer type.' };
+    if (fert === 'NPK' && !npkGrade) return { success: false, error: 'Please select an NPK grade — add stock for a grade first if none are listed.' };
+    if (!bags || bags < 1) return { success: false, error: 'Please enter at least 1 bag.' };
 
     const { outletId, outletName, mandalKey } = getRetailerInfo();
     const retailerUid = firebase.auth().currentUser?.uid || '';
     const now = Date.now();
     const nowISO = new Date(now).toISOString();
     const todayStr = new Date(now).toISOString().slice(0, 10);
-    const issueBtn = errEl?.parentElement?.querySelector('button[onclick^="submitOtherFertilizerDistribution"]');
     const fertLabel = fert === 'NPK' ? `NPK ${npkGrade}` : fert;
 
     // ── Booster Dose (Calamity Relief): this is a distinct, eligibility-capped
@@ -26307,20 +26462,19 @@ function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
         : null;
     if (isBoosterDose) {
         if (!_boosterMatchForSubmit) {
-            if (errEl) { errEl.textContent = 'Booster Dose is no longer available for this farmer — please rescan the card.'; errEl.classList.remove('d-none'); }
-            return;
+            return { success: false, error: 'Booster Dose is no longer available for this farmer — please rescan the card.' };
         }
         // Re-check remaining live (in case another distribution happened since scan)
         const liveIssued = getTotalBoosterBagsTaken(a, fert, year, season);
         const liveRemaining = Math.max(0, _boosterMatchForSubmit.eligible - liveIssued);
         if (bags > liveRemaining) {
-            if (errEl) { errEl.textContent = `Only ${liveRemaining} ${fert} bag(s) remaining for this farmer (eligible: ${_boosterMatchForSubmit.eligible}, already issued: ${liveIssued}).`; errEl.classList.remove('d-none'); }
-            return;
+            return { success: false, error: `Only ${liveRemaining} ${fert} bag(s) remaining for this farmer (eligible: ${_boosterMatchForSubmit.eligible}, already issued: ${liveIssued}).` };
         }
     }
     const stockFertKey = isBoosterDose ? _boosterMatchForSubmit.baseFert : fert;
 
-    database.ref('fertilizerCards/' + fcKey).once('value').then(async cardSnap => {
+    try {
+        const cardSnap = await database.ref('fertilizerCards/' + fcKey).once('value');
         const cardData = cardSnap.val() || {};
         const voUidForHist = cardData.voUid || '';
         const farmerName   = cardData.farmerName || '';
@@ -26363,11 +26517,7 @@ function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
             stock = Number(stockSnap.val()) || 0;
         }
         if (stock < bags) {
-            if (errEl) {
-                errEl.textContent = `Insufficient stock — available: ${stock} ${isBoosterDose ? stockFertKey : fertLabel} bag(s), needed: ${bags}. Add stock first.`;
-                errEl.classList.remove('d-none');
-            }
-            return;
+            return { success: false, error: `Insufficient stock — available: ${stock} ${isBoosterDose ? stockFertKey : fertLabel} bag(s), needed: ${bags}. Add stock first.` };
         }
 
         const ops = [];
@@ -26419,40 +26569,368 @@ function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
             }));
         }
 
-        if (issueBtn) issueBtn.disabled = true;
-        try {
-            await Promise.all(ops);
-            if (bagsEl) bagsEl.value = '';
-            const chipsWrap = document.getElementById('fcOtherIssuedChips_' + fcKey);
-            if (chipsWrap) {
-                const chip = document.createElement('div');
-                chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#f1f0f5;border:1.5px solid #c9bce8;border-radius:8px;padding:4px 9px;font-size:0.74rem;font-weight:700;color:#4a2f7a;margin:2px;';
-                chip.innerHTML = `<span>${escapeHtml(fertLabel)}</span><span style="font-weight:400;color:#555;">${bags} bag${bags!==1?'s':''} · just now</span>`;
-                chipsWrap.appendChild(chip);
+        await Promise.all(ops);
+
+        // Keep in-memory caches in sync so displays update instantly without a re-fetch.
+        if (window._fcQrIssuedRecords) window._fcQrIssuedRecords.push({ ...rec, _tokenKey: recKey });
+        if (window._fcStockCache && window._fcStockCache[fcKey]) {
+            const cache = window._fcStockCache[fcKey];
+            if (fert === 'NPK') {
+                if (cache.NPK && typeof cache.NPK === 'object') cache.NPK[npkGrade] = stock - bags;
+            } else {
+                cache[fert] = stock - bags;
             }
-            if (window._fcQrIssuedRecords) window._fcQrIssuedRecords.push({ ...rec, _tokenKey: recKey });
-            // Keep the cached stock snapshot in sync so the note/dropdown update
-            // instantly without a re-fetch, in case the retailer issues again.
-            if (window._fcStockCache && window._fcStockCache[fcKey]) {
-                const cache = window._fcStockCache[fcKey];
-                if (fert === 'NPK') {
-                    if (cache.NPK && typeof cache.NPK === 'object') cache.NPK[npkGrade] = stock - bags;
-                } else {
-                    cache[fert] = stock - bags;
+        }
+        if (typeof loadRetailerHistory === 'function') loadRetailerHistory();
+        if (typeof loadRetailerStock === 'function') loadRetailerStock();
+
+        return { success: true, fertLabel, bags };
+    } catch (err) {
+        return { success: false, error: 'Save failed: ' + err.message };
+    }
+}
+
+// ── Button-triggered single-item issue — reads the DOM, then delegates the
+// actual save to _fcSaveSingleOtherFert. Kept for compatibility; the Farmer
+// Card UI now routes SSP/TSP/MOP/NPK through the cart via addOtherToCart.
+async function submitOtherFertilizerDistribution(aadhaar, year, season, fcKey) {
+    const errEl    = document.getElementById('fcOtherErr_' + fcKey);
+    const fertSel  = document.getElementById('fcOtherFert_' + fcKey);
+    const gradeSel = document.getElementById('fcOtherNpkGrade_' + fcKey);
+    const bagsEl   = document.getElementById('fcOtherBags_' + fcKey);
+    const fert     = fertSel ? fertSel.value : '';
+    const npkGrade = (fert === 'NPK') ? (gradeSel ? gradeSel.value : '') : '';
+    const bags     = parseInt(bagsEl?.value || '0') || 0;
+
+    if (errEl) errEl.classList.add('d-none');
+    const issueBtn = errEl?.parentElement?.querySelector('button[onclick^="submitOtherFertilizerDistribution"]');
+    if (issueBtn) issueBtn.disabled = true;
+
+    const result = await _fcSaveSingleOtherFert(aadhaar, year, season, fcKey, fert, npkGrade, bags);
+
+    if (issueBtn) issueBtn.disabled = false;
+
+    if (!result.success) {
+        if (errEl) { errEl.textContent = result.error; errEl.classList.remove('d-none'); }
+        return;
+    }
+
+    if (bagsEl) bagsEl.value = '';
+    const chipsWrap = document.getElementById('fcOtherIssuedChips_' + fcKey);
+    if (chipsWrap) {
+        const chip = document.createElement('div');
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#f1f0f5;border:1.5px solid #c9bce8;border-radius:8px;padding:4px 9px;font-size:0.74rem;font-weight:700;color:#4a2f7a;margin:2px;';
+        chip.innerHTML = `<span>${escapeHtml(result.fertLabel)}</span><span style="font-weight:400;color:#555;">${result.bags} bag${result.bags!==1?'s':''} · just now</span>`;
+        chipsWrap.appendChild(chip);
+    }
+    onFcOtherFertChange(fcKey);
+}
+
+// ============================================================
+//  RETAILER: MULTI-FERTILIZER CART
+//  Lets the retailer add Urea, DAP, and any Other fertilizer (SSP/TSP/
+//  MOP/NPK/Booster Dose) to a single cart BEFORE anything is issued, so
+//  a farmer who needs e.g. Urea + DAP + NPK 15:15:15 gets all three bag
+//  types handed over together, in one confirmed "Issue All" action.
+// ============================================================
+window._fcCart = window._fcCart || {}; // { [fcKey]: [ {key, kind, fert, splitIdx, npkGrade, bags, label} ] }
+
+function _fcCartItems(fcKey) {
+    return window._fcCart[fcKey] || (window._fcCart[fcKey] = []);
+}
+
+function _fcCartItemKey(it) {
+    return it.kind === 'main' ? `main_${it.fert}_s${it.splitIdx}` : `other_${it.fert}_${it.npkGrade || ''}`;
+}
+
+function _fcAddCartItem(fcKey, item) {
+    const items = _fcCartItems(fcKey);
+    const key = _fcCartItemKey(item);
+    const existing = items.find(i => i.key === key);
+    if (existing) existing.bags += item.bags;
+    else items.push({ ...item, key });
+    renderFcCartPanel(fcKey);
+}
+
+window.removeFcCartItem = function(fcKey, key) {
+    const items = _fcCartItems(fcKey);
+    const idx = items.findIndex(i => i.key === key);
+    if (idx >= 0) items.splice(idx, 1);
+    renderFcCartPanel(fcKey);
+};
+
+// Renders the cart as a floating "basket" button (fixed to the viewport)
+// instead of an inline block. This keeps it from pushing/overlapping the
+// fertilizer picker while the retailer is still browsing & adding items —
+// the retailer taps the basket only when ready to review & issue everything.
+function renderFcCartPanel(fcKey) {
+    const wrap = document.getElementById('fcCartWrap_' + fcKey);
+    if (!wrap) return;
+    const items = _fcCartItems(fcKey);
+    if (!items.length) {
+        wrap.innerHTML = '';
+        if (window._fcCartDrawerOpen) window._fcCartDrawerOpen[fcKey] = false;
+        return;
+    }
+    const totalBags = items.reduce((s, i) => s + i.bags, 0);
+    const totalFerts = items.length;
+    wrap.innerHTML = `
+    <!-- Floating basket button — fixed to viewport, never shifts page layout -->
+    <button id="fcCartFab_${fcKey}" onclick="toggleFcCartDrawer('${escapeHtml(fcKey)}')" title="View basket"
+      style="position:fixed;right:18px;bottom:90px;z-index:20000;width:58px;height:58px;border-radius:50%;
+             background:linear-gradient(135deg,#1862ab,#124d86);color:#fff;border:none;cursor:pointer;
+             box-shadow:0 6px 18px rgba(24,98,171,0.45);display:flex;align-items:center;justify-content:center;font-size:1.25rem;">
+      <i class="fas fa-shopping-basket"></i>
+      <span style="position:absolute;top:-4px;right:-4px;background:#e74c3c;color:#fff;border-radius:50%;
+                    min-width:22px;height:22px;padding:0 4px;display:flex;align-items:center;justify-content:center;
+                    font-size:0.7rem;font-weight:800;border:2px solid #fff;">${totalBags}</span>
+    </button>
+
+    <!-- Backdrop -->
+    <div id="fcCartBackdrop_${fcKey}" onclick="closeFcCartDrawer('${escapeHtml(fcKey)}')"
+      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:20001;"></div>
+
+    <!-- Slide-up basket drawer — shown only when the retailer taps the basket -->
+    <div id="fcCartDrawer_${fcKey}"
+      style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20002;background:#fff;
+             border-radius:18px 18px 0 0;box-shadow:0 -6px 24px rgba(0,0,0,0.25);
+             max-width:520px;margin:0 auto;max-height:72vh;overflow-y:auto;">
+      <div style="padding:14px 16px;border-bottom:1px solid #e9ecef;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;">
+        <div style="font-weight:800;font-size:0.92rem;color:#1862ab;">
+          <i class="fas fa-shopping-basket me-1"></i>Basket — ${totalFerts} fertilizer${totalFerts !== 1 ? 's' : ''}, ${totalBags} bag${totalBags !== 1 ? 's' : ''}
+        </div>
+        <button onclick="closeFcCartDrawer('${escapeHtml(fcKey)}')" title="Close"
+          style="border:none;background:#f1f3f5;color:#555;border-radius:50%;width:30px;height:30px;cursor:pointer;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;">
+        ${items.map(it => `
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#f8fbff;border:1px solid #cfe0f2;border-radius:8px;padding:9px 12px;">
+          <div style="font-size:0.85rem;color:#212121;">${it.label}</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-weight:800;color:#1862ab;">${it.bags} bag${it.bags !== 1 ? 's' : ''}</span>
+            <button onclick="removeFcCartItem('${escapeHtml(fcKey)}','${it.key}')" title="Remove"
+              style="border:none;background:#fdecea;color:#c0392b;border-radius:6px;width:28px;height:28px;cursor:pointer;">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>`).join('')}
+      </div>
+      <div style="padding:6px 16px 18px;">
+        <button onclick="issueFcCartAll('${escapeHtml(fcKey)}')"
+          style="width:100%;background:linear-gradient(135deg,#27ae60,#1a7a44);color:#fff;border:none;padding:13px 0;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;box-shadow:0 4px 14px rgba(39,174,96,0.3);">
+          <i class="fas fa-check-double me-2"></i>Issue All Bags to Farmer (${totalBags})
+        </button>
+      </div>
+    </div>`;
+
+    // Keep the drawer open across re-renders (e.g. after removing one item)
+    if (window._fcCartDrawerOpen && window._fcCartDrawerOpen[fcKey]) {
+        const backdrop = document.getElementById('fcCartBackdrop_' + fcKey);
+        const drawer = document.getElementById('fcCartDrawer_' + fcKey);
+        if (backdrop) backdrop.style.display = 'block';
+        if (drawer) drawer.style.display = 'block';
+    }
+}
+
+// Open / close / toggle the slide-up basket drawer.
+window.openFcCartDrawer = function(fcKey) {
+    window._fcCartDrawerOpen = window._fcCartDrawerOpen || {};
+    window._fcCartDrawerOpen[fcKey] = true;
+    const backdrop = document.getElementById('fcCartBackdrop_' + fcKey);
+    const drawer = document.getElementById('fcCartDrawer_' + fcKey);
+    if (backdrop) backdrop.style.display = 'block';
+    if (drawer) drawer.style.display = 'block';
+};
+
+window.closeFcCartDrawer = function(fcKey) {
+    window._fcCartDrawerOpen = window._fcCartDrawerOpen || {};
+    window._fcCartDrawerOpen[fcKey] = false;
+    const backdrop = document.getElementById('fcCartBackdrop_' + fcKey);
+    const drawer = document.getElementById('fcCartDrawer_' + fcKey);
+    if (backdrop) backdrop.style.display = 'none';
+    if (drawer) drawer.style.display = 'none';
+};
+
+window.toggleFcCartDrawer = function(fcKey) {
+    const isOpen = !!(window._fcCartDrawerOpen && window._fcCartDrawerOpen[fcKey]);
+    if (isOpen) closeFcCartDrawer(fcKey); else openFcCartDrawer(fcKey);
+};
+
+// Collapsible "Already Distributed This Season" chip list — hidden by
+// default so the card stays compact; retailer expands it only when needed.
+window.toggleFcHistoryPanel = function(fcKey) {
+    const panel = document.getElementById('fcHistoryPanel_' + fcKey);
+    const chevron = document.getElementById('fcHistoryChevron_' + fcKey);
+    if (!panel) return;
+    panel.classList.toggle('d-none');
+    const isOpen = !panel.classList.contains('d-none');
+    if (chevron) chevron.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+};
+
+// Validates and queues the current Urea/DAP split inputs into the cart.
+// Reads BOTH fcBagsU_* and fcBagsD_* for every split (same convention the
+// underlying save function already uses), so one click can queue Urea and
+// DAP together — not just whichever fertilizer the dropdown currently shows.
+window.addMainToCart = function(aadhaar, year, season, fcKey, uEligArr, dEligArr) {
+    const errEl = document.getElementById('fcDistError_' + fcKey);
+    const _confirmCrop = (document.getElementById('qrScanResult')?.dataset?.fcCrop || '').toLowerCase().replace(/\s+/g, '_');
+    const splitNames = [0, 1, 2].map(si => getSplitName(_confirmCrop, si));
+
+    function _remFromDom(f, splitIdx) {
+        const inputId = f === 'Urea' ? ('fcBagsU_' + splitIdx) : ('fcBagsD_' + splitIdx);
+        const el = document.getElementById(inputId);
+        if (!el) return 0;
+        const maxAttr = el.getAttribute('max');
+        return maxAttr !== null ? (parseInt(maxAttr) || 0) : 0;
+    }
+    function _splitFullyDistributed(f, splitIdx) {
+        const eligArr2 = f === 'Urea' ? uEligArr : dEligArr;
+        const elig = eligArr2[splitIdx] || 0;
+        if (elig === 0) return true;
+        return _remFromDom(f, splitIdx) === 0;
+    }
+    // Bags already queued (not yet issued) for this fert+split, so the retailer
+    // can't queue more than remains after their own pending cart items.
+    const cartItems = _fcCartItems(fcKey);
+    function _inCart(f, splitIdx) {
+        const it = cartItems.find(i => i.kind === 'main' && i.fert === f && i.splitIdx === splitIdx);
+        return it ? it.bags : 0;
+    }
+
+    if (errEl) errEl.classList.add('d-none');
+    let added = 0;
+    for (const fert of ['Urea', 'DAP']) {
+        for (let si = 0; si < 3; si++) {
+            const inputId = fert === 'Urea' ? ('fcBagsU_' + si) : ('fcBagsD_' + si);
+            const bags = parseInt(document.getElementById(inputId)?.value || '0') || 0;
+            if (bags <= 0) continue;
+
+            for (let prev = 0; prev < si; prev++) {
+                if (!_splitFullyDistributed(fert, prev)) {
+                    if (errEl) { errEl.textContent = `Cannot add ${splitNames[si]} ${fert} — ${splitNames[prev]} has not been distributed yet.`; errEl.classList.remove('d-none'); }
+                    return;
                 }
             }
-            onFcOtherFertChange(fcKey);
-            if (typeof loadRetailerHistory === 'function') loadRetailerHistory();
-            if (typeof loadRetailerStock === 'function') loadRetailerStock();
-        } catch (err) {
-            if (errEl) { errEl.textContent = 'Save failed: ' + err.message; errEl.classList.remove('d-none'); }
-        } finally {
-            if (issueBtn) issueBtn.disabled = false;
+            const rem = _remFromDom(fert, si) - _inCart(fert, si);
+            if (bags > rem) {
+                if (errEl) { errEl.textContent = `${splitNames[si]} ${fert}: requested ${bags} bags but only ${rem} remaining (after what's already in cart).`; errEl.classList.remove('d-none'); }
+                return;
+            }
+            _fcAddCartItem(fcKey, {
+                kind: 'main', fert, splitIdx: si, bags,
+                label: `${fert === 'DAP' ? '🌱' : '🌿'} <strong>${fert}</strong> — ${escapeHtml(splitNames[si])}`
+            });
+            const inputEl = document.getElementById(inputId);
+            if (inputEl) inputEl.value = 0;
+            added++;
         }
-    }).catch(err => {
-        if (errEl) { errEl.textContent = 'Database error: ' + err.message; errEl.classList.remove('d-none'); }
-    });
-}
+    }
+    if (!added) {
+        if (errEl) { errEl.textContent = 'Please enter at least 1 bag (Urea or DAP) in any split before adding to cart.'; errEl.classList.remove('d-none'); }
+    }
+};
+
+// Validates and queues the current SSP/TSP/MOP/NPK/Booster-Dose selection into the cart.
+window.addOtherToCart = function(aadhaar, year, season, fcKey) {
+    const errEl    = document.getElementById('fcOtherErr_' + fcKey);
+    const fertSel  = document.getElementById('fcOtherFert_' + fcKey);
+    const gradeSel = document.getElementById('fcOtherNpkGrade_' + fcKey);
+    const bagsEl   = document.getElementById('fcOtherBags_' + fcKey);
+    const fert     = fertSel ? fertSel.value : '';
+    const npkGrade = (fert === 'NPK') ? (gradeSel ? gradeSel.value : '') : '';
+    const bags     = parseInt(bagsEl?.value || '0') || 0;
+
+    if (errEl) errEl.classList.add('d-none');
+    if (!fert) { if (errEl) { errEl.textContent = 'Please select a fertilizer type.'; errEl.classList.remove('d-none'); } return; }
+    if (fert === 'NPK' && !npkGrade) { if (errEl) { errEl.textContent = 'Please select an NPK grade — add stock for a grade first if none are listed.'; errEl.classList.remove('d-none'); } return; }
+    if (bags < 1) { if (errEl) { errEl.textContent = 'Please enter at least 1 bag.'; errEl.classList.remove('d-none'); } return; }
+
+    // Cap against the stock-based max already computed onto the input by
+    // onFcOtherFertChange, minus whatever of this exact fert/grade is already queued.
+    const cartItems = _fcCartItems(fcKey);
+    const already = cartItems.find(i => i.kind === 'other' && i.fert === fert && (i.npkGrade || '') === (npkGrade || ''));
+    const alreadyBags = already ? already.bags : 0;
+    const maxAttr = bagsEl ? (parseInt(bagsEl.getAttribute('max')) || parseInt(bagsEl.max) || 0) : 0;
+    if (maxAttr) {
+        const availableForCart = Math.max(0, maxAttr - alreadyBags);
+        if (bags > availableForCart) {
+            if (errEl) { errEl.textContent = `Only ${availableForCart} bag(s) available to add (stock limit, minus what's already in cart).`; errEl.classList.remove('d-none'); }
+            return;
+        }
+    }
+
+    const fertLabel = fert === 'NPK' ? `NPK ${npkGrade}` : fert;
+    _fcAddCartItem(fcKey, { kind: 'other', fert, npkGrade, bags, label: `🟢 <strong>${escapeHtml(fertLabel)}</strong>` });
+    if (bagsEl) bagsEl.value = '';
+};
+
+// "Issue All Bags to Farmer" — processes every item in the cart. Other
+// fertilizers (no eligibility tracking) are saved first, one at a time;
+// Urea/DAP entries are then handed to submitFarmerCardDistribution in a
+// single call (it already supports mixed Urea+DAP entries and performs
+// full server-side re-validation), producing one combined receipt that
+// also lists whatever other fertilizers were issued in this same batch.
+window.issueFcCartAll = async function(fcKey) {
+    const items = _fcCartItems(fcKey);
+    if (!items.length) return;
+    const resultEl = document.getElementById('qrScanResult');
+    const lastQr = resultEl?.dataset.lastQr || '';
+    const p = lastQr.split('|'); // FC|aadhaar|year|season|voUid
+    const aadhaar = p[1] || '', year = p[2] || '', season = p[3] || '';
+
+    const mainEntries  = items.filter(i => i.kind === 'main');
+    const otherEntries = items.filter(i => i.kind === 'other');
+
+    // Keep the drawer open and swap its body for a loading state — stays
+    // fixed to the viewport rather than dropping back into the inline flow.
+    const wrap = document.getElementById('fcCartWrap_' + fcKey);
+    const drawerEl = document.getElementById('fcCartDrawer_' + fcKey);
+    if (drawerEl) drawerEl.innerHTML = `<div style="padding:24px 16px;text-align:center;color:#1862ab;font-weight:700;font-size:0.9rem;"><i class="fas fa-spinner fa-spin me-2"></i>Issuing ${items.length} fertilizer(s) to farmer…</div>`;
+
+    const issuedOther = [];
+    for (const it of otherEntries) {
+        const res = await _fcSaveSingleOtherFert(aadhaar, year, season, fcKey, it.fert, it.npkGrade, it.bags);
+        if (res.success) {
+            issuedOther.push({ label: res.fertLabel, bags: res.bags });
+            const idx = window._fcCart[fcKey].indexOf(it);
+            if (idx >= 0) window._fcCart[fcKey].splice(idx, 1);
+        } else {
+            openFcCartDrawer(fcKey); // ensure the drawer stays visible for the retry
+            renderFcCartPanel(fcKey);
+            const drawer2 = document.getElementById('fcCartDrawer_' + fcKey);
+            if (drawer2) drawer2.insertAdjacentHTML('afterbegin', `<div class="alert alert-danger py-2 mb-2 mx-3 mt-3">⛔ ${escapeHtml(it.label.replace(/<[^>]+>/g, ''))}: ${escapeHtml(res.error || 'Failed to save.')}</div>`);
+            return; // stop here — this item (and anything after it) stays in the cart to retry
+        }
+    }
+
+    closeFcCartDrawer(fcKey);
+    if (wrap) wrap.innerHTML = '';
+
+    if (mainEntries.length) {
+        const uEligArr = (window._fcLastUElig && window._fcLastUElig[fcKey]) || [0, 0, 0];
+        const dEligArr = (window._fcLastDElig && window._fcLastDElig[fcKey]) || [0, 0, 0];
+        const precomputed = mainEntries.map(i => ({ fert: i.fert, splitIdx: i.splitIdx, bags: i.bags }));
+        window._fcCart[fcKey] = [];
+        submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dEligArr, precomputed, issuedOther);
+    } else if (issuedOther.length) {
+        window._fcCart[fcKey] = [];
+        if (resultEl) resultEl.innerHTML = `
+        <div class="alert alert-success" style="border-radius:14px; border-left:4px solid #27ae60;">
+          <div class="fw-bold mb-2"><i class="fas fa-check-circle me-2 text-success"></i>Distribution Recorded Successfully</div>
+          <div class="small mb-2">${issuedOther.map(o => `<strong>${escapeHtml(o.label)}</strong>: ${o.bags} bag${o.bags > 1 ? 's' : ''}`).join('<br>')}</div>
+          <div class="d-flex gap-2 flex-wrap mt-2">
+          <button class="btn btn-outline-success btn-sm" onclick="processFarmerCardQr('${escapeHtml(aadhaar)}','${escapeHtml(year)}','${escapeHtml(season)}','', document.getElementById('qrScanResult'))">
+            <i class="fas fa-eye me-1"></i>View Updated Card
+          </button>
+          <button class="btn btn-success btn-sm" onclick="showRetailerTab('rtHistoryTab');loadRetailerHistory();">
+            <i class="fas fa-history me-1"></i>View in History Tab
+          </button>
+          </div>
+        </div>`;
+    }
+};
 
 // ============================================================
 //  RETAILER: CARD NUMBER SEARCH (fallback when QR isn't scanning)
@@ -33726,6 +34204,179 @@ window.toggleCardCollapse = function(bodyId, btnId) {
         if (label) label.textContent = 'Show';
     }
 };
+
+/* ═══════════════════════════════════════════════════════
+   CROP FERTILIZER (NPK) RECOMMENDATIONS — VO EDITABLE PANEL
+   Firebase path: cropNPKOverrides/{cropKey}
+     → { seasons:{Kharif:{N,P,K}, Rabi:{...}, Summer:{...}},
+         Ca, Mg, S, splits, updatedAt, updatedBy }
+
+   Overrides are merged directly into the live `fertilizerDosage`
+   object (mutated in place). Every card that reads NPK values —
+   Fertilizer Distribution Card, Crop Recommendation Card, Village
+   Profile NPK table (via the cropNPKRecommendations proxy) — reads
+   fertilizerDosage[...] at calculation time, so a VO's edit here is
+   reflected everywhere instantly, for every user, with no separate
+   update needed on those other cards.
+
+   The panel itself is collapsed (hidden) by default; the table is
+   only rendered the first time the VO expands it (lazy render).
+   ═══════════════════════════════════════════════════════ */
+let _cropNpkRendered = false;
+
+// Merge a cropNPKOverrides snapshot from Firebase into the live
+// fertilizerDosage object used everywhere in the app.
+window.applyCropNPKOverrides = function(overrides) {
+    if (!overrides || typeof overrides !== 'object') return;
+    Object.keys(overrides).forEach(cropKey => {
+        const base = fertilizerDosage[cropKey];
+        if (!base) return; // ignore unknown crop keys
+        const ov = overrides[cropKey] || {};
+        if (ov.seasons) {
+            Object.keys(ov.seasons).forEach(season => {
+                const s = ov.seasons[season];
+                if (!s) return;
+                base.seasons[season] = {
+                    N: Number(s.N) || 0,
+                    P: Number(s.P) || 0,
+                    K: Number(s.K) || 0
+                };
+            });
+        }
+        if (ov.Ca !== undefined) base.Ca = Number(ov.Ca) || 0;
+        if (ov.Mg !== undefined) base.Mg = Number(ov.Mg) || 0;
+        if (ov.S  !== undefined) base.S  = Number(ov.S)  || 0;
+        if (typeof ov.splits === 'string') base.splits = ov.splits;
+    });
+};
+
+// Toggle the card open/closed; lazily render the (large) table the
+// first time it is expanded so it never slows down page load.
+window.toggleCropNpkCard = function() {
+    toggleCardCollapse('cropNpkBody', 'cropNpkToggleBtn');
+    const body = document.getElementById('cropNpkBody');
+    if (body && body.style.display !== 'none' && !_cropNpkRendered) {
+        renderCropNpkAdminTable();
+        _cropNpkRendered = true;
+    }
+};
+
+function _cropNpkDisplayName(key) {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Build/refresh the crop table for the currently selected season,
+// applying the search filter.
+window.renderCropNpkAdminTable = function() {
+    const tbody = document.getElementById('cropNpkAdminBody');
+    if (!tbody) return;
+    const season = (document.getElementById('cropNpkSeason') || {}).value || 'Kharif';
+    const q = ((document.getElementById('cropNpkSearch') || {}).value || '').toLowerCase().trim();
+
+    const cropKeys = Object.keys(fertilizerDosage).sort();
+    let rows = '';
+    cropKeys.forEach(key => {
+        const name = _cropNpkDisplayName(key);
+        if (q && name.toLowerCase().indexOf(q) === -1 && key.toLowerCase().indexOf(q) === -1) return;
+        const d = fertilizerDosage[key];
+        const s = (d.seasons && (d.seasons[season] || d.seasons['Kharif'])) || { N: 0, P: 0, K: 0 };
+        rows += `
+          <tr data-crop="${key}">
+            <td style="padding:6px 8px;font-weight:700;color:#1e8449;white-space:nowrap;">${name}</td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-n" value="${s.N ?? 0}" style="width:70px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-p" value="${s.P ?? 0}" style="width:70px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-k" value="${s.K ?? 0}" style="width:70px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-ca" value="${d.Ca ?? 0}" style="width:58px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-mg" value="${d.Mg ?? 0}" style="width:58px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-s" value="${d.S ?? 0}" style="width:58px;"></td>
+            <td style="padding:6px 4px;"><input type="text" class="form-control form-control-sm npk-splits" value="${(d.splits || '').replace(/"/g,'&quot;')}" style="min-width:170px;"></td>
+            <td style="padding:6px 8px;white-space:nowrap;">
+              <button type="button" class="btn btn-success btn-sm" style="font-size:0.7rem;padding:2px 8px;" onclick="saveCropNpkRow('${key}')" title="Save changes for ${name}">
+                <i class="fas fa-save"></i>
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:0.7rem;padding:2px 8px;" onclick="resetCropNpkRow('${key}')" title="Reset ${name} to default">
+                <i class="fas fa-undo"></i>
+              </button>
+            </td>
+          </tr>`;
+    });
+    tbody.innerHTML = rows || `<tr><td colspan="9" class="text-center text-muted py-3">No crop matched your search.</td></tr>`;
+};
+
+// Save one crop row's NPK/Ca/Mg/S/splits to Firebase for the
+// currently selected season, and apply it locally right away so the
+// change is visible everywhere immediately (no page reload needed).
+window.saveCropNpkRow = async function(cropKey) {
+    const tr = document.querySelector(`#cropNpkAdminBody tr[data-crop="${cropKey}"]`);
+    const statusEl = document.getElementById('cropNpkStatus');
+    if (!tr) return;
+    const season = (document.getElementById('cropNpkSeason') || {}).value || 'Kharif';
+    const val = sel => Number(tr.querySelector(sel).value) || 0;
+    const N = val('.npk-n'), P = val('.npk-p'), K = val('.npk-k');
+    const Ca = val('.npk-ca'), Mg = val('.npk-mg'), S = val('.npk-s');
+    const splits = (tr.querySelector('.npk-splits').value || '').trim();
+
+    const payload = {
+        seasons: { [season]: { N, P, K } },
+        Ca, Mg, S, splits,
+        updatedAt: new Date().toISOString(),
+        updatedBy: (typeof currentUser !== 'undefined' && currentUser && (currentUser.email || currentUser.uid)) || 'VO'
+    };
+
+    try {
+        // Merge with any existing seasons already saved for this crop so we
+        // don't wipe out other seasons' overrides.
+        const snap = await database.ref('cropNPKOverrides/' + cropKey).get();
+        const existing = snap.exists() ? snap.val() : {};
+        const mergedSeasons = Object.assign({}, existing.seasons || {}, payload.seasons);
+        await database.ref('cropNPKOverrides/' + cropKey).update({
+            seasons: mergedSeasons,
+            Ca, Mg, S, splits,
+            updatedAt: payload.updatedAt,
+            updatedBy: payload.updatedBy
+        });
+
+        // Apply locally right away (realtime listener will also confirm it).
+        applyCropNPKOverrides({ [cropKey]: { seasons: payload.seasons, Ca, Mg, S, splits } });
+
+        if (statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>Saved "${_cropNpkDisplayName(cropKey)}" (${season}). Fertilizer Distribution Card, Crop Recommendation Card &amp; Village Profile updated.</span>`;
+    } catch (err) {
+        console.error('saveCropNpkRow error', err);
+        if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Failed to save. ${err.message || ''}</span>`;
+    }
+};
+
+// Remove a crop's Firebase override (all seasons) and restore the
+// built-in default values, then re-render just that row.
+window.resetCropNpkRow = async function(cropKey) {
+    const statusEl = document.getElementById('cropNpkStatus');
+    if (!confirm(`Reset "${_cropNpkDisplayName(cropKey)}" to its default NPK values for all seasons?`)) return;
+    try {
+        await database.ref('cropNPKOverrides/' + cropKey).remove();
+        const def = fertilizerDosageDefaults[cropKey];
+        if (def) {
+            fertilizerDosage[cropKey].seasons = JSON.parse(JSON.stringify(def.seasons));
+            fertilizerDosage[cropKey].Ca = def.Ca;
+            fertilizerDosage[cropKey].Mg = def.Mg;
+            fertilizerDosage[cropKey].S  = def.S;
+            fertilizerDosage[cropKey].splits = def.splits;
+        }
+        renderCropNpkAdminTable();
+        if (statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-undo me-1"></i>Reset "${_cropNpkDisplayName(cropKey)}" to default.</span>`;
+    } catch (err) {
+        console.error('resetCropNpkRow error', err);
+        if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Failed to reset. ${err.message || ''}</span>`;
+    }
+};
+
+// Realtime sync: whenever ANY VO updates cropNPKOverrides, every open
+// session (VO, retailer, DO, admin) picks up the change immediately.
+if (typeof database !== 'undefined' && database.ref) {
+    database.ref('cropNPKOverrides').on('value', snap => {
+        applyCropNPKOverrides(snap.val() || {});
+        if (_cropNpkRendered) renderCropNpkAdminTable();
+    });
+}
 
 /* ═══════════════════════════════════════════════════════
    LOAD — read both bagRule + splitLocks from Firebase
