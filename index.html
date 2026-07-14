@@ -263,6 +263,26 @@
          *         ".read": "auth != null",
          *         ".write": "auth != null"
          *       }
+         *     },
+         *     "customCropsNPK": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null",
+         *       "$cropKey": {
+         *         ".read": "auth != null",
+         *         ".write": "auth != null"
+         *       }
+         *     },
+         *     "voVillageIndex": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null",
+         *       "$villageSlug": {
+         *         ".read": "auth != null",
+         *         ".write": "auth != null"
+         *       }
+         *     },
+         *     "voVillageIndexMeta": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null"
          *     }
          *   }
          * }
@@ -310,6 +330,17 @@
          *    fertilizerDosage[...] defaults in-memory for ALL users in
          *    real time, which in turn drives the Fertilizer Distribution
          *    Card, Crop Recommendation Card and Village Profile NPK table.
+         *  — customCropsNPK: Admin-added crops that aren't in the built-in
+         *    fertilizerDosage list. Same real-time merge behavior as
+         *    cropNPKOverrides, but CREATES a new crop entry instead of
+         *    overriding an existing one.
+         *  — voVillageIndex / voVillageIndexMeta: fast-lookup index
+         *    ({villageSlug} → {uid, village}) used by admin's "Approve
+         *    Registration" flow to check whether a village already has a
+         *    Village Officer, WITHOUT downloading the entire `users` tree
+         *    on every approval. Kept in sync whenever a VO is approved,
+         *    edited, or deleted; self-heals via a one-time full scan
+         *    guarded by voVillageIndexMeta/builtAt if it's ever missing.
          * ════════════════════════════════════════════════════════════════
          */
 
@@ -3122,7 +3153,7 @@
              affecting everyone else.
              Firebase path: cropNPKOverrides/{cropKey}
                → { seasons:{Kharif:{N,P,K}, Rabi:{...}, Summer:{...}},
-                   Ca, Mg, S, splits, updatedAt, updatedBy }
+                   Ca, Mg, S, splitCount, splits, updatedAt, updatedBy }
              Overrides are merged into the live `fertilizerDosage` object
              in memory, which is the single source of truth read by the
              Fertilizer Distribution Card, Crop Recommendation Card and
@@ -3177,22 +3208,92 @@
                 </div>
               </div>
               <div style="font-size:0.72rem;color:#7f8c8d;margin-bottom:0.6rem;">
-                <i class="fas fa-info-circle me-1"></i>Ca, Mg, S and the split-application note are shared across all seasons for a crop.
+                <i class="fas fa-info-circle me-1"></i>Ca, Mg, S, the number of splits and the split-application note are shared across all seasons for a crop.
+              </div>
+
+              <!-- Add New Crop panel -->
+              <div class="mb-3">
+                <button type="button" class="btn btn-outline-success btn-sm" style="font-size:0.78rem;border-radius:8px;" onclick="toggleAddCropNpkPanel()">
+                  <i class="fas fa-plus me-1"></i><span id="addCropNpkToggleLabel">Add New Crop</span>
+                </button>
+                <div id="addCropNpkPanel" class="hidden mt-2 p-3" style="background:#f4fbf7;border:1.5px dashed #a9dfbf;border-radius:10px;">
+                  <div style="font-size:0.76rem;color:#7f8c8d;margin-bottom:0.6rem;">
+                    <i class="fas fa-seedling me-1"></i>Adds a brand-new crop (not in the built-in list) so it appears here and in every NPK-driven card &amp; dropdown across the app.
+                    The N/P/K you enter below are applied to <strong>all three seasons</strong> to start — edit an individual season afterwards from the table above if needed.
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-md-4">
+                      <label class="form-label mb-1" style="font-size:0.75rem;color:#1e8449;font-weight:600;">Crop Name</label>
+                      <input type="text" id="newCropName" class="form-control form-control-sm" placeholder="e.g. Dragon Fruit">
+                    </div>
+                    <div class="col-md-2 col-6">
+                      <label class="form-label mb-1" style="font-size:0.75rem;color:#1e8449;font-weight:600;">N (kg/ac)</label>
+                      <input type="number" step="0.1" min="0" id="newCropN" class="form-control form-control-sm" value="0">
+                    </div>
+                    <div class="col-md-2 col-6">
+                      <label class="form-label mb-1" style="font-size:0.75rem;color:#1e8449;font-weight:600;">P (kg/ac)</label>
+                      <input type="number" step="0.1" min="0" id="newCropP" class="form-control form-control-sm" value="0">
+                    </div>
+                    <div class="col-md-2 col-6">
+                      <label class="form-label mb-1" style="font-size:0.75rem;color:#1e8449;font-weight:600;">K (kg/ac)</label>
+                      <input type="number" step="0.1" min="0" id="newCropK" class="form-control form-control-sm" value="0">
+                    </div>
+                    <div class="col-md-2 col-6">
+                      <label class="form-label mb-1" style="font-size:0.75rem;color:#1e8449;font-weight:600;">No. of Splits</label>
+                      <select id="newCropSplitCount" class="form-select form-select-sm">
+                        <option value="1">1</option>
+                        <option value="2" selected>2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="row g-2 mt-1">
+                    <div class="col-md-2 col-6">
+                      <label class="form-label mb-1" style="font-size:0.75rem;color:#1e8449;font-weight:600;">Ca</label>
+                      <input type="number" step="0.1" min="0" id="newCropCa" class="form-control form-control-sm" value="0">
+                    </div>
+                    <div class="col-md-2 col-6">
+                      <label class="form-label mb-1" style="font-size:0.75rem;color:#1e8449;font-weight:600;">Mg</label>
+                      <input type="number" step="0.1" min="0" id="newCropMg" class="form-control form-control-sm" value="0">
+                    </div>
+                    <div class="col-md-2 col-6">
+                      <label class="form-label mb-1" style="font-size:0.75rem;color:#1e8449;font-weight:600;">S</label>
+                      <input type="number" step="0.1" min="0" id="newCropS" class="form-control form-control-sm" value="0">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label mb-1" style="font-size:0.75rem;color:#1e8449;font-weight:600;">Split / Application Notes</label>
+                      <input type="text" id="newCropSplits" class="form-control form-control-sm" placeholder="e.g. Apply full P and K basal and N in 2 splits.">
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <button type="button" class="btn btn-success btn-sm" style="font-size:0.78rem;" onclick="addNewCropNpk()">
+                      <i class="fas fa-check me-1"></i>Add Crop
+                    </button>
+                    <button type="button" class="btn btn-light btn-sm" style="font-size:0.78rem;" onclick="toggleAddCropNpkPanel(false)">
+                      Cancel
+                    </button>
+                  </div>
+                  <div id="addCropNpkStatus" style="margin-top:0.5rem;font-size:0.76rem;"></div>
+                </div>
               </div>
 
               <div style="max-height:480px;overflow:auto;border:1.5px solid #d4efdf;border-radius:10px;">
-                <table class="table table-sm mb-0" style="font-size:0.78rem;">
+                <table class="table table-sm mb-0" style="font-size:0.78rem;min-width:1360px;">
                   <thead style="position:sticky;top:0;background:#eafaf1;z-index:1;">
                     <tr style="color:#1e8449;font-weight:700;">
-                      <th style="padding:8px;min-width:130px;">Crop</th>
-                      <th style="padding:8px;width:78px;">N (kg/ac)</th>
-                      <th style="padding:8px;width:78px;">P (kg/ac)</th>
-                      <th style="padding:8px;width:78px;">K (kg/ac)</th>
-                      <th style="padding:8px;width:65px;">Ca</th>
-                      <th style="padding:8px;width:65px;">Mg</th>
-                      <th style="padding:8px;width:65px;">S</th>
-                      <th style="padding:8px;min-width:180px;">Split / Application Notes</th>
-                      <th style="padding:8px;min-width:130px;">Actions</th>
+                      <th style="padding:8px;min-width:150px;">Crop</th>
+                      <th style="padding:8px;width:100px;">N (kg/ac)</th>
+                      <th style="padding:8px;width:100px;">P (kg/ac)</th>
+                      <th style="padding:8px;width:100px;">K (kg/ac)</th>
+                      <th style="padding:8px;width:78px;">Ca</th>
+                      <th style="padding:8px;width:78px;">Mg</th>
+                      <th style="padding:8px;width:78px;">S</th>
+                      <th style="padding:8px;width:120px;">No. of Splits</th>
+                      <th style="padding:8px;min-width:200px;">Split / Application Notes</th>
+                      <th style="padding:8px;min-width:150px;">Actions</th>
                     </tr>
                   </thead>
                   <tbody id="cropNpkAdminBody">
@@ -8782,6 +8883,58 @@ async function loadPendingApprovals() {
     }
 }
 
+// ============================================================
+//  VILLAGE-OFFICER VILLAGE INDEX  (performance fix)
+//  Firebase path: voVillageIndex/{villageSlug} → { uid, village, indexedAt }
+//
+//  approveRegistration() used to download the ENTIRE `users` tree
+//  (every VO's full profile + history + reports) on every single
+//  approval, just to check whether the requested village already has
+//  a Village Officer. As the user base grew this made every approval
+//  slower and slower.
+//
+//  This tiny index turns that check into one indexed read per
+//  village instead of a full-database download. It self-heals: the
+//  first time any admin session needs it, _ensureVoVillageIndexBuilt()
+//  does the expensive full scan ONCE (guarded by voVillageIndexMeta/
+//  builtAt so it never repeats), then every approval after that is
+//  fast for everyone.
+// ============================================================
+function _voVillageSlug(v) {
+    return (v || '').trim().toLowerCase();
+}
+
+let _voVillageIndexBuildPromise = null;
+async function _ensureVoVillageIndexBuilt() {
+    if (_voVillageIndexBuildPromise) return _voVillageIndexBuildPromise;
+    _voVillageIndexBuildPromise = (async () => {
+        try {
+            const metaSnap = await database.ref('voVillageIndexMeta/builtAt').once('value');
+            if (metaSnap.exists()) return; // already built by a previous session
+            const usersSnap = await database.ref('users').once('value');
+            const updates = {};
+            usersSnap.forEach(userChild => {
+                const uid = userChild.key;
+                const profile = (userChild.val() || {}).profile || {};
+                if (profile.role === 'village_officer' || profile.role === 'vo') {
+                    const villages = Array.isArray(profile.villages) && profile.villages.length
+                        ? profile.villages
+                        : (profile.village ? [profile.village] : []);
+                    villages.forEach(v => {
+                        const slug = _voVillageSlug(v);
+                        if (slug) updates['voVillageIndex/' + slug] = { uid, village: v, indexedAt: new Date().toISOString() };
+                    });
+                }
+            });
+            updates['voVillageIndexMeta/builtAt'] = new Date().toISOString();
+            await database.ref().update(updates);
+        } catch (e) {
+            console.error('voVillageIndex build failed (approvals will still work, just slower until this succeeds):', e);
+        }
+    })();
+    return _voVillageIndexBuildPromise;
+}
+
 async function approveRegistration(pendingKey) {
     const actionEl = document.getElementById('approvalAction_' + pendingKey);
     if (actionEl) actionEl.innerHTML = '<div class="alert alert-info py-2 small"><i class="fas fa-spinner fa-spin me-2"></i>Creating account…</div>';
@@ -8791,22 +8944,24 @@ async function approveRegistration(pendingKey) {
         const u = snap.val();
         if (!u) throw new Error('Pending record not found.');
 
-        // VO uniqueness check — admin is authenticated so this is reliable
+        // VO uniqueness check — admin is authenticated so this is reliable.
+        // ⚡ PERF FIX: was `database.ref('users').once('value')` (downloads
+        // every user's full data on every approval). Now uses the
+        // voVillageIndex fast-lookup instead — one tiny indexed read per
+        // village, regardless of how many users exist.
         if (u.role === 'village_officer' && u.village) {
             const pendingVillages = (Array.isArray(u.villages) && u.villages.length)
                 ? u.villages.map(v => v.trim().toLowerCase())
                 : [u.village.trim().toLowerCase()];
-            const usersSnap = await database.ref('users').once('value');
+
+            await _ensureVoVillageIndexBuilt();
+
+            const idxSnaps = await Promise.all(
+                pendingVillages.map(slug => database.ref('voVillageIndex/' + slug).once('value'))
+            );
             let conflictVillage = null;
-            usersSnap.forEach(userChild => {
-                const profile = userChild.val()?.profile || {};
-                if (profile.role === 'village_officer' || profile.role === 'vo') {
-                    const existingVillages = Array.isArray(profile.villages) && profile.villages.length
-                        ? profile.villages.map(v => v.trim().toLowerCase())
-                        : (profile.village ? [profile.village.trim().toLowerCase()] : []);
-                    const clash = pendingVillages.find(pv => existingVillages.includes(pv));
-                    if (clash) conflictVillage = clash;
-                }
+            idxSnaps.forEach((snap, i) => {
+                if (snap.exists()) conflictVillage = pendingVillages[i];
             });
             if (conflictVillage) {
                 if (actionEl) actionEl.innerHTML = `<div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-2"></i>Cannot approve — a Village Officer already exists for <strong>${escapeHtml(conflictVillage)}</strong>. Reject this request instead.</div>`;
@@ -8824,6 +8979,8 @@ async function approveRegistration(pendingKey) {
 
         await cred.user.updateProfile({ displayName: u.fullName });
 
+        const approvedVillages = (Array.isArray(u.villages) && u.villages.length) ? u.villages : (u.village ? [u.village] : []);
+
         // Save user profile
         await database.ref('users/' + uid + '/profile').set({
             name: u.fullName,
@@ -8833,11 +8990,23 @@ async function approveRegistration(pendingKey) {
             division: u.division || '',
             mandal: u.mandal || '',
             village: u.village || '',
+            villages: approvedVillages,
             createdAt: new Date().toISOString(),
             approvedAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         });
         await database.ref('users/' + uid + '/userEmail').set(u.email);
+
+        // Keep the fast voVillageIndex lookup in sync so the NEXT
+        // approval doesn't need a full-database scan either.
+        if (u.role === 'village_officer' && approvedVillages.length) {
+            const idxUpdates = {};
+            approvedVillages.forEach(v => {
+                const slug = _voVillageSlug(v);
+                if (slug) idxUpdates['voVillageIndex/' + slug] = { uid, village: v, indexedAt: new Date().toISOString() };
+            });
+            database.ref().update(idxUpdates).catch(err => console.error('voVillageIndex update failed:', err));
+        }
 
         // Sign out the newly created user from secondary app immediately
         await approvalSecondaryAuth.signOut();
@@ -29891,8 +30060,38 @@ async function saveEditUser() {
     const u = (window._adminUsersMap || {})[uid];
     if (u && u.email) updates.email = u.email;
 
+    // Villages this user was previously indexed under, before this edit
+    // (needed so we can free up any villages removed/reassigned below).
+    const oldVillages = u
+        ? ((Array.isArray(u.villages) && u.villages.length) ? u.villages : (u.village ? [u.village] : []))
+        : [];
+    const wasVillageOfficer = u && (u.role === 'village_officer' || u.role === 'vo');
+
     try {
         await database.ref('users/' + uid + '/profile').update(updates);
+
+        // Keep the fast voVillageIndex lookup (used by admin approvals)
+        // accurate after a role change or village reassignment.
+        if (role === 'village_officer') {
+            const idxUpdates = {};
+            oldVillages.forEach(v => {
+                const slug = _voVillageSlug(v);
+                if (slug && !villageListEdit.some(nv => _voVillageSlug(nv) === slug)) idxUpdates['voVillageIndex/' + slug] = null;
+            });
+            villageListEdit.forEach(v => {
+                const slug = _voVillageSlug(v);
+                if (slug) idxUpdates['voVillageIndex/' + slug] = { uid, village: v, indexedAt: new Date().toISOString() };
+            });
+            if (Object.keys(idxUpdates).length) database.ref().update(idxUpdates).catch(err => console.error('voVillageIndex update failed:', err));
+        } else if (wasVillageOfficer && oldVillages.length) {
+            // Role changed away from Village Officer — release their villages.
+            const idxUpdates = {};
+            oldVillages.forEach(v => {
+                const slug = _voVillageSlug(v);
+                if (slug) idxUpdates['voVillageIndex/' + slug] = null;
+            });
+            database.ref().update(idxUpdates).catch(err => console.error('voVillageIndex cleanup failed:', err));
+        }
 
         let pwMsg = '';
         if (password) {
@@ -30000,8 +30199,31 @@ async function confirmDeleteUser() {
     statusEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Deleting user data...</div>';
 
     try {
+        // 0. Grab role/village first (cheap single-node read) so we can
+        // free up their voVillageIndex entries below — keeps the fast
+        // approval lookup accurate without ever needing a full users scan.
+        let villagesToUnindex = [];
+        try {
+            const profSnap = await database.ref('users/' + uid + '/profile').once('value');
+            const prof = profSnap.val() || {};
+            if (prof.role === 'village_officer' || prof.role === 'vo') {
+                villagesToUnindex = (Array.isArray(prof.villages) && prof.villages.length)
+                    ? prof.villages : (prof.village ? [prof.village] : []);
+            }
+        } catch (_) {}
+
         // 1. Remove all user data from Firebase Realtime Database
         await database.ref('users/' + uid).remove();
+
+        // 1b. Release their village(s) in the fast-lookup index
+        if (villagesToUnindex.length) {
+            const idxUpdates = {};
+            villagesToUnindex.forEach(v => {
+                const slug = _voVillageSlug(v);
+                if (slug) idxUpdates['voVillageIndex/' + slug] = null;
+            });
+            database.ref().update(idxUpdates).catch(err => console.error('voVillageIndex cleanup failed:', err));
+        }
 
         // 2. Attempt to delete Firebase Auth account via proxy worker
         let authMsg = '';
@@ -34314,7 +34536,7 @@ window.toggleCardCollapse = function(bodyId, btnId) {
    CROP FERTILIZER (NPK) RECOMMENDATIONS — VO EDITABLE PANEL
    Firebase path: cropNPKOverrides/{cropKey}
      → { seasons:{Kharif:{N,P,K}, Rabi:{...}, Summer:{...}},
-         Ca, Mg, S, splits, updatedAt, updatedBy }
+         Ca, Mg, S, splitCount, splits, updatedAt, updatedBy }
 
    Overrides are merged directly into the live `fertilizerDosage`
    object (mutated in place). Every card that reads NPK values —
@@ -34352,12 +34574,78 @@ window.applyCropNPKOverrides = function(overrides) {
         if (ov.Ca !== undefined) base.Ca = Number(ov.Ca) || 0;
         if (ov.Mg !== undefined) base.Mg = Number(ov.Mg) || 0;
         if (ov.S  !== undefined) base.S  = Number(ov.S)  || 0;
+        if (ov.splitCount !== undefined) base.splitCount = Number(ov.splitCount) || 1;
         if (typeof ov.splits === 'string') base.splits = ov.splits;
     });
 };
 
+// Merge a customCropsNPK snapshot from Firebase into the live
+// fertilizerDosage object, CREATING new crop entries for keys that
+// don't exist yet (built-in crops are never touched here — only
+// crops added via "Add New Crop"). Because fertilizerDosage is the
+// single source of truth read everywhere (Fertilizer Distribution
+// Card, Crop Recommendation Card, Village Profile, crop dropdowns),
+// a newly-added crop shows up across the whole app automatically.
+window.applyCustomCropsNPK = function(customCrops) {
+    if (!customCrops || typeof customCrops !== 'object') return;
+    Object.keys(customCrops).forEach(key => {
+        const c = customCrops[key] || {};
+        const src = c.seasons || {};
+        const seasons = {};
+        ['Kharif', 'Rabi', 'Summer'].forEach(season => {
+            const s = src[season] || {};
+            seasons[season] = { N: Number(s.N) || 0, P: Number(s.P) || 0, K: Number(s.K) || 0 };
+        });
+        fertilizerDosage[key] = {
+            seasons,
+            Ca: Number(c.Ca) || 0,
+            Mg: Number(c.Mg) || 0,
+            S:  Number(c.S)  || 0,
+            splitCount: Number(c.splitCount) || 1,
+            splits: typeof c.splits === 'string' ? c.splits : '',
+            custom: true,
+            displayName: c.displayName || _cropNpkDisplayName(key)
+        };
+        // Snapshot the as-created values once, so "Reset" on a custom
+        // crop has something sensible to revert to.
+        if (!fertilizerDosageDefaults[key]) {
+            fertilizerDosageDefaults[key] = JSON.parse(JSON.stringify(fertilizerDosage[key]));
+        }
+    });
+};
+
 function _cropNpkDisplayName(key) {
+    const d = fertilizerDosage[key];
+    if (d && d.custom && d.displayName) return d.displayName;
     return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Turn a free-typed crop name into a safe, unique object key
+// (lowercase, spaces/punctuation → underscores).
+function _slugifyCropName(name) {
+    return String(name || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+// Best-effort guess of "number of splits" from a crop's free-text
+// split-application note, used only as the dropdown's starting value
+// for crops that don't yet have an explicit splitCount saved. Once an
+// Admin picks a value and saves, that explicit number always wins.
+const _wordNums = { one:1, two:2, three:3, four:4, five:5, six:6 };
+function _inferSplitCount(text) {
+    if (!text) return 1;
+    const t = String(text).toLowerCase();
+    // "in 2 splits", "N in 3 equal splits", "4-6 split doses" (take first number)
+    let m = t.match(/(\d+)(?:\s*-\s*\d+)?\s*(?:equal\s+)?split/);
+    if (m) return Math.max(1, Math.min(6, parseInt(m[1], 10)));
+    // "in two splits", "N in three equal splits"
+    m = t.match(/\b(one|two|three|four|five|six)\b\s*(?:equal\s+)?split/);
+    if (m) return _wordNums[m[1]] || 1;
+    // no split language at all → single (basal) application
+    return 1;
 }
 
 // Build/refresh the crop table for the currently selected season,
@@ -34376,27 +34664,39 @@ window.renderCropNpkAdminTable = function() {
         if (q && name.toLowerCase().indexOf(q) === -1 && key.toLowerCase().indexOf(q) === -1) return;
         const d = fertilizerDosage[key];
         const s = (d.seasons && (d.seasons[season] || d.seasons['Kharif'])) || { N: 0, P: 0, K: 0 };
+        const splitCountVal = d.splitCount !== undefined ? d.splitCount : _inferSplitCount(d.splits);
+        const splitOptions = [1,2,3,4,5,6].map(n =>
+            `<option value="${n}" ${n === splitCountVal ? 'selected' : ''}>${n}</option>`
+        ).join('');
         rows += `
           <tr data-crop="${key}">
-            <td style="padding:6px 8px;font-weight:700;color:#1e8449;white-space:nowrap;">${name}</td>
-            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-n" value="${s.N ?? 0}" style="width:70px;"></td>
-            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-p" value="${s.P ?? 0}" style="width:70px;"></td>
-            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-k" value="${s.K ?? 0}" style="width:70px;"></td>
-            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-ca" value="${d.Ca ?? 0}" style="width:58px;"></td>
-            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-mg" value="${d.Mg ?? 0}" style="width:58px;"></td>
-            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-s" value="${d.S ?? 0}" style="width:58px;"></td>
-            <td style="padding:6px 4px;"><input type="text" class="form-control form-control-sm npk-splits" value="${(d.splits || '').replace(/"/g,'&quot;')}" style="min-width:170px;"></td>
+            <td style="padding:6px 8px;font-weight:700;color:#1e8449;white-space:nowrap;">${name}${d.custom ? ' <span class="badge bg-info-subtle text-info-emphasis" style="font-size:0.6rem;font-weight:700;vertical-align:middle;">CUSTOM</span>' : ''}</td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-n" value="${s.N ?? 0}" style="width:88px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-p" value="${s.P ?? 0}" style="width:88px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-k" value="${s.K ?? 0}" style="width:88px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-ca" value="${d.Ca ?? 0}" style="width:68px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-mg" value="${d.Mg ?? 0}" style="width:68px;"></td>
+            <td style="padding:6px 4px;"><input type="number" step="0.1" min="0" class="form-control form-control-sm npk-s" value="${d.S ?? 0}" style="width:68px;"></td>
+            <td style="padding:6px 4px;">
+              <select class="form-select form-select-sm npk-splitcount" style="width:88px;" title="Number of fertilizer application splits for ${name}">
+                ${splitOptions}
+              </select>
+            </td>
+            <td style="padding:6px 4px;"><input type="text" class="form-control form-control-sm npk-splits" value="${(d.splits || '').replace(/"/g,'&quot;')}" style="min-width:190px;"></td>
             <td style="padding:6px 8px;white-space:nowrap;">
               <button type="button" class="btn btn-success btn-sm" style="font-size:0.7rem;padding:2px 8px;" onclick="saveCropNpkRow('${key}')" title="Save changes for ${name}">
                 <i class="fas fa-save"></i>
               </button>
               <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:0.7rem;padding:2px 8px;" onclick="resetCropNpkRow('${key}')" title="Reset ${name} to default">
                 <i class="fas fa-undo"></i>
-              </button>
+              </button>${d.custom ? `
+              <button type="button" class="btn btn-outline-danger btn-sm" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteCustomCropNpk('${key}')" title="Delete ${name} (custom crop)">
+                <i class="fas fa-trash"></i>
+              </button>` : ''}
             </td>
           </tr>`;
     });
-    tbody.innerHTML = rows || `<tr><td colspan="9" class="text-center text-muted py-3">No crop matched your search.</td></tr>`;
+    tbody.innerHTML = rows || `<tr><td colspan="10" class="text-center text-muted py-3">No crop matched your search.</td></tr>`;
 };
 
 // Save one crop row's NPK/Ca/Mg/S/splits to Firebase for the
@@ -34410,30 +34710,39 @@ window.saveCropNpkRow = async function(cropKey) {
     const val = sel => Number(tr.querySelector(sel).value) || 0;
     const N = val('.npk-n'), P = val('.npk-p'), K = val('.npk-k');
     const Ca = val('.npk-ca'), Mg = val('.npk-mg'), S = val('.npk-s');
+    const splitCount = Number(tr.querySelector('.npk-splitcount').value) || 1;
     const splits = (tr.querySelector('.npk-splits').value || '').trim();
-
-    const payload = {
-        seasons: { [season]: { N, P, K } },
-        Ca, Mg, S, splits,
-        updatedAt: new Date().toISOString(),
-        updatedBy: (typeof currentUser !== 'undefined' && currentUser && (currentUser.email || currentUser.uid)) || 'Admin'
-    };
+    const isCustom = !!(fertilizerDosage[cropKey] && fertilizerDosage[cropKey].custom);
+    const updatedAt = new Date().toISOString();
+    const updatedBy = (typeof currentUser !== 'undefined' && currentUser && (currentUser.email || currentUser.uid)) || 'Admin';
 
     try {
-        // Merge with any existing seasons already saved for this crop so we
-        // don't wipe out other seasons' overrides.
-        const snap = await database.ref('cropNPKOverrides/' + cropKey).get();
-        const existing = snap.exists() ? snap.val() : {};
-        const mergedSeasons = Object.assign({}, existing.seasons || {}, payload.seasons);
-        await database.ref('cropNPKOverrides/' + cropKey).update({
-            seasons: mergedSeasons,
-            Ca, Mg, S, splits,
-            updatedAt: payload.updatedAt,
-            updatedBy: payload.updatedBy
-        });
-
-        // Apply locally right away (realtime listener will also confirm it).
-        applyCropNPKOverrides({ [cropKey]: { seasons: payload.seasons, Ca, Mg, S, splits } });
+        if (isCustom) {
+            // Custom crops live entirely under customCropsNPK — merge the
+            // edited season in with whatever seasons were saved before.
+            const ref = database.ref('customCropsNPK/' + cropKey);
+            const snap = await ref.get();
+            const existing = snap.exists() ? snap.val() : {};
+            const mergedSeasons = Object.assign({}, existing.seasons || {}, { [season]: { N, P, K } });
+            const displayName = existing.displayName || fertilizerDosage[cropKey].displayName || _cropNpkDisplayName(cropKey);
+            await ref.update({
+                displayName, seasons: mergedSeasons, Ca, Mg, S, splitCount, splits,
+                updatedAt, updatedBy
+            });
+            applyCustomCropsNPK({ [cropKey]: { displayName, seasons: mergedSeasons, Ca, Mg, S, splitCount, splits } });
+        } else {
+            // Merge with any existing seasons already saved for this crop so we
+            // don't wipe out other seasons' overrides.
+            const snap = await database.ref('cropNPKOverrides/' + cropKey).get();
+            const existing = snap.exists() ? snap.val() : {};
+            const mergedSeasons = Object.assign({}, existing.seasons || {}, { [season]: { N, P, K } });
+            await database.ref('cropNPKOverrides/' + cropKey).update({
+                seasons: mergedSeasons, Ca, Mg, S, splitCount, splits,
+                updatedAt, updatedBy
+            });
+            // Apply locally right away (realtime listener will also confirm it).
+            applyCropNPKOverrides({ [cropKey]: { seasons: { [season]: { N, P, K } }, Ca, Mg, S, splitCount, splits } });
+        }
 
         if (statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>Saved "${_cropNpkDisplayName(cropKey)}" (${season}). Fertilizer Distribution Card, Crop Recommendation Card &amp; Village Profile updated.</span>`;
     } catch (err) {
@@ -34447,15 +34756,34 @@ window.saveCropNpkRow = async function(cropKey) {
 window.resetCropNpkRow = async function(cropKey) {
     const statusEl = document.getElementById('cropNpkStatus');
     if (!confirm(`Reset "${_cropNpkDisplayName(cropKey)}" to its default NPK values for all seasons?`)) return;
+    const isCustom = !!(fertilizerDosage[cropKey] && fertilizerDosage[cropKey].custom);
     try {
-        await database.ref('cropNPKOverrides/' + cropKey).remove();
         const def = fertilizerDosageDefaults[cropKey];
-        if (def) {
-            fertilizerDosage[cropKey].seasons = JSON.parse(JSON.stringify(def.seasons));
-            fertilizerDosage[cropKey].Ca = def.Ca;
-            fertilizerDosage[cropKey].Mg = def.Mg;
-            fertilizerDosage[cropKey].S  = def.S;
-            fertilizerDosage[cropKey].splits = def.splits;
+        if (isCustom) {
+            // "Default" for a custom crop is the snapshot taken when it was
+            // first created — write that back so it persists for everyone.
+            if (def) {
+                await database.ref('customCropsNPK/' + cropKey).update({
+                    seasons: def.seasons, Ca: def.Ca, Mg: def.Mg, S: def.S,
+                    splitCount: def.splitCount, splits: def.splits,
+                    displayName: def.displayName,
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: (typeof currentUser !== 'undefined' && currentUser && (currentUser.email || currentUser.uid)) || 'Admin'
+                });
+                applyCustomCropsNPK({ [cropKey]: def });
+            }
+        } else {
+            await database.ref('cropNPKOverrides/' + cropKey).remove();
+            if (def) {
+                fertilizerDosage[cropKey].seasons = JSON.parse(JSON.stringify(def.seasons));
+                fertilizerDosage[cropKey].Ca = def.Ca;
+                fertilizerDosage[cropKey].Mg = def.Mg;
+                fertilizerDosage[cropKey].S  = def.S;
+                fertilizerDosage[cropKey].splits = def.splits;
+                fertilizerDosage[cropKey].splitCount = def.splitCount !== undefined
+                    ? def.splitCount
+                    : _inferSplitCount(def.splits);
+            }
         }
         renderCropNpkAdminTable();
         if (statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-undo me-1"></i>Reset "${_cropNpkDisplayName(cropKey)}" to default.</span>`;
@@ -34465,11 +34793,107 @@ window.resetCropNpkRow = async function(cropKey) {
     }
 };
 
+// Show/hide the "Add New Crop" form panel.
+window.toggleAddCropNpkPanel = function(forceState) {
+    const panel = document.getElementById('addCropNpkPanel');
+    const label = document.getElementById('addCropNpkToggleLabel');
+    if (!panel) return;
+    const show = (forceState !== undefined) ? forceState : panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !show);
+    if (label) label.textContent = show ? 'Cancel' : 'Add New Crop';
+    if (show) {
+        const nameEl = document.getElementById('newCropName');
+        if (nameEl) { nameEl.value = ''; nameEl.focus(); }
+        const statusEl = document.getElementById('addCropNpkStatus');
+        if (statusEl) statusEl.innerHTML = '';
+    }
+};
+
+// Create a brand-new crop (not part of the built-in list) and save it
+// to Firebase under customCropsNPK/{key}, so it appears instantly in
+// this table — and, because fertilizerDosage is the shared source of
+// truth, in every NPK-driven card and crop dropdown across the app.
+window.addNewCropNpk = async function() {
+    const statusEl = document.getElementById('addCropNpkStatus');
+    const nameEl = document.getElementById('newCropName');
+    const name = (nameEl && nameEl.value || '').trim();
+    if (!name) {
+        if (statusEl) statusEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Enter a crop name.</span>';
+        if (nameEl) nameEl.focus();
+        return;
+    }
+    const key = _slugifyCropName(name);
+    if (!key) {
+        if (statusEl) statusEl.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>That name has no usable characters — try a name with letters or numbers.</span>';
+        return;
+    }
+    if (fertilizerDosage[key]) {
+        if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>"${_cropNpkDisplayName(key)}" already exists in the list below.</span>`;
+        return;
+    }
+    const num = id => Number((document.getElementById(id) || {}).value) || 0;
+    const N = num('newCropN'), P = num('newCropP'), K = num('newCropK');
+    const Ca = num('newCropCa'), Mg = num('newCropMg'), S = num('newCropS');
+    const splitCount = Number((document.getElementById('newCropSplitCount') || {}).value) || 1;
+    const splits = ((document.getElementById('newCropSplits') || {}).value || '').trim();
+    const sameForAllSeasons = { N, P, K };
+
+    const payload = {
+        displayName: name,
+        seasons: { Kharif: sameForAllSeasons, Rabi: sameForAllSeasons, Summer: sameForAllSeasons },
+        Ca, Mg, S, splitCount, splits,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        updatedBy: (typeof currentUser !== 'undefined' && currentUser && (currentUser.email || currentUser.uid)) || 'Admin'
+    };
+
+    if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding…';
+    try {
+        await database.ref('customCropsNPK/' + key).set(payload);
+        applyCustomCropsNPK({ [key]: payload });
+        toggleAddCropNpkPanel(false);
+        const searchEl = document.getElementById('cropNpkSearch');
+        if (searchEl) searchEl.value = name;
+        renderCropNpkAdminTable();
+        const rowStatusEl = document.getElementById('cropNpkStatus');
+        if (rowStatusEl) rowStatusEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>Added new crop "${name}". It now appears in the Fertilizer Distribution Card, Crop Recommendation Card, Village Profile &amp; crop dropdowns for everyone.</span>`;
+    } catch (err) {
+        console.error('addNewCropNpk error', err);
+        if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Failed to add crop. ${err.message || ''}</span>`;
+    }
+};
+
+// Permanently remove a custom (admin-added) crop. Built-in crops
+// cannot be deleted this way — only reset to their default values.
+window.deleteCustomCropNpk = async function(cropKey) {
+    const statusEl = document.getElementById('cropNpkStatus');
+    const d = fertilizerDosage[cropKey];
+    if (!d || !d.custom) return;
+    const name = _cropNpkDisplayName(cropKey);
+    if (!confirm(`Delete the custom crop "${name}"? This removes it everywhere in the app for all users.`)) return;
+    try {
+        await database.ref('customCropsNPK/' + cropKey).remove();
+        delete fertilizerDosage[cropKey];
+        delete fertilizerDosageDefaults[cropKey];
+        renderCropNpkAdminTable();
+        if (statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-trash me-1"></i>Deleted "${name}".</span>`;
+    } catch (err) {
+        console.error('deleteCustomCropNpk error', err);
+        if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Failed to delete. ${err.message || ''}</span>`;
+    }
+};
+
 // Realtime sync: whenever ANY VO updates cropNPKOverrides, every open
 // session (VO, retailer, DO, admin) picks up the change immediately.
 if (typeof database !== 'undefined' && database.ref) {
     database.ref('cropNPKOverrides').on('value', snap => {
         applyCropNPKOverrides(snap.val() || {});
+        if (_cropNpkRendered) renderCropNpkAdminTable();
+    });
+    // Realtime sync for admin-added custom crops — creates/refreshes
+    // them in fertilizerDosage for every open session, everywhere.
+    database.ref('customCropsNPK').on('value', snap => {
+        applyCustomCropsNPK(snap.val() || {});
         if (_cropNpkRendered) renderCropNpkAdminTable();
     });
 }
