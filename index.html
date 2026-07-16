@@ -1355,6 +1355,21 @@
           </div>
         </div>
       </div>
+      <!-- E Panta Planning -->
+      <div class="col-6 col-md-4 col-xl-3">
+        <div class="dashboard-card" onclick="showSection('epantaPlanningSection')" style="min-height:0;padding:1rem;">
+          <div class="card-topline">
+            <div class="card-icon" style="width:40px;height:40px;border-radius:12px;background:rgba(22,160,133,0.12);color:#16a085;"><i class="fas fa-route fa-lg"></i></div>
+            <span class="card-badge" style="font-size:0.65rem;background:rgba(22,160,133,0.1);color:#16a085;">Field Planning</span>
+          </div>
+          <h5 style="font-size:0.92rem;margin-bottom:0.25rem;">E Panta Planning</h5>
+          <p style="font-size:0.78rem;">Plan daily field visits by survey number range across a 45-day booking schedule.</p>
+          <div class="card-meta" style="padding-top:0.5rem;">
+            <span style="font-size:0.72rem;">Day-wise Plan</span>
+            <span class="card-action" style="font-size:0.72rem;color:#16a085;">Open <i class="fas fa-arrow-right"></i></span>
+          </div>
+        </div>
+      </div>
       <!-- Village Profile -->
       <div class="col-6 col-md-4 col-xl-3">
         <div class="dashboard-card" onclick="showSection('villageProfileSection');loadVillageProfile()" style="min-height:0;padding:1rem;">
@@ -2118,7 +2133,11 @@
                            <tr>
                               <th>Select</th>
                               <th>Survey Number</th>
-                              <th>Cumulative Area</th>
+                              <th>Farmer Name</th>
+                              <th>Father Name</th>
+                              <th>Aadhaar Number</th>
+                              <th>Khatha Number</th>
+                              <th>Extent (Acres)</th>
                               <th>Crop Name</th>
                            </tr>
                         </thead>
@@ -2151,6 +2170,111 @@
                <div class="mt-3 d-flex justify-content-between">
                   <button id="backToDamageSurveyBtn" class="btn btn-secondary">Back</button>
                   <button id="exportDamageDataBtn" class="btn btn-success">Export to Excel</button>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <!-- E Panta Planning Section -->
+      <div class="container hidden mt-4" id="epantaPlanningSection" role="main">
+         <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
+         <div class="card p-4">
+            <h2><i class="fas fa-route me-2 text-success"></i>E Panta Planning</h2>
+            <p class="text-muted small mb-4">Plan your field visits day-by-day. Pick a data source, choose a plan day, then enter the survey number range you intend to cover that day (e.g. <code>1-50,60-75</code>) to see every farmer / subdivision you need to visit.</p>
+
+            <!-- Step 1: Data Source -->
+            <div class="mb-3 p-3" style="background:#f8f9fa;border-radius:10px;">
+               <h5 class="mb-3" style="font-size:1rem;"><span class="badge bg-success me-2">1</span>Choose Data Source</h5>
+               <div class="row g-2">
+                  <div class="col-md-4">
+                     <label class="form-label small fw-semibold">Source</label>
+                     <select id="epantaSourceType" class="form-select">
+                        <option value="">-- Select Data Source --</option>
+                        <option value="report">📄 Uploaded Report (e-Panta / Upload Data)</option>
+                        <option value="profile">🪪 Village 1B / Farmer Profile Data</option>
+                     </select>
+                  </div>
+                  <div class="col-md-4">
+                     <label class="form-label small fw-semibold">Crop Year</label>
+                     <select id="epantaSrcYear" class="form-select"></select>
+                  </div>
+                  <div class="col-md-4">
+                     <label class="form-label small fw-semibold">Season</label>
+                     <select id="epantaSrcSeason" class="form-select">
+                        <option value="">Select</option>
+                        <option value="Kharif">Kharif</option>
+                        <option value="Rabi">Rabi</option>
+                        <option value="Summer">Summer</option>
+                        <option value="Other">Other</option>
+                     </select>
+                  </div>
+                  <div class="col-md-6" id="epantaVillageRow" style="display:none;">
+                     <label class="form-label small fw-semibold"><i class="fas fa-map-marker-alt me-1 text-primary"></i>Village</label>
+                     <select id="epantaVillage" class="form-select">
+                        <option value="">-- Select village --</option>
+                     </select>
+                  </div>
+                  <div class="col-md-6 d-flex align-items-end">
+                     <button id="epantaLoadSourceBtn" class="btn btn-primary w-100"><i class="fas fa-download me-1"></i> Load Source Data</button>
+                  </div>
+               </div>
+               <div id="epantaProfileNote" class="alert alert-warning py-2 px-3 mt-3 mb-0 small" style="display:none;">
+                  <i class="fas fa-info-circle me-1"></i> Farmer Profile / 1B data doesn't store area survey-number-wise — each crop's declared extent is split evenly across its listed survey numbers, so the Cumulative Area shown here is approximate.
+               </div>
+               <div id="epantaSourceSummary" class="mt-3 small"></div>
+            </div>
+
+            <!-- Step 2: Plan Day -->
+            <div id="epantaDayPlanBox" class="mb-3 p-3" style="background:#f8f9fa;border-radius:10px;display:none;">
+               <h5 class="mb-3" style="font-size:1rem;"><span class="badge bg-success me-2">2</span>Select Plan Day</h5>
+               <div class="row g-2 align-items-end">
+                  <div class="col-md-4">
+                     <label class="form-label small fw-semibold">Plan Start Date</label>
+                     <input type="date" id="epantaPlanStartDate" class="form-control" />
+                  </div>
+                  <div class="col-md-8">
+                     <label class="form-label small fw-semibold">Plan Day (45-day schedule)</label>
+                     <select id="epantaPlanDay" class="form-select">
+                        <option value="">-- Select Plan Day --</option>
+                     </select>
+                  </div>
+               </div>
+
+               <div id="epantaSurveyRangeBox" class="row g-2 mt-2" style="display:none;">
+                  <div class="col-md-8">
+                     <label class="form-label small fw-semibold">Survey Numbers for this Day</label>
+                     <input type="text" id="epantaSurveyRangeInput" class="form-control" placeholder="Enter survey numbers (e.g., 1-50,60-75)" />
+                  </div>
+                  <div class="col-md-4 d-flex align-items-end">
+                     <button id="epantaGeneratePlanBtn" class="btn btn-success w-100"><i class="fas fa-map-marked-alt me-1"></i> Generate Day Plan</button>
+                  </div>
+               </div>
+            </div>
+
+            <!-- Step 3: Day Plan Table -->
+            <div id="epantaPlanTableWrap" style="display:none;">
+               <h5 class="mb-2" style="font-size:1rem;"><span class="badge bg-success me-2">3</span>Day Plan — Survey-wise Farmer Details</h5>
+               <div id="epantaPlanSummary" class="mb-2 small"></div>
+               <div class="table-responsive">
+                  <table id="epantaPlanTable" class="table table-bordered">
+                     <thead>
+                        <tr>
+                           <th>Select</th>
+                           <th>Survey Number</th>
+                           <th>Farmer Name</th>
+                           <th>Father Name</th>
+                           <th>Aadhaar Number</th>
+                           <th>Khatha Number</th>
+                           <th>Extent (Acres)</th>
+                           <th>Crop Name</th>
+                        </tr>
+                     </thead>
+                     <tbody></tbody>
+                  </table>
+               </div>
+               <div class="mt-3 d-flex justify-content-end gap-2">
+                  <button id="epantaExportExcelBtn" class="btn btn-success"><i class="fas fa-file-excel me-1"></i> Export to Excel</button>
+                  <button id="epantaExportPdfBtn" class="btn btn-outline-danger"><i class="fas fa-file-pdf me-1"></i> Export to PDF</button>
                </div>
             </div>
          </div>
@@ -8168,6 +8292,7 @@ function detachCloudListener() {
         'dashboardSection', 'uploadReportPage', 'ePantaReportPage', 'pattadharRolePage',
         'villageProfileSection',
         'farmerDetailsPage', 'cropFarmersPage', 'ureaSection', 'cropDamageSection',
+        'epantaPlanningSection',
         'ccExperimentsSection', 'cropRecommendationSection', 'profileSection',
         'loginPage', 'registerPage', 'resetPasswordSection', 'adminSection',
         'farmerProfileSection', 'mandalOfficerSection', 'divisionalOfficerSection', 'retailerSection',
@@ -8229,6 +8354,12 @@ function detachCloudListener() {
     // ✅ Village picker for e-Panta Report filters
     if (sectionId === 'ePantaReportPage' && isDataLoaded) {
         if (typeof initVillagePicker === 'function') initVillagePicker('filterVillageRow', 'filterVillage');
+    }
+
+    // ✅ E Panta Planning section init
+    if (sectionId === 'epantaPlanningSection' && isDataLoaded) {
+        if (typeof initVillagePicker === 'function') initVillagePicker('epantaVillageRow', 'epantaVillage');
+        if (typeof initEpantaPlanningSection === 'function') initEpantaPlanningSection();
     }
 }
 
@@ -9152,7 +9283,7 @@ function sendProfilePasswordReset() {
 }
 
 function populateYearDropdowns() {
-    ['filterYear', 'cropYear', 'searchCropYear'].forEach(id => {
+    ['filterYear', 'cropYear', 'searchCropYear', 'epantaSrcYear'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
         sel.innerHTML = '<option value="">--Choose Year--</option>';
@@ -11927,15 +12058,49 @@ function getRecommendation() {
              let map = new Map(), set = new Set();
              data.forEach(i => {
                 const s = i['Survey Number']?i['Survey Number'].toString().trim():'', a = Number(i['Area'])||0, c = i['Crop Name']?i['Crop Name'].toString().trim():'';
+                const fn = i['Farmer Name']?i['Farmer Name'].toString().trim():'', fth = i['Father Name']?i['Father Name'].toString().trim():'', aad = i['Aadhaar Number']?i['Aadhaar Number'].toString().trim():'', k = i['Khatha Number']?i['Khatha Number'].toString().trim():'';
                 if(!s) return;
-                if(!map.has(s)) map.set(s, {a: 0, c: new Set()});
-                map.get(s).a += a; if(c) map.get(s).c.add(c); set.add(s);
+                if(!map.has(s)) map.set(s, {farmers: new Map()});
+                const g = map.get(s);
+                set.add(s);
+                const fkey = `${aad}|${fn}|${fth}|${k}`;
+                if(!g.farmers.has(fkey)) g.farmers.set(fkey, {fn, fth, aad, khs: new Set(), area: 0, crops: new Set()});
+                const rec = g.farmers.get(fkey);
+                rec.area += a; if(c) rec.crops.add(c); if(k) rec.khs.add(k);
              });
              const sorted = Array.from(set).sort((a,b)=>(parseFloat(a)||0)-(parseFloat(b)||0) || a.localeCompare(b));
              const tb = document.querySelector('#surveyTable tbody'); tb.innerHTML = '';
              sorted.forEach(s => {
-                const v = map.get(s); if(v.a<=0) return;
-                tb.innerHTML += `<tr><td><input type="checkbox" name="survey" value="${s}"></td><td>${s}</td><td>${v.a.toFixed(2)}</td><td>${v.c.size>1?'Multiple':Array.from(v.c)[0]||''}</td></tr>`;
+                const v = map.get(s);
+                const fRows = Array.from(v.farmers.values()).filter(f => f.area > 0 || f.fn || f.fth || f.aad);
+                if(!fRows.length) return;
+                const rowCount = fRows.length;
+                for (let i = 0; i < rowCount; i++) {
+                   const f = fRows[i];
+                   const khStr = Array.from(f.khs).join(', ');
+                   const cropStr = f.crops.size>1 ? 'Multiple' : (Array.from(f.crops)[0]||'');
+                   if (i === 0) {
+                      tb.innerHTML += `<tr>
+                         <td rowspan="${rowCount}" style="vertical-align:middle"><input type="checkbox" name="survey" value="${s}"></td>
+                         <td rowspan="${rowCount}" style="vertical-align:middle">${s}</td>
+                         <td>${f.fn||''}</td>
+                         <td>${f.fth||''}</td>
+                         <td>${f.aad||''}</td>
+                         <td>${khStr}</td>
+                         <td>${f.area.toFixed(2)}</td>
+                         <td>${cropStr}</td>
+                      </tr>`;
+                   } else {
+                      tb.innerHTML += `<tr>
+                         <td>${f.fn||''}</td>
+                         <td>${f.fth||''}</td>
+                         <td>${f.aad||''}</td>
+                         <td>${khStr}</td>
+                         <td>${f.area.toFixed(2)}</td>
+                         <td>${cropStr}</td>
+                      </tr>`;
+                   }
+                }
              });
              if(tb.children.length > 0) { document.getElementById('dataSection').style.display = 'block'; attachCheckboxShiftClickHandler(); } 
              else { alert('No valid survey numbers found.'); document.getElementById('dataSection').style.display = 'none'; }
@@ -11997,6 +12162,378 @@ function getRecommendation() {
              parsedData = []; document.getElementById('inputExcel').value = '';
              document.getElementById('dataSection').style.display = 'none'; document.getElementById('damagedSurveysCard').style.display = 'none';
          }
+
+         // ═══════════════════════════════════════════════════════════
+         //  E PANTA PLANNING — day-wise field visit planner
+         // ═══════════════════════════════════════════════════════════
+         let epantaSourceRows = [];   // flattened {surveyNumber, area, cropName, farmerName, fatherName, aadhaar, khatha}
+         let epantaCurrentVillage = ''; // village selected/loaded for the currently active day plan
+         let epantaDayPlans   = {};   // { '1': { range: '1-50,60-75', savedAt }, ... }
+         let epantaInitDone   = false;
+
+         function epantaLocalKey() {
+             const uid = (typeof firebase !== 'undefined' && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : 'anon';
+             return 'epantaDayPlans_' + uid;
+         }
+
+         function saveEpantaDayPlansLocal() {
+             try { localStorage.setItem(epantaLocalKey(), JSON.stringify(epantaDayPlans)); } catch (e) {}
+         }
+
+         function loadEpantaDayPlansLocal() {
+             try {
+                 const raw = localStorage.getItem(epantaLocalKey());
+                 epantaDayPlans = raw ? JSON.parse(raw) : {};
+             } catch (e) { epantaDayPlans = {}; }
+         }
+
+         function populateEpantaPlanDayOptions() {
+             const sel = document.getElementById('epantaPlanDay');
+             if (!sel) return;
+             const startInput = document.getElementById('epantaPlanStartDate');
+             const startVal = (startInput && startInput.value) ? new Date(startInput.value + 'T00:00:00') : new Date();
+             const current = sel.value;
+             let html = '<option value="">-- Select Plan Day --</option>';
+             for (let d = 1; d <= 45; d++) {
+                 const dt = new Date(startVal); dt.setDate(dt.getDate() + (d - 1));
+                 const label = dt.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+                 const hasPlan = epantaDayPlans[d] && epantaDayPlans[d].range ? ' ✓' : '';
+                 html += `<option value="${d}">Day ${d} — ${label}${hasPlan}</option>`;
+             }
+             sel.innerHTML = html;
+             if (current) sel.value = current;
+         }
+
+         function initEpantaPlanningSection() {
+             if (!epantaInitDone) {
+                 loadEpantaDayPlansLocal();
+                 const startInput = document.getElementById('epantaPlanStartDate');
+                 if (startInput && !startInput.value && typeof formatToday === 'function') startInput.value = formatToday();
+                 epantaInitDone = true;
+             }
+             populateEpantaPlanDayOptions();
+         }
+
+         document.getElementById('epantaSourceType').addEventListener('change', function () {
+             const note = document.getElementById('epantaProfileNote');
+             if (note) note.style.display = (this.value === 'profile') ? 'block' : 'none';
+         });
+
+         document.getElementById('epantaPlanStartDate').addEventListener('change', populateEpantaPlanDayOptions);
+
+         document.getElementById('epantaLoadSourceBtn').addEventListener('click', function () {
+             const srcType = document.getElementById('epantaSourceType').value;
+             if (!srcType) return alert('⚠️ Select a data source first.');
+
+             const villages   = (typeof getVoVillages === 'function') ? getVoVillages() : [];
+             const villageEl  = document.getElementById('epantaVillage');
+             const village    = (villageEl && villageEl.value) ? villageEl.value.trim() : (villages[0] || '');
+             if (villages.length > 1 && !village) return alert('⚠️ Please select a village.');
+             epantaCurrentVillage = village || 'Kalavapamula';
+
+             const year   = document.getElementById('epantaSrcYear').value;
+             const season = document.getElementById('epantaSrcSeason').value;
+             if (!year || !season) return alert('⚠️ Select Crop Year and Season.');
+
+             epantaSourceRows = [];
+
+             if (srcType === 'report') {
+                 const reportKey = buildReportKey(village, year, season);
+                 const report = (typeof allReportsCache !== 'undefined') ? allReportsCache[reportKey] : null;
+                 if (!report) {
+                     document.getElementById('epantaSourceSummary').innerHTML =
+                         `<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>No uploaded e-Panta report found for this Year/Season${village ? '/Village' : ''}. Upload it first via "Upload Data".</span>`;
+                     document.getElementById('epantaDayPlanBox').style.display = 'none';
+                     return;
+                 }
+                 (report.uniqueFarmers || []).forEach(f => {
+                     const fkey = farmerKeyFor(f.aadhaarNumber, f.farmerName, f.village);
+                     const details = (report.farmerDetails && report.farmerDetails[fkey]) || [];
+                     details.forEach(d => {
+                         if (!d.surveyNo) return;
+                         epantaSourceRows.push({
+                             surveyNumber: String(d.surveyNo).trim(),
+                             area: Number(d.area) || 0,
+                             cropName: d.cropName || '',
+                             farmerName: f.farmerName || '',
+                             fatherName: f.fatherName || '',
+                             aadhaar: f.aadhaarNumber || '',
+                             khatha: d.khathaNo || ''
+                         });
+                     });
+                 });
+             } else if (srcType === 'profile') {
+                 Object.values((typeof farmerProfiles !== 'undefined' && farmerProfiles) || {}).forEach(pGroup => {
+                     (pGroup || []).forEach(p => {
+                         if (!p) return;
+                         if (village && p.village && p.village.trim() !== village) return;
+                         (p.crops || []).forEach(c => {
+                             const cYear   = c.year   || p.year   || '';
+                             const cSeason = c.season || p.season || '';
+                             if (String(cYear) !== String(year) || String(cSeason) !== String(season)) return;
+                             const svList = String(c.surveyNos || '').split(',').map(s => s.trim()).filter(Boolean);
+                             if (!svList.length) return;
+                             const perSvArea = (Number(c.extent) || 0) / svList.length;
+                             svList.forEach(sv => {
+                                 epantaSourceRows.push({
+                                     surveyNumber: sv,
+                                     area: perSvArea,
+                                     cropName: (c.crop || '').replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()),
+                                     farmerName: p.farmerName || '',
+                                     fatherName: p.fatherName || '',
+                                     aadhaar: p.aadhaar || '',
+                                     khatha: p.khatha || ''
+                                 });
+                             });
+                         });
+                     });
+                 });
+             }
+
+             if (!epantaSourceRows.length) {
+                 document.getElementById('epantaSourceSummary').innerHTML =
+                     `<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>No records found for this selection.</span>`;
+                 document.getElementById('epantaDayPlanBox').style.display = 'none';
+                 return;
+             }
+
+             const uniqueSurveys = new Set(epantaSourceRows.map(r => r.surveyNumber)).size;
+             document.getElementById('epantaSourceSummary').innerHTML =
+                 `<i class="fas fa-check-circle text-success me-1"></i>${epantaSourceRows.length} booking record(s) loaded across ${uniqueSurveys} survey subdivision(s). You can now select a plan day below.`;
+             document.getElementById('epantaDayPlanBox').style.display = 'block';
+             populateEpantaPlanDayOptions();
+         });
+
+         document.getElementById('epantaPlanDay').addEventListener('change', function () {
+             const day = this.value;
+             const box = document.getElementById('epantaSurveyRangeBox');
+             const rangeInput = document.getElementById('epantaSurveyRangeInput');
+             const tableWrap = document.getElementById('epantaPlanTableWrap');
+             if (!day) { box.style.display = 'none'; tableWrap.style.display = 'none'; return; }
+             box.style.display = 'flex';
+             const saved = epantaDayPlans[day];
+             rangeInput.value = saved ? saved.range : '';
+             if (saved && saved.range) renderEpantaPlanTable(saved.range);
+             else tableWrap.style.display = 'none';
+         });
+
+         document.getElementById('epantaGeneratePlanBtn').addEventListener('click', function () {
+             const day = document.getElementById('epantaPlanDay').value;
+             if (!day) return alert('⚠️ Select a Plan Day first.');
+             const range = document.getElementById('epantaSurveyRangeInput').value.trim();
+             if (!range) return alert('⚠️ Enter survey numbers (e.g., 1-50,60-75).');
+             epantaDayPlans[day] = { range, savedAt: new Date().toISOString() };
+             saveEpantaDayPlansLocal();
+             populateEpantaPlanDayOptions();
+             document.getElementById('epantaPlanDay').value = day;
+             renderEpantaPlanTable(range);
+         });
+
+         // Parses "1-50,60-75,90" into base tokens: ['1'..'50','60'..'75','90']
+         function parseEpantaSelectorTokens(v) {
+             const res = new Set();
+             v.split(',').forEach(p => {
+                 p = p.trim(); if (!p) return;
+                 if (/^\d+-\d+$/.test(p)) {
+                     let [s, e] = p.split('-');
+                     for (let i = parseInt(s); i <= parseInt(e); i++) res.add(i.toString());
+                 } else res.add(p);
+             });
+             return Array.from(res);
+         }
+
+         function renderEpantaPlanTable(rangeStr) {
+             const tokens = parseEpantaSelectorTokens(rangeStr);
+             const tableWrap = document.getElementById('epantaPlanTableWrap');
+             const tb = document.querySelector('#epantaPlanTable tbody');
+             if (!tokens.length) { alert('Could not parse the survey number range.'); return; }
+
+             const matches = epantaSourceRows.filter(r =>
+                 tokens.some(t => r.surveyNumber.toLowerCase() === t.toLowerCase() || r.surveyNumber.toLowerCase().startsWith(t.toLowerCase() + '-'))
+             );
+
+             tableWrap.style.display = 'block';
+             tb.innerHTML = '';
+
+             if (!matches.length) {
+                 document.getElementById('epantaPlanSummary').innerHTML =
+                     `<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>No survey numbers in the loaded data match this range.</span>`;
+                 return;
+             }
+
+             // Group per survey subdivision — every farmer+khatha combo is its own record.
+             const map = new Map(), order = [];
+             matches.forEach(r => {
+                 if (!map.has(r.surveyNumber)) { map.set(r.surveyNumber, { farmers: new Map() }); order.push(r.surveyNumber); }
+                 const g = map.get(r.surveyNumber);
+                 const fkey = `${r.aadhaar}|${r.farmerName}|${r.fatherName}|${r.khatha}`;
+                 if (!g.farmers.has(fkey)) g.farmers.set(fkey, { fn: r.farmerName, fth: r.fatherName, aad: r.aadhaar, khs: new Set(), area: 0, crops: new Set() });
+                 const rec = g.farmers.get(fkey);
+                 rec.area += r.area; if (r.cropName) rec.crops.add(r.cropName); if (r.khatha) rec.khs.add(r.khatha);
+             });
+
+             const sorted = order.slice().sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0) || a.localeCompare(b));
+             let totalArea = 0;
+             let subdivisionCount = 0;
+             sorted.forEach(s => {
+                 const v = map.get(s);
+                 const fRows = Array.from(v.farmers.values()).filter(f => f.area > 0 || f.fn || f.fth || f.aad);
+                 if (!fRows.length) return;
+                 subdivisionCount++;
+                 const rowCount = fRows.length;
+                 for (let i = 0; i < rowCount; i++) {
+                     const f = fRows[i];
+                     totalArea += f.area;
+                     const khStr = Array.from(f.khs).join(', ');
+                     const cropStr = f.crops.size > 1 ? 'Multiple' : (Array.from(f.crops)[0] || '');
+                     if (i === 0) {
+                         tb.innerHTML += `<tr>
+                            <td rowspan="${rowCount}" style="vertical-align:middle"><input type="checkbox" class="epanta-select-cb" checked value="${s}"></td>
+                            <td rowspan="${rowCount}" style="vertical-align:middle">${s}</td>
+                            <td>${f.fn || ''}</td>
+                            <td>${f.fth || ''}</td>
+                            <td>${f.aad || ''}</td>
+                            <td>${khStr}</td>
+                            <td>${f.area.toFixed(2)}</td>
+                            <td>${cropStr}</td>
+                         </tr>`;
+                     } else {
+                         tb.innerHTML += `<tr>
+                            <td>${f.fn || ''}</td>
+                            <td>${f.fth || ''}</td>
+                            <td>${f.aad || ''}</td>
+                            <td>${khStr}</td>
+                            <td>${f.area.toFixed(2)}</td>
+                            <td>${cropStr}</td>
+                         </tr>`;
+                     }
+                 }
+             });
+
+             document.getElementById('epantaPlanSummary').innerHTML =
+                 `<i class="fas fa-list-check text-primary me-1"></i>${subdivisionCount} survey subdivision(s) &nbsp;|&nbsp; Total extent: <strong>${totalArea.toFixed(2)} ac</strong>`;
+         }
+
+         // Builds the "DAY - N(range)" line used in export headers, e.g. "KALAVAPAMULA DAY - 1(1-70)"
+         function buildEpantaExportHeaderLine() {
+             const daySel = document.getElementById('epantaPlanDay');
+             const day = daySel ? daySel.value : '';
+             const range = ((document.getElementById('epantaSurveyRangeInput') || {}).value || '').trim();
+             const village = (epantaCurrentVillage || 'Kalavapamula').toUpperCase();
+             let line = village;
+             if (day) line += ` DAY - ${day}${range ? `(${range})` : ''}`;
+             return line;
+         }
+
+         // Clones #epantaPlanTable into a clean export-ready table: drops the "Select" checkbox
+         // column and replaces it with a numbered "S.No" column, and prepends a branded header.
+         function buildEpantaExportTable() {
+             const src = document.getElementById('epantaPlanTable');
+             if (!src || !src.tHead || !src.tBodies[0]) return null;
+             const colCount = src.tHead.rows[0].cells.length;
+
+             const table = document.createElement('table');
+             table.setAttribute('border', '1');
+             table.style.borderCollapse = 'collapse';
+             table.style.width = '100%';
+
+             const thead = document.createElement('thead');
+             const mkHeaderRow = (text, isTitle) => {
+                 const tr = document.createElement('tr');
+                 const th = document.createElement('th');
+                 th.colSpan = colCount;
+                 th.textContent = text;
+                 th.style.textAlign = 'center';
+                 th.style.background = isTitle ? '#1862ab' : '#eaf2fb';
+                 th.style.color = isTitle ? '#fff' : '#1862ab';
+                 th.style.fontSize = isTitle === 'main' ? '18px' : (isTitle ? '14px' : '13px');
+                 th.style.fontWeight = '700';
+                 th.style.letterSpacing = '0.5px';
+                 th.style.padding = '8px';
+                 tr.appendChild(th);
+                 return tr;
+             };
+             thead.appendChild(mkHeaderRow('AGRI WORKSPACE', 'main'));
+             thead.appendChild(mkHeaderRow('E PANTA PLANNER', true));
+             thead.appendChild(mkHeaderRow(buildEpantaExportHeaderLine(), false));
+
+             const colRow = document.createElement('tr');
+             Array.from(src.tHead.rows[0].cells).forEach((th, idx) => {
+                 const newTh = document.createElement('th');
+                 newTh.textContent = idx === 0 ? 'S.No' : th.textContent;
+                 newTh.style.background = '#1862ab';
+                 newTh.style.color = '#fff';
+                 newTh.style.padding = '6px 8px';
+                 colRow.appendChild(newTh);
+             });
+             thead.appendChild(colRow);
+             table.appendChild(thead);
+
+             const tbody = document.createElement('tbody');
+             let serial = 0;
+             Array.from(src.tBodies[0].rows).forEach(row => {
+                 const newRow = document.createElement('tr');
+                 const isGroupStart = row.cells[0] && row.cells[0].querySelector && row.cells[0].querySelector('input.epanta-select-cb');
+                 Array.from(row.cells).forEach((cell, idx) => {
+                     const td = document.createElement('td');
+                     if (cell.getAttribute('rowspan')) td.setAttribute('rowspan', cell.getAttribute('rowspan'));
+                     td.style.border = '1px solid #999';
+                     td.style.padding = '6px 8px';
+                     td.style.verticalAlign = 'middle';
+                     if (idx === 0 && isGroupStart) {
+                         serial++;
+                         td.textContent = serial;
+                         td.style.textAlign = 'center';
+                     } else {
+                         td.innerHTML = cell.innerHTML;
+                     }
+                     newRow.appendChild(td);
+                 });
+                 tbody.appendChild(newRow);
+             });
+             table.appendChild(tbody);
+             return table;
+         }
+
+         document.getElementById('epantaExportExcelBtn').addEventListener('click', function () {
+             const src = document.getElementById('epantaPlanTable');
+             if (!src || !src.tBodies[0].rows.length) return alert('No plan data to export!');
+             const day = document.getElementById('epantaPlanDay').value;
+             const exportTbl = buildEpantaExportTable();
+             const wb = XLSX.utils.table_to_book(exportTbl, { sheet: 'DayPlan' });
+             const ws = wb.Sheets['DayPlan'];
+             const colCount = src.tHead.rows[0].cells.length;
+             if (!ws['!cols']) ws['!cols'] = Array.from({ length: colCount }, () => ({ wch: 18 }));
+             XLSX.writeFile(wb, `EPanta_DayPlan_Day${day || ''}.xlsx`);
+         });
+
+         document.getElementById('epantaExportPdfBtn').addEventListener('click', function () {
+             const src = document.getElementById('epantaPlanTable');
+             if (!src || !src.tBodies[0].rows.length) return alert('No plan data to export!');
+             const daySel = document.getElementById('epantaPlanDay');
+             const day = daySel.value;
+             const dayLabel = daySel.options[daySel.selectedIndex] ? daySel.options[daySel.selectedIndex].text : ('Day ' + day);
+             const summary = document.getElementById('epantaPlanSummary') ? document.getElementById('epantaPlanSummary').innerText : '';
+             const exportTbl = buildEpantaExportTable();
+             const printWindow = window.open('', '', 'width=1000,height=700');
+             printWindow.document.write(`<html><head><title>E Panta Day Plan - ${dayLabel}</title>
+                <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'/>
+                <style>
+                   body{font-family:'Poppins',sans-serif;padding:1.5rem;}
+                   table{width:100%;border-collapse:collapse;}
+                   th,td{border:1px solid #999;padding:6px 8px;font-size:0.85rem;white-space:pre-line;vertical-align:middle;}
+                   thead tr:nth-child(4) th{background:#1862ab;color:#fff;}
+                   h3{margin-bottom:0.25rem;}
+                   .meta{color:#555;margin-bottom:1rem;font-size:0.9rem;}
+                </style></head>
+                <body>
+                   <div class="meta">${summary}</div>
+                   ${exportTbl.outerHTML}
+                </body></html>`);
+             printWindow.document.close(); printWindow.focus();
+             setTimeout(() => { printWindow.print(); }, 500);
+         });
+         
          
       // --- FERTILIZER / UREA DISTRIBUTION LOGIC ---
 
