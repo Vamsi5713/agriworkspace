@@ -47,6 +47,11 @@
             --radius-lg: 20px;
         }
 
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
         body {
             background: var(--bg-gradient);
             min-height: 100vh;
@@ -692,7 +697,7 @@
 .login-feature-list { list-style: none; padding: 0; margin: 0; }
 .login-feature-list li { display: flex; align-items: center; gap: .75rem; color: rgba(255,255,255,.88); font-size: 0.88rem; margin-bottom: .85rem; }
 .login-feature-list li .feat-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1rem; }
-.login-card-wrap { flex: 0 0 440px; max-width: 440px; width: 100%; animation: fadeInUp .6s ease both; }
+.login-card-wrap { flex: 1 1 440px; max-width: 440px; width: 100%; min-width: 0; animation: fadeInUp .6s ease both; }
 
 /* contact us strip */
 .login-contact-strip {
@@ -4157,14 +4162,12 @@
     <div id="rtDistributionsTab">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h5 class="fw-bold mb-0" style="font-size:1rem;"><i class="fas fa-truck me-2 text-warning"></i>Distributions for Your Outlet</h5>
-            <button class="btn btn-warning btn-sm text-dark fw-semibold" onclick="loadRetailerDistributions()">
-                <i class="fas fa-sync me-1"></i> Refresh
-            </button>
         </div>
 
         <!-- Authorization Panel -->
         <div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #f39c12 !important; border-radius:14px;">
             <div class="card-body p-3">
+                <div id="rtAuthHeaderControls">
                 <h6 class="fw-bold text-warning mb-1"><i class="fas fa-shield-alt me-2"></i>Verify & Authorize Distribution</h6>
                 <p class="text-muted small mb-3">Scan farmer's QR code <strong>or</strong> search by Card Number + Aadhaar last 4 digits to find and authorize the distribution.</p>
 
@@ -4176,10 +4179,11 @@
                         <i class="fas fa-id-card me-1"></i> Card Number
                     </button>
                 </div>
+                </div>
 
                 <!-- QR Scanner Tab -->
                 <div id="qrTab">
-                    <div class="text-center mb-3">
+                    <div id="qrScannerControls" class="text-center mb-3">
                         <div id="qrReaderWrapper" style="max-width:340px; margin:0 auto; border-radius:12px; overflow:hidden; border:2px dashed #f39c12; background:#fffbf0;">
                             <div id="qrReader" style="width:100%;"></div>
                             <div id="qrPlaceholder" class="py-4 text-center">
@@ -4202,6 +4206,7 @@
 
                 <!-- Card Number Tab -->
                 <div id="tokenTab" class="hidden">
+                    <div id="tokenSearchControls">
                     <div class="alert alert-info py-2 small mb-3">
                         <i class="fas fa-info-circle me-2"></i>
                         If the QR code isn't scanning, ask the farmer for the <strong>Card Number</strong> printed on their card, and their <strong>Aadhaar last 4 digits</strong>.
@@ -4238,21 +4243,12 @@
                             </button>
                         </div>
                     </div>
+                    </div>
                     <div id="tokenVerifyResult" class="mt-3"></div>
                 </div>
             </div>
         </div>
 
-        <div class="alert alert-info small mb-3">
-            <i class="fas fa-info-circle me-2"></i>
-            These are fertilizer distributions assigned to your outlet by Village Officers. Each must be authorized via QR scan or token before bags can be given out.
-        </div>
-        <div id="rtPendingContainer">
-            <div class="text-center text-muted py-5">
-                <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
-                <p>Click Refresh to load pending distributions</p>
-            </div>
-        </div>
     </div>
 
     <!-- History Tab -->
@@ -8558,9 +8554,6 @@ firebase.auth().onAuthStateChanged(user => {
                     }
                 }
                 loadRetailerStock();
-                if (profile.outletId) {
-                    loadRetailerDistributions();
-                }
                 // Set today date for stock receipt
                 const dtEl = document.getElementById('rtStockDate');
                 if (dtEl) dtEl.value = new Date().toISOString().slice(0,10);
@@ -22584,14 +22577,21 @@ function loadRetailerStock() {
                     tiles.push({ fert, label: fert, bags: Number(val) || 0 });
                 }
             });
-            container.innerHTML = '<div class="row g-3">' + tiles.map(({ fert, label, bags }) => `
+            // Standard bag weight (kg) per fertilizer type — used to also show
+            // the stock in Metric Tons (MTs) alongside the bag count.
+            const BAG_WEIGHT_KG = { Urea: 45, DAP: 50, NPK: 50, SSP: 50, TSP: 50, MOP: 50, Other: 50 };
+            container.innerHTML = '<div class="row g-3">' + tiles.map(({ fert, label, bags }) => {
+                const wKg = BAG_WEIGHT_KG[fert] || 50;
+                const mts = ((bags * wKg) / 1000).toFixed(2).replace(/\.?0+$/, '') || '0';
+                return `
                 <div class="col-6">
                     <div class="p-3 rounded text-center" style="background:${fert==='Urea'?'#fff8e1':fert==='DAP'?'#e3f2fd':'#f3e5f5'}; border:1px solid ${fert==='Urea'?'#ffc107':fert==='DAP'?'#0dcaf0':'#ab47bc'};">
                         <div style="font-size:1.8rem;font-weight:700;color:${fert==='Urea'?'#f57c00':fert==='DAP'?'#0277bd':'#7b1fa2'};">${bags}</div>
-                        <div class="fw-semibold small">${escapeHtml(label)} Bags</div>
+                        <div class="fw-semibold small">${escapeHtml(label)} Bags <span class="text-muted fw-normal">/ ${mts} MTs</span></div>
                         <div class="text-muted" style="font-size:0.7rem;">Available</div>
                     </div>
-                </div>`).join('') + '</div>';
+                </div>`;
+            }).join('') + '</div>';
         }
     });
 
@@ -25164,13 +25164,37 @@ function startQrScanner() {
     const reader = document.getElementById('qrReader');
     if (reader) reader.appendChild(videoEl);
 
+    // Request a decent resolution + continuous autofocus. Some phones (e.g. OnePlus 13)
+    // default to a fixed-focus/macro lens or low-res stream when only facingMode is
+    // given, which makes close-up QR codes look permanently blurry.
+    const qrConstraints = {
+        video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            advanced: [{ focusMode: 'continuous' }]
+        }
+    };
+
     // Use jsQR for QR scanning via camera
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    navigator.mediaDevices.getUserMedia(qrConstraints)
+    .catch(() => {
+        // Fallback: some browsers reject unsupported advanced constraints outright —
+        // retry with the plain facingMode-only request.
+        return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    })
     .then(stream => {
         qrStream = stream;
         videoEl.srcObject = stream;
         videoEl.play();
+        _applyQrAutofocus(stream);
         scanQrFrame(videoEl);
+
+        // Tap-to-refocus: some Android cameras only re-trigger autofocus when a new
+        // constraint is applied, so give users a manual nudge if it's stuck blurry.
+        videoEl.style.cursor = 'pointer';
+        videoEl.title = 'Tap to refocus if blurry';
+        videoEl.onclick = () => _applyQrAutofocus(stream, true);
     })
     .catch(err => {
         if (placeholder) placeholder.style.display = 'block';
@@ -25180,10 +25204,26 @@ function startQrScanner() {
     });
 }
 
+// Try to enable continuous autofocus on the active camera track. If the browser only
+// supports single-shot autofocus, re-trigger it (helps clear a blurry macro-locked lens).
+function _applyQrAutofocus(stream, forceRefocus) {
+    try {
+        const track = stream.getVideoTracks()[0];
+        if (!track || typeof track.getCapabilities !== 'function') return;
+        const caps = track.getCapabilities();
+        if (!caps.focusMode) return;
+        if (caps.focusMode.includes('continuous') && !forceRefocus) {
+            track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+        } else if (caps.focusMode.includes('single-shot')) {
+            track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] }).catch(() => {});
+        }
+    } catch (e) { /* focus control not supported — ignore */ }
+}
+
 function scanQrFrame(video) {
     if (!qrStream) return;
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     function tick() {
         if (!qrStream) return;
@@ -25895,7 +25935,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                     function _buildBagCapBanner(cap, capRem, availed, fertLabel, fertColor) {
                         if (cap === null || cap === undefined) return '';
                         if (cap === 0 || (availed >= cap)) return `
-                            <div style="background:#fdecea;border:2px solid #e74c3c;border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:0.76rem;">
+                            <div data-fert-block="${fertLabel}" style="background:#fdecea;border:2px solid #e74c3c;border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:0.76rem;">
                                 <div style="font-weight:800;color:#c0392b;margin-bottom:3px;"><i class="fas fa-check-circle me-1"></i>⛔ Already Availed Restricted Quantity — ${fertLabel}</div>
                                 <div style="color:#922b21;line-height:1.6;">
                                     Extent: <strong>${farmerExtent.toFixed(2)} acres</strong> — Restricted to: <strong>${cap} bag${cap!==1?'s':''}</strong> — Already availed: <strong>${availed} bag${availed!==1?'s':''}</strong>.<br>
@@ -25903,7 +25943,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                                 </div>
                             </div>`;
                         return `
-                            <div style="background:#e8f4fd;border:1.5px solid ${fertColor};border-radius:8px;padding:7px 10px;margin-bottom:6px;font-size:0.75rem;">
+                            <div data-fert-block="${fertLabel}" style="background:#e8f4fd;border:1.5px solid ${fertColor};border-radius:8px;padding:7px 10px;margin-bottom:6px;font-size:0.75rem;">
                                 <i class="fas fa-info-circle me-1" style="color:${fertColor};"></i>
                                 <strong>Stock Limit (${fertLabel}):</strong> due to low stock in ${escapeHtml(fc.village||'this village')}, ${farmerExtent.toFixed(2)} acres → max <strong>${cap} bag${cap!==1?'s':''}</strong> allowed
                                 ${availed > 0 ? `&nbsp;·&nbsp; Availed: <strong>${availed}</strong> &nbsp;·&nbsp; Remaining under limit: <strong style="color:${capRem===0?'#c0392b':fertColor};">${capRem}</strong>` : ''}.
@@ -25999,6 +26039,9 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
 
         const totalRemU = [0,1,2].reduce((s,si) => s + Math.max(0, uElig[si] - _availed('Urea',si)), 0);
         const totalRemD = [0,1,2].reduce((s,si) => s + Math.max(0, dElig[si] - _availed('DAP',si)),  0);
+        // ── Window 1 summary totals: total Eligible bags vs total Balance (remaining) bags ──
+        const totalEligU = uElig.reduce((s,v) => s + Number(v||0), 0);
+        const totalEligD = dElig.reduce((s,v) => s + Number(v||0), 0);
 
         // ── Build Already Issued Bags panel with corrected totals ──
         const fdRecs = window._fcQrIssuedRecords || [];
@@ -26101,6 +26144,27 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             </span>`;
         })() : '';
 
+        // ── Window 1: explicit Eligible-count / Balance-count summary boxes (per fertilizer) ──
+        function _fertSummaryBox(label, emoji, eligTot, balTot, color) {
+            if (!(eligTot > 0)) return '';
+            return `
+            <div style="flex:1;min-width:150px;background:#fff;border:1.5px solid ${color};border-radius:12px;padding:9px 12px;">
+              <div style="font-size:0.78rem;font-weight:800;color:${color};margin-bottom:6px;">${emoji} ${label}</div>
+              <div style="display:flex;gap:8px;">
+                <div style="flex:1;text-align:center;">
+                  <div style="font-size:1.15rem;font-weight:900;color:#0d3c77;line-height:1;">${eligTot}</div>
+                  <div style="font-size:0.6rem;color:#777;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">Eligible Bags</div>
+                </div>
+                <div style="flex:1;text-align:center;border-left:1px solid #eee;">
+                  <div style="font-size:1.15rem;font-weight:900;color:${balTot===0?'#c62828':'#1b5e20'};line-height:1;">${balTot}</div>
+                  <div style="font-size:0.6rem;color:#777;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">Balance Bags</div>
+                </div>
+              </div>
+            </div>`;
+        }
+        const _ureaSummaryBox = _fertSummaryBox('Urea', '🌿', totalEligU, totalRemU, '#e67e22');
+        const _dapSummaryBox  = _fertSummaryBox('DAP',  '🌱', totalEligD, totalRemD, '#0277bd');
+
         // ── Compact already-issued chips (instead of a big table) ──
         // Split-tracked types (Urea/DAP) vs simple-issue types (SSP/TSP/MOP/NPK)
         const _otherFertTypes = ['SSP','TSP','MOP','NPK'];
@@ -26177,6 +26241,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
           <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:5px;"><i class="fas fa-flask me-1"></i>Choose Fertilizer</label>
           <select id="fcMainFertSelect_${fcKey}" onchange="onFcMainFertChange('${escapeHtml(fcKey)}')" class="form-select fw-bold"
             style="border:2px solid #1862ab;border-radius:10px;padding:10px 12px;font-size:0.95rem;color:#1862ab;">
+            <option value="" selected disabled>-- Select Fertilizer --</option>
             ${_fertOptions.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
           </select>
         </div>
@@ -26198,56 +26263,84 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         resultEl.innerHTML = `
         <div style="border-radius:18px;overflow:hidden;box-shadow:0 4px 24px rgba(24,98,171,0.13);margin-top:0.5rem;border:none;">
 
-          <!-- ── STEP 1 : Farmer Identity Card ── -->
-          <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%);color:#fff;padding:14px 16px 12px;position:relative;">
-            <button onclick="closeFarmerCardResult()" title="Close — clear scanned details"
-              style="position:absolute;top:8px;right:10px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(255,255,255,0.22);color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
-            <div style="display:flex;align-items:center;gap:10px;">
-              <div style="width:44px;height:44px;background:rgba(255,255,255,0.18);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">👨‍🌾</div>
-              <div style="flex:1;min-width:0;padding-right:28px;">
-                <div style="font-weight:800;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(fc.farmerName||fc.farmer_name||'—')}</div>
-                <div style="font-size:0.75rem;opacity:0.85;margin-top:1px;">${escapeHtml(fc.fatherName||fc.father_name||fc.husbandName||'—')} &nbsp;·&nbsp; ••••${escapeHtml(a.slice(-4))}</div>
-                <div style="font-size:0.72rem;opacity:0.75;margin-top:1px;">📍 ${escapeHtml(fc.village||'—')} &nbsp;·&nbsp; ${escapeHtml(year)} ${escapeHtml(season)}</div>
-              </div>
-              <div style="text-align:right;flex-shrink:0;">
-                <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;font-size:0.72rem;font-weight:700;">${escapeHtml(fc.extent||fc.totalExtent||'—')} ac</div>
-                <div style="font-size:0.65rem;opacity:0.7;margin-top:2px;">Extent</div>
+          <!-- ══════════════════════════════════════════════════════════
+               WINDOW 1 : Farmer Details + Eligibility Summary
+               ══════════════════════════════════════════════════════════ -->
+          <div id="fcWindow1_${fcKey}">
+
+            <!-- ── Farmer Identity Card ── -->
+            <div style="background:linear-gradient(135deg,#1862ab 0%,#0d4d86 100%);color:#fff;padding:14px 16px 12px;position:relative;">
+              <button onclick="closeFarmerCardResult()" title="Close — clear scanned details"
+                style="position:absolute;top:8px;right:10px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(255,255,255,0.22);color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:44px;height:44px;background:rgba(255,255,255,0.18);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">👨‍🌾</div>
+                <div style="flex:1;min-width:0;padding-right:28px;">
+                  <div style="font-weight:800;font-size:1.05rem;line-height:1.3;overflow-wrap:break-word;word-break:break-word;">${escapeHtml(fc.farmerName||fc.farmer_name||'—')}</div>
+                  <div style="font-size:0.75rem;opacity:0.85;margin-top:1px;">${escapeHtml(fc.fatherName||fc.father_name||fc.husbandName||'—')} &nbsp;·&nbsp; ••••${escapeHtml(a.slice(-4))}</div>
+                  <div style="font-size:0.72rem;opacity:0.75;margin-top:1px;">📍 ${escapeHtml(fc.village||'—')} &nbsp;·&nbsp; ${escapeHtml(year)} ${escapeHtml(season)}</div>
+                  <div style="font-size:0.72rem;opacity:0.85;margin-top:3px;"><i class="fas fa-phone-alt me-1"></i>${escapeHtml(fc.mobile||fc.mobileNumber||'—')}</div>
+                  <div style="font-size:0.72rem;opacity:0.85;margin-top:3px;"><i class="fas fa-id-card me-1"></i>Card No: ${escapeHtml(fc.cardNumber||'—')}</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0;">
+                  <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;font-size:0.72rem;font-weight:700;">${escapeHtml(fc.extent||fc.totalExtent||'—')} ac</div>
+                  <div style="font-size:0.65rem;opacity:0.7;margin-top:2px;">Total Extent</div>
+                </div>
               </div>
             </div>
-            <!-- Fertilizer status pills -->
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-                ${_pillU}${_pillD}
+
+            <!-- ── Eligible vs Balance summary boxes ── -->
+            ${(_ureaSummaryBox || _dapSummaryBox) ? `
+            <div style="padding:12px 14px 4px;background:#fff;display:flex;gap:10px;flex-wrap:wrap;">
+              ${_ureaSummaryBox}${_dapSummaryBox}
+            </div>` : ''}
+
+            <!-- ── Warnings / Restrictions (collapsible) ── -->
+            ${(_villageSplitLockBanner || availedOverrideDisplay) ? `
+            <div style="background:#fffbef;border-bottom:1px solid #ffe082;padding:10px 14px;margin-top:8px;">
+              ${_villageSplitLockBanner}${availedOverrideDisplay}
+            </div>` : ''}
+
+            <!-- ── Already issued (compact chips) — collapsed by default; ── -->
+            ${_issuedChips ? `
+            <div style="background:#f8f9fa;border-top:1px solid #e9ecef;border-bottom:1px solid #e9ecef;margin-top:8px;">
+              <div onclick="toggleFcHistoryPanel('${fcKey}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:9px 14px;">
+                <div style="font-size:0.72rem;font-weight:700;color:#555;">
+                  <i class="fas fa-history me-1 text-warning"></i>Already Distributed This Season
+                  <span style="font-weight:400;color:#888;">(${fdRecsUD.length} entr${fdRecsUD.length !== 1 ? 'ies' : 'y'})</span>
+                </div>
+                <i id="fcHistoryChevron_${fcKey}" class="fas fa-chevron-down" style="color:#888;font-size:0.72rem;transition:transform .2s;"></i>
+              </div>
+              <div id="fcHistoryPanel_${fcKey}" class="d-none" style="padding:0 14px 10px;">
+                <div style="display:flex;flex-wrap:wrap;gap:4px;">${_issuedChips}</div>
+              </div>
+            </div>` : ''}
+
+            <!-- ── Proceed button → reveals Window 2 (fertilizer selection & issue) ── -->
+            <div style="padding:14px 14px 16px;background:#fff;">
+              <button onclick="fcProceedToIssue('${fcKey}')"
+                style="width:100%;background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;border:none;padding:14px 0;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 14px rgba(230,126,34,0.3);letter-spacing:0.3px;">
+                <i class="fas fa-arrow-right me-2"></i>Proceed for Issue Bags to Farmer
+              </button>
             </div>
           </div>
 
-          <!-- ── Warnings / Restrictions (collapsible) ── -->
-          ${(_villageSplitLockBanner || availedOverrideDisplay) ? `
-          <div style="background:#fffbef;border-bottom:1px solid #ffe082;padding:10px 14px;">
-            ${_villageSplitLockBanner}${availedOverrideDisplay}
-          </div>` : ''}
-
-          <!-- ── Already issued (compact chips) — collapsed by default; ── -->
-          ${_issuedChips ? `
-          <div style="background:#f8f9fa;border-bottom:1px solid #e9ecef;">
-            <div onclick="toggleFcHistoryPanel('${fcKey}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:9px 14px;">
-              <div style="font-size:0.72rem;font-weight:700;color:#555;">
-                <i class="fas fa-history me-1 text-warning"></i>Already Distributed This Season
-                <span style="font-weight:400;color:#888;">(${fdRecsUD.length} entr${fdRecsUD.length !== 1 ? 'ies' : 'y'})</span>
-              </div>
-              <i id="fcHistoryChevron_${fcKey}" class="fas fa-chevron-down" style="color:#888;font-size:0.72rem;transition:transform .2s;"></i>
-            </div>
-            <div id="fcHistoryPanel_${fcKey}" class="d-none" style="padding:0 14px 10px;">
-              <div style="display:flex;flex-wrap:wrap;gap:4px;">${_issuedChips}</div>
-            </div>
-          </div>` : ''}
+          <!-- ══════════════════════════════════════════════════════════
+               WINDOW 2 : Select Fertilizer & Enter Bags → Issue
+               ══════════════════════════════════════════════════════════ -->
+          <div id="fcWindow2_${fcKey}" class="d-none">
 
           <!-- ── STEP 2 : Distribution Entry (single unified fertilizer picker) ── -->
           <div style="padding:14px 14px 16px;background:#fff;">
 
+            <!-- Back to farmer details -->
+            <div onclick="fcBackToWindow1('${fcKey}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:#1862ab;font-weight:700;font-size:0.8rem;margin-bottom:12px;">
+              <i class="fas fa-arrow-left"></i> Back to Farmer Details
+            </div>
+
             <!-- Step label -->
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
               <div style="width:26px;height:26px;background:#1862ab;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;flex-shrink:0;">2</div>
-              <div style="font-weight:700;font-size:0.9rem;color:#1862ab;">Select Fertilizer &amp; Enter Bags</div>
+              <strong style="font-weight:800;font-size:1rem;color:#1862ab;">Select Fertilizer &amp; Enter Bags</strong>
             </div>
 
             <!-- Unified fertilizer dropdown: Urea / DAP / SSP / TSP / MOP / NPK -->
@@ -26276,28 +26369,39 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
               </button>
             </div>
 
-            <!-- ── SSP / TSP / MOP / NPK panel: direct issue based on farmer's requirement, no eligibility/split tracking ── -->
+            <!-- ── SSP / TSP / MOP / NPK panel: direct issue based on farmer's requirement, no eligibility/split tracking ──
+                 Styled to match the Urea/DAP "Bags to Give Now" card exactly, for a consistent look across all fertilizer types. -->
             <div id="fcOtherFertPanel_${fcKey}" class="d-none">
-              <p id="fcOtherIntro_${fcKey}" style="font-size:0.74rem;color:#777;margin:0 0 10px 0;">Recorded directly from your stock — no eligibility limit applies to this fertilizer.</p>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <div id="fcOtherNpkGradeWrap_${fcKey}" class="d-none" style="flex:1 1 160px;min-width:140px;">
-                  <label style="font-size:0.72rem;font-weight:700;color:#555;display:block;margin-bottom:3px;">NPK Grade</label>
-                  <select id="fcOtherNpkGrade_${fcKey}" class="form-select form-select-sm" onchange="onFcOtherFertChange('${escapeHtml(fcKey)}')"></select>
+              <div style="border:2px solid #8e44ad;border-radius:12px;overflow:hidden;margin-bottom:10px;">
+                <!-- Header bar — mirrors the Urea/DAP split header style -->
+                <div style="background:linear-gradient(135deg,#8e44ad,#8e44adcc);color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-weight:800;font-size:0.88rem;">🟣 Direct Issue</span>
+                  <span style="background:rgba(255,255,255,0.22);padding:2px 10px;border-radius:20px;font-size:0.7rem;font-weight:800;">🟢 Active</span>
                 </div>
-                <div style="flex:1 1 140px;min-width:120px;">
-                  <label style="font-size:0.72rem;font-weight:700;color:#555;display:block;margin-bottom:3px;">Bags</label>
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <button type="button" onclick="fcAdjustOtherBags('${escapeHtml(fcKey)}',-1)"
-                      style="width:36px;height:36px;border-radius:50%;border:2px solid #1862ab;background:#fff;font-size:1.1rem;font-weight:700;color:#1862ab;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">−</button>
-                    <input type="number" id="fcOtherBags_${fcKey}" min="0" value="0"
-                      oninput="fcClampOtherBags('${escapeHtml(fcKey)}')" onchange="fcClampOtherBags('${escapeHtml(fcKey)}')" onblur="fcClampOtherBags('${escapeHtml(fcKey)}')"
-                      style="width:64px;height:36px;border:2px solid #1862ab;border-radius:8px;font-size:1.05rem;font-weight:800;text-align:center;color:#1862ab;background:#fff;">
-                    <button type="button" onclick="fcAdjustOtherBags('${escapeHtml(fcKey)}',1)"
-                      style="width:36px;height:36px;border-radius:50%;border:2px solid #1862ab;background:#fff;font-size:1.1rem;font-weight:700;color:#1862ab;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
+                <div style="background:#f8fbff;padding:10px 14px 4px;">
+                  <p id="fcOtherIntro_${fcKey}" style="font-size:0.74rem;color:#777;margin:0 0 10px 0;">Recorded directly from your stock — no eligibility limit applies to this fertilizer.</p>
+                  <div id="fcOtherNpkGradeWrap_${fcKey}" class="d-none" style="margin-bottom:10px;">
+                    <label style="font-size:0.72rem;font-weight:700;color:#555;display:block;margin-bottom:3px;">NPK Grade</label>
+                    <select id="fcOtherNpkGrade_${fcKey}" class="form-select form-select-sm" onchange="onFcOtherFertChange('${escapeHtml(fcKey)}')"></select>
+                  </div>
+                </div>
+                <div style="padding:8px 14px 12px;background:#f8fbff;">
+                  <div id="fcOtherStockNote_${fcKey}" style="background:#f5f0fa;border:1.5px solid #8e44ad;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:0.75rem;color:#5e2d82;"></div>
+                  <div style="background:#f5f0fa;border:2px solid #8e44ad;border-radius:10px;padding:10px 12px;">
+                    <div style="font-size:0.75rem;font-weight:700;color:#5e2d82;margin-bottom:6px;">🟣 Bags to Give Now</div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <button type="button" onclick="fcAdjustOtherBags('${escapeHtml(fcKey)}',-1)"
+                        style="width:40px;height:40px;border-radius:50%;border:2px solid #8e44ad;background:#fff;font-size:1.2rem;font-weight:700;color:#5e2d82;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">−</button>
+                      <input type="number" id="fcOtherBags_${fcKey}" min="0" value="0"
+                        oninput="fcClampOtherBags('${escapeHtml(fcKey)}')" onchange="fcClampOtherBags('${escapeHtml(fcKey)}')" onblur="fcClampOtherBags('${escapeHtml(fcKey)}')"
+                        style="width:70px;height:44px;border:2.5px solid #8e44ad;border-radius:10px;font-size:1.3rem;font-weight:800;text-align:center;color:#5e2d82;background:#fff;">
+                      <button type="button" onclick="fcAdjustOtherBags('${escapeHtml(fcKey)}',1)"
+                        style="width:40px;height:40px;border-radius:50%;border:2px solid #8e44ad;background:#fff;font-size:1.2rem;font-weight:700;color:#5e2d82;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div id="fcOtherStockNote_${fcKey}" style="font-size:0.74rem;color:#555;margin-top:6px;"></div>
+
               <div id="fcOtherErr_${fcKey}" class="d-none" style="background:#fdecea;border:1.5px solid #e57373;border-radius:8px;padding:7px 11px;font-size:0.78rem;color:#c62828;font-weight:600;margin-top:8px;"></div>
               <!-- Add to Cart button — same size/style/wording as the Urea/DAP button for consistency -->
               <button onclick="addOtherToCart('${escapeHtml(a)}','${escapeHtml(year)}','${escapeHtml(season)}','${escapeHtml(fcKey)}')"
@@ -26320,8 +26424,13 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
               ${((window._fcBoosterOptions && window._fcBoosterOptions[fcKey]) || []).map(b => `<option value="${escapeHtml(b.fert)}">${escapeHtml(b.fert)}</option>`).join('')}
             </select>
           </div>
+          </div><!-- /fcWindow2_${fcKey} -->
         </div>`;
         
+        // Hide the QR Scanner / Card Number entry controls the moment a farmer
+        // card is shown — retailer must close this card (✕) to scan the next one.
+        if (typeof fcSetScanControlsVisible === 'function') fcSetScanControlsVisible(false);
+
         // Cache eligibility arrays so the cart's "Issue All" step can re-invoke
         // submitFarmerCardDistribution later without needing them passed around.
         window._fcLastUElig = window._fcLastUElig || {};
@@ -26329,12 +26438,13 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
         window._fcLastUElig[fcKey] = uElig;
         window._fcLastDElig[fcKey] = dElig;
 
-        // Apply initial fertilizer filter — auto-select the first fert that still has remaining bags
+        // Don't auto-select any fertilizer — leave "-- Select Fertilizer --"
+        // showing so the retailer actively picks one before anything is displayed.
         setTimeout(() => {
-            const _initFert = (totalRemU > 0) ? 'Urea' : (totalRemD > 0 ? 'DAP' : (_hasUrea ? 'Urea' : (_hasDAP ? 'DAP' : 'SSP')));
-            const mainSel = document.getElementById('fcMainFertSelect_' + fcKey);
-            if (mainSel) mainSel.value = _initFert;
-            onFcMainFertChange(fcKey);
+            const splitPanel0 = document.getElementById('fcSplitPanel_' + fcKey);
+            const otherPanel0 = document.getElementById('fcOtherFertPanel_' + fcKey);
+            if (splitPanel0) splitPanel0.classList.add('d-none');
+            if (otherPanel0) otherPanel0.classList.add('d-none');
             renderFcCartPanel(fcKey);
         }, 0);
     }).catch(err => {
@@ -26351,6 +26461,7 @@ function closeFarmerCardResult() {
     delete resultEl.dataset.fcCrop;
     window._fcPendingDistribution = null;
     window._fcCardHtmlBackup = null;
+    if (typeof fcSetScanControlsVisible === 'function') fcSetScanControlsVisible(true);
 }
 
 // Show/hide split rows based on selected fertilizer (Urea/DAP).
@@ -26405,7 +26516,18 @@ function onFcFertSelectChange(fcKey) {
 // split view; SSP / TSP / MOP / NPK show a direct quick-issue panel instead.
 function onFcMainFertChange(fcKey) {
     const mainSel = document.getElementById('fcMainFertSelect_' + fcKey);
-    const rawVal = mainSel ? mainSel.value : 'Urea';
+    const rawVal = mainSel ? mainSel.value : '';
+
+    // Nothing selected yet (placeholder) — hide both panels and wait for
+    // the retailer to actively choose a fertilizer.
+    if (!rawVal) {
+        const splitPanel0 = document.getElementById('fcSplitPanel_' + fcKey);
+        const otherPanel0 = document.getElementById('fcOtherFertPanel_' + fcKey);
+        if (splitPanel0) splitPanel0.classList.add('d-none');
+        if (otherPanel0) otherPanel0.classList.add('d-none');
+        return;
+    }
+
     // NPK options are encoded as "NPK|<grade>" (e.g. "NPK|20:20:0:13") so
     // each grade in stock can be listed and picked separately.
     const isNpkGrade = rawVal.indexOf('NPK|') === 0;
@@ -27578,6 +27700,39 @@ window.toggleFcHistoryPanel = function(fcKey) {
     panel.classList.toggle('d-none');
     const isOpen = !panel.classList.contains('d-none');
     if (chevron) chevron.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+};
+
+// ── Show/hide the QR Scanner + Card Number entry controls ──
+// Used to hide the scanning UI while the retailer is on Window 2
+// (issuing bags to an already-identified farmer), and restore it
+// once they go back or close the card.
+window.fcSetScanControlsVisible = function(show) {
+    ['rtAuthHeaderControls', 'qrScannerControls', 'tokenSearchControls'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = show ? '' : 'none';
+    });
+};
+
+// ── Window 1 → Window 2: "Proceed for Issue Bags to Farmer" ──
+// Hides the farmer-details/eligibility summary window and reveals the
+// fertilizer-selection & issue window for the currently scanned card.
+window.fcProceedToIssue = function(fcKey) {
+    const w1 = document.getElementById('fcWindow1_' + fcKey);
+    const w2 = document.getElementById('fcWindow2_' + fcKey);
+    if (w1) w1.classList.add('d-none');
+    if (w2) w2.classList.remove('d-none');
+    fcSetScanControlsVisible(false);
+    if (w2 && w2.scrollIntoView) w2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+// ── Window 2 → Window 1: "Back to Farmer Details" ──
+window.fcBackToWindow1 = function(fcKey) {
+    const w1 = document.getElementById('fcWindow1_' + fcKey);
+    const w2 = document.getElementById('fcWindow2_' + fcKey);
+    if (w2) w2.classList.add('d-none');
+    if (w1) w1.classList.remove('d-none');
+    // Scanner stays hidden — only closing the card (✕) brings it back.
+    if (w1 && w1.scrollIntoView) w1.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 // Validates and queues the current Urea/DAP split inputs into the cart.
