@@ -2184,8 +2184,13 @@
       <div class="container hidden mt-4" id="epantaPlanningSection" role="main">
          <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
          <div class="card p-4">
-            <h2><i class="fas fa-route me-2 text-success"></i>E Panta Planning</h2>
-            <p class="text-muted small mb-4">Plan your field visits day-by-day. Pick a data source, choose a plan day, then enter the survey number range you intend to cover that day (e.g. <code>1-50,60-75</code>) to see every farmer / subdivision you need to visit.</p>
+            <h2 class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+               <span><i class="fas fa-route me-2 text-success"></i>E Panta Planning</span>
+               <a href="#" onclick="showSection('kmlMakerSection');return false;" class="fw-semibold" style="font-size:0.8rem;color:#795548;text-decoration:none;white-space:nowrap;">
+                  <i class="fas fa-draw-polygon me-1"></i>KML Maker <i class="fas fa-arrow-right ms-1" style="font-size:0.7rem;"></i>
+               </a>
+            </h2>
+            <p class="text-muted small mb-4">Plan your field visits day-by-day. Pick a data source, choose a plan day, then enter the survey number range you intend to cover that day (e.g. <code>1-50,60-75</code>) to see every farmer / subdivision you need to visit. Need parcel boundaries instead? Use <a href="#" onclick="showSection('kmlMakerSection');return false;" style="color:#795548;">KML Maker</a> to convert a shapefile straight from your desk.</p>
 
             <!-- Step 1: Data Source -->
             <div class="mb-3 p-3" style="background:#f8f9fa;border-radius:10px;">
@@ -2284,6 +2289,508 @@
             </div>
          </div>
       </div>
+
+      <!-- KML Maker Section -->
+      <div class="container hidden mt-4" id="kmlMakerSection" role="main">
+         <button class="btn btn-outline-secondary mb-3 shadow-sm fw-bold" onclick="goBack()"><i class="fas fa-arrow-left me-2"></i> Back</button>
+
+         <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+         <script src="https://cdnjs.cloudflare.com/ajax/libs/shpjs/6.2.0/shp.min.js"></script>
+
+         <style>
+           #kmlMakerSection{
+             --kml-blueprint:#0f3455;
+             --kml-blueprint-deep:#0a2743;
+             --kml-grid-line:#1e4d78;
+             --kml-paper:#f4ecd8;
+             --kml-paper-shadow:#e2d3ab;
+             --kml-rule:#d3c19b;
+             --kml-brass:#c68a3d;
+             --kml-brass-dark:#95661f;
+             --kml-stamp-red:#9c3b2e;
+             --kml-ink:#2a2118;
+             --kml-ink-soft:#5b5142;
+             --kml-paper-light:#fbf6ea;
+           }
+           #kmlMakerSection .kml-wrap{
+             background:
+               repeating-linear-gradient(0deg, transparent, transparent 27px, var(--kml-grid-line) 27px, var(--kml-grid-line) 28px),
+               repeating-linear-gradient(90deg, transparent, transparent 27px, var(--kml-grid-line) 27px, var(--kml-grid-line) 28px),
+               linear-gradient(160deg, var(--kml-blueprint), var(--kml-blueprint-deep));
+             background-blend-mode:overlay, overlay, normal;
+             border-radius:14px;
+             padding:36px 18px 44px;
+           }
+           #kmlMakerSection .kml-sheet{ width:100%; max-width:900px; margin:0 auto; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:var(--kml-ink); }
+           #kmlMakerSection .kml-letterhead{ text-align:center; margin-bottom:22px; color:var(--kml-paper-light); }
+           #kmlMakerSection .kml-eyebrow{ font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:#a9c6df; margin-bottom:8px; }
+           #kmlMakerSection .kml-letterhead h1{ font-family:Georgia,'Iowan Old Style',serif; font-weight:700; font-size:clamp(24px,4vw,34px); margin:0 0 8px; letter-spacing:.01em; }
+           #kmlMakerSection .kml-letterhead p{ font-size:14px; color:#c7d9e8; max-width:520px; margin:0 auto; line-height:1.5; }
+           #kmlMakerSection .kml-card{ background:var(--kml-paper); border:1px solid var(--kml-paper-shadow); border-radius:3px; box-shadow:0 18px 40px rgba(0,0,0,.35), 0 2px 0 rgba(255,255,255,.4) inset; padding:28px 30px; margin-bottom:22px; position:relative; }
+           #kmlMakerSection .kml-card::before{ content:""; position:absolute; top:0; left:26px; bottom:0; width:1px; background:var(--kml-rule); opacity:.6; }
+           #kmlMakerSection .kml-card-inner{ padding-left:20px; }
+           #kmlMakerSection .kml-step-label{ font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--kml-brass-dark); margin:0 0 6px; }
+           #kmlMakerSection .kml-title{ font-family:Georgia,'Iowan Old Style',serif; font-size:20px; margin:0 0 14px; color:var(--kml-ink); }
+           #kmlMakerSection .kml-dropzone{ border:2px dashed var(--kml-brass); border-radius:4px; background:var(--kml-paper-light); padding:28px 18px; text-align:center; cursor:pointer; transition:background .15s ease, border-color .15s ease; }
+           #kmlMakerSection .kml-dropzone:hover, #kmlMakerSection .kml-dropzone.kml-drag{ background:#fffaf0; border-color:var(--kml-brass-dark); }
+           #kmlMakerSection .kml-dropzone svg{ width:32px; height:32px; margin-bottom:10px; color:var(--kml-brass-dark); }
+           #kmlMakerSection .kml-dropzone .kml-main{ font-size:15px; font-weight:600; margin-bottom:4px; }
+           #kmlMakerSection .kml-dropzone .kml-sub{ font-size:12.5px; color:var(--kml-ink-soft); }
+           #kmlMakerSection input[type=file]{ display:none; }
+           #kmlMakerSection .kml-filelist{ margin-top:14px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12.5px; color:var(--kml-ink-soft); }
+           #kmlMakerSection .kml-filelist div{ padding:2px 0; }
+           #kmlMakerSection .kml-hint{ margin-top:12px; font-size:12.5px; color:var(--kml-ink-soft); line-height:1.55; border-left:2px solid var(--kml-rule); padding-left:10px; }
+           #kmlMakerSection .kml-status{ margin-top:14px; font-size:13px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; padding:10px 12px; border-radius:3px; display:none; }
+           #kmlMakerSection .kml-status.kml-show{ display:block; }
+           #kmlMakerSection .kml-status.kml-err{ background:#f6dcd6; color:var(--kml-stamp-red); border:1px solid #e2b1a4; }
+           #kmlMakerSection .kml-status.kml-info{ background:#e7eef4; color:#274a63; border:1px solid #c3d6e4; }
+           #kmlMakerSection .kml-status.kml-ok{ background:#e5efdd; color:#3c5c2b; border:1px solid #c3d9ac; }
+           #kmlMakerSection .kml-stamp-wrap{ display:flex; align-items:center; gap:20px; margin-bottom:20px; opacity:0; animation:kmlStampIn .4s ease forwards; }
+           @keyframes kmlStampIn{ from{opacity:0; transform:scale(.9) rotate(-6deg);} to{opacity:1; transform:scale(1) rotate(-3deg);} }
+           #kmlMakerSection .kml-stamp{ flex:0 0 auto; width:80px; height:80px; border:3px solid var(--kml-stamp-red); border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--kml-stamp-red); font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:10px; text-align:center; text-transform:uppercase; letter-spacing:.05em; line-height:1.3; transform:rotate(-3deg); }
+           #kmlMakerSection .kml-stamp b{ display:block; font-size:19px; font-family:Georgia,serif; font-style:italic; letter-spacing:0; }
+           #kmlMakerSection .kml-stamp-meta{ font-size:13px; color:var(--kml-ink-soft); line-height:1.6; }
+           #kmlMakerSection .kml-stamp-meta b{ color:var(--kml-ink); }
+           #kmlMakerSection label.kml-field-label{ display:block; font-size:12.5px; font-weight:600; color:var(--kml-ink); margin:0 0 6px; }
+           #kmlMakerSection .kml-card select, #kmlMakerSection .kml-card input[type=text]{ width:100%; padding:10px 12px; font-size:14px; border:1px solid var(--kml-rule); border-radius:3px; background:var(--kml-paper-light); color:var(--kml-ink); font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+           #kmlMakerSection .kml-card select:focus, #kmlMakerSection .kml-card input[type=text]:focus{ outline:2px solid var(--kml-brass); outline-offset:1px; }
+           #kmlMakerSection .kml-row{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+           #kmlMakerSection .kml-row > div{ flex:1 1 220px; }
+           #kmlMakerSection .kml-checkline{ display:flex; align-items:flex-start; gap:8px; font-size:13px; color:var(--kml-ink-soft); margin-top:8px; }
+           #kmlMakerSection .kml-checkline input{ margin-top:3px; }
+           #kmlMakerSection table.kml-preview{ width:100%; border-collapse:collapse; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12px; margin-top:14px; }
+           #kmlMakerSection table.kml-preview th, #kmlMakerSection table.kml-preview td{ border:1px solid var(--kml-rule); padding:5px 7px; text-align:left; white-space:nowrap; max-width:160px; overflow:hidden; text-overflow:ellipsis; }
+           #kmlMakerSection table.kml-preview th{ background:#e9dfc4; color:var(--kml-ink); }
+           #kmlMakerSection table.kml-preview tr:nth-child(even) td{ background:#fbf6ea; }
+           #kmlMakerSection .kml-preview-wrap{ overflow-x:auto; border:1px solid var(--kml-rule); border-radius:3px; }
+           #kmlMakerSection button.kml-btn-primary{ width:100%; padding:13px 18px; font-size:15px; font-weight:700; letter-spacing:.02em; color:#fff8ec; background:linear-gradient(180deg, var(--kml-brass), var(--kml-brass-dark)); border:1px solid var(--kml-brass-dark); border-radius:4px; cursor:pointer; font-family:Georgia,'Iowan Old Style',serif; box-shadow:0 3px 0 var(--kml-brass-dark); transition:transform .08s ease, box-shadow .08s ease; }
+           #kmlMakerSection button.kml-btn-primary:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--kml-brass-dark); }
+           #kmlMakerSection button.kml-btn-primary:disabled{ background:#c9c1ae; border-color:#b7ae98; color:#7a7362; cursor:not-allowed; box-shadow:none; }
+           #kmlMakerSection .kml-footer-note{ text-align:center; font-size:12px; color:#a9c6df; line-height:1.7; margin-top:4px; }
+           #kmlMakerSection .kml-hidden{ display:none !important; }
+           @media (prefers-reduced-motion: reduce){ #kmlMakerSection .kml-stamp-wrap{ animation:none; opacity:1; } }
+         </style>
+
+         <div class="kml-wrap">
+         <div class="kml-sheet">
+
+           <div class="kml-letterhead">
+             <div class="kml-eyebrow">Field &amp; Survey Utilities</div>
+             <h1>Shapefile &rarr; KML</h1>
+             <p>Upload a shapefile, pick the survey / LP number field, and download a labeled KML &mdash; no QGIS session required.</p>
+           </div>
+
+           <div class="kml-card">
+             <div class="kml-card-inner">
+               <p class="kml-step-label">Step 1</p>
+               <h2 class="kml-title">Upload the shapefile</h2>
+
+               <div class="kml-dropzone" id="kmlDropzone">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+                 <div class="kml-main">Drop files here, or click to browse</div>
+                 <div class="kml-sub">A .zip of your shapefile, or select the .shp, .shx, .dbf and .prj files together</div>
+                 <input type="file" id="kmlFileInput" multiple accept=".zip,.shp,.shx,.dbf,.prj,.cpg">
+               </div>
+
+               <div class="kml-filelist" id="kmlFileList"></div>
+
+               <div class="kml-hint">
+                 Tip: always include the <b>.prj</b> file. It tells the converter the shapefile's coordinate system so points land in the right place on Earth &mdash; this is handled automatically, unlike a manual QGIS "Save As &rarr; KML" where the CRS step is easy to miss.
+               </div>
+
+               <div class="kml-status" id="kmlStatus"></div>
+             </div>
+           </div>
+
+           <div class="kml-card kml-hidden" id="kmlResultCard">
+             <div class="kml-card-inner">
+               <p class="kml-step-label">Step 2</p>
+               <h2 class="kml-title">Confirm the label field and export</h2>
+
+               <div class="kml-stamp-wrap">
+                 <div class="kml-stamp"><b id="kmlStampCount">0</b>features<br>parsed</div>
+                 <div class="kml-stamp-meta">
+                   Geometry: <b id="kmlMetaGeom">&ndash;</b><br>
+                   Attribute fields: <b id="kmlMetaFields">&ndash;</b>
+                 </div>
+               </div>
+
+               <div class="kml-row">
+                 <div>
+                   <label class="kml-field-label" for="kmlLabelField">Label field (Survey No. / LP No.)</label>
+                   <select id="kmlLabelField"></select>
+                 </div>
+                 <div>
+                   <label class="kml-field-label" for="kmlFileName">Output file name</label>
+                   <input type="text" id="kmlFileName" value="survey_plots.kml">
+                 </div>
+               </div>
+
+               <div class="kml-checkline">
+                 <input type="checkbox" id="kmlIncludeAll" checked>
+                 <label for="kmlIncludeAll">Include all attribute columns in each placemark's description &amp; extended data</label>
+               </div>
+               <div class="kml-checkline">
+                 <input type="checkbox" id="kmlAddLabels" checked>
+                 <label for="kmlAddLabels">Add a number label at the center of each polygon/line &mdash; Google Earth doesn't draw polygon names on the map by default, only in the sidebar</label>
+               </div>
+
+               <p class="kml-step-label" style="margin-top:22px;">Preview &mdash; first 5 features</p>
+               <div class="kml-preview-wrap">
+                 <table class="kml-preview" id="kmlPreviewTable"></table>
+               </div>
+
+               <div style="margin-top:22px;">
+                 <button class="kml-btn-primary" id="kmlDownloadBtn">Generate &amp; download KML</button>
+               </div>
+             </div>
+           </div>
+
+           <p class="kml-footer-note">Everything runs in your browser &mdash; the shapefile never leaves this page.</p>
+         </div>
+         </div>
+
+         <script>
+         (function(){
+           const dropzone = document.getElementById('kmlDropzone');
+           const fileInput = document.getElementById('kmlFileInput');
+           const fileListEl = document.getElementById('kmlFileList');
+           const statusEl = document.getElementById('kmlStatus');
+           const resultCard = document.getElementById('kmlResultCard');
+           const labelFieldSel = document.getElementById('kmlLabelField');
+           const includeAllChk = document.getElementById('kmlIncludeAll');
+           const previewTable = document.getElementById('kmlPreviewTable');
+           const downloadBtn = document.getElementById('kmlDownloadBtn');
+           const fileNameInput = document.getElementById('kmlFileName');
+           const stampCount = document.getElementById('kmlStampCount');
+           const metaGeom = document.getElementById('kmlMetaGeom');
+           const metaFields = document.getElementById('kmlMetaFields');
+
+           if (!dropzone || dropzone.dataset.kmlBound) return;
+           dropzone.dataset.kmlBound = '1';
+
+           let allFeatures = [];
+           let allFieldKeys = [];
+
+           function setStatus(msg, kind){
+             statusEl.textContent = msg;
+             statusEl.className = 'kml-status kml-show kml-' + (kind || 'info');
+           }
+           function clearStatus(){
+             statusEl.className = 'kml-status';
+             statusEl.textContent = '';
+           }
+
+           dropzone.addEventListener('click', () => fileInput.click());
+           dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('kml-drag'); });
+           dropzone.addEventListener('dragleave', () => dropzone.classList.remove('kml-drag'));
+           dropzone.addEventListener('drop', e => {
+             e.preventDefault();
+             dropzone.classList.remove('kml-drag');
+             if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+           });
+           fileInput.addEventListener('change', e => {
+             if (e.target.files.length) handleFiles(e.target.files);
+           });
+
+           async function handleFiles(fileListInput){
+             const files = Array.from(fileListInput);
+             fileListEl.innerHTML = files.map(f => `<div>&bull; ${f.name} (${(f.size/1024).toFixed(1)} KB)</div>`).join('');
+             resultCard.classList.add('kml-hidden');
+             setStatus('Reading files...', 'info');
+
+             try{
+               let arrayBuffer;
+               if (files.length === 1 && files[0].name.toLowerCase().endsWith('.zip')){
+                 arrayBuffer = await files[0].arrayBuffer();
+               } else {
+                 const hasShp = files.some(f => f.name.toLowerCase().endsWith('.shp'));
+                 const hasDbf = files.some(f => f.name.toLowerCase().endsWith('.dbf'));
+                 if (!hasShp){
+                   setStatus('No .shp file found. Select a .zip, or the .shp/.shx/.dbf/.prj files together.', 'err');
+                   return;
+                 }
+                 if (!hasDbf){
+                   setStatus('No .dbf file found - attribute data (survey/LP numbers) will be missing. Add the .dbf file for labeled placemarks.', 'err');
+                 }
+                 const zip = new JSZip();
+                 for (const f of files){
+                   zip.file(f.name, await f.arrayBuffer());
+                 }
+                 arrayBuffer = await zip.generateAsync({ type: 'arraybuffer' });
+               }
+
+               setStatus('Parsing shapefile and converting to WGS84...', 'info');
+               const parsed = await shp(arrayBuffer);
+
+               let features = [];
+               if (Array.isArray(parsed)){
+                 parsed.forEach(fc => { if (fc && fc.features) features.push(...fc.features); });
+               } else if (parsed && parsed.features){
+                 features = parsed.features;
+               }
+
+               if (!features.length){
+                 setStatus('Parsed the file but found no features. Check that the shapefile set is complete.', 'err');
+                 return;
+               }
+
+               allFeatures = features;
+               const keySet = new Set();
+               features.forEach(f => Object.keys(f.properties || {}).forEach(k => keySet.add(k)));
+               allFieldKeys = Array.from(keySet);
+
+               populateResults();
+               setStatus(`Parsed ${features.length} feature${features.length===1?'':'s'} successfully.`, 'ok');
+             } catch(err){
+               console.error(err);
+               setStatus('Could not parse this file: ' + (err && err.message ? err.message : err), 'err');
+             }
+           }
+
+           function guessLabelField(keys){
+             const patterns = [/^lp\s*no/i, /lpno/i, /survey/i, /surv[_\s]?no/i, /^s[_\s]?no$/i, /sy\s*no/i, /plot/i, /khasra/i, /hissa/i, /parcel/i, /door\s*no/i, /^no$/i];
+             for (const p of patterns){
+               const hit = keys.find(k => p.test(k));
+               if (hit) return hit;
+             }
+             return keys[0] || '';
+           }
+
+           function populateResults(){
+             resultCard.classList.remove('kml-hidden');
+             stampCount.textContent = allFeatures.length;
+             const geomTypes = Array.from(new Set(allFeatures.map(f => f.geometry && f.geometry.type).filter(Boolean)));
+             metaGeom.textContent = geomTypes.join(', ') || '-';
+             metaFields.textContent = allFieldKeys.length ? allFieldKeys.length : '0';
+
+             labelFieldSel.innerHTML = allFieldKeys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+             const guess = guessLabelField(allFieldKeys);
+             if (guess) labelFieldSel.value = guess;
+
+             renderPreview();
+             labelFieldSel.onchange = renderPreview;
+           }
+
+           function renderPreview(){
+             const sample = allFeatures.slice(0, 5);
+             const cols = allFieldKeys.slice(0, 8);
+             let html = '<thead><tr>' + cols.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr></thead><tbody>';
+             sample.forEach(f => {
+               html += '<tr>' + cols.map(c => `<td>${escapeHtml(f.properties ? f.properties[c] : '')}</td>`).join('') + '</tr>';
+             });
+             html += '</tbody>';
+             previewTable.innerHTML = html;
+           }
+
+           function escapeHtml(v){
+             return String(v === undefined || v === null ? '' : v)
+               .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+               .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+           }
+           function escapeXml(v){
+             return String(v === undefined || v === null ? '' : v)
+               .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+               .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+           }
+
+           function ringToCoords(ring){
+             return ring.map(c => c.slice(0,2).join(',')).join(' ');
+           }
+           function polygonToKML(rings){
+             const outer = rings[0] || [];
+             const holes = rings.slice(1);
+             return `<Polygon><outerBoundaryIs><LinearRing><coordinates>${ringToCoords(outer)}</coordinates></LinearRing></outerBoundaryIs>` +
+               holes.map(h => `<innerBoundaryIs><LinearRing><coordinates>${ringToCoords(h)}</coordinates></LinearRing></innerBoundaryIs>`).join('') +
+               `</Polygon>`;
+           }
+           function geometryToKML(geom){
+             if (!geom) return '';
+             switch(geom.type){
+               case 'Point':
+                 return `<Point><coordinates>${geom.coordinates.slice(0,2).join(',')}</coordinates></Point>`;
+               case 'MultiPoint':
+                 return `<MultiGeometry>` + geom.coordinates.map(c => `<Point><coordinates>${c.slice(0,2).join(',')}</coordinates></Point>`).join('') + `</MultiGeometry>`;
+               case 'LineString':
+                 return `<LineString><tessellate>1</tessellate><coordinates>${ringToCoords(geom.coordinates)}</coordinates></LineString>`;
+               case 'MultiLineString':
+                 return `<MultiGeometry>` + geom.coordinates.map(l => `<LineString><tessellate>1</tessellate><coordinates>${ringToCoords(l)}</coordinates></LineString>`).join('') + `</MultiGeometry>`;
+               case 'Polygon':
+                 return polygonToKML(geom.coordinates);
+               case 'MultiPolygon':
+                 return `<MultiGeometry>` + geom.coordinates.map(p => polygonToKML(p)).join('') + `</MultiGeometry>`;
+               case 'GeometryCollection':
+                 return `<MultiGeometry>` + geom.geometries.map(g => geometryToKML(g)).join('') + `</MultiGeometry>`;
+               default:
+                 return '';
+             }
+           }
+           function ringArea(ring){
+             let area = 0;
+             for (let i = 0; i < ring.length - 1; i++){
+               const x0=ring[i][0], y0=ring[i][1], x1=ring[i+1][0], y1=ring[i+1][1];
+               area += x0*y1 - x1*y0;
+             }
+             return area / 2;
+           }
+           function ringCentroid(ring){
+             const area = ringArea(ring);
+             if (Math.abs(area) < 1e-12){
+               let sx=0, sy=0;
+               ring.forEach(c => { sx += c[0]; sy += c[1]; });
+               return [sx/ring.length, sy/ring.length];
+             }
+             let x=0, y=0;
+             for (let i = 0; i < ring.length - 1; i++){
+               const x0=ring[i][0], y0=ring[i][1], x1=ring[i+1][0], y1=ring[i+1][1];
+               const cross = x0*y1 - x1*y0;
+               x += (x0+x1)*cross;
+               y += (y0+y1)*cross;
+             }
+             return [x/(6*area), y/(6*area)];
+           }
+           function lineMidpoint(coords){
+             let total = 0;
+             const segLen = [];
+             for (let i = 0; i < coords.length - 1; i++){
+               const d = Math.hypot(coords[i+1][0]-coords[i][0], coords[i+1][1]-coords[i][1]);
+               segLen.push(d); total += d;
+             }
+             if (total === 0) return coords[0];
+             let half = total/2, acc = 0;
+             for (let i = 0; i < segLen.length; i++){
+               if (acc + segLen[i] >= half){
+                 const t = (half - acc) / segLen[i];
+                 return [coords[i][0] + (coords[i+1][0]-coords[i][0])*t, coords[i][1] + (coords[i+1][1]-coords[i][1])*t];
+               }
+               acc += segLen[i];
+             }
+             return coords[coords.length-1];
+           }
+           function labelPointFor(geom){
+             if (!geom) return null;
+             switch(geom.type){
+               case 'Polygon':
+                 return ringCentroid(geom.coordinates[0]);
+               case 'MultiPolygon': {
+                 let best = null, bestArea = -1;
+                 geom.coordinates.forEach(poly => {
+                   const a = Math.abs(ringArea(poly[0]));
+                   if (a > bestArea){ bestArea = a; best = ringCentroid(poly[0]); }
+                 });
+                 return best;
+               }
+               case 'LineString':
+                 return lineMidpoint(geom.coordinates);
+               case 'MultiLineString': {
+                 let best = null, bestLen = -1;
+                 geom.coordinates.forEach(line => {
+                   let len = 0;
+                   for (let i=0;i<line.length-1;i++) len += Math.hypot(line[i+1][0]-line[i][0], line[i+1][1]-line[i][1]);
+                   if (len > bestLen){ bestLen = len; best = lineMidpoint(line); }
+                 });
+                 return best;
+               }
+               default:
+                 return null;
+             }
+           }
+           function styleIdFor(geom){
+             if (!geom) return 'surveyPoly';
+             if (geom.type === 'Point' || geom.type === 'MultiPoint') return 'surveyPoint';
+             if (geom.type === 'LineString' || geom.type === 'MultiLineString') return 'surveyLine';
+             return 'surveyPoly';
+           }
+
+           function buildKML(){
+             const labelField = labelFieldSel.value;
+             const includeAll = includeAllChk.checked;
+             const addLabels = document.getElementById('kmlAddLabels').checked;
+
+             const parcelPlacemarks = [];
+             const labelPlacemarks = [];
+
+             allFeatures.forEach(f => {
+               const props = f.properties || {};
+               const rawLabel = props[labelField];
+               const label = (rawLabel === undefined || rawLabel === null || rawLabel === '') ? '(no ' + labelField + ')' : rawLabel;
+
+               let description = '';
+               let extended = '';
+               if (includeAll){
+                 const rows = Object.entries(props).map(([k,v]) => `<tr><td><b>${escapeXml(k)}</b></td><td>${escapeXml(v)}</td></tr>`).join('');
+                 description = `<description><![CDATA[<table border="1" cellpadding="4" style="border-collapse:collapse;font-family:sans-serif;font-size:12px">${rows}</table>]]></description>`;
+                 extended = `<ExtendedData>` + Object.entries(props).map(([k,v]) => `<Data name="${escapeXml(k)}"><value>${escapeXml(v)}</value></Data>`).join('') + `</ExtendedData>`;
+               }
+
+               const styleId = styleIdFor(f.geometry);
+               parcelPlacemarks.push(`<Placemark><name>${escapeXml(label)}</name>${description}${extended}<styleUrl>#${styleId}</styleUrl>${geometryToKML(f.geometry)}</Placemark>`);
+
+               const geomType = f.geometry && f.geometry.type;
+               const needsLabelPoint = addLabels && geomType && geomType !== 'Point' && geomType !== 'MultiPoint' && geomType !== 'GeometryCollection';
+               if (needsLabelPoint){
+                 const pt = labelPointFor(f.geometry);
+                 if (pt){
+                   labelPlacemarks.push(`<Placemark><name>${escapeXml(label)}</name><styleUrl>#surveyLabelPoint</styleUrl><Point><coordinates>${pt[0]},${pt[1]}</coordinates></Point></Placemark>`);
+                 }
+               }
+             });
+
+             const labelFolder = labelPlacemarks.length
+               ? `<Folder><name>Survey/LP Number Labels</name>\n${labelPlacemarks.join('\n')}\n</Folder>\n`
+               : '';
+
+             return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>${escapeXml(fileNameInput.value || 'survey_plots.kml')}</name>
+<Style id="surveyPoint">
+  <IconStyle><color>ff3c9ad9</color><scale>1.0</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle>
+  <LabelStyle><scale>0.9</scale></LabelStyle>
+</Style>
+<Style id="surveyLine">
+  <LineStyle><color>ff5c3d12</color><width>3</width></LineStyle>
+</Style>
+<Style id="surveyPoly">
+  <LineStyle><color>ffc68a3d</color><width>2</width></LineStyle>
+  <PolyStyle><color>665c3d12</color></PolyStyle>
+</Style>
+<Style id="surveyLabelPoint">
+  <IconStyle><scale>0.6</scale><color>ff3c9ad9</color><Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle>
+  <LabelStyle><color>ff00ffff</color><scale>1.1</scale></LabelStyle>
+</Style>
+<Folder><name>Parcels</name>
+${parcelPlacemarks.join('\n')}
+</Folder>
+${labelFolder}</Document>
+</kml>`;
+           }
+
+           downloadBtn.addEventListener('click', () => {
+             if (!allFeatures.length) return;
+             try{
+               const kml = buildKML();
+               const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+               const url = URL.createObjectURL(blob);
+               const a = document.createElement('a');
+               let name = (fileNameInput.value || 'survey_plots.kml').trim();
+               if (!name.toLowerCase().endsWith('.kml')) name += '.kml';
+               a.href = url;
+               a.download = name;
+               document.body.appendChild(a);
+               a.click();
+               document.body.removeChild(a);
+               URL.revokeObjectURL(url);
+               setStatus(`Downloaded ${name}`, 'ok');
+             } catch(err){
+               console.error(err);
+               setStatus('Failed to generate KML: ' + (err && err.message ? err.message : err), 'err');
+             }
+           });
+         })();
+         </script>
+      </div>
+
 
       <!-- CC Experiments Section -->
 <!-- ══════════════════════════════════════════════════════════
@@ -8288,7 +8795,7 @@ function detachCloudListener() {
         'dashboardSection', 'uploadReportPage', 'ePantaReportPage', 'pattadharRolePage',
         'villageProfileSection',
         'farmerDetailsPage', 'cropFarmersPage', 'ureaSection', 'cropDamageSection',
-        'epantaPlanningSection',
+        'epantaPlanningSection', 'kmlMakerSection',
         'ccExperimentsSection', 'cropRecommendationSection', 'profileSection',
         'loginPage', 'registerPage', 'resetPasswordSection', 'adminSection',
         'farmerProfileSection', 'mandalOfficerSection', 'divisionalOfficerSection', 'retailerSection',
