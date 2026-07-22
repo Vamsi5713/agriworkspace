@@ -1139,6 +1139,7 @@
       <span class="reg-input-icon"><i class="fas fa-envelope"></i></span>
       <input type="email" id="regEmail" placeholder="Email Address *">
     </div>
+    <div class="form-text text-muted" style="font-size:0.72rem;margin-top:-6px;margin-bottom:8px;"><i class="fas fa-info-circle me-1"></i>Please use your official/office email address for data purposes.</div>
 
     <!-- Password row -->
     <div class="row g-2 mb-0">
@@ -2950,8 +2951,9 @@ ${labelFolder}</Document>
             <div class="input-group">
               <span class="input-group-text"><i class="fas fa-id-card text-muted"></i></span>
               <input type="text" id="grvAadhaar" class="form-control" placeholder="Enter 12-digit Aadhaar"
-                     maxlength="12" oninput="this.value=this.value.replace(/\D/g,'').slice(0,12)">
+                     maxlength="12" oninput="this.value=this.value.replace(/\D/g,'').slice(0,12);autofillGrievanceFromAadhaar(this.value)">
             </div>
+            <div id="grvAadhaarStatus" class="small mt-1"></div>
           </div>
           <!-- Full Name -->
           <div class="col-md-6">
@@ -3036,6 +3038,11 @@ ${labelFolder}</Document>
             <option value="FM">FM</option>
             <option value="Other">Other</option>
           </select>
+          <select id="grvStatusFilterSelect" class="form-select form-select-sm" style="width:auto;min-width:140px;" onchange="filterAndRenderGrievances()">
+            <option value="">All Status</option>
+            <option value="Pending">🕓 Pending</option>
+            <option value="Rectified">✅ Rectified</option>
+          </select>
           <button class="btn btn-success btn-sm fw-semibold" onclick="exportGrievancesToExcel()">
             <i class="fas fa-file-excel me-1"></i>Export Excel
           </button>
@@ -3055,6 +3062,66 @@ ${labelFolder}</Document>
     </div>
 
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     GRIEVANCE REMARKS / MARK-AS-RECTIFIED MODAL
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="grvRemarksModal" tabindex="-1" aria-labelledby="grvRemarksModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:20px; overflow:hidden;">
+
+            <!-- Header -->
+            <div class="modal-header border-0 pb-0"
+                 style="background:linear-gradient(135deg,#fef9f9,#fff5f5); padding:1.5rem 1.5rem 0.75rem;">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width:48px;height:48px;background:rgba(192,57,43,0.12);">
+                        <i class="fas fa-comment-medical text-danger fa-lg"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-bold" style="color:#c0392b;" id="grvRemarksModalLabel">Grievance Remarks</h5>
+                        <small class="text-muted">Add a remark and/or update its status</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body px-4 py-3">
+
+                <!-- Grievance summary -->
+                <div id="grvRemarksSummary" class="p-3 rounded-3 mb-3" style="background:#f8f9fa;font-size:0.85rem;"></div>
+
+                <!-- Status -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Status</label>
+                    <select id="grvRemarksStatus" class="form-select">
+                        <option value="Pending">🕓 Pending</option>
+                        <option value="Rectified">✅ Rectified</option>
+                    </select>
+                </div>
+
+                <!-- Remarks -->
+                <div class="mb-2">
+                    <label class="form-label fw-semibold small">Remarks</label>
+                    <textarea id="grvRemarksText" class="form-control" rows="3"
+                              placeholder="Enter remarks / action taken…"></textarea>
+                </div>
+
+                <div id="grvRemarksModalStatus"></div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger fw-semibold" onclick="saveGrievanceRemarks()">
+                    <i class="fas fa-save me-2"></i>Save
+                </button>
+            </div>
+
+        </div>
+    </div>
 </div>
 
       <!-- Crop Recommendation Section -->
@@ -31883,6 +31950,39 @@ function onGrvTypeChange() {
     if (row) row.classList.toggle('hidden', val !== 'Other');
 }
 
+// ── Auto-populate Name / Father / Mobile / Farmer Type from cloud records ──
+// Fields remain fully editable afterwards — this is purely a convenience so
+// the officer doesn't have to retype details already on file for this Aadhaar.
+function autofillGrievanceFromAadhaar(val) {
+    const statusEl = document.getElementById('grvAadhaarStatus');
+    if (!val || val.length !== 12) { if (statusEl) statusEl.innerHTML = ''; return; }
+
+    const clean = typeof cleanAadhaar === 'function' ? cleanAadhaar(val) : val;
+    let match = null;
+    if (typeof farmerProfiles !== 'undefined' && farmerProfiles && farmerProfiles[clean]?.length) {
+        match = farmerProfiles[clean][0];
+    }
+
+    if (match) {
+        const nameField   = document.getElementById('grvName');
+        const fatherField = document.getElementById('grvFatherName');
+        const mobileField = document.getElementById('grvMobile');
+        const typeField    = document.getElementById('grvFarmerType');
+
+        if (nameField)   nameField.value   = match.farmerName || nameField.value;
+        if (fatherField) fatherField.value = match.fatherName || fatherField.value;
+        if (mobileField) mobileField.value = match.mobile || mobileField.value;
+        if (typeField && match.farmerType) {
+            typeField.value = match.farmerType === 'owner' ? 'Owner'
+                             : match.farmerType === 'tenant' ? 'Tenant'
+                             : typeField.value;
+        }
+        if (statusEl) statusEl.innerHTML = '<i class="fas fa-check-circle me-1 text-success"></i><span class="text-success">Details auto-filled from cloud records. Please verify before submitting.</span>';
+    } else {
+        if (statusEl) statusEl.innerHTML = '<i class="fas fa-info-circle me-1 text-muted"></i><span class="text-muted">No cloud record found for this Aadhaar — please enter details manually.</span>';
+    }
+}
+
 function clearGrievanceForm() {
     ['grvAadhaar','grvName','grvFatherName','grvMobile','grvOtherText'].forEach(id => {
         const el = document.getElementById(id);
@@ -31894,6 +31994,8 @@ function clearGrievanceForm() {
     });
     const row = document.getElementById('grvOtherRow');
     if (row) row.classList.add('hidden');
+    const aStatus = document.getElementById('grvAadhaarStatus');
+    if (aStatus) aStatus.innerHTML = '';
     const st = document.getElementById('grvFormStatus');
     if (st) st.innerHTML = '';
 }
@@ -31972,9 +32074,10 @@ function loadAllGrievances() {
 
 function filterAndRenderGrievances() {
     const filter = document.getElementById('grvFilterSelect')?.value || '';
-    const filtered = filter
-        ? _grievanceAllData.filter(g => g.grievanceType === filter)
-        : _grievanceAllData;
+    const statusFilter = document.getElementById('grvStatusFilterSelect')?.value || '';
+    let filtered = _grievanceAllData;
+    if (filter) filtered = filtered.filter(g => g.grievanceType === filter);
+    if (statusFilter) filtered = filtered.filter(g => (g.status || 'Pending') === statusFilter);
     renderGrievanceTable(filtered);
 }
 
@@ -31993,6 +32096,9 @@ function renderGrievanceTable(data) {
     const farmerBadge = t => t === 'Owner'
         ? '<span class="badge bg-success">🏡 Owner</span>'
         : '<span class="badge bg-warning text-dark">🤝 Tenant</span>';
+    const statusBadge = s => (s === 'Rectified')
+        ? '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Rectified</span>'
+        : '<span class="badge bg-secondary"><i class="fas fa-clock me-1"></i>Pending</span>';
 
     container.innerHTML = `
         <div class="table-responsive">
@@ -32008,6 +32114,9 @@ function renderGrievanceTable(data) {
                         <th>Grievance</th>
                         <th>Detail</th>
                         <th>Date</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                        <th class="text-center">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -32022,6 +32131,13 @@ function renderGrievanceTable(data) {
                             <td>${typeBadge(g.grievanceType||'')}</td>
                             <td>${escapeHtml(g.grievanceDetail||g.grievanceType||'')}</td>
                             <td class="text-muted small">${g.submittedAt ? new Date(g.submittedAt).toLocaleDateString('en-IN') : '—'}</td>
+                            <td>${statusBadge(g.status||'Pending')}</td>
+                            <td class="small" style="max-width:160px;white-space:normal;" title="${escapeHtml(g.remarks||'')}">${g.remarks ? escapeHtml(g.remarks.length > 40 ? g.remarks.slice(0,40)+'…' : g.remarks) : '<span class="text-muted">—</span>'}</td>
+                            <td class="text-center">
+                                <button class="btn btn-outline-danger btn-sm" onclick="openGrvRemarksModal('${g.key}')">
+                                    <i class="fas fa-comment-medical me-1"></i>Remarks
+                                </button>
+                            </td>
                         </tr>`).join('')}
                 </tbody>
             </table>
@@ -32031,18 +32147,79 @@ function renderGrievanceTable(data) {
         </div>`;
 }
 
+// ── Open the Remarks / Mark-as-Rectified modal for a given grievance ──
+function openGrvRemarksModal(key) {
+    const g = _grievanceAllData.find(x => x.key === key);
+    if (!g) return;
+    window._grvRemarksKey = key;
+
+    const summaryEl = document.getElementById('grvRemarksSummary');
+    if (summaryEl) {
+        summaryEl.innerHTML = `
+            <div><strong>${escapeHtml(g.name||'')}</strong> <span class="text-muted">(${escapeHtml(g.aadhaar||'')})</span></div>
+            <div class="text-muted">${escapeHtml(g.grievanceDetail || g.grievanceType || '')}</div>`;
+    }
+    const statusEl = document.getElementById('grvRemarksStatus');
+    if (statusEl) statusEl.value = g.status || 'Pending';
+    const textEl = document.getElementById('grvRemarksText');
+    if (textEl) textEl.value = g.remarks || '';
+    const msgEl = document.getElementById('grvRemarksModalStatus');
+    if (msgEl) msgEl.innerHTML = '';
+
+    const modalEl = document.getElementById('grvRemarksModal');
+    if (modalEl && window.bootstrap) new bootstrap.Modal(modalEl).show();
+}
+
+// ── Save remarks / status update for the selected grievance ──
+function saveGrievanceRemarks() {
+    const key = window._grvRemarksKey;
+    const msgEl = document.getElementById('grvRemarksModalStatus');
+    if (!key) { if (msgEl) msgEl.innerHTML = '<div class="alert alert-danger py-2">No grievance selected.</div>'; return; }
+
+    const user = firebase.auth().currentUser;
+    if (!user) { if (msgEl) msgEl.innerHTML = '<div class="alert alert-danger py-2">Not logged in.</div>'; return; }
+
+    const status  = document.getElementById('grvRemarksStatus')?.value || 'Pending';
+    const remarks = (document.getElementById('grvRemarksText')?.value || '').trim();
+
+    if (msgEl) msgEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Saving…</div>';
+
+    const updates = {
+        status,
+        remarks,
+        remarksUpdatedAt: new Date().toISOString(),
+        remarksUpdatedBy: user.uid
+    };
+    if (status === 'Rectified') updates.rectifiedAt = new Date().toISOString();
+
+    database.ref('grievances/' + user.uid + '/' + key).update(updates)
+        .then(() => {
+            const modalEl = document.getElementById('grvRemarksModal');
+            const modalInstance = window.bootstrap ? bootstrap.Modal.getInstance(modalEl) : null;
+            if (modalInstance) modalInstance.hide();
+            loadAllGrievances();
+        })
+        .catch(err => {
+            if (msgEl) msgEl.innerHTML = `<div class="alert alert-danger py-2">Error: ${escapeHtml(err.message)}</div>`;
+        });
+}
+
 function exportGrievancesToExcel() {
     const filter = document.getElementById('grvFilterSelect')?.value || '';
-    const data = filter ? _grievanceAllData.filter(g => g.grievanceType === filter) : _grievanceAllData;
+    const statusFilter = document.getElementById('grvStatusFilterSelect')?.value || '';
+    let data = _grievanceAllData;
+    if (filter) data = data.filter(g => g.grievanceType === filter);
+    if (statusFilter) data = data.filter(g => (g.status || 'Pending') === statusFilter);
     if (!data.length) { alert('No grievances to export.'); return; }
 
-    const rows = [['#','Aadhaar','Farmer Name','Father Name','Mobile','Farmer Type','Grievance Type','Grievance Detail','Village','Mandal','Date']];
+    const rows = [['#','Aadhaar','Farmer Name','Father Name','Mobile','Farmer Type','Grievance Type','Grievance Detail','Village','Mandal','Date','Status','Remarks']];
     data.forEach((g, i) => {
         rows.push([
             i+1, g.aadhaar||'', g.name||'', g.fatherName||'', g.mobile||'',
             g.farmerType||'', g.grievanceType||'', g.grievanceDetail||'',
             g.village||'', g.mandal||'',
-            g.submittedAt ? new Date(g.submittedAt).toLocaleDateString('en-IN') : ''
+            g.submittedAt ? new Date(g.submittedAt).toLocaleDateString('en-IN') : '',
+            g.status || 'Pending', g.remarks || ''
         ]);
     });
 
@@ -33042,7 +33219,9 @@ async function loadPrintFarmerProfile() {
           } else {
             oName = _ownerByKhatha[kh] || '—';
           }
-          khathaOwnerList.push({ kh, oName });
+          // Extent of this pattadhar actually added/cultivated under this khatha (not the full khatha extent)
+          const addedExt = Number(profile.extent || 0);
+          khathaOwnerList.push({ kh, oName, addedExt });
         });
         if (!khathaOwnerList.length) return '';
         const items = khathaOwnerList.map((item, idx) => `
@@ -33051,6 +33230,7 @@ async function loadPrintFarmerProfile() {
             <span style="flex-shrink:0;font-size:0.72rem;font-weight:800;color:#9B111E;white-space:nowrap;">${escapeHtml(item.kh)}</span>
             <span style="flex-shrink:0;color:#6b21a8;font-size:0.68rem;">→</span>
             <span title="${escapeHtml(item.oName)}" style="flex:1;min-width:0;font-size:0.74rem;font-weight:800;color:#1e3a5f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.oName)}</span>
+            ${item.addedExt > 0 ? `<span style="flex-shrink:0;font-size:0.7rem;font-weight:700;color:#1a7a3c;">(${item.addedExt.toFixed(2)}ac)</span>` : ''}
           </div>`).join('');
         return `
         <div style="margin:0 1rem 0.4rem;border:1.5px solid #7c3aed;border-radius:9px;overflow:hidden;">
