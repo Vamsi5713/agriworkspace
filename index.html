@@ -269,6 +269,14 @@
          *         ".write": "auth != null"
          *       }
          *     },
+         *     "perennialNPKOverrides": {
+         *       ".read": "auth != null",
+         *       ".write": "auth != null",
+         *       "$cropKey": {
+         *         ".read": "auth != null",
+         *         ".write": "auth != null"
+         *       }
+         *     },
          *     "customCropsNPK": {
          *       ".read": "auth != null",
          *       ".write": "auth != null",
@@ -339,6 +347,15 @@
          *    fertilizerDosage list. Same real-time merge behavior as
          *    cropNPKOverrides, but CREATES a new crop entry instead of
          *    overriding an existing one.
+         *  — perennialNPKOverrides: global (not per-VO) node, Admin-only
+         *    editable, for the 11 perennial/orchard crops (Mango, Coconut,
+         *    Cashew, Guava, Sapota, Pomegranate, Grapes, Sweet Orange, Acid
+         *    Lime, Cocoa, Oilpalm). Stores grams/plant/year N-P-K per plant
+         *    age band (1,2,3,4,5,6+) under $cropKey/years/$band. When a VO
+         *    adds one of these crops to a farmer profile with Plant Age +
+         *    Plants per Acre, getCropEntryNPKTotals() cumulates
+         *    plants × per-plant dose instead of using the flat per-acre
+         *    fertilizerDosage value.
          *  — voVillageIndex / voVillageIndexMeta: fast-lookup index
          *    ({villageSlug} → {uid, village}) used by admin's "Approve
          *    Registration" flow to check whether a village already has a
@@ -548,6 +565,119 @@
             
             #printArea .print-signatures { margin-top: auto !important; padding-top: 4px !important; }
         }
+
+        /* =========================================
+           7b. RECOMMENDATION BOX — ISOLATED PRINT
+           Toggled via body.printing-recommendation-only
+           (see printRecommendationBox()). Ensures the
+           Fertilizer/Pest-Disease card prints alone —
+           it does not cumulate with the rest of the page.
+           ========================================= */
+        @media print {
+            body.printing-recommendation-only > *:not(#recommendationBox) {
+                display: none !important;
+            }
+            body.printing-recommendation-only #recommendationBox {
+                display: block !important;
+                position: static !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            body.printing-recommendation-only #recommendationBox .btn,
+            body.printing-recommendation-only #recommendationBox button {
+                display: none !important;
+            }
+        }
+    </style>
+
+    <!-- ══════════════════════════════════════════════════════════
+         TELEGRAM-STYLE SETTINGS CARDS — CSS
+         ══════════════════════════════════════════════════════════ -->
+    <style>
+        .tg-group {
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #e7e9f2;
+            box-shadow: 0 1px 3px rgba(30,40,90,0.05);
+            margin-bottom: 22px;
+            overflow: hidden;
+        }
+        .tg-group-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            color: #8b90a8;
+            margin: 0 0 8px 6px;
+        }
+        .tg-group-body { padding: 14px 16px; }
+        .tg-group-body.tg-no-pad { padding: 0; }
+        .tg-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f1f7;
+            cursor: pointer;
+            transition: background .15s ease;
+            background: #fff;
+        }
+        .tg-row:last-child { border-bottom: none; }
+        .tg-row:hover, .tg-row:active { background: #f7f8fd; }
+        .tg-row.tg-static { cursor: default; }
+        .tg-row.tg-static:hover { background: #fff; }
+        .tg-row-icon {
+            flex: 0 0 34px;
+            width: 34px; height: 34px;
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 0.95rem;
+        }
+        .tg-row-main { flex: 1 1 auto; min-width: 0; }
+        .tg-row-title {
+            font-weight: 600;
+            font-size: 0.92rem;
+            color: #22243a;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .tg-row-sub {
+            font-size: 0.78rem;
+            color: #8b90a8;
+            margin-top: 1px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .tg-row-chevron { color: #c7cade; font-size: 0.85rem; flex: 0 0 auto; }
+        .tg-row.tg-current { background: #f2fbf5; }
+        .tg-badge-current {
+            display: inline-block;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: #2e9e5b;
+            background: #e1f7e8;
+            padding: 1px 7px;
+            border-radius: 20px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .tg-danger-text { color: #e0392b !important; }
+        .tg-session-detail-icon {
+            width: 72px; height: 72px;
+            border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 1.8rem;
+            margin: 0 auto 14px auto;
+        }
+        .tg-detail-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f1f7;
+            font-size: 0.87rem;
+        }
+        .tg-detail-row:last-of-type { border-bottom: none; }
+        .tg-detail-label { color: #8b90a8; }
+        .tg-detail-value { color: #22243a; font-weight: 500; text-align: right; }
     </style>
     </head>
 <body>
@@ -1997,7 +2127,7 @@
         <div style="font-size:0.75rem;color:#7f8c8d;margin-bottom:0.9rem;">
           <i class="fas fa-info-circle me-1" style="color:#1862ab;"></i>
           Enable <strong>Split 1</strong> so retailers can distribute it. Lock <strong>Split 2 &amp; Split 3</strong> to prevent distribution until unlocked.
-          <br>This is independent of the automatic 15-day timer — it is a manual VO override. Use <strong>Schedule Auto-Unlock</strong> on a card to lock it now and have it unlock itself at a future date/time, with no need to come back and unlock manually.
+          <br>This is a manual VO override. When you unlock a split here, it becomes available to <strong>every farmer</strong> in the village immediately — it overrides each farmer's individual 15-day timer, so no one has to wait. Use <strong>Schedule Auto-Unlock</strong> on a card to lock it now and have it unlock itself at a future date/time, with no need to come back and unlock manually.
         </div>
         <div class="row g-3" id="splitLockRows">
           <!-- Three split toggles rendered by JS -->
@@ -3241,27 +3371,59 @@ ${labelFolder}</Document>
         </button>
 
         <form id="profileForm">
-            <!-- Email (readonly) -->
-            <div class="mb-3">
-                <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Email Address</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-envelope text-muted"></i></span>
-                    <input type="email" id="profileEmail" class="form-control border-start-0 bg-light" readonly />
+            <!-- ACCOUNT GROUP (click-to-expand) -->
+            <div class="tg-group-title">Account</div>
+            <div class="tg-group">
+              <div class="tg-group-body tg-no-pad">
+                <div class="tg-row" onclick="toggleProfileBlock('profileAccountDetailsPanel', this)">
+                    <div class="tg-row-icon" style="background:#1862ab;"><i class="fas fa-id-card"></i></div>
+                    <div class="tg-row-main">
+                        <div class="tg-row-title">Account Details</div>
+                        <div class="tg-row-sub">Email address &amp; display name</div>
+                    </div>
+                    <i class="fas fa-chevron-right tg-row-chevron" id="profileAccountDetailsChevron"></i>
                 </div>
+                <div id="profileAccountDetailsPanel" class="hidden" style="padding:14px 16px; border-top:1px solid #f0f1f7;">
+                    <!-- Email (readonly) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Email Address</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-envelope text-muted"></i></span>
+                            <input type="email" id="profileEmail" class="form-control border-start-0 bg-light" readonly />
+                        </div>
+                    </div>
+
+                    <!-- Display Name -->
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Display Name</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-user text-muted"></i></span>
+                            <input type="text" id="profileDisplayName" class="form-control border-start-0" placeholder="Your full name" />
+                        </div>
+                    </div>
+                </div>
+              </div>
             </div>
 
-            <!-- Display Name -->
-            <div class="mb-3">
-                <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Display Name</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-user text-muted"></i></span>
-                    <input type="text" id="profileDisplayName" class="form-control border-start-0" placeholder="Your full name" />
+            <!-- LOCATION & ROLE GROUP (click-to-expand) -->
+            <div class="tg-group-title">Location &amp; Role</div>
+            <div class="tg-group">
+              <div class="tg-group-body tg-no-pad">
+                <div class="tg-row" onclick="toggleProfileBlock('profileLocationRolePanel', this)">
+                    <div class="tg-row-icon" style="background:#27ae60;"><i class="fas fa-map-marked-alt"></i></div>
+                    <div class="tg-row-main">
+                        <div class="tg-row-title">Location &amp; Role</div>
+                        <div class="tg-row-sub">District, Mandal, Village &amp; your role</div>
+                    </div>
+                    <i class="fas fa-chevron-right tg-row-chevron" id="profileLocationRoleChevron"></i>
                 </div>
-            </div>
-
-            <!-- District / Mandal / Village / Division -->
-            <div class="row g-3 mb-3">
-                <div class="col-12">
+                <div id="profileLocationRolePanel" class="hidden" style="padding:14px 16px; border-top:1px solid #f0f1f7;">
+              <div id="profileLocationLockedNote" class="alert alert-secondary py-2 px-3 mb-3 hidden" style="font-size:0.8rem;border-radius:10px;">
+                  <i class="fas fa-lock me-1"></i>District, Mandal &amp; Village are locked after being set. Contact your Admin if these need to change.
+              </div>
+              <!-- District / Mandal / Village / Division -->
+              <div class="row g-3 mb-3">
+                <div class="col-12" id="profileDistrictField">
                     <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">District <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="fas fa-map-marked-alt text-muted"></i></span>
@@ -3316,49 +3478,19 @@ ${labelFolder}</Document>
                         </select>
                     </div>
                 </div>
-            </div>
+              </div>
 
-            <!-- Role (display only) -->
-            <div class="mb-3" id="profileRoleRow">
+              <!-- Role (display only, unchanged) -->
+              <div class="mb-0" id="profileRoleRow">
                 <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Role</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-id-badge text-muted"></i></span>
                     <input type="text" id="profileRole" class="form-control border-start-0 bg-light" readonly />
                 </div>
-            </div>
-
-            <!-- Digital Signature -->
-            <div class="mb-3 p-3 rounded" style="background:#f8faff; border:1px dashed #90caf9;">
-                <label class="form-label fw-semibold mb-2">
-                    <i class="fas fa-signature me-1 text-primary"></i> Digital Signature
-                    <small class="text-muted fw-normal ms-1">(printed on receipts)</small>
-                </label>
-                <input type="file" id="profileSignatureInput" class="form-control form-control-sm" accept="image/*"
-                       onchange="previewSignature(this)" />
-                <div id="signaturePreviewBox" class="mt-2 text-center hidden">
-                    <img id="signaturePreviewImg"
-                         src="" alt="Signature Preview"
-                         style="max-height:70px; max-width:200px; border:1px dashed #aaa;
-                                border-radius:6px; padding:4px; background:#fafafa;" />
-                    <br>
-                    <small class="text-success"><i class="fas fa-check-circle me-1"></i>New signature ready to save</small>
-                    <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2"
-                            onclick="clearSignature()">Remove</button>
-                </div>
-                <div id="signatureCurrentBox" class="mt-2 text-center hidden">
-                    <p class="small text-muted mb-1">Current saved signature:</p>
-                    <img id="signatureCurrentImg"
-                         src="" alt="Current Signature"
-                         style="max-height:70px; max-width:200px; border:1px dashed #aaa;
-                                border-radius:6px; padding:4px; background:#fafafa;" />
-                    <br>
-                    <button type="button" class="btn btn-outline-danger btn-sm mt-2"
-                            onclick="removeCloudSignature()">
-                        <i class="fas fa-trash-alt me-1"></i>
-                        Remove Saved Signature
-                    </button>
-                </div>
-            </div>
+              </div>
+                </div><!-- closes profileLocationRolePanel -->
+              </div><!-- closes tg-group-body -->
+            </div><!-- closes tg-group -->
 
             <!-- Action Buttons -->
             <div class="d-grid gap-2">
@@ -3378,98 +3510,153 @@ ${labelFolder}</Document>
             Please update your <strong>Mandal</strong> and <strong>Village</strong> name to use all features.
         </div>
 
-        <hr class="my-4"/>
-
-        <!-- Reset Password via Email -->
-        <div class="p-3 rounded mb-4" style="background:#f0f7ff; border:1px solid #b3d4f7; border-radius:12px !important;">
-            <h6 class="fw-bold text-primary mb-2"><i class="fas fa-envelope me-2"></i>Reset Password via Email</h6>
-            <p class="text-muted small mb-3">Click below to send a password reset link to your registered email address. You can then use that link to set a new password.</p>
-            <button type="button" class="btn btn-outline-primary w-100 fw-semibold" onclick="sendProfilePasswordReset()" style="border-radius:12px;">
-                <i class="fas fa-paper-plane me-2"></i>Send Password Reset Email
-            </button>
-            <div id="profileResetStatus" class="mt-2 hidden"></div>
+        <!-- SECURITY GROUP -->
+        <div class="tg-group-title">Security</div>
+        <div class="tg-group">
+          <div class="tg-group-body tg-no-pad">
+            <div class="tg-row" onclick="sendProfilePasswordReset()">
+                <div class="tg-row-icon" style="background:#2f9df4;"><i class="fas fa-envelope"></i></div>
+                <div class="tg-row-main">
+                    <div class="tg-row-title">Reset Password via Email</div>
+                    <div class="tg-row-sub">Send a reset link to your registered email</div>
+                </div>
+                <i class="fas fa-chevron-right tg-row-chevron"></i>
+            </div>
+            <div class="tg-row tg-static" style="cursor:default;">
+                <div class="tg-row-icon" style="background:#ff9f43;"><i class="fas fa-lock"></i></div>
+                <div class="tg-row-main" style="width:100%;">
+                    <div class="tg-row-title mb-2">Change Password</div>
+                    <form id="changePasswordForm" onclick="event.stopPropagation()">
+                        <div class="mb-2">
+                            <input type="password" id="currentPassword" class="form-control form-control-sm" placeholder="Current password" required />
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <input type="password" id="newPassword" class="form-control form-control-sm" placeholder="New password" required />
+                            </div>
+                            <div class="col-6">
+                                <input type="password" id="confirmNewPassword" class="form-control form-control-sm" placeholder="Confirm new" required />
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-warning w-100 fw-semibold" style="border-radius:8px;">
+                            <i class="fas fa-lock me-1"></i>Change Password
+                        </button>
+                    </form>
+                </div>
+            </div>
+          </div>
+          <div class="px-3 pb-3 hidden" id="profileResetStatus"></div>
         </div>
 
-        <hr class="my-4"/>
+        <!-- ACCOUNT RESET GROUP — Village Officers (VO) only -->
+        <div class="tg-group-title hidden" id="accountResetDivider">Account Reset</div>
+        <div class="tg-group hidden" id="accountResetSection">
+          <div class="tg-group-body tg-no-pad">
+            <div class="tg-row tg-static" style="cursor:default;">
+                <div class="tg-row-icon" style="background:#e74c3c;"><i class="fas fa-redo-alt"></i></div>
+                <div class="tg-row-main" style="width:100%;">
+                    <div class="tg-row-title mb-2">Request Account Reset</div>
+                    <div class="tg-row-sub mb-2">Choose what to reset. Nothing is deleted until Admin approves your request.</div>
 
-        <!-- Change Password -->
-        <div class="p-3 rounded mb-4" style="background:#fff8f8; border:1px solid #ffc0c0; border-radius:12px !important;">
-            <h6 class="fw-bold text-danger mb-3"><i class="fas fa-lock me-2"></i>Change Password</h6>
-            <form id="changePasswordForm">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Current Password</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-key text-muted"></i></span>
-                        <input type="password" id="currentPassword" class="form-control border-start-0" required />
-                    </div>
-                </div>
-                <div class="row g-2 mb-3">
-                    <div class="col-6">
-                        <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">New Password</label>
-                        <input type="password" id="newPassword" class="form-control" required />
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Confirm New</label>
-                        <input type="password" id="confirmNewPassword" class="form-control" required />
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-warning w-100 fw-semibold" style="border-radius:12px;">
-                    <i class="fas fa-lock me-2"></i>Change Password
-                </button>
-            </form>
-        </div>
-
-        <hr class="my-4"/>
-
-        <!-- Account Reset -->
-        <div class="p-3 rounded" style="background:#fff4f4; border:1px solid #f5c6c6; border-radius:12px !important;">
-            <h6 class="fw-bold mb-2" style="color:#c0392b;"><i class="fas fa-redo-alt me-2"></i>Account Reset</h6>
-            <p class="text-muted small mb-3">Select what you want to delete and submit a request. The Admin will review and confirm before any data is removed. You will start fresh once approved.</p>
-
-            <div class="mb-3">
-                <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Select sections to reset:</label>
-                <div class="d-flex flex-column gap-2">
-                    <div class="form-check">
+                    <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" id="resetAll" onchange="toggleResetAllSections(this)">
-                        <label class="form-check-label fw-semibold text-danger" for="resetAll">
-                            <i class="fas fa-trash-alt me-1"></i> Everything (Full Reset)
-                        </label>
+                        <label class="form-check-label small fw-semibold" for="resetAll">Reset Everything (Full Reset)</label>
                     </div>
-                    <div id="resetSectionCheckboxes">
-                        <div class="form-check ms-3">
-                            <input class="form-check-input reset-section-cb" type="checkbox" id="resetFertilizer" value="ureaHistory">
-                            <label class="form-check-label small" for="resetFertilizer"><i class="fas fa-flask me-1 text-warning"></i>Fertilizer Distribution History</label>
-                        </div>
-                        <div class="form-check ms-3">
-                            <input class="form-check-input reset-section-cb" type="checkbox" id="resetReports" value="allReports">
-                            <label class="form-check-label small" for="resetReports"><i class="fas fa-file-alt me-1 text-info"></i>e-Panta Crop Reports</label>
-                        </div>
-                        <div class="form-check ms-3">
-                            <input class="form-check-input reset-section-cb" type="checkbox" id="resetFarmers" value="farmerProfiles">
-                            <label class="form-check-label small" for="resetFarmers"><i class="fas fa-users me-1 text-success"></i>Farmer Profiles</label>
-                        </div>
-                        <div class="form-check ms-3">
-                            <input class="form-check-input reset-section-cb" type="checkbox" id="resetUreaData" value="ureaData">
-                            <label class="form-check-label small" for="resetUreaData"><i class="fas fa-upload me-1 text-secondary"></i>Uploaded 1B Data</label>
-                        </div>
+
+                    <div class="form-check mb-1">
+                        <input class="form-check-input reset-section-cb" type="checkbox" id="resetUreaHistory" value="ureaHistory">
+                        <label class="form-check-label small" for="resetUreaHistory">Fertilizer Distribution History</label>
                     </div>
+                    <div class="form-check mb-1">
+                        <input class="form-check-input reset-section-cb" type="checkbox" id="resetAllReports" value="allReports">
+                        <label class="form-check-label small" for="resetAllReports">e-Panta Crop Reports</label>
+                    </div>
+                    <div class="form-check mb-1">
+                        <input class="form-check-input reset-section-cb" type="checkbox" id="resetFarmerProfiles" value="farmerProfiles">
+                        <label class="form-check-label small" for="resetFarmerProfiles">Farmer Profiles</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input reset-section-cb" type="checkbox" id="resetUreaData" value="ureaData">
+                        <label class="form-check-label small" for="resetUreaData">Uploaded 1B Data</label>
+                    </div>
+
+                    <textarea id="accountResetReason" class="form-control form-control-sm mb-2" rows="2" placeholder="Reason for reset (optional)"></textarea>
+
+                    <button type="button" class="btn btn-sm btn-danger w-100 fw-semibold" style="border-radius:8px;" onclick="submitAccountResetRequest()">
+                        <i class="fas fa-paper-plane me-1"></i>Submit Reset Request
+                    </button>
+                    <div id="accountResetStatus" class="mt-2 hidden"></div>
                 </div>
             </div>
-
-            <div class="mb-3">
-                <label class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing:.5px;">Reason (optional)</label>
-                <textarea id="accountResetReason" class="form-control" rows="2" placeholder="Briefly describe why you need a reset..." style="border-radius:10px; font-size:0.9rem;"></textarea>
-            </div>
-
-            <button type="button" class="btn w-100 fw-semibold" onclick="submitAccountResetRequest()"
-                    style="background:#c0392b; color:#fff; border-radius:12px;">
-                <i class="fas fa-paper-plane me-2"></i>Submit Reset Request to Admin
-            </button>
-            <div id="accountResetStatus" class="mt-2 hidden"></div>
+          </div>
         </div>
+
+        <!-- ACTIVE SESSIONS GROUP -->
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="tg-group-title mb-0">Active Sessions</div>
+            <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 mb-2" style="font-size:0.72rem;" onclick="loadLoggedInDevices()" title="Refresh">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+        </div>
+        <div class="tg-group">
+          <div class="tg-group-body tg-no-pad" id="loggedDevicesList">
+            <div class="text-muted small p-3"><i class="fas fa-spinner fa-spin me-1"></i>Loading devices...</div>
+          </div>
+        </div>
+        <p class="text-muted small mt-n2 mb-4" style="font-size:0.75rem;">Tap a session to see full details. You can terminate any session, including this device's.</p>
+
     </div>
 </div>
 </div>  <!-- closes id="profileSection" -->
+
+<!-- ══════════════════════════════════════════════════════════
+     SESSION DETAIL MODAL — Telegram-style
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="sessionDetailModal" tabindex="-1" aria-labelledby="sessionDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:18px; border:none; overflow:hidden;">
+      <div class="modal-header border-0 pb-0">
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center pt-0 pb-4 px-4">
+        <div class="tg-session-detail-icon" id="sessionDetailIcon" style="background:#2f9df4;">
+            <i class="fas fa-desktop" id="sessionDetailIconGlyph"></i>
+        </div>
+        <h6 class="fw-bold mb-1" id="sessionDetailTitle">Device name</h6>
+        <div class="mb-3" id="sessionDetailBadge"></div>
+
+        <div class="text-start">
+            <div class="tg-detail-row">
+                <span class="tg-detail-label">App</span>
+                <span class="tg-detail-value" id="sessionDetailApp">—</span>
+            </div>
+            <div class="tg-detail-row">
+                <span class="tg-detail-label">Device</span>
+                <span class="tg-detail-value" id="sessionDetailDevice">—</span>
+            </div>
+            <div class="tg-detail-row">
+                <span class="tg-detail-label">Location</span>
+                <span class="tg-detail-value" id="sessionDetailLocation">—</span>
+            </div>
+            <div class="tg-detail-row">
+                <span class="tg-detail-label">Logged in</span>
+                <span class="tg-detail-value" id="sessionDetailLoginTime">—</span>
+            </div>
+            <div class="tg-detail-row">
+                <span class="tg-detail-label">Last active</span>
+                <span class="tg-detail-value" id="sessionDetailLastActive">—</span>
+            </div>
+        </div>
+
+        <button type="button" class="btn w-100 fw-semibold mt-4" id="sessionDetailTerminateBtn"
+                style="background:#fdeceb; color:#e0392b; border-radius:12px; letter-spacing:.3px;"
+                onclick="terminateSessionFromModal()">
+            <i class="fas fa-power-off me-2"></i>TERMINATE SESSION
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ADMIN PANEL SECTION -->
 <!-- ══════════════════════════════════════════════════════════
@@ -3528,7 +3715,7 @@ ${labelFolder}</Document>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showAdminTab('adminCropNpkTab');renderCropNpkAdminTable();return false;">
+                <a class="nav-link" href="#" onclick="showAdminTab('adminCropNpkTab');renderCropNpkAdminTable();initPerennialNpkAdminPanel();return false;">
                     <i class="fas fa-seedling me-1"></i> Crop NPK Settings
                 </a>
             </li>
@@ -3993,6 +4180,10 @@ ${labelFolder}</Document>
                 from this same data, so no separate update is needed anywhere else.
                 <strong>Only Admin can make this change</strong> — Village Officers see a read-only note in their Fertilizer
                 Distribution section instead.
+                <br><i class="fas fa-tree me-1"></i>
+                <strong>Perennial crops</strong> (Mango, Coconut, Cashew, Guava, Sapota, Pomegranate, Grapes, Sweet Orange,
+                Acid Lime, Cocoa, Oilpalm) don't appear in the list below — they're dosed per-plant, age-wise, and are
+                edited in the <strong>"Perennial Crops (Plant &amp; Age-wise NPK)"</strong> panel further down instead.
               </div>
 
               <!-- Filter row -->
@@ -4110,6 +4301,57 @@ ${labelFolder}</Document>
               </div>
               <div id="cropNpkStatus" style="margin-top:0.6rem;font-size:0.76rem;"></div>
 
+            </div>
+          </div>
+
+          <!-- ══════════════════════════════════════════════════════════
+               PERENNIAL CROPS — PLANT & AGE-WISE NPK (grams/plant/year)
+               These 11 tree/orchard crops are dosed per PLANT, varying by
+               plant age, instead of a flat per-acre rate. When a VO adds
+               such a crop to a farmer's profile, they enter Plant Age +
+               Plants per Acre, and the app cumulates the total NPK.
+               ══════════════════════════════════════════════════════════ -->
+          <div class="card border-0 shadow-sm mt-3" style="border-radius:14px;">
+            <div class="card-body p-3">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <div>
+                  <div style="font-size:0.84rem;font-weight:800;color:#1e8449;text-transform:uppercase;letter-spacing:0.8px;">
+                    <i class="fas fa-tree me-1"></i>Perennial Crops (Plant &amp; Age-wise NPK)
+                  </div>
+                  <p style="font-size:0.74rem;color:#7f8c8d;margin:2px 0 0;">
+                    Grams per plant, per year of age. Used when a VO enters Plant Age + Plants per Acre for
+                    Mango, Coconut, Cashew, Guava, Sapota, Pomegranate, Grapes, Sweet Orange, Acid Lime, Cocoa &amp; Oilpalm
+                    in a farmer's crop entry — the app then cumulates Plants/acre × Extent × this per-plant dose.
+                  </p>
+                </div>
+                <select id="perennialNpkCropSelect" class="form-select form-select-sm" style="width:200px;" onchange="renderPerennialNpkAdminTable()">
+                  <!-- options injected by JS -->
+                </select>
+              </div>
+              <div style="overflow:auto;border:1.5px solid #d4efdf;border-radius:10px;">
+                <table class="table table-sm mb-0" style="font-size:0.78rem;min-width:760px;">
+                  <thead style="background:#eafaf1;">
+                    <tr style="color:#1e8449;font-weight:700;">
+                      <th style="padding:8px;min-width:130px;">Plant Age</th>
+                      <th style="padding:8px;width:120px;">N (g/plant)</th>
+                      <th style="padding:8px;width:120px;">P (g/plant)</th>
+                      <th style="padding:8px;width:120px;">K (g/plant)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="perennialNpkAdminBody">
+                    <!-- rows injected by JS -->
+                  </tbody>
+                </table>
+              </div>
+              <div class="d-flex gap-2 mt-2">
+                <button type="button" class="btn btn-success btn-sm" style="font-size:0.76rem;" onclick="savePerennialNpk()">
+                  <i class="fas fa-save me-1"></i>Save
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" style="font-size:0.76rem;" onclick="resetPerennialNpk()">
+                  <i class="fas fa-undo me-1"></i>Reset to Default
+                </button>
+              </div>
+              <div id="perennialNpkStatus" style="margin-top:0.5rem;font-size:0.76rem;"></div>
             </div>
           </div>
         </div><!-- closes adminCropNpkTab -->
@@ -9075,6 +9317,7 @@ window.addEventListener('DOMContentLoaded', function () {
 //  ROLE-BASED AUTH STATE
 // ============================================================
 let currentUserRole = null;
+let _profileLocationLocked = false; // true once District, Mandal & Village have all been set — locks those fields from further self-edits
 let currentUserProfile = null;
 
 function selectLoginRole(role, btn) {
@@ -9113,6 +9356,8 @@ function getRoleHomeSectionId(role) {
 
 firebase.auth().onAuthStateChanged(user => {
     if (user) {
+        recordLoginSession(user);
+
         const adminLink = document.getElementById('adminNavLink');
         if (adminLink) {
             if (isAdmin()) adminLink.classList.remove('hidden');
@@ -9252,6 +9497,9 @@ firebase.auth().onAuthStateChanged(user => {
         });
 
     } else {
+        if (_forceLogoutRef) { try { _forceLogoutRef.off(); } catch (e) {} _forceLogoutRef = null; }
+        if (window._sessionHeartbeat) { clearInterval(window._sessionHeartbeat); window._sessionHeartbeat = null; }
+
         currentUserRole = null;
         currentUserProfile = null;
         isDataLoaded    = false;
@@ -9913,16 +10161,27 @@ function showModernPopup(title, message, type = "info") {
 function logoutUser() {
     detachCloudListener();
     fpClearYearSeasonFilter();
-    firebase.auth().signOut()
-   .catch(e => {
 
-    showModernPopup(
-        "Logout Error",
-        e.message,
-        "error"
-    );
+    const user = firebase.auth().currentUser;
+    if (_forceLogoutRef) { try { _forceLogoutRef.off(); } catch (e) {} _forceLogoutRef = null; }
+    if (window._sessionHeartbeat) { clearInterval(window._sessionHeartbeat); window._sessionHeartbeat = null; }
 
-});
+    const cleanupSession = user
+        ? database.ref('users/' + user.uid + '/sessions/' + getDeviceId()).remove().catch(() => {})
+        : Promise.resolve();
+
+    cleanupSession.finally(() => {
+        firebase.auth().signOut()
+       .catch(e => {
+
+        showModernPopup(
+            "Logout Error",
+            e.message,
+            "error"
+        );
+
+    });
+    });
 }
 
 function sendPasswordReset() {
@@ -9959,6 +10218,88 @@ function sendProfilePasswordReset() {
         });
 }
 
+// ── Profile page: Change Password form ──────────────────────────────────
+// Works for every role (Village Officer, Admin, Mandal/Divisional Officer,
+// Retailer, etc.) since they all share this same Profile section and the
+// same Firebase Auth user. Requires the CURRENT password because Firebase
+// needs a fresh sign-in (re-authentication) before it will allow a
+// password change — this was previously missing entirely, which is why
+// changing password had no effect for either VO or Admin logins.
+(function initChangePasswordForm() {
+    const form = document.getElementById('changePasswordForm');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        changeAccountPassword();
+    });
+})();
+
+async function changeAccountPassword() {
+    const btn = document.querySelector('#changePasswordForm button[type="submit"]');
+    const currentPwEl = document.getElementById('currentPassword');
+    const newPwEl     = document.getElementById('newPassword');
+    const confirmPwEl = document.getElementById('confirmNewPassword');
+
+    const currentPw = (currentPwEl?.value || '').trim();
+    const newPw     = (newPwEl?.value || '').trim();
+    const confirmPw = (confirmPwEl?.value || '').trim();
+
+    const user = firebase.auth().currentUser;
+    if (!user || !user.email) {
+        showModernPopup('Change Password', 'No logged-in user found. Please log in again and retry.', 'error');
+        return;
+    }
+    if (!currentPw || !newPw || !confirmPw) {
+        showModernPopup('Change Password', 'Please fill in Current Password, New Password and Confirm New Password.', 'error');
+        return;
+    }
+    if (newPw.length < 6) {
+        showModernPopup('Change Password', 'New password must be at least 6 characters long.', 'error');
+        return;
+    }
+    if (newPw !== confirmPw) {
+        showModernPopup('Change Password', 'New Password and Confirm New Password do not match.', 'error');
+        return;
+    }
+    if (newPw === currentPw) {
+        showModernPopup('Change Password', 'New password must be different from your current password.', 'error');
+        return;
+    }
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Changing Password…'; }
+
+    try {
+        // Firebase requires a recent sign-in before updatePassword() will
+        // succeed — re-authenticate with the current password first.
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPw);
+        await user.reauthenticateWithCredential(credential);
+        await user.updatePassword(newPw);
+
+        // Clear the form
+        if (currentPwEl) currentPwEl.value = '';
+        if (newPwEl) newPwEl.value = '';
+        if (confirmPwEl) confirmPwEl.value = '';
+
+        showModernPopup('Password Changed', 'Your password has been changed successfully. Next time login with new password.', 'success');
+    } catch (err) {
+        console.error('changeAccountPassword error', err);
+        let msg = err.message || 'Failed to change password. Please try again.';
+        if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+            msg = 'Current Password is incorrect.';
+        } else if (err.code === 'auth/weak-password') {
+            msg = 'New password is too weak. Please choose at least 6 characters.';
+        } else if (err.code === 'auth/requires-recent-login') {
+            msg = 'Your session has expired. Please log out and log in again, then retry changing your password.';
+        } else if (err.code === 'auth/too-many-requests') {
+            msg = 'Too many attempts. Please wait a moment and try again.';
+        }
+        showModernPopup('Change Password Failed', msg, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock me-2"></i>Change Password'; }
+    }
+}
+
 function populateYearDropdowns() {
     ['filterYear', 'cropYear', 'searchCropYear', 'epantaSrcYear'].forEach(id => {
         const sel = document.getElementById(id);
@@ -9975,6 +10316,20 @@ function escapeHtml(text) {
     );
 }
 
+// Click-to-expand handler for the Profile page's collapsible blocks
+// (Account Details / Location & Role). Toggles panel visibility + chevron.
+function toggleProfileBlock(panelId, rowEl) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const willShow = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !willShow);
+    const chevron = rowEl ? rowEl.querySelector('.tg-row-chevron') : null;
+    if (chevron) {
+        chevron.classList.toggle('fa-chevron-right', !willShow);
+        chevron.classList.toggle('fa-chevron-down', willShow);
+    }
+}
+
 function getProfileRoleForEdit() {
     const role = (currentUserRole || document.getElementById('profileRole')?.value || '').toLowerCase().replace(/\s+/g, '_');
     return role || 'village_officer';
@@ -9984,24 +10339,55 @@ function getProfileFieldConfig(role) {
     const normalized = (role || 'village_officer').toLowerCase().replace(/\s+/g, '_');
     switch (normalized) {
         case 'mandal_officer':
-            return { showMandal: true, showVillage: false, requireMandal: true, requireVillage: false };
+            return {
+                showDistrict: true, showMandal: true, showVillage: false, showSachivalayam: false, showDivision: true,
+                showAccountReset: false, requireMandal: true, requireVillage: false
+            };
         case 'divisional_officer':
-            return { showMandal: false, showVillage: false, requireMandal: false, requireVillage: false };
+            return {
+                showDistrict: true, showMandal: false, showVillage: false, showSachivalayam: false, showDivision: true,
+                showAccountReset: false, requireMandal: false, requireVillage: false
+            };
         case 'retailer':
-            return { showMandal: true, showVillage: true, requireMandal: true, requireVillage: true };
-        default:
-            return { showMandal: true, showVillage: true, requireMandal: true, requireVillage: true };
+            return {
+                showDistrict: true, showMandal: true, showVillage: true, showSachivalayam: true, showDivision: true,
+                showAccountReset: false, requireMandal: true, requireVillage: true
+            };
+        case 'admin':
+            return {
+                showDistrict: false, showMandal: false, showVillage: false, showSachivalayam: false, showDivision: false,
+                showAccountReset: false, requireMandal: false, requireVillage: false
+            };
+        default: // village_officer
+            return {
+                showDistrict: true, showMandal: true, showVillage: true, showSachivalayam: true, showDivision: true,
+                showAccountReset: true, requireMandal: true, requireVillage: true
+            };
     }
 }
 
 function applyProfileFieldConfig(role) {
     const config = getProfileFieldConfig(role);
+    const districtField = document.getElementById('profileDistrictField');
     const mandalField = document.getElementById('profileMandalField');
     const villageField = document.getElementById('profileVillageField');
+    const sachivalayamField = document.getElementById('profileSachivalayamField');
+    const divisionField = document.getElementById('profileDivisionField');
+    const accountResetSection = document.getElementById('accountResetSection');
+    const accountResetDivider = document.getElementById('accountResetDivider');
 
+    if (districtField) districtField.classList.toggle('hidden', !config.showDistrict);
     if (mandalField) mandalField.classList.toggle('hidden', !config.showMandal);
     if (villageField) villageField.classList.toggle('hidden', !config.showVillage);
+    if (sachivalayamField) sachivalayamField.classList.toggle('hidden', !config.showSachivalayam);
+    if (divisionField) divisionField.classList.toggle('hidden', !config.showDivision);
+    if (accountResetSection) accountResetSection.classList.toggle('hidden', !config.showAccountReset);
+    if (accountResetDivider) accountResetDivider.classList.toggle('hidden', !config.showAccountReset);
 
+    if (!config.showDistrict) {
+        const districtSelect = document.getElementById('profileDistrict');
+        if (districtSelect) districtSelect.value = '';
+    }
     if (!config.showMandal) {
         const mandalSelect = document.getElementById('profileMandal');
         if (mandalSelect) mandalSelect.value = '';
@@ -10010,12 +10396,23 @@ function applyProfileFieldConfig(role) {
         const villageSelect = document.getElementById('profileVillage');
         if (villageSelect) villageSelect.value = '';
     }
+    if (!config.showDivision) {
+        const divisionSelect = document.getElementById('profileDivision');
+        if (divisionSelect) divisionSelect.value = '';
+    }
 
     const alertEl = document.getElementById('profileLocationAlert');
     if (!alertEl) return;
     const currentRole = (role || '').toLowerCase().replace(/\s+/g, '_');
-    const missingDistrict = !document.getElementById('profileDistrict')?.value;
-    const missingDivision = !document.getElementById('profileDivision')?.value;
+
+    // Admin has no location fields to fill in, so never show the location warning.
+    if (currentRole === 'admin') {
+        alertEl.classList.add('hidden');
+        return;
+    }
+
+    const missingDistrict = config.showDistrict && !document.getElementById('profileDistrict')?.value;
+    const missingDivision = config.showDivision && !document.getElementById('profileDivision')?.value;
     const missingMandal = config.requireMandal && !document.getElementById('profileMandal')?.value;
     const _taggedVillages = (document.getElementById('profileVillagesHidden')?.value || '').split(',').filter(Boolean);
     const _legacyVillage = document.getElementById('profileVillage')?.value || '';
@@ -11470,6 +11867,288 @@ document.getElementById(
              printWindow.document.close(); printWindow.focus(); setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
          };
          
+         // --- LOGGED-IN DEVICES / SESSION TRACKING ---
+
+// Unique id for this browser/device, persisted locally so we recognise
+// "this device" across logins and can target it for remote logout.
+function getDeviceId() {
+    let id = localStorage.getItem('agriDeviceId');
+    if (!id) {
+        id = (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : 'dev-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        localStorage.setItem('agriDeviceId', id);
+    }
+    return id;
+}
+
+// Human-readable "Browser on OS" label parsed from the user agent.
+function getDeviceLabel() {
+    const ua = navigator.userAgent || '';
+    let browser = 'Unknown browser';
+    if (/Edg\//.test(ua)) browser = 'Edge';
+    else if (/OPR\//.test(ua) || /Opera/.test(ua)) browser = 'Opera';
+    else if (/Firefox\//.test(ua)) browser = 'Firefox';
+    else if (/Chrome\//.test(ua)) browser = 'Chrome';
+    else if (/Safari\//.test(ua)) browser = 'Safari';
+
+    let os = 'Unknown OS';
+    if (/Windows/.test(ua)) os = 'Windows';
+    else if (/Mac OS X/.test(ua)) os = 'macOS';
+    else if (/Android/.test(ua)) os = 'Android';
+    else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
+    else if (/Linux/.test(ua)) os = 'Linux';
+
+    const isMobile = /Mobi|Android|iPhone|iPad/.test(ua);
+    return `${browser} on ${os}${isMobile ? ' (Mobile)' : ''}`;
+}
+
+// Location shown on the "Logged-in Devices" list. Tries the browser's own
+// Geolocation API first (this is what actually triggers the native "Allow
+// this site to know your location?" prompt on visit), then falls back to an
+// approximate IP-based lookup, then finally to a plain unavailable message.
+async function getApproxLocation() {
+    // 1) Ask the browser for the real device location (prompts the user).
+    const browserLoc = await getBrowserGeolocation();
+    if (browserLoc) {
+        const text = await reverseGeocode(browserLoc.lat, browserLoc.lon);
+        return {
+            text: text || `${browserLoc.lat.toFixed(4)}, ${browserLoc.lon.toFixed(4)}`,
+            ip: ''
+        };
+    }
+
+    // 2) Fall back to an IP-based approximate lookup (no prompt needed).
+    //    file:// origins ("null" origin) will always be CORS-blocked by
+    //    ipapi.co, and the browser logs the failed network request to the
+    //    console regardless of try/catch, so skip it entirely there.
+    if (location.protocol !== 'file:') {
+        try {
+            const res = await fetch('https://ipapi.co/json/');
+            if (res.ok) {
+                const data = await res.json();
+                const parts = [data.city, data.region, data.country_name].filter(Boolean);
+                if (parts.length) return { text: parts.join(', '), ip: data.ip || '' };
+            }
+        } catch (e) { /* fall through to unavailable */ }
+    }
+
+    return { text: 'Location unavailable', ip: '' };
+}
+
+// Wraps navigator.geolocation.getCurrentPosition in a promise that never
+// rejects — resolves to null if the user denies permission, the API is
+// unsupported, or it times out, so callers can always fall back gracefully
+// instead of the login flow breaking.
+function getBrowserGeolocation() {
+    return new Promise(resolve => {
+        if (!('geolocation' in navigator)) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+            () => resolve(null), // permission denied / unavailable / error
+            { enableHighAccuracy: false, timeout: 8000, maximumAge: 10 * 60 * 1000 }
+        );
+    });
+}
+
+// Turns lat/lon into a human-readable "City, State, Country" string using
+// OpenStreetMap's free Nominatim reverse-geocoding service. Nominatim sends
+// Access-Control-Allow-Origin: *, so this works even from a file:// page.
+async function reverseGeocode(lat, lon) {
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10`);
+        if (!res.ok) return '';
+        const data = await res.json();
+        const addr = data.address || {};
+        const parts = [addr.city || addr.town || addr.village || addr.county, addr.state, addr.country].filter(Boolean);
+        return parts.join(', ');
+    } catch (e) {
+        return '';
+    }
+}
+
+let _forceLogoutRef = null;
+
+// Called on every successful sign-in: writes/updates this device's session
+// entry (device label, approx location, timestamps) and starts listening
+// for a remote "force logout" signal aimed at this specific device.
+const APP_VERSION = 'Agri Work Space Web 1.0';
+
+async function recordLoginSession(user) {
+    try {
+        const deviceId = getDeviceId();
+        const sessionRef = database.ref('users/' + user.uid + '/sessions/' + deviceId);
+        const nowIso = new Date().toISOString();
+
+        const existingSnap = await sessionRef.once('value');
+        const existing = existingSnap.val() || {};
+
+        const loc = await getApproxLocation();
+
+        await sessionRef.update({
+            deviceId,
+            label: getDeviceLabel(),
+            appVersion: APP_VERSION,
+            userAgent: navigator.userAgent,
+            location: loc.text,
+            ip: loc.ip,
+            loginTime: existing.loginTime || nowIso,
+            lastActive: nowIso,
+            forceLogout: false
+        });
+
+        // Listen live for a remote-logout signal targeted at this device.
+        if (_forceLogoutRef) { try { _forceLogoutRef.off(); } catch (e) {} }
+        _forceLogoutRef = sessionRef.child('forceLogout');
+        _forceLogoutRef.on('value', snap => {
+            if (snap.val() === true) {
+                try { _forceLogoutRef.off(); } catch (e) {}
+                sessionRef.remove().catch(() => {});
+                alert('⚠️ You have been logged out because this device was signed out from another session.');
+                firebase.auth().signOut();
+            }
+        });
+
+        // Keep "last active" fresh while the app stays open.
+        if (window._sessionHeartbeat) clearInterval(window._sessionHeartbeat);
+        window._sessionHeartbeat = setInterval(() => {
+            sessionRef.update({ lastActive: new Date().toISOString() }).catch(() => {});
+        }, 5 * 60 * 1000);
+    } catch (e) {
+        console.error('recordLoginSession error:', e);
+    }
+}
+
+// Cache of the last-loaded sessions, keyed by deviceId, so the detail modal
+// can look up a row's info without a second database round-trip.
+let _sessionsCache = {};
+
+// Renders the list of logged-in devices inside the Profile page,
+// Telegram-Settings style: icon + name + app/version + location + time,
+// each row tappable to open a detail modal.
+function loadLoggedInDevices() {
+    const user = firebase.auth().currentUser;
+    const listEl = document.getElementById('loggedDevicesList');
+    if (!user || !listEl) return;
+
+    listEl.innerHTML = `<div class="text-muted small p-3"><i class="fas fa-spinner fa-spin me-1"></i>Loading devices...</div>`;
+    const myDeviceId = getDeviceId();
+
+    database.ref('users/' + user.uid + '/sessions').once('value').then(snap => {
+        const sessions = snap.val() || {};
+        _sessionsCache = sessions;
+        const entries = Object.values(sessions).sort((a, b) =>
+            new Date(b.lastActive || 0) - new Date(a.lastActive || 0)
+        );
+
+        if (!entries.length) {
+            listEl.innerHTML = `<div class="text-muted small p-3">No active sessions found.</div>`;
+            return;
+        }
+
+        listEl.innerHTML = entries.map(s => {
+            const isCurrent = s.deviceId === myDeviceId;
+            const lastActiveStr = s.lastActive ? new Date(s.lastActive).toLocaleString() : '—';
+            const isMobile = /Mobile/.test(s.label || '');
+            const icon = isMobile ? 'fa-mobile-alt' : 'fa-desktop';
+            const iconBg = isCurrent ? '#2e9e5b' : '#7d8bdb';
+            return `
+            <div class="tg-row ${isCurrent ? 'tg-current' : ''}" onclick="openSessionDetail('${s.deviceId}')">
+                <div class="tg-row-icon" style="background:${iconBg};"><i class="fas ${icon}"></i></div>
+                <div class="tg-row-main">
+                    <div class="tg-row-title">
+                        ${escapeHtml(s.label || 'Unknown device')}
+                        ${isCurrent ? '<span class="tg-badge-current">THIS DEVICE</span>' : ''}
+                    </div>
+                    <div class="tg-row-sub">${escapeHtml(s.location || 'Unknown location')} · ${escapeHtml(lastActiveStr)}</div>
+                </div>
+                <i class="fas fa-chevron-right tg-row-chevron"></i>
+            </div>`;
+        }).join('');
+    }).catch(err => {
+        listEl.innerHTML = `<div class="text-danger small p-3">Failed to load devices: ${escapeHtml(err.message)}</div>`;
+    });
+}
+
+let _activeSessionDetailDeviceId = null;
+let _activeSessionDetailIsCurrent = false;
+
+// Opens the Telegram-style session detail modal for a given device.
+function openSessionDetail(deviceId) {
+    const s = _sessionsCache[deviceId];
+    if (!s) return;
+    const myDeviceId = getDeviceId();
+    const isCurrent = deviceId === myDeviceId;
+    _activeSessionDetailDeviceId = deviceId;
+    _activeSessionDetailIsCurrent = isCurrent;
+
+    const isMobile = /Mobile/.test(s.label || '');
+    document.getElementById('sessionDetailIconGlyph').className = `fas ${isMobile ? 'fa-mobile-alt' : 'fa-desktop'}`;
+    document.getElementById('sessionDetailIcon').style.background = isCurrent ? '#2e9e5b' : '#2f9df4';
+    document.getElementById('sessionDetailTitle').textContent = s.label || 'Unknown device';
+    document.getElementById('sessionDetailBadge').innerHTML = isCurrent
+        ? '<span class="tg-badge-current">THIS DEVICE</span>'
+        : '';
+    document.getElementById('sessionDetailApp').textContent = s.appVersion || APP_VERSION;
+    document.getElementById('sessionDetailDevice').textContent = s.label || 'Unknown device';
+    document.getElementById('sessionDetailLocation').textContent = s.location || 'Unknown location';
+    document.getElementById('sessionDetailLoginTime').textContent = s.loginTime ? new Date(s.loginTime).toLocaleString() : '—';
+    document.getElementById('sessionDetailLastActive').textContent = s.lastActive ? new Date(s.lastActive).toLocaleString() : '—';
+
+    const modalEl = document.getElementById('sessionDetailModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+
+// Terminate button inside the session detail modal — handles both
+// remote devices and this device itself.
+function terminateSessionFromModal() {
+    if (!_activeSessionDetailDeviceId) return;
+    const modalEl = document.getElementById('sessionDetailModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+
+    if (_activeSessionDetailIsCurrent) {
+        if (!confirm('Terminate this session? You will be signed out of this device immediately.')) return;
+        if (modal) modal.hide();
+        terminateCurrentSession();
+    } else {
+        if (!confirm('Terminate this session? That device will be signed out automatically, right away if it is currently online.')) return;
+        remoteLogoutDevice(_activeSessionDetailDeviceId, () => { if (modal) modal.hide(); });
+    }
+}
+
+// Signals a specific device to sign itself out. That device is listening
+// live on its own session's forceLogout flag and will act on it immediately
+// (or the next time it's online).
+function remoteLogoutDevice(deviceId, onDone) {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    database.ref('users/' + user.uid + '/sessions/' + deviceId + '/forceLogout').set(true)
+        .then(() => {
+            alert('✅ Logout signal sent. That device will be signed out shortly.');
+            if (onDone) onDone();
+            setTimeout(loadLoggedInDevices, 800);
+        })
+        .catch(e => alert('❌ Failed to log out device: ' + e.message));
+}
+
+// Terminates the CURRENT device's own session: removes its session entry
+// and immediately signs this device out.
+function terminateCurrentSession() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    const deviceId = getDeviceId();
+
+    if (_forceLogoutRef) { try { _forceLogoutRef.off(); } catch (e) {} }
+    if (window._sessionHeartbeat) clearInterval(window._sessionHeartbeat);
+
+    database.ref('users/' + user.uid + '/sessions/' + deviceId).remove()
+        .catch(() => {})
+        .then(() => firebase.auth().signOut())
+        .catch(e => alert('❌ Failed to terminate session: ' + e.message));
+}
+
          // --- PROFILE ---
          function loadUserProfile() {
     const user = firebase.auth().currentUser;
@@ -11480,9 +12159,11 @@ document.getElementById(
     if (emailEl) emailEl.value = user.email || '';
     if (nameEl) nameEl.value = user.displayName || '';
 
+    loadLoggedInDevices();
+
     database.ref('users/' + user.uid + '/profile').once('value').then(snap => {
         const profile = snap.val() || {};
-        const roleMap = { village_officer: 'Village Officer', mandal_officer: 'Mandal Officer', divisional_officer: 'Divisional Officer', retailer: 'Retailer' };
+        const roleMap = { village_officer: 'Village Officer', mandal_officer: 'Mandal Officer', divisional_officer: 'Divisional Officer', retailer: 'Retailer', admin: 'Admin' };
         const role = profile.role || currentUserRole || 'village_officer';
         currentUserRole = role;
         applyProfileFieldConfig(role);
@@ -11497,15 +12178,45 @@ document.getElementById(
             // Load sachivalayam for VO
             const sachEl = document.getElementById('profileSachivalayam');
             if (sachEl) sachEl.value = profile.sachivalayam || '';
-            applyProfileFieldConfig(role);
 
-            // ── Populate multi-village tag UI ──
+            // ── Populate multi-village tag UI — MUST happen before
+            //    applyProfileFieldConfig() below, since that function reads
+            //    #profileVillagesHidden to decide whether Village is missing.
+            //    Doing this after applyProfileFieldConfig (as before) left the
+            //    hidden field stale/empty at check time, so the "Please update
+            //    your District, Mandal, Village and Division" warning could
+            //    stay stuck on screen even after the profile was saved correctly. ──
             const savedVillages = Array.isArray(profile.villages) && profile.villages.length
                 ? profile.villages
                 : (profile.village ? [profile.village] : []);
             const hiddenInput = document.getElementById('profileVillagesHidden');
             if (hiddenInput) hiddenInput.value = savedVillages.join(',');
             renderProfileVillageTags(savedVillages);
+
+            applyProfileFieldConfig(role);
+
+            // Once District, Mandal & at least one Village are all set, lock them from self-edits.
+            const _allLocationSet = !!(profile.district && profile.mandal && savedVillages.length);
+            applyProfileLocationLock(_allLocationSet);
+
+            // ── Final, authoritative "missing location" check ──
+            // Runs last (after all dropdowns/tags have finished populating) and
+            // reads straight from the saved `profile` object rather than the
+            // DOM, so it can never be fooled by a still-loading select or a
+            // hidden field that hasn't been written yet.
+            const alertEl = document.getElementById('profileLocationAlert');
+            if (alertEl) {
+                const config = getProfileFieldConfig(role);
+                const normalizedRole = (role || '').toLowerCase().replace(/\s+/g, '_');
+                const _hasVillage = savedVillages.length > 0;
+                const missingLocation = normalizedRole === 'admin' ? false : (
+                    (config.showDistrict && !profile.district) ||
+                    (config.showDivision && !profile.division) ||
+                    (config.requireMandal && !profile.mandal) ||
+                    (config.requireVillage && !_hasVillage)
+                );
+                alertEl.classList.toggle('hidden', !missingLocation);
+            }
         });
 
         const roleEl = document.getElementById('profileRole');
@@ -11518,18 +12229,6 @@ document.getElementById(
             curBox.classList.remove('hidden');
         } else if (curBox) {
             curBox.classList.add('hidden');
-        }
-
-        const alertEl = document.getElementById('profileLocationAlert');
-        if (alertEl) {
-            const config = getProfileFieldConfig(role);
-            const _hasVillage = (Array.isArray(profile.villages) && profile.villages.length > 0) || !!profile.village;
-            const missingLocation = !profile.district || !profile.division || (config.requireMandal && !profile.mandal) || (config.requireVillage && !_hasVillage);
-            if (missingLocation) {
-                alertEl.classList.remove('hidden');
-            } else {
-                alertEl.classList.add('hidden');
-            }
         }
     });
 }
@@ -11556,17 +12255,18 @@ document.getElementById(
     const villages = taggedVillages.length ? taggedVillages : (legacyVillage ? [legacyVillage] : []);
     const village = villages[0] || ''; // primary/legacy single-village field
 
-    if (!district || !division) return alert('Please select District and Division.');
+    if (config.showDistrict && !district) return alert('Please select District.');
+    if (config.showDivision && !division) return alert('Please select Division.');
     if (config.requireMandal && !mandal) return alert('Please select your Mandal.');
     if (config.requireVillage && villages.length === 0) return alert('Please select your Village.');
 
     const pendingSig = window._pendingSignatureBase64 || null;
     const updateObj = {
         name,
-        district,
-        division,
         updatedAt: new Date().toISOString()
     };
+    if (config.showDistrict) updateObj.district = district;
+    if (config.showDivision) updateObj.division = division;
     if (config.requireMandal) updateObj.mandal = mandal;
     if (config.requireVillage) { updateObj.village = village; updateObj.villages = villages; updateObj.sachivalayam = sachivalayam; }
     if (pendingSig) updateObj.signatureBase64 = pendingSig;
@@ -11884,6 +12584,112 @@ const cropNPKRecommendations = new Proxy({}, {
         return undefined;
     }
 });
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  PERENNIAL CROPS — PLANT-WISE & AGE-WISE NPK (grams/plant/yr) ║
+// ║  These 11 tree/orchard crops get fertilizer dosed per PLANT,  ║
+// ║  varying by the plant's age, instead of a flat per-acre rate. ║
+// ║  Admin edits these in Admin Panel → "Crop NPK Settings" →     ║
+// ║  "Perennial Crops (Plant & Age-wise)" panel.                  ║
+// ║  ⚠️  Values are indicative defaults — Admin should verify      ║
+// ║      against local KVK / state package-of-practices figures.  ║
+// ╚══════════════════════════════════════════════════════════════╝
+const perennialCrops = [
+  "mango","coconut","cashew","guava","sapota","pomegranate",
+  "grapes","sweet_orange","acid_lime","cocoa","oilpalm"
+];
+function isPerennialCrop(cropKey) {
+    return perennialCrops.indexOf(String(cropKey || '').toLowerCase().trim()) !== -1;
+}
+
+// Age bands used for perennial dosing. '6+' = full bearing / mature —
+// dose plateaus from year 6 onward.
+const PERENNIAL_AGE_BANDS = ['1', '2', '3', '4', '5', '6+'];
+function perennialAgeBand(age) {
+    const n = Number(age);
+    if (!n || n < 1) return '1';
+    if (n >= 6) return '6+';
+    return String(Math.round(n));
+}
+
+const perennialNPKByAge = {
+  mango:        { '1':{N:50,P:25,K:50},    '2':{N:100,P:50,K:100},  '3':{N:150,P:75,K:150},  '4':{N:200,P:100,K:200}, '5':{N:250,P:125,K:250}, '6+':{N:500,P:250,K:500} },
+  coconut:      { '1':{N:100,P:50,K:100},  '2':{N:170,P:110,K:230}, '3':{N:250,P:160,K:350}, '4':{N:340,P:215,K:465}, '5':{N:430,P:270,K:580}, '6+':{N:500,P:320,K:1200} },
+  cashew:       { '1':{N:125,P:32,K:32},   '2':{N:250,P:63,K:63},   '3':{N:375,P:95,K:95},   '4':{N:500,P:125,K:125}, '5':{N:500,P:125,K:125}, '6+':{N:500,P:125,K:125} },
+  guava:        { '1':{N:100,P:50,K:50},   '2':{N:200,P:100,K:100}, '3':{N:300,P:150,K:150}, '4':{N:450,P:225,K:225}, '5':{N:600,P:300,K:300}, '6+':{N:600,P:300,K:300} },
+  sapota:       { '1':{N:150,P:75,K:75},   '2':{N:300,P:150,K:150}, '3':{N:500,P:250,K:250}, '4':{N:750,P:375,K:375}, '5':{N:1000,P:500,K:500}, '6+':{N:1000,P:500,K:500} },
+  pomegranate:  { '1':{N:125,P:50,K:50},   '2':{N:250,P:100,K:100}, '3':{N:375,P:150,K:150}, '4':{N:500,P:200,K:200}, '5':{N:625,P:250,K:250}, '6+':{N:625,P:250,K:250} },
+  grapes:       { '1':{N:150,P:100,K:150}, '2':{N:300,P:200,K:300}, '3':{N:450,P:300,K:450}, '4':{N:600,P:400,K:600}, '5':{N:750,P:500,K:750}, '6+':{N:750,P:500,K:750} },
+  sweet_orange: { '1':{N:100,P:35,K:35},   '2':{N:200,P:70,K:70},   '3':{N:300,P:105,K:105}, '4':{N:450,P:150,K:150}, '5':{N:600,P:200,K:200}, '6+':{N:600,P:200,K:200} },
+  acid_lime:    { '1':{N:60,P:30,K:30},    '2':{N:120,P:60,K:60},   '3':{N:200,P:100,K:100}, '4':{N:275,P:140,K:140}, '5':{N:350,P:175,K:175}, '6+':{N:350,P:175,K:175} },
+  cocoa:        { '1':{N:20,P:10,K:20},    '2':{N:40,P:20,K:40},    '3':{N:70,P:30,K:70},    '4':{N:100,P:45,K:100},  '5':{N:140,P:60,K:140},  '6+':{N:140,P:60,K:140} },
+  oilpalm:      { '1':{N:170,P:115,K:170}, '2':{N:340,P:230,K:340}, '3':{N:500,P:340,K:500}, '4':{N:620,P:420,K:750}, '5':{N:750,P:500,K:1000},'6+':{N:750,P:500,K:1000} }
+};
+
+// Frozen snapshot of the built-in perennial NPK-by-age values, captured
+// BEFORE any Admin edits are applied. Used by "Reset to Default".
+const perennialNPKByAgeDefaults = JSON.parse(JSON.stringify(perennialNPKByAge));
+
+// Returns the per-plant {N,P,K} dose (grams/plant/year) for a perennial
+// crop at a given plant age, falling back to the '6+' (full bearing) band.
+function getPerennialPlantDose(cropKey, age) {
+    const crop = String(cropKey || '').toLowerCase().trim();
+    const table = perennialNPKByAge[crop];
+    if (!table) return { N: 0, P: 0, K: 0 };
+    const band = perennialAgeBand(age);
+    return table[band] || table['6+'] || { N: 0, P: 0, K: 0 };
+}
+
+// ── Merge a perennialNPKOverrides snapshot from Firebase into the live
+//    perennialNPKByAge object (mutated in place), same real-time pattern
+//    as applyCropNPKOverrides. ──
+window.applyPerennialNPKOverrides = function(overrides) {
+    if (!overrides || typeof overrides !== 'object') return;
+    Object.keys(overrides).forEach(cropKey => {
+        if (!perennialNPKByAge[cropKey]) return; // only built-in perennial crops
+        const ov = overrides[cropKey] || {};
+        const years = ov.years || {};
+        Object.keys(years).forEach(band => {
+            const v = years[band];
+            if (!v) return;
+            perennialNPKByAge[cropKey][band] = {
+                N: Number(v.N) || 0,
+                P: Number(v.P) || 0,
+                K: Number(v.K) || 0
+            };
+        });
+    });
+};
+
+// ── Total {N,P,K} in KG for ONE farmer-profile crop entry. ──
+// Perennial crops (crop entry has plantAge + plantsPerAcre saved) are
+// computed as: per-plant dose (grams, looked up by age) × total plants
+// (extent acres × plantsPerAcre). Every other crop falls back to the
+// existing flat per-acre-dose × extent calculation, unchanged.
+function getCropEntryNPKTotals(cropEntry) {
+    const crop   = (cropEntry.crop || '').toLowerCase().trim();
+    const extent = Number(cropEntry.extent || 0);
+    const season = cropEntry.season || 'Kharif';
+
+    if (isPerennialCrop(crop) && Number(cropEntry.plantsPerAcre) > 0) {
+        const dose = getPerennialPlantDose(crop, cropEntry.plantAge);
+        const totalPlants = extent * Number(cropEntry.plantsPerAcre);
+        return {
+            N: (Number(dose.N) || 0) / 1000 * totalPlants,
+            P: (Number(dose.P) || 0) / 1000 * totalPlants,
+            K: (Number(dose.K) || 0) / 1000 * totalPlants
+        };
+    }
+
+    const recKey = cropNPKRecommendations[crop];
+    const rec = recKey ? (recKey[season] || recKey['Kharif'] || Object.values(recKey)[0]) : null;
+    if (!rec) return { N: 0, P: 0, K: 0 };
+    return {
+        N: (Number(rec.N) || 0) * extent,
+        P: (Number(rec.P) || 0) * extent,
+        K: (Number(rec.K) || 0) * extent
+    };
+}
 
 // ============================================================
 //  CROP RECOMMENDATION CARD — FERTILIZER SCHEDULE DATA
@@ -12355,6 +13161,22 @@ function clearPestDisease() {
     if (ageSec) ageSec.classList.add('d-none');
 }
 function hideRecommendation()    { document.getElementById('recommendationBox').style.display = 'none'; }
+
+// Print ONLY the recommendation box (Fertilizer NPK or Pest/Disease card) —
+// not the rest of the currently-open page. A body class flips on a scoped
+// @media print rule (defined once, near the top of <style>) that hides every
+// other top-level element while #recommendationBox is being printed.
+function printRecommendationBox() {
+    document.body.classList.add('printing-recommendation-only');
+    const _restore = () => {
+        document.body.classList.remove('printing-recommendation-only');
+        window.removeEventListener('afterprint', _restore);
+    };
+    window.addEventListener('afterprint', _restore);
+    window.print();
+    // Fallback in case the browser doesn't fire afterprint (rare, but seen on some mobile browsers)
+    setTimeout(_restore, 3000);
+}
 function hideFertilizerSchedule(){ document.getElementById('fertilizerScheduleSection').style.display = 'none'; }
 
 // ─── Close button — dismiss the recommendation result entirely ──────────────
@@ -12561,7 +13383,7 @@ function getRecommendation() {
               <button class="btn btn-sm btn-outline-primary" onclick="translateRecommendationBox(this)" title="Translate to Telugu">
                 <i class="fas fa-language"></i> తెలుగు
               </button>
-              <button class="btn btn-sm btn-outline-secondary" onclick="window.print()" title="Print">
+              <button class="btn btn-sm btn-outline-secondary" onclick="printRecommendationBox()" title="Print">
                 <i class="fas fa-print"></i>
               </button>
               <button class="btn btn-sm btn-outline-danger" onclick="closeRecommendationBox()" title="Close">
@@ -12652,7 +13474,7 @@ function getRecommendation() {
               <button class="btn btn-sm btn-outline-primary" onclick="translateRecommendationBox(this)" title="Translate to Telugu">
                 <i class="fas fa-language"></i> తెలుగు
               </button>
-              <button class="btn btn-sm btn-outline-secondary" onclick="window.print()" title="Print">
+              <button class="btn btn-sm btn-outline-secondary" onclick="printRecommendationBox()" title="Print">
                 <i class="fas fa-print"></i>
               </button>
               <button class="btn btn-sm btn-outline-danger" onclick="closeRecommendationBox()" title="Close">
@@ -14752,16 +15574,17 @@ function buildCropCumulativeSummary(aadhaar) {
             const useSeason = season || cSeason;
             const useYear   = year   || cYear;
 
-            const recKey = cropNPKRecommendations[crop.toLowerCase()];
-            const rec    = recKey
-                ? (recKey[useSeason] || recKey['Kharif'] || Object.values(recKey)[0])
-                : null;
+            // Perennial crops (Mango, Coconut, Cashew, etc.) with a saved
+            // plantAge + plantsPerAcre are dosed per-plant/age-wise; every
+            // other crop keeps the existing flat per-acre × extent calc.
+            // getCropEntryNPKTotals() handles both cases and returns kg totals.
+            const totals = getCropEntryNPKTotals(Object.assign({}, cropEntry, { season: useSeason }));
 
             const UREA_N = 20.7; // kg N per 45-kg Urea bag (46% N)
             const DAP_P  = 23;   // kg P per 50-kg DAP  bag (46% P₂O₅)
             const effExt = cropExtent;
-            const eligUrea = rec ? bagRound((Number(rec.N) || 0) * effExt / UREA_N) : 0;
-            const eligDAP  = rec ? capPaddyDapBags(crop, bagRound((Number(rec.P) || 0) * effExt / DAP_P), effExt)  : 0;
+            const eligUrea = bagRound(totals.N / UREA_N);
+            const eligDAP  = capPaddyDapBags(crop, bagRound(totals.P / DAP_P), effExt);
 
             if (!cropMap[crop]) {
                 cropMap[crop] = {
@@ -14862,6 +15685,10 @@ function updateBagRecommendation() {
 
     let extent = 0;
     let blocked = false;
+    // Perennial crops (Mango, Coconut, Cashew, etc.) dose per-plant/age-wise
+    // rather than flat per-acre; accumulate their kg totals directly across
+    // every matched crop entry (each may have its own plant age / density).
+    let plantTotals = null;
 
     if (aadhaar.length === 12 && farmerProfiles[aadhaar]?.length) {
         let found = false;
@@ -14882,6 +15709,14 @@ function updateBagRecommendation() {
 
                 extent += Number(c.extent || 0);
                 found = true;
+
+                if (isPerennialCrop(crop)) {
+                    const t = getCropEntryNPKTotals(Object.assign({}, c, { season: c.season || season }));
+                    if (!plantTotals) plantTotals = { N: 0, P: 0, K: 0 };
+                    plantTotals.N += t.N;
+                    plantTotals.P += t.P;
+                    plantTotals.K += t.K;
+                }
             });
         });
 
@@ -14896,11 +15731,15 @@ function updateBagRecommendation() {
 
     const ureaBags = blocked
         ? 0
-        : bagRound((rec.N * effectiveExtent) / 46 * 100 / 45);
+        : (plantTotals
+            ? bagRound(plantTotals.N / 46 * 100 / 45)
+            : bagRound((rec.N * effectiveExtent) / 46 * 100 / 45));
 
     const dapBags = blocked
         ? 0
-        : capPaddyDapBags(crop, bagRound((rec.P * effectiveExtent) / 46 * 100 / 50), effectiveExtent);
+        : (plantTotals
+            ? capPaddyDapBags(crop, bagRound(plantTotals.P / 46 * 100 / 50), effectiveExtent)
+            : capPaddyDapBags(crop, bagRound((rec.P * effectiveExtent) / 46 * 100 / 50), effectiveExtent));
 
     const fert = getSelectedFertilizer();
     const totalEligible = fert === 'Urea' ? ureaBags : dapBags;
@@ -17985,7 +18824,19 @@ async function saveFarmerProfile() {
         // Convert display name back to key (e.g., "Sweet Corn" -> "sweet_corn")
         const cropKey = cropDisplay.toLowerCase().replace(/\s+/g, '_');
 
-        crops.push({ crop: cropKey, extent: ext, year: selectedYear, season: selectedSeason, surveyNos });
+        const cropEntry = { crop: cropKey, extent: ext, year: selectedYear, season: selectedSeason, surveyNos };
+
+        // Perennial crops (Mango, Coconut, Cashew, etc.) need Plant Age +
+        // Plants per Acre so NPK can be cumulated plant-wise, age-wise.
+        if (isPerennialCrop(cropKey)) {
+            const plantsPerAcre = parseFloat(row.querySelector('.fp-plants-per-acre')?.value) || 0;
+            const plantAge = row.querySelector('.fp-plant-age')?.value || '1';
+            if (plantsPerAcre <= 0) return alert(`Enter Plants per Acre for perennial crop: ${cropDisplay}`);
+            cropEntry.plantAge = plantAge;
+            cropEntry.plantsPerAcre = plantsPerAcre;
+        }
+
+        crops.push(cropEntry);
         cropExtentSum += ext;
     }
 
@@ -18287,10 +19138,75 @@ function addFpCropRow() {
               </button>
             </div>
           </div>
+          <!-- Perennial crop fields (Mango, Coconut, Cashew, etc.) — shown only
+               when the selected crop is a perennial/orchard crop. NPK for these
+               is dosed per-plant, age-wise, then cumulated across all plants. -->
+          <div class="fp-perennial-fields d-none mt-2 d-flex gap-2 align-items-end flex-wrap"
+               style="background:#f4fbf7; border:1px dashed #a9dfbf; border-radius:8px; padding:0.5rem 0.6rem;">
+            <div style="flex:1; min-width:150px;">
+              <label class="form-label form-label-sm mb-1 text-muted" style="font-size:0.7rem;">
+                <i class="fas fa-seedling me-1" style="color:#27ae60;"></i>Plant Age (Years)
+              </label>
+              <select class="form-select form-select-sm fp-plant-age" onchange="onFpCropOrExtentChange()">
+                <option value="1">Year 1</option>
+                <option value="2">Year 2</option>
+                <option value="3">Year 3</option>
+                <option value="4">Year 4</option>
+                <option value="5">Year 5</option>
+                <option value="6+">6+ Years / Full Bearing</option>
+              </select>
+            </div>
+            <div style="flex:1; min-width:150px;">
+              <label class="form-label form-label-sm mb-1 text-muted" style="font-size:0.7rem;">
+                <i class="fas fa-th me-1" style="color:#27ae60;"></i>Plants per Acre
+              </label>
+              <input type="number" class="form-control form-control-sm fp-plants-per-acre"
+                     placeholder="e.g. 40" min="1" step="1"
+                     oninput="onFpCropOrExtentChange()">
+            </div>
+            <div class="fp-perennial-total-hint" style="flex:2; min-width:180px; font-size:0.7rem; color:#1e8449; font-weight:600;"></div>
+          </div>
           ${!availableSurveyOpts.length ? `<div style="font-size:0.68rem; color:#7f8c8d; margin-top:3px;"><i class="fas fa-info-circle me-1"></i>All survey numbers for this Khatha have been assigned to other crops.</div>` : ''}
         </div>
     `;
     container.appendChild(row);
+}
+
+// Show/hide + (re)compute the Plant Age / Plants-per-Acre panel for one
+// crop row, based on whether the currently selected crop is perennial.
+function toggleFpPerennialFields(row) {
+    if (!row) return;
+    const hidden = row.querySelector('.fp-crop-select');
+    const cropDisplay = hidden ? hidden.value.trim() : '';
+    const cropKey = cropDisplay.toLowerCase().replace(/\s+/g, '_');
+    const wrap = row.querySelector('.fp-perennial-fields');
+    if (!wrap) return;
+    if (cropDisplay && isPerennialCrop(cropKey)) {
+        wrap.classList.remove('d-none');
+    } else {
+        wrap.classList.add('d-none');
+    }
+    updateFpPerennialTotalHint(row, cropKey);
+}
+
+// Small live hint showing the cumulated per-acre-equivalent NPK once
+// Plant Age + Plants per Acre are filled in, so the VO can see the effect
+// before saving.
+function updateFpPerennialTotalHint(row, cropKey) {
+    const hintEl = row.querySelector('.fp-perennial-total-hint');
+    if (!hintEl) return;
+    const ageSel = row.querySelector('.fp-plant-age');
+    const ppaInp = row.querySelector('.fp-plants-per-acre');
+    const extInp = row.querySelector('.fp-crop-extent');
+    const plantsPerAcre = Number(ppaInp?.value || 0);
+    const extent = Number(extInp?.value || 0);
+    if (!cropKey || !isPerennialCrop(cropKey) || !plantsPerAcre) { hintEl.textContent = ''; return; }
+    const dose = getPerennialPlantDose(cropKey, ageSel?.value);
+    const totalPlants = extent > 0 ? extent * plantsPerAcre : plantsPerAcre;
+    const N = (dose.N / 1000 * totalPlants).toFixed(1);
+    const P = (dose.P / 1000 * totalPlants).toFixed(1);
+    const K = (dose.K / 1000 * totalPlants).toFixed(1);
+    hintEl.innerHTML = `≈ ${totalPlants} plants → N ${N} kg · P ${P} kg · K ${K} kg total`;
 }
 // Global function declarations for survey blocking
 // Returns { surveyNo: extentAlreadyConsumedWithinThisForm } across all crop rows
@@ -18546,7 +19462,10 @@ function selectFpCrop(option) {
     hidden.value = option.dataset.display;
     
     if (list) list.style.display = 'none';
-    
+
+    // Show/hide the Plant Age + Plants-per-Acre panel for perennial crops
+    toggleFpPerennialFields(wrapper.closest('.fp-crop-row'));
+
     // Trigger extent recalculation
     onFpCropOrExtentChange();
 }
@@ -18712,6 +19631,12 @@ function onFpCropOrExtentChange() {
     cropRows.forEach(row => {
         const ext = parseFloat(row.querySelector('.fp-crop-extent')?.value || 0);
         if (ext > 0) sumExt += ext;
+
+        // Keep each row's perennial NPK hint (plants × per-plant dose) live
+        const hidden = row.querySelector('.fp-crop-select');
+        const cropDisplay = hidden ? hidden.value.trim() : '';
+        const cropKey = cropDisplay.toLowerCase().replace(/\s+/g, '_');
+        if (row.querySelector('.fp-perennial-fields')) updateFpPerennialTotalHint(row, cropKey);
     });
 
     const remaining = totalExt - sumExt;
@@ -19935,6 +20860,17 @@ function loadProfileIntoForm(profile, fillAadhaar = true) {
             }
             
             rows[i].querySelector('.fp-crop-extent').value = c.extent || '';
+
+            // Restore Plant Age / Plants-per-Acre for perennial crops, and
+            // show/hide that panel based on the loaded crop.
+            toggleFpPerennialFields(rows[i]);
+            if (isPerennialCrop(c.crop)) {
+                const ageSel = rows[i].querySelector('.fp-plant-age');
+                const ppaInp = rows[i].querySelector('.fp-plants-per-acre');
+                if (ageSel) ageSel.value = c.plantAge || '1';
+                if (ppaInp) ppaInp.value = c.plantsPerAcre || '';
+                updateFpPerennialTotalHint(rows[i], c.crop);
+            }
 
             if (c.surveyNos) {
                 const panel = rows[i].querySelector('.fp-survey-panel');
@@ -26097,6 +27033,11 @@ function _adminRenderOfficersList(container, officers) {
                             onclick="openEditUserModal('${o.uid}')">
                             <i class="fas fa-edit"></i> Edit
                         </button>
+                        ${o.role === 'village_officer' ? `
+                        <button class="btn btn-outline-warning btn-sm px-2 py-1" title="Transfer this Village Officer's data to another account"
+                            onclick="openTransferVoModal('${o.uid}')">
+                            <i class="fas fa-right-left"></i>
+                        </button>` : ''}
                         <button class="btn btn-outline-danger btn-sm px-2 py-1" title="Delete User"
                             onclick="openDeleteUserModal('${o.uid}')">
                             <i class="fas fa-trash-alt"></i>
@@ -26627,6 +27568,19 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             return { locked: false };
         }
 
+        // ── VO EXPLICIT UNLOCK OVERRIDE ──
+        // If the VO has explicitly unlocked a split from the VO panel (an actual
+        // splitLocks/s{si} record exists with locked:false — as opposed to no
+        // record at all, which is just the untouched default), that manual
+        // action should win over the automatic 15-day timer for THAT split.
+        // Once a VO unlocks Split 2, Split 2 must be shown for every farmer in
+        // the village immediately, without waiting for each farmer's individual
+        // 15-day clock to elapse.
+        function _isVoExplicitlyUnlocked(si) {
+            const sl = (_voRestrictions.splitLocks || {})['s' + si];
+            return !!(sl && sl.locked === false);
+        }
+
         // ── BACKFILL: splitFirstDistributed for bags issued before this field existed ──
         // Some retailer distribution paths historically didn't write this field, so a
         // split can have availed bags with no recorded lock-start date — meaning the
@@ -26736,7 +27690,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             for (let prev = 0; prev < si; prev++) {
                 if ((eligArr[prev] || 0) > 0 && _availed(fert, prev) === 0) return false;
             }
-            if (si > 0) {
+            if (si > 0 && !_isVoExplicitlyUnlocked(si)) {
                 const lockInfo = _splitLockStatus(fert, si - 1);
                 if (lockInfo && lockInfo.locked) return false;
             }
@@ -26764,11 +27718,12 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             const readyD = _isFertReadyForSplit('DAP', si, eD, avD, remD);
 
             // Collapse logic:
-            //  - Active split (first incomplete) → expanded
+            //  - Active split (first incomplete, OR actually ready to distribute
+            //    right now — e.g. a later split the VO has explicitly unlocked) → expanded
             //  - Completed splits → collapsed (tap header to view history)
-            //  - Future splits (beyond active) → collapsed (not yet unlocked)
-            const isActive  = si === _activeSplitIdx;
-            const isFuture  = _activeSplitIdx !== -1 && si > _activeSplitIdx;
+            //  - Future splits (beyond active AND not yet ready) → collapsed (not yet unlocked)
+            const isActive  = !allDone && (si === _activeSplitIdx || readyU || readyD);
+            const isFuture  = !allDone && !isActive && _activeSplitIdx !== -1 && si > _activeSplitIdx;
             const isCollapsed = !isActive; // only active split is open by default
             const _collapseId = 'splitCollapse_' + fcKey + '_' + si;
 
@@ -26868,7 +27823,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                     // Split 0 (the first split) has no prior split, so it's never
                     // time-locked. For split si > 0, check the immediately preceding
                     // split's first-avail date.
-                    if (si > 0) {
+                    if (si > 0 && !_isVoExplicitlyUnlocked(si)) {
                         const lockInfoU = _splitLockStatus('Urea', si - 1);
                         const lockInfoD = _splitLockStatus('DAP', si - 1);
                         if (!lockedU && remU > 0 && lockInfoU.locked) {
@@ -26880,6 +27835,9 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                             lockedReasonD = `__15DAY__DAP__${lockInfoD.daysLeft}__${lockInfoD.unlockDateStr}__${lockInfoD.firstDateStr}`;
                         }
                     }
+                    // si > 0 && VO explicitly unlocked this split → 15-day timer is
+                    // bypassed entirely; Split ${si+1} becomes available to every
+                    // farmer in the village as soon as the VO turns it on.
 
                     // ── VO Village-level Split Lock (manual override from VO panel) ──
                     const _revalU = typeof _evalFertRestrictions === 'function'
@@ -27893,6 +28851,24 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         const extent       = cardData.extent      || '';
         const serialNo     = cardData.serialNo    || '';
 
+        // ── Fetch VO restrictions early — needed by both the 15-day guard below
+        //    (to honour an explicit VO unlock override) and the VO bag-cap guard
+        //    further down. ──
+        let _serverVoRestrictions = {};
+        if (voUidForHist && village) {
+            try {
+                _serverVoRestrictions = (await window._fetchFertRestrictions(voUidForHist, village)) || {};
+            } catch(_e) { _serverVoRestrictions = {}; }
+        }
+        // A split is "explicitly unlocked by the VO" when an actual
+        // splitLocks/s{si} record exists with locked:false (as opposed to no
+        // record at all). That manual VO action overrides the 15-day timer for
+        // every farmer in the village.
+        function _isVoExplicitlyUnlockedServer(si) {
+            const sl = (_serverVoRestrictions.splitLocks || {})['s' + si];
+            return !!(sl && sl.locked === false);
+        }
+
         // ══════════════════════════════════════════════════════════════════════
         //  15-DAY NEXT-SPLIT LOCK — SERVER-SIDE GUARD
         //  A split is never time-locked by its OWN first-avail date — only by
@@ -27900,12 +28876,15 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         //  so it is never time-locked (only the remaining-bags cap applies to it).
         //  Day-counting is INCLUSIVE (first-avail day = day 1), matching the
         //  display-side _splitLockStatus(): unlock = firstDate + 14 days.
+        //  If the VO has explicitly unlocked this split from the VO panel, that
+        //  override wins and the 15-day wait is skipped for every farmer.
         // ══════════════════════════════════════════════════════════════════════
         const _LOCK_DAYS = 15;
         const _sfdSnap = await database.ref('fertilizerCards/' + fcKey + '/splitFirstDistributed').once('value');
         const _sfd = _sfdSnap.val() || {};
         for (const entry of entries) {
             if (entry.splitIdx <= 0) continue; // first split is never time-locked
+            if (_isVoExplicitlyUnlockedServer(entry.splitIdx)) continue; // VO override wins
             const _prevSplitIdx = entry.splitIdx - 1;
             const _stored = ((_sfd[entry.fert] || {})['s' + _prevSplitIdx]);
             if (_stored) {
@@ -28024,11 +29003,6 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
         //  exceeds the VO's bag-rule limit for the farmer's extent.
         // ══════════════════════════════════════════════════════════════════════
         if (voUidForHist && village) {
-            let _serverVoRestrictions = {};
-            try {
-                _serverVoRestrictions = (await window._fetchFertRestrictions(voUidForHist, village)) || {};
-            } catch(_e) { _serverVoRestrictions = {}; }
-
             const _farmerExtent = parseFloat(extent) || 0;
             for (const entry of entries) {
                 const _eval = (typeof window._evalFertRestrictions === 'function')
@@ -30378,10 +31352,31 @@ function renderProfileVillageTags(villageArray) {
         `<span class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
             style="background:#1862ab;color:#fff;border-radius:20px;font-size:0.8rem;font-weight:600;">
             <i class="fas fa-map-marker-alt" style="font-size:0.7rem;"></i>${escapeHtml(v)}
-            <span role="button" style="cursor:pointer;opacity:0.75;font-size:0.85rem;line-height:1;"
-                onclick="removeProfileVillageTag('${v.replace(/'/g, "\\'")}')">✕</span>
+            ${_profileLocationLocked ? '' : `<span role="button" style="cursor:pointer;opacity:0.75;font-size:0.85rem;line-height:1;"
+                onclick="removeProfileVillageTag('${v.replace(/'/g, "\\'")}')">✕</span>`}
         </span>`
     ).join('');
+}
+
+/**
+ * Lock/unlock the District, Mandal & Village fields on the Profile page.
+ * Once all three have been set for an officer, they can no longer self-edit
+ * them — only an Admin can change them from the Admin panel.
+ */
+function applyProfileLocationLock(locked) {
+    _profileLocationLocked = !!locked;
+    const districtSelect = document.getElementById('profileDistrict');
+    const mandalSelect = document.getElementById('profileMandal');
+    const villageSelect = document.getElementById('profileVillage');
+    const noteEl = document.getElementById('profileLocationLockedNote');
+    [districtSelect, mandalSelect, villageSelect].forEach(el => {
+        if (el) el.disabled = _profileLocationLocked;
+    });
+    if (noteEl) noteEl.classList.toggle('hidden', !_profileLocationLocked);
+    // Re-render tags so the ✕ remove buttons reflect the lock state
+    const hiddenInput = document.getElementById('profileVillagesHidden');
+    const current = hiddenInput && hiddenInput.value ? hiddenInput.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+    renderProfileVillageTags(current);
 }
 
 /** Add a village to the tag list (called by the village <select> onchange). */
@@ -31459,6 +32454,65 @@ function pollVoDeleteApprovals() {
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
+     TRANSFER VILLAGE OFFICER — move all village data to another account
+     (e.g. when a VO is replaced by a new officer)
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="transferVoModal" tabindex="-1" aria-labelledby="transferVoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="border-radius:16px;">
+      <div class="modal-header" style="background:linear-gradient(135deg,#e67e22,#d35400);color:white;border-radius:16px 16px 0 0;">
+        <h5 class="modal-title fw-bold" id="transferVoModalLabel"><i class="fas fa-right-left me-2"></i>Transfer Village Officer</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="alert alert-light border py-2 small mb-3">
+          <i class="fas fa-circle-info me-1"></i>
+          Use this when a Village Officer is being replaced. It moves the village's farmers, distribution history, split-locks/booster-dose settings and fertilizer cards from the old officer's login to another account — no data re-entry needed.
+        </div>
+
+        <div class="p-3 mb-3" style="background:#f8f9fa;border-radius:10px;">
+          <div class="small text-muted fw-semibold mb-1"><i class="fas fa-user me-1"></i>From (current officer)</div>
+          <div class="fw-bold" id="transferVoSourceName">—</div>
+          <div class="text-muted small" id="transferVoSourceEmail">—</div>
+          <div class="text-muted small" id="transferVoSourceLocation">—</div>
+          <input type="hidden" id="transferVoSourceUID" />
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label fw-semibold small">To (receiving account)</label>
+          <select class="form-select" id="transferVoTargetSelect" onchange="onTransferVoTargetChange()">
+            <option value="">-- Select target account --</option>
+          </select>
+          <div class="form-text">The receiving account must already exist — create its login first (Create Village Officer Login) if it doesn't.</div>
+        </div>
+        <div id="transferVoTargetManualWrap" class="hidden mb-3">
+          <label class="form-label fw-semibold small">Target account UID</label>
+          <input type="text" class="form-control" id="transferVoTargetManualUid" placeholder="Paste the target account's UID">
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="transferVoLockOld" checked>
+          <label class="form-check-label small" for="transferVoLockOld">
+            Lock the old account after transfer (changes its password so it can no longer be used to log in)
+          </label>
+        </div>
+
+        <div class="alert alert-warning py-2 text-start small mb-0">
+          <i class="fas fa-exclamation-circle me-1"></i>
+          <strong>This cannot be undone.</strong> The target account's existing farmer/distribution data (if any) will be replaced with the source officer's data.
+        </div>
+
+        <div id="transferVoStatus" class="mt-2"></div>
+      </div>
+      <div class="modal-footer justify-content-center" style="border-top:1px solid #e0e6ed;">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-warning fw-semibold px-4 text-white" onclick="confirmTransferVo()"><i class="fas fa-right-left me-2"></i>Transfer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
      CLOUD STORAGE USED — POPUP (card-wise breakup)
      ══════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="cloudStorageModal" tabindex="-1" aria-labelledby="cloudStorageModalLabel" aria-hidden="true">
@@ -31594,6 +32648,11 @@ async function _adminFetchAllUsersLight(container) {
                             onclick="openEditUserModal('${u.uid}')">
                             <i class="fas fa-edit"></i> Edit
                         </button>
+                        ${u.role === 'village_officer' ? `
+                        <button class="btn btn-outline-warning btn-sm px-2 py-1" title="Transfer this Village Officer's data to another account"
+                            onclick="openTransferVoModal('${u.uid}')">
+                            <i class="fas fa-right-left"></i>
+                        </button>` : ''}
                         <button class="btn btn-outline-danger btn-sm px-2 py-1" title="Delete User"
                             onclick="openDeleteUserModal('${u.uid}')">
                             <i class="fas fa-trash-alt"></i>
@@ -31930,6 +32989,166 @@ async function confirmDeleteUser() {
         }, 1400);
 
     } catch(err) {
+        statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+// ============================================================
+//  ADMIN: TRANSFER VILLAGE OFFICER — move all village data from
+//  one account (e.g. an officer who has left) to another account
+//  (e.g. the replacement officer), without any re-entry.
+// ============================================================
+function openTransferVoModal(uid) {
+    const u = (window._adminUsersMap || {})[uid];
+    if (!u) { alert('User data not found. Please refresh the list.'); return; }
+
+    document.getElementById('transferVoSourceUID').value = uid;
+    document.getElementById('transferVoSourceName').textContent = u.name || '—';
+    document.getElementById('transferVoSourceEmail').textContent = u.email || '—';
+    const loc = [u.village, u.mandal, u.district].filter(x => x && x !== '—').join(', ');
+    document.getElementById('transferVoSourceLocation').textContent = loc || '—';
+
+    const sel = document.getElementById('transferVoTargetSelect');
+    const others = Object.values(window._adminUsersMap || {})
+        .filter(x => x.uid !== uid)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    sel.innerHTML = '<option value="">-- Select target account --</option>' +
+        others.map(o => `<option value="${o.uid}">${escapeHtml(o.name || o.email)} — ${escapeHtml(o.email)} (${escapeHtml(o.roleLabel || o.role || '')})</option>`).join('') +
+        '<option value="__manual__">✍️ Enter UID manually…</option>';
+
+    document.getElementById('transferVoTargetManualWrap').classList.add('hidden');
+    document.getElementById('transferVoTargetManualUid').value = '';
+    document.getElementById('transferVoLockOld').checked = true;
+    document.getElementById('transferVoStatus').innerHTML = '';
+
+    const modal = new bootstrap.Modal(document.getElementById('transferVoModal'));
+    modal.show();
+}
+
+function onTransferVoTargetChange() {
+    const sel = document.getElementById('transferVoTargetSelect');
+    const wrap = document.getElementById('transferVoTargetManualWrap');
+    if (wrap) wrap.classList.toggle('hidden', sel.value !== '__manual__');
+}
+
+async function confirmTransferVo() {
+    const oldUid = document.getElementById('transferVoSourceUID').value;
+    const sel = document.getElementById('transferVoTargetSelect');
+    let newUid = sel.value === '__manual__'
+        ? document.getElementById('transferVoTargetManualUid').value.trim()
+        : sel.value;
+    const statusEl = document.getElementById('transferVoStatus');
+
+    if (!oldUid) { statusEl.innerHTML = '<div class="alert alert-danger py-2">Missing source account.</div>'; return; }
+    if (!newUid) { statusEl.innerHTML = '<div class="alert alert-danger py-2">Please choose or enter a target account.</div>'; return; }
+    if (newUid === oldUid) { statusEl.innerHTML = '<div class="alert alert-danger py-2">Source and target cannot be the same account.</div>'; return; }
+    if (!confirm('This will move ALL village data (farmers, distribution history, restrictions, fertilizer cards) from the old officer to the new account, and cannot be undone. Continue?')) return;
+
+    statusEl.innerHTML = '<div class="alert alert-info py-2"><i class="fas fa-spinner fa-spin me-2"></i>Transferring data — this may take a moment...</div>';
+
+    try {
+        // 1. Make sure the target account actually exists
+        const targetProfileSnap = await database.ref('users/' + newUid + '/profile').once('value');
+        if (!targetProfileSnap.exists()) {
+            statusEl.innerHTML = '<div class="alert alert-danger py-2">Target account not found. Create the new officer\'s login first (Create Village Officer Login), then transfer to it.</div>';
+            return;
+        }
+
+        // 2. Fetch the outgoing officer's full data
+        const sourceSnap = await database.ref('users/' + oldUid).once('value');
+        const source = sourceSnap.val() || {};
+        const sourceProfile = source.profile || {};
+        const villagesToMove = Array.isArray(sourceProfile.villages) && sourceProfile.villages.length
+            ? sourceProfile.villages : (sourceProfile.village ? [sourceProfile.village] : []);
+
+        // 3. Copy location + operational data onto the target account
+        const updates = {};
+        updates[`users/${newUid}/profile/village`]  = sourceProfile.village || null;
+        updates[`users/${newUid}/profile/villages`] = sourceProfile.villages || (sourceProfile.village ? [sourceProfile.village] : null);
+        updates[`users/${newUid}/profile/mandal`]   = sourceProfile.mandal || null;
+        updates[`users/${newUid}/profile/district`] = sourceProfile.district || null;
+        updates[`users/${newUid}/profile/division`] = sourceProfile.division || null;
+        if (sourceProfile.sachivalayam !== undefined) updates[`users/${newUid}/profile/sachivalayam`] = sourceProfile.sachivalayam;
+        ['farmerProfiles', 'ureaHistory', 'voUreaHistory', 'reports', 'allReports', 'retailerStock'].forEach(key => {
+            if (source[key] !== undefined) updates[`users/${newUid}/${key}`] = source[key];
+        });
+        await database.ref().update(updates);
+
+        // 4. Move split-locks / booster-dose settings and the fast village lookup index
+        if (villagesToMove.length) {
+            const [restrSnap, boosterSnap] = await Promise.all([
+                database.ref('voRestrictions/' + oldUid).once('value'),
+                database.ref('voBoosterDose/' + oldUid).once('value')
+            ]);
+            const migUpdates = {};
+            if (restrSnap.val())  migUpdates['voRestrictions/' + newUid] = restrSnap.val();
+            if (boosterSnap.val()) migUpdates['voBoosterDose/' + newUid] = boosterSnap.val();
+            villagesToMove.forEach(v => {
+                const slug = (typeof _voVillageSlug === 'function') ? _voVillageSlug(v) : '';
+                if (slug) migUpdates['voVillageIndex/' + slug] = { uid: newUid, village: v, indexedAt: new Date().toISOString() };
+            });
+            if (Object.keys(migUpdates).length) await database.ref().update(migUpdates);
+        }
+
+        // 5. Reassign fertilizer cards (indexed on voUid) so retailer QR scans find the new account
+        let cardCount = 0;
+        try {
+            const cardsSnap = await database.ref('fertilizerCards').orderByChild('voUid').equalTo(oldUid).once('value');
+            const cardsVal = cardsSnap.val() || {};
+            const cardKeys = Object.keys(cardsVal);
+            cardCount = cardKeys.length;
+            if (cardKeys.length) {
+                const cardUpdates = {};
+                cardKeys.forEach(k => { cardUpdates[`fertilizerCards/${k}/voUid`] = newUid; });
+                await database.ref().update(cardUpdates);
+            }
+        } catch (e) {
+            console.error('fertilizerCards voUid reassignment failed:', e);
+        }
+
+        // 6. Optionally lock the old account so it can no longer be used to log in
+        let lockMsg = '';
+        if (document.getElementById('transferVoLockOld').checked) {
+            const proxyUrl = window.APFR_PROXY_URL;
+            const randomPw = 'locked-' + Math.random().toString(36).slice(2, 10) + Date.now();
+            if (proxyUrl) {
+                try {
+                    const r = await fetch(`${proxyUrl}/admin/set-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid: oldUid, password: randomPw })
+                    });
+                    const d = await r.json();
+                    lockMsg = d.success
+                        ? '<div class="alert alert-success py-2 mt-1 small"><i class="fas fa-lock me-1"></i>Old account locked — it can no longer log in.</div>'
+                        : '<div class="alert alert-warning py-2 mt-1 small"><i class="fas fa-exclamation-triangle me-1"></i>Data transferred, but the old account could not be locked automatically.</div>';
+                } catch (e) {
+                    lockMsg = '<div class="alert alert-warning py-2 mt-1 small"><i class="fas fa-exclamation-triangle me-1"></i>Data transferred, but the old account could not be locked automatically.</div>';
+                }
+            } else {
+                lockMsg = '<div class="alert alert-warning py-2 mt-1 small"><i class="fas fa-exclamation-triangle me-1"></i>Data transferred. Locking the old account requires Admin SDK — contact system admin.</div>';
+            }
+        }
+
+        statusEl.innerHTML = `<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>Transfer complete — village data, restrictions${cardCount ? `, and ${cardCount} fertilizer card(s)` : ''} moved to the new account.</div>${lockMsg}`;
+
+        // Refresh in-memory map + lists
+        if (window._adminUsersMap && window._adminUsersMap[newUid]) {
+            Object.assign(window._adminUsersMap[newUid], {
+                district: sourceProfile.district || '—',
+                division: sourceProfile.division || '—',
+                mandal:   sourceProfile.mandal || '—',
+                village:  villagesToMove.join(', ') || '—',
+                villages: villagesToMove
+            });
+        }
+        setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('transferVoModal'))?.hide();
+            loadAdminAllUsersList();
+            if (typeof loadAdminOfficersList === 'function') loadAdminOfficersList();
+        }, 2200);
+
+    } catch (err) {
         statusEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Error: ${escapeHtml(err.message)}</div>`;
     }
 }
@@ -36445,7 +37664,9 @@ window.renderCropNpkAdminTable = function() {
     const season = (document.getElementById('cropNpkSeason') || {}).value || 'Kharif';
     const q = ((document.getElementById('cropNpkSearch') || {}).value || '').toLowerCase().trim();
 
-    const cropKeys = Object.keys(fertilizerDosage).sort();
+    const cropKeys = Object.keys(fertilizerDosage)
+        .filter(key => !isPerennialCrop(key)) // perennial crops are edited in the "Plant & Age-wise NPK" panel below instead
+        .sort();
     let rows = '';
     cropKeys.forEach(key => {
         const name = _cropNpkDisplayName(key);
@@ -36671,6 +37892,104 @@ window.deleteCustomCropNpk = async function(cropKey) {
     }
 };
 
+/* ═══════════════════════════════════════════════════════
+   PERENNIAL CROPS — PLANT & AGE-WISE NPK ADMIN PANEL
+   Lets Admin edit grams/plant/year N-P-K for each of the 11 built-in
+   perennial (orchard/tree) crops, per plant-age band (Year 1..5, 6+).
+   Saved to Firebase under perennialNPKOverrides/{cropKey}/years/{band},
+   mirrored live into perennialNPKByAge for everyone (see
+   applyPerennialNPKOverrides in the JS Data section).
+   ═══════════════════════════════════════════════════════ */
+let _perennialNpkRendered = false;
+
+// Populate the crop dropdown (once) and render the age-wise table for the
+// currently selected crop. Called when the Crop NPK Settings tab opens.
+window.initPerennialNpkAdminPanel = function() {
+    const sel = document.getElementById('perennialNpkCropSelect');
+    if (sel && !sel.options.length) {
+        sel.innerHTML = perennialCrops.map(key =>
+            `<option value="${key}">${_cropNpkDisplayName(key)}</option>`
+        ).join('');
+    }
+    _perennialNpkRendered = true;
+    renderPerennialNpkAdminTable();
+};
+
+// Build the Year 1..5 / 6+ rows for the crop currently selected in the dropdown.
+window.renderPerennialNpkAdminTable = function() {
+    const tbody = document.getElementById('perennialNpkAdminBody');
+    const sel = document.getElementById('perennialNpkCropSelect');
+    if (!tbody || !sel) return;
+    const cropKey = sel.value || perennialCrops[0];
+    const table = perennialNPKByAge[cropKey] || {};
+    const ageLabel = band => band === '6+' ? '6+ Years / Full Bearing' : `Year ${band}`;
+
+    tbody.innerHTML = PERENNIAL_AGE_BANDS.map(band => {
+        const d = table[band] || { N: 0, P: 0, K: 0 };
+        return `
+          <tr data-age="${band}">
+            <td style="padding:6px 8px;font-weight:700;color:#1e8449;white-space:nowrap;">${ageLabel(band)}</td>
+            <td style="padding:6px 4px;"><input type="number" step="1" min="0" class="form-control form-control-sm pnpk-n" value="${d.N ?? 0}"></td>
+            <td style="padding:6px 4px;"><input type="number" step="1" min="0" class="form-control form-control-sm pnpk-p" value="${d.P ?? 0}"></td>
+            <td style="padding:6px 4px;"><input type="number" step="1" min="0" class="form-control form-control-sm pnpk-k" value="${d.K ?? 0}"></td>
+          </tr>`;
+    }).join('');
+};
+
+// Save all 6 age-band rows for the currently selected crop to Firebase,
+// and apply locally right away (realtime listener will also confirm it).
+window.savePerennialNpk = async function() {
+    const sel = document.getElementById('perennialNpkCropSelect');
+    const statusEl = document.getElementById('perennialNpkStatus');
+    if (!sel) return;
+    const cropKey = sel.value;
+    const tbody = document.getElementById('perennialNpkAdminBody');
+    if (!tbody) return;
+
+    const years = {};
+    tbody.querySelectorAll('tr[data-age]').forEach(tr => {
+        const band = tr.dataset.age;
+        years[band] = {
+            N: Number(tr.querySelector('.pnpk-n').value) || 0,
+            P: Number(tr.querySelector('.pnpk-p').value) || 0,
+            K: Number(tr.querySelector('.pnpk-k').value) || 0
+        };
+    });
+
+    const updatedAt = new Date().toISOString();
+    const updatedBy = (typeof currentUser !== 'undefined' && currentUser && (currentUser.email || currentUser.uid)) || 'Admin';
+
+    if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+    try {
+        await database.ref('perennialNPKOverrides/' + cropKey).set({ years, updatedAt, updatedBy });
+        applyPerennialNPKOverrides({ [cropKey]: { years } });
+        if (statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>Saved "${_cropNpkDisplayName(cropKey)}" plant &amp; age-wise NPK. New crop entries for this crop will use these values.</span>`;
+    } catch (err) {
+        console.error('savePerennialNpk error', err);
+        if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Failed to save. ${err.message || ''}</span>`;
+    }
+};
+
+// Remove the Firebase override for the selected crop and restore its
+// built-in default per-plant, per-age values.
+window.resetPerennialNpk = async function() {
+    const sel = document.getElementById('perennialNpkCropSelect');
+    const statusEl = document.getElementById('perennialNpkStatus');
+    if (!sel) return;
+    const cropKey = sel.value;
+    if (!confirm(`Reset "${_cropNpkDisplayName(cropKey)}" plant & age-wise NPK to its default values?`)) return;
+    try {
+        await database.ref('perennialNPKOverrides/' + cropKey).remove();
+        const def = perennialNPKByAgeDefaults[cropKey];
+        if (def) perennialNPKByAge[cropKey] = JSON.parse(JSON.stringify(def));
+        renderPerennialNpkAdminTable();
+        if (statusEl) statusEl.innerHTML = `<span class="text-success"><i class="fas fa-undo me-1"></i>Reset "${_cropNpkDisplayName(cropKey)}" to default.</span>`;
+    } catch (err) {
+        console.error('resetPerennialNpk error', err);
+        if (statusEl) statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Failed to reset. ${err.message || ''}</span>`;
+    }
+};
+
 // Realtime sync: whenever ANY VO updates cropNPKOverrides, every open
 // session (VO, retailer, DO, admin) picks up the change immediately.
 if (typeof database !== 'undefined' && database.ref) {
@@ -36683,6 +38002,11 @@ if (typeof database !== 'undefined' && database.ref) {
     database.ref('customCropsNPK').on('value', snap => {
         applyCustomCropsNPK(snap.val() || {});
         if (_cropNpkRendered) renderCropNpkAdminTable();
+    });
+    // Realtime sync for perennial (plant & age-wise) NPK overrides.
+    database.ref('perennialNPKOverrides').on('value', snap => {
+        applyPerennialNPKOverrides(snap.val() || {});
+        if (_perennialNpkRendered) renderPerennialNpkAdminTable();
     });
 }
 
