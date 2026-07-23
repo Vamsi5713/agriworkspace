@@ -11940,11 +11940,44 @@ async function getApproxLocation() {
 // rejects — resolves to null if the user denies permission, the API is
 // unsupported, or it times out, so callers can always fall back gracefully
 // instead of the login flow breaking.
+//
+// Once the browser has given us a location (i.e. the user granted the
+// permission prompt), we cache it in localStorage and reuse it on future
+// calls for a while instead of hitting navigator.geolocation.getCurrentPosition
+// again — some browsers/webviews re-show the native "Allow location?" prompt
+// on every getCurrentPosition() call regardless of a prior grant, so avoiding
+// the repeat call is what actually stops the repeat prompt.
+const GEO_CACHE_KEY = 'agriGeoLocationCache';
+const GEO_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000; // reuse a granted location for 12 hours
+
+function getCachedBrowserGeolocation() {
+    try {
+        const raw = localStorage.getItem(GEO_CACHE_KEY);
+        if (!raw) return null;
+        const cached = JSON.parse(raw);
+        if (!cached || typeof cached.lat !== 'number' || typeof cached.lon !== 'number') return null;
+        if (!cached.ts || (Date.now() - cached.ts) > GEO_CACHE_MAX_AGE_MS) return null;
+        return { lat: cached.lat, lon: cached.lon };
+    } catch (e) { return null; }
+}
+
+function setCachedBrowserGeolocation(lat, lon) {
+    try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ lat, lon, ts: Date.now() })); } catch (e) {}
+}
+
 function getBrowserGeolocation() {
+    // Reuse a recent, already-granted location instead of prompting again.
+    const cached = getCachedBrowserGeolocation();
+    if (cached) return Promise.resolve(cached);
+
     return new Promise(resolve => {
         if (!('geolocation' in navigator)) { resolve(null); return; }
         navigator.geolocation.getCurrentPosition(
-            pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+            pos => {
+                const loc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                setCachedBrowserGeolocation(loc.lat, loc.lon);
+                resolve(loc);
+            },
             () => resolve(null), // permission denied / unavailable / error
             { enableHighAccuracy: false, timeout: 8000, maximumAge: 10 * 60 * 1000 }
         );
@@ -14182,27 +14215,59 @@ function getRecommendation() {
                      const rangeStr = (document.getElementById('epcSurveyRangeInput').value || '').trim();
                      const tokens = rangeStr ? parseEpantaSelectorTokens(rangeStr) : null;
 
-                     const results = [];
-                     Object.keys(baseMap).forEach(sv => {
-                         if (tokens && !epcSurveyMatchesTokens(sv, tokens)) return;
-                         const compareRecords = compareMap[sv] || [];
-                         baseMap[sv].forEach(baseRec => {
-                             let status, compareMatch = null;
-                             if (!compareRecords.length) {
-                                 status = 'missing';
-                             } else {
-                                 compareMatch = compareRecords.find(c => c.matchKey && baseRec.matchKey && c.matchKey === baseRec.matchKey);
-                                 status = compareMatch ? 'same' : 'changed';
-                             }
-                             results.push({ survey: sv, base: baseRec, compareMatch, compareRecords, status });
+                     // Group a survey's records by their (normalised) khatha number, so
+                     // records are only ever compared against records for the SAME
+                     // survey number AND the SAME khatha number. A compare-year record
+                     // under a different khatha (even if it's the same survey number)
+                     // belongs to a different sub-division/parcel and must never be
+                     // treated as a candidate replacement for a base record it doesn't
+                     // share a khatha with.
+                     function groupByKhatha(records) {
+                         const groups = {};
+                         records.forEach(r => {
+                             const kh = epcNormKhatha(r.khatha) || '(no khatha)';
+                             if (!groups[kh]) groups[kh] = [];
+                             groups[kh].push(r);
                          });
-                     });
-                     // Surveys that appear only in the compare year (brand new bookings)
-                     Object.keys(compareMap).forEach(sv => {
-                         if (baseMap[sv]) return;
+                         return groups;
+                     }
+
+                     const results = [];
+                     const allSurveys = new Set([...Object.keys(baseMap), ...Object.keys(compareMap)]);
+                     allSurveys.forEach(sv => {
                          if (tokens && !epcSurveyMatchesTokens(sv, tokens)) return;
-                         compareMap[sv].forEach(cRec => {
-                             results.push({ survey: sv, base: null, compareMatch: cRec, compareRecords: [cRec], status: 'new' });
+                         const baseGroups    = groupByKhatha(baseMap[sv] || []);
+                         const compareGroups = groupByKhatha(compareMap[sv] || []);
+
+                         Object.keys(baseGroups).forEach(kh => {
+                             const compareRecords = compareGroups[kh] || [];
+                             baseGroups[kh].forEach(baseRec => {
+                                 if (!compareRecords.length) {
+                                     results.push({ survey: sv, base: baseRec, compareMatch: null, compareRecords: [], status: 'missing' });
+                                     return;
+                                 }
+                                 const compareMatch = compareRecords.find(c => c.matchKey && baseRec.matchKey && c.matchKey === baseRec.matchKey);
+                                 if (compareMatch) {
+                                     results.push({ survey: sv, base: baseRec, compareMatch, compareRecords: [compareMatch], status: 'same' });
+                                 } else {
+                                     // Same survey + khatha on both sides, but the
+                                     // aadhaar (identity) differs — flag as changed,
+                                     // one row per candidate under that same khatha.
+                                     compareRecords.forEach(cRec => {
+                                         results.push({ survey: sv, base: baseRec, compareMatch: cRec, compareRecords: [cRec], status: 'changed' });
+                                     });
+                                 }
+                             });
+                         });
+
+                         // Khatha numbers present only in the compare year for this
+                         // survey (no matching survey+khatha combo in the base year at
+                         // all) are brand-new records, not "changed" farmers.
+                         Object.keys(compareGroups).forEach(kh => {
+                             if (baseGroups[kh]) return;
+                             compareGroups[kh].forEach(cRec => {
+                                 results.push({ survey: sv, base: null, compareMatch: cRec, compareRecords: [cRec], status: 'new' });
+                             });
                          });
                      });
 
