@@ -25468,6 +25468,21 @@ function _rtExecuteDistributeFromList(r, rowIdx) {
                 }).catch(() => {})
             );
             ops.push(database.ref('fertilizerCards/' + _fcKey2 + '/lastDistributed').set(now).catch(() => {}));
+
+            // ── BUG FIX: keep availedOverride in sync with this issuance ──
+            // Same fix as submitFarmerCardDistribution: if a VO previously
+            // corrected this fert/split via "Edit Availed Bags", the Farmer Card
+            // QR screen's Available/Remaining count reads that frozen override
+            // FIRST. Without updating it here too, bags issued via the
+            // token/pending-list path would be invisible on the next QR scan.
+            const _ovPath2 = `fertilizerCards/${_fcKey2}/availedOverride/${fert}/s${_splitIdx3}`;
+            ops.push(
+                database.ref(_ovPath2).once('value').then(ovSnap => {
+                    const ovVal = ovSnap.val();
+                    if (ovVal === null || ovVal === undefined) return; // no override set — nothing to sync
+                    return database.ref(_ovPath2).set(Number(ovVal) + bags);
+                }).catch(() => {})
+            );
         }
 
         return Promise.all(ops);
@@ -25601,6 +25616,46 @@ async function retailerMarkDistributed(tokenKey, farmerName, bags) {
                     token: tokenKey,
                     distributedVia: 'retailerConfirmed'
                 }));
+            }
+        }
+
+        // ── BUG FIX: this path never updated farmerProfiles/availed counters ──
+        // (the other three distribute functions — submitFarmerCardDistribution,
+        // _rtExecuteDistributeFromList, _rtExecuteDistribute — all do this). The
+        // VO's Pending record only reserves the bags locally in ureaHistory; the
+        // authoritative split/top-level "availed" counters must be incremented
+        // here, at actual retailer confirmation time, or downstream VO bag-cap
+        // checks and profile displays under-count these distributions.
+        if (voUid && record.aadhaar) {
+            const _aKeyMd    = String(record.aadhaar || '').replace(/\D/g, '');
+            const _splitIdxMd = record.splitIndex !== undefined ? Number(record.splitIndex) : 0;
+            const _splitKeyMd = 's' + _splitIdxMd;
+            const _profilePathMd = `users/${voUid}/farmerProfiles/${_aKeyMd}/splits/${fert}/${_splitKeyMd}`;
+            ops.push(
+                database.ref(_profilePathMd + '/availed').once('value').then(avSnap => {
+                    const prev = Number(avSnap.val()) || 0;
+                    return database.ref(_profilePathMd + '/availed').set(prev + numBags);
+                })
+            );
+            const _topPathMd = `users/${voUid}/farmerProfiles/${_aKeyMd}/availed/${(record.year||'')}_${(record.season||'')}_${fert}_s${_splitIdxMd}`;
+            ops.push(
+                database.ref(_topPathMd).once('value').then(avSnap2 => {
+                    const prev2 = Number(avSnap2.val()) || 0;
+                    return database.ref(_topPathMd).set(prev2 + numBags);
+                })
+            );
+
+            // Keep availedOverride in sync too, same as the other distribute paths.
+            if (record.year && record.season) {
+                const _fcKeyMd = _aKeyMd + '_' + String(record.year).replace(/[^a-zA-Z0-9]/g, '') + '_' + String(record.season);
+                const _ovPathMd = `fertilizerCards/${_fcKeyMd}/availedOverride/${fert}/${_splitKeyMd}`;
+                ops.push(
+                    database.ref(_ovPathMd).once('value').then(ovSnap => {
+                        const ovVal = ovSnap.val();
+                        if (ovVal === null || ovVal === undefined) return;
+                        return database.ref(_ovPathMd).set(Number(ovVal) + numBags);
+                    }).catch(() => {})
+                );
             }
         }
 
@@ -26489,6 +26544,23 @@ async function deleteDistribution(recordKey) {
 
         const ops = [];
 
+        // 0. BUG FIX: restore retailer's own stock balance. Deleting a distribution
+        // means those bags were never actually (or shouldn't have been) handed to
+        // the farmer, so the stock deducted at issuance time must be given back —
+        // otherwise the retailer's on-hand stock count stays wrongly reduced.
+        if (bags > 0) {
+            const { uid: _delUid, mandalKey: _delMandalKey, outletId: _delOutletId } = getRetailerInfo();
+            const _delBalPath = _delOutletId
+                ? `mandals/${_delMandalKey}/retailers/${_delOutletId}/stock/${fert}`
+                : `users/${_delUid}/retailerStock/balance/${fert}`;
+            ops.push(
+                database.ref(_delBalPath).once('value').then(stockSnap => {
+                    const prevStock = Number(stockSnap.val()) || 0;
+                    return database.ref(_delBalPath).set(prevStock + bags);
+                }).catch(() => {})
+            );
+        }
+
         // 1. Mark fertilizerDistributions record as Cancelled
         ops.push(recordRef.update({
             status: 'Cancelled',
@@ -26678,8 +26750,9 @@ async function deleteDistribution(recordKey) {
             }
         });
         
-        alert('\u2705 Distribution deleted!\n\n' + bags + ' ' + fert + ' bag(s) have been RESTORED to the farmer\'s eligible account.\nThe farmer can now avail these bags again from any outlet.');
+        alert('\u2705 Distribution deleted!\n\n' + bags + ' ' + fert + ' bag(s) have been RESTORED to the farmer\'s eligible account and to your outlet stock.\nThe farmer can now avail these bags again from any outlet.');
         loadRetailerHistory();
+        if (typeof loadRetailerStock === 'function') loadRetailerStock();
         if (typeof loadDistributionDetailsForVO === 'function') {
             loadDistributionDetailsForVO();
         }
@@ -27696,44 +27769,13 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             if (backfillOps.length) Promise.all(backfillOps).catch(() => {});
         })();
         
-        // ── Also fetch the availedOverride values for display ──
+        // ── VO correction banner intentionally NOT shown to retailer ──
+        // availedOverride is still used (via _availed/_serverAvailed) so the
+        // Available/Remaining figures the retailer sees are accurate — VOs only
+        // use this to backfill bags that were physically distributed earlier but
+        // never recorded in the system. The retailer just needs correct
+        // remaining-bag numbers, not a note that a VO edit happened.
         let availedOverrideDisplay = '';
-        if (hasAvailedOverride) {
-            const ovU = availedOverride.Urea || {};
-            const ovD = availedOverride.DAP || {};
-            availedOverrideDisplay = `
-            <div style="background:#e8f8ee;border:2px solid #27ae60;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
-                <div style="font-weight:800;font-size:0.83rem;color:#1a7a45;margin-bottom:6px;">
-                    <i class="fas fa-user-edit me-1"></i> Village Officer Correction Applied
-                    <span style="font-weight:400;font-size:0.72rem;color:#2e7d52;margin-left:6px;">(Availed bags corrected by VO)</span>
-                </div>
-                <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
-                    <thead><tr style="font-size:0.7rem;color:#555;border-bottom:1px solid #a8ddb5;">
-                        <th style="padding:3px 6px;">Split</th>
-                        <th style="padding:3px 6px;text-align:center;">Urea Availed</th>
-                        <th style="padding:3px 6px;text-align:center;">DAP Availed</th>
-                    </tr></thead>
-                    <tbody>
-                        ${[0,1,2].map(si => {
-                            const corrU = ovU['s'+si] !== undefined && ovU['s'+si] !== null ? Number(ovU['s'+si]) : '—';
-                            const corrD = ovD['s'+si] !== undefined && ovD['s'+si] !== null ? Number(ovD['s'+si]) : '—';
-                            const hasU = corrU !== '—';
-                            const hasD = corrD !== '—';
-                            if (!hasU && !hasD) return '';
-                            return `<tr style="font-size:0.72rem;">
-                                <td style="padding:3px 6px;font-weight:600;">${splitNames[si]}</td>
-                                <td style="padding:3px 6px;text-align:center;font-weight:700;color:#1862ab;">${hasU ? corrU : '—'}</td>
-                                <td style="padding:3px 6px;text-align:center;font-weight:700;color:#27ae60;">${hasD ? corrD : '—'}</td>
-                            </tr>`;
-                        }).filter(Boolean).join('')}
-                    </tbody>
-                </table>
-                <div style="margin-top:6px;font-size:0.72rem;color:#2e7d52;">
-                    <i class="fas fa-info-circle me-1"></i>
-                    The remaining eligible bags shown below reflect this VO correction.
-                </div>
-            </div>`;
-        }
 
         // ── Determine active split: lowest-indexed split with remaining bags ──
         let _activeSplitIdx = -1;
@@ -28075,11 +28117,10 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
                        </button>`
                     : '';
                 
-                // Check if this record has been VO-corrected
-                const isVoCorrected = r.voEditedAt || false;
-                const voCorrNote = isVoCorrected 
-                    ? `<br><span style="font-size:0.6rem;color:#e67e22;font-weight:600;">✏️ VO corrected: ${r.voEditNote || ''}</span>`
-                    : '';
+                // VO-corrected note intentionally not surfaced to retailer — see
+                // note above availedOverrideDisplay. Corrected bag count is still
+                // shown via displayBags below, just without the "VO edited" label.
+                const voCorrNote = '';
                 
                 // Get the corrected bag count if available
                 const splitIdx2 = Number(r.splitIndex || 0);
@@ -28105,7 +28146,7 @@ function processFarmerCardQr(aadhaar, year, season, voUid, resultEl) {
             <div style="background:#fff3e0;border:1.5px solid #ffcc80;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
                 <div style="font-weight:700;font-size:0.82rem;color:#e65100;margin-bottom:6px;">
                     <i class="fas fa-history me-1"></i> Already Issued Bags (via Retailer) — ${escapeHtml(year)} · ${escapeHtml(season)}
-                    <span class="ms-2" style="font-size:0.7rem;font-weight:400;color:#b07c00;">${hasAvailedOverride ? '(VO-corrected totals shown)' : '(From Distribution Records)'}</span>
+                    <span class="ms-2" style="font-size:0.7rem;font-weight:400;color:#b07c00;">(From Distribution Records)</span>
                 </div>
                 <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;">
@@ -29212,6 +29253,25 @@ function submitFarmerCardDistribution(aadhaar, year, season, fcKey, uEligArr, dE
                 retailerVerified:     true
             }));
 
+            // ── BUG FIX: keep availedOverride in sync with new issuances ──
+            // If a VO previously used "Edit Availed Bags" for this fert/split,
+            // fertilizerCards/{fcKey}/availedOverride/{fert}/s{splitIdx} holds a
+            // frozen snapshot value. _availed()/_serverAvailed() check this override
+            // FIRST and never fall back to live transactions once it exists — so
+            // without this update, newly issued bags were invisible to the
+            // Available/Remaining calc and the count looked "stuck" for that farmer.
+            if (availedOverrideServer && availedOverrideServer[entry.fert] &&
+                availedOverrideServer[entry.fert]['s' + entry.splitIdx] !== undefined &&
+                availedOverrideServer[entry.fert]['s' + entry.splitIdx] !== null) {
+                const ovPath = `fertilizerCards/${fcKey}/availedOverride/${entry.fert}/s${entry.splitIdx}`;
+                ops.push(
+                    database.ref(ovPath).once('value').then(ovSnap => {
+                        const prevOv = Number(ovSnap.val()) || 0;
+                        return database.ref(ovPath).set(prevOv + entry.bags);
+                    })
+                );
+            }
+
             // ── Write availedTransactions (OUTSIDE voUidForHist guard) ──
             // Even if voUidForHist is empty, write to a fallback global path so Source 3
             // in the farmer card always has a record to cross-check.
@@ -30274,6 +30334,21 @@ function _rtExecuteDistribute(r, method) {
                 }).catch(() => {})
             );
             ops.push(database.ref('fertilizerCards/' + _fcKey4 + '/lastDistributed').set(now).catch(() => {}));
+
+            // ── BUG FIX: keep availedOverride in sync with this issuance ──
+            // Same fix as submitFarmerCardDistribution: if a VO previously
+            // corrected this fert/split via "Edit Availed Bags", the Farmer Card
+            // QR screen's Available/Remaining count reads that frozen override
+            // FIRST. Without updating it here too, bags issued via the
+            // Card Number/Token QR path would be invisible on the next QR scan.
+            const _ovPath3 = `fertilizerCards/${_fcKey4}/availedOverride/${fert}/s${_splitIdx5}`;
+            ops.push(
+                database.ref(_ovPath3).once('value').then(ovSnap => {
+                    const ovVal = ovSnap.val();
+                    if (ovVal === null || ovVal === undefined) return; // no override set — nothing to sync
+                    return database.ref(_ovPath3).set(Number(ovVal) + bags);
+                }).catch(() => {})
+            );
         }
 
         return Promise.all(ops);
